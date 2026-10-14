@@ -6,6 +6,8 @@ const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
 const ChoiceTile = preload("res://ui/widgets/choice_tile.gd")
 const Game = preload("res://engine/game.gd")
+const Art = preload("res://ui/model/art.gd")
+const Creature = preload("res://ui/fx/creature.gd")
 
 signal intent(data: Dictionary)
 
@@ -50,7 +52,11 @@ func _build() -> void:
 	left.custom_minimum_size.x = 380
 	left.size_flags_stretch_ratio = 0.6
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var crest := UI.icon_rect("sigil_" + options.dragon, 132, T.ether(db.dragon(options.dragon).early_damage.element))
+	var ether: String = db.dragon(options.dragon).early_damage.element
+	var crest := Creature.new()
+	crest.custom_minimum_size = Vector2(170, 170)
+	crest.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	crest.setup(Art.dragon(options.dragon), T.ether(ether).lightened(0.15), ether)
 	crest.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	left.add_child(crest)
 	left.add_child(UI.label("DRAGONS OF\nETCHINSTONE", ["display_bold", 54], T.GOLD))
@@ -66,7 +72,7 @@ func _build() -> void:
 	help.pressed.connect(func(): intent.emit({"type": "glossary"}))
 	tools.add_child(help)
 	left.add_child(tools)
-	left.add_child(UI.label("Fan-made digital version. Game by Joe Klipfel, published by Chip Theory Games. Not affiliated with or endorsed by Chip Theory Games.", T.LABEL, T.INK_MUTED, true))
+	left.add_child(UI.label("Fan-made digital version. Game by Joe Klipfel, published by Chip Theory Games. Not affiliated with or endorsed by Chip Theory Games. Creature art from game-icons.net, CC BY 3.0.", T.LABEL, T.INK_MUTED, true))
 	root.add_child(left)
 
 	# Right: the choices.
@@ -82,7 +88,7 @@ func _build() -> void:
 		var d: Dictionary = db.dragon(id)
 		var desc := "%s\nInitiative %d · early damage %d" % [d.title, d.initiative, d.early_damage.value]
 		var colour: Color = T.ether(d.early_damage.element)
-		var tile: Button = ChoiceTile.make(d.name, desc, "sigil_" + id, colour)
+		var tile: Button = ChoiceTile.make(d.name, desc, "../creatures/" + Art.dragon(id), colour)
 		tile.custom_minimum_size.y = 104
 		tile.pressed.connect(_choose.bind("dragon", id))
 		dragons.add_child(tile)

@@ -2,11 +2,11 @@
 # Runs the tests headless: the rules engine and UI model tests, then the UI check,
 # which plays seeded games through the real screens at every window size.
 # Script errors count as failures. Godot's own report of objects still allocated
-# at exit is not an error in the game and is ignored.
+# at exit (leaks, resources still in use) is not an error in the game and is ignored.
 cd "$(dirname "$0")/.." || exit 1
 
 errors() {
-	echo "$1" | grep -E 'SCRIPT ERROR|^ERROR|Parse Error' | grep -qv 'leaked'
+	echo "$1" | grep -E 'SCRIPT ERROR|^ERROR|Parse Error' | grep -v 'leaked' | grep -qv 'still in use at exit'
 }
 
 out=$(godot --headless --path . -s tests/run.gd 2>&1)
@@ -20,7 +20,7 @@ fi
 
 out=$(godot --headless --path . -s tools/ui_check.gd 2>&1)
 status=$?
-echo "$out" | grep -E '^FAIL|^ui check|SCRIPT ERROR|^ERROR' | grep -v 'leaked'
+echo "$out" | grep -E '^FAIL|^ui check|SCRIPT ERROR|^ERROR' | grep -v 'leaked' | grep -v 'still in use at exit'
 if errors "$out"; then
 	echo "script errors in output"
 	exit 1

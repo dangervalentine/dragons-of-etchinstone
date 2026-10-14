@@ -6,17 +6,20 @@ extends Control
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
 const FIELD_SHADER = preload("res://ui/fx/shaders/ether_field.gdshader")
+const Creature = preload("res://ui/fx/creature.gd")
 
 const BAND_H := 56
 const EDGE := 3
 
 var element = null
 var sigil := ""
+var art := ""
 
 var band := HBoxContainer.new()
 var body := VBoxContainer.new()
 var _field := ColorRect.new()
 var _sigil := TextureRect.new()
+var _creature := Creature.new()
 var _edge := Control.new()
 
 
@@ -31,6 +34,8 @@ func _init() -> void:
 	_sigil.modulate = Color(1, 1, 1, 0.13)
 	_sigil.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_sigil)
+	add_child(_creature)
+	_creature.visible = false
 	band.add_theme_constant_override("separation", T.S)
 	band.alignment = BoxContainer.ALIGNMENT_BEGIN
 	add_child(band)
@@ -42,11 +47,23 @@ func _init() -> void:
 	resized.connect(_fit)
 
 
-func set_look(ether, sigil_name: String) -> void:
+## The Ether colours the face; `art_name`, a creature from art/creatures/, stands in
+## the field, or else the faint `sigil_name` emblem does.
+func set_look(ether, sigil_name: String, art_name := "") -> void:
 	element = ether
 	sigil = sigil_name
-	_field.material.set_shader_parameter("tint", T.ether(ether) if ether != null and ether != "" else T.LINE_SOFT.lightened(0.2))
-	_sigil.texture = UI.icon(sigil_name) if sigil_name != "" else null
+	art = art_name
+	var tint: Color = T.ether(ether) if ether != null and ether != "" else T.LINE_SOFT.lightened(0.2)
+	_field.material.set_shader_parameter("tint", tint)
+	_creature.visible = art_name != ""
+	_sigil.visible = art_name == ""
+	if art_name != "":
+		if _creature.art_name != art_name:
+			_creature.setup(art_name, Color(tint.lightened(0.45), 0.55), ether if ether != null else "")
+	else:
+		_sigil.texture = UI.icon(sigil_name) if sigil_name != "" else null
+		_sigil.modulate = Color(1, 1, 1, 0.13)
+	_fit()
 	queue_redraw()
 	_edge.queue_redraw()
 
@@ -68,9 +85,16 @@ func _fit() -> void:
 	_field.position = field.position
 	_field.size = field.size
 	_field.material.set_shader_parameter("size", field.size)
-	var s := minf(field.size.x * 0.7, field.size.y * 0.95)
-	_sigil.size = Vector2(s, s)
-	_sigil.position = Vector2(field.end.x - s * 0.82, field.get_center().y - s / 2.0)
+	if art != "":
+		# The creature stands in the lower right, clear of the figures along the top.
+		# Keep below the row of figures at the top of the field.
+		var a := minf(field.size.x * 0.62, field.size.y - 92.0)
+		_creature.size = Vector2(a, a)
+		_creature.position = Vector2(field.end.x - a - 6, field.end.y - a - 4)
+	else:
+		var s := minf(field.size.x * 0.7, field.size.y * 0.95)
+		_sigil.size = Vector2(s, s)
+		_sigil.position = Vector2(field.end.x - s * 0.82, field.get_center().y - s / 2.0)
 	band.position = Vector2(T.M, 0)
 	band.size = Vector2(size.x - 2 * T.M, BAND_H)
 	body.position = Vector2(T.M - 4, BAND_H + T.S)

@@ -5,6 +5,7 @@ extends RefCounted
 
 const Game = preload("res://engine/game.gd")
 const Rules = preload("res://engine/rules.gd")
+const Art = preload("res://ui/model/art.gd")
 
 const ROLE_NAMES := {"spell": "Spell", "element": "Element", "boost": "Boost"}
 const DIFFICULTY_NAMES := {
@@ -208,10 +209,11 @@ static func _stage(game, db) -> Dictionary:
 	if game.phase.begins_with("final") or game.phase == "won" or game.phase == "lost":
 		return {"kind": "final", "region": game.region, "name": game.dragon.name, "title": game.dragon.title,
 			"heading": "Final Battle · %s, %s" % [game.dragon.name, game.dragon.title],
-			"element": game.dragon.early_damage.element, "dragon": game.dragon.id}
+			"element": game.dragon.early_damage.element, "dragon": game.dragon.id, "art": Art.dragon(game.dragon.id)}
 	var r: Dictionary = db.region(game.region)
 	return {"kind": "region", "region": game.region, "name": r.name, "title": "",
-		"heading": "Region %d · %s" % [game.region, r.name], "element": "", "dragon": game.dragon.id}
+		"heading": "Region %d · %s" % [game.region, r.name], "element": "", "dragon": game.dragon.id,
+		"art": Art.dragon(game.dragon.id)}
 
 
 static func _encounter(game, db) -> Variant:
@@ -222,7 +224,8 @@ static func _encounter(game, db) -> Variant:
 			var journey: bool = game.phase == "final_journey"
 			return {"kind": "final_journey" if journey else "final_enemy", "title": game.dragon.name,
 				"subtitle": game.dragon.title, "element": game.dragon.early_damage.element,
-				"dragon": game.dragon, "carried_damage": game.carried_damage, "effects": []}
+				"dragon": game.dragon, "carried_damage": game.carried_damage, "effects": [], "scene": Art.FINAL_JOURNEY,
+				"art": Art.dragon(game.dragon.id)}
 	if game.key_card() == null:
 		return null
 	var enc: Dictionary = game.encounter()
@@ -235,9 +238,11 @@ static func _encounter(game, db) -> Variant:
 	if not enemy and enc.data.peril != null:
 		effects.append(enc.data.peril)
 	var key: String = game.key_card()
-	return {"kind": enc.kind, "index": enc.index, "title": "%s %d" % ["Enemy" if enemy else "Journey", enc.index],
-		"subtitle": "", "element": enc.data.attack.element if enemy else enc.data.mp.element,
+	return {"kind": enc.kind, "index": enc.index, "title": Art.encounter_name(game.region, enc.kind, enc.index),
+		"subtitle": "%s %d" % ["Enemy" if enemy else "Journey", enc.index], "element": enc.data.attack.element if enemy else enc.data.mp.element,
 		"data": enc.data, "effects": effects, "reward": enc.data.xp,
+		"art": Art.encounter(game.region, enc.kind, enc.index),
+		"scene": Art.FINAL_JOURNEY,
 		"key_card": {"id": key, "name": db.mage(key).name, "level": game.cards[key].level,
 			"element": db.mage(key).element}}
 
@@ -262,6 +267,7 @@ static func _card(game, draft, db, id: String, vs: Dictionary) -> Dictionary:
 		"downgraded": game.downgraded.has(id),
 		"fate": "",
 		"alt": null,
+		"key_name": Art.encounter_name(game.region, lv.encounter.type, lv.encounter.index),
 	}
 	# After a battle: which cards are spent and which one stays in the Hand.
 	var played = vs.played

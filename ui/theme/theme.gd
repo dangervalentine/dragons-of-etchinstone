@@ -28,6 +28,16 @@ static func font(name: String) -> Font:
 	return _fonts[name]
 
 
+## A creature or landscape silhouette from art/creatures/.
+static func art(name: String) -> Texture2D:
+	return icon("../creatures/" + name)
+
+
+static func art_rect(name: String, side: float, color: Color = T.INK) -> TextureRect:
+	var t := icon_rect("../creatures/" + name, side, color)
+	return t
+
+
 static func icon(name: String) -> Texture2D:
 	if not _icons.has(name):
 		_icons[name] = load("res://art/icons/%s.svg" % name)

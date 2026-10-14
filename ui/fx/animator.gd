@@ -29,6 +29,7 @@ func play(steps: Array, play_screen: Control, after_vs: Dictionary) -> void:
 	if _playing:
 		skip()
 	screen = play_screen
+	screen.detail.hide_card()
 	_after = after_vs
 	_playing = true
 	_master = create_tween()

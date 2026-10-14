@@ -1,0 +1,54 @@
+shader_type canvas_item;
+// Idle motion for a flat silhouette. The whole shape moves, bent or warped where
+// that reads as life: breathing, hovering, swaying from the root, a wave running
+// through the body, heat shimmer, flowing water, or a slow glow for still places.
+
+// 0 still, 1 breathe, 2 hover, 3 sway, 4 wave, 5 shimmer, 6 flow, 7 glow
+uniform int mode = 0;
+// 0 stops all motion (reduced motion); 1 is the normal amount.
+uniform float amount = 1.0;
+uniform float speed = 1.0;
+// Offsets the cycle so two creatures never move in step.
+uniform float phase = 0.0;
+uniform vec4 tint : source_color = vec4(1.0);
+
+void fragment() {
+	float t = TIME * speed + phase;
+	float a = amount;
+	vec2 uv = UV;
+	if (mode == 1) {
+		// Breathe: rise and fall about the feet, more in height than width.
+		float s = 1.0 + 0.03 * a * sin(t * 1.5);
+		vec2 feet = vec2(0.5, 0.95);
+		uv = (uv - feet) / vec2(1.0 + (s - 1.0) * 0.45, s) + feet;
+	} else if (mode == 2) {
+		// Hover: drift up and down with a slight tilt.
+		uv.y += 0.035 * a * sin(t * 1.3);
+		float r = 0.045 * a * sin(t * 0.85);
+		vec2 c = uv - vec2(0.5);
+		uv = vec2(c.x * cos(r) - c.y * sin(r), c.x * sin(r) + c.y * cos(r)) + vec2(0.5);
+	} else if (mode == 3) {
+		// Sway: rooted at the bottom, the top moves most.
+		float h = pow(clamp(1.0 - uv.y, 0.0, 1.0), 2.0);
+		uv.x += 0.07 * a * h * sin(t * 1.05);
+		uv.y += 0.01 * a * h * sin(t * 2.1);
+	} else if (mode == 4) {
+		// Wave: a ripple running down the body.
+		uv.x += 0.03 * a * sin(uv.y * 8.0 - t * 2.2);
+		uv.y += 0.012 * a * sin(uv.x * 6.0 - t * 1.6);
+	} else if (mode == 5) {
+		// Shimmer: rising heat, stronger toward the top.
+		float h = clamp(1.0 - uv.y, 0.0, 1.0);
+		uv.x += 0.01 * a * h * sin(uv.y * 38.0 - t * 5.0);
+	} else if (mode == 6) {
+		// Flow: running water, stronger toward the bottom.
+		float l = clamp(uv.y, 0.0, 1.0);
+		uv.x += 0.012 * a * l * sin(uv.y * 30.0 + t * 4.0);
+	}
+	vec4 c = texture(TEXTURE, uv);
+	if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
+		c.a = 0.0;
+	}
+	float glow = mode == 7 ? 0.82 + 0.18 * a * sin(t * 1.1) : 1.0;
+	COLOR = vec4(tint.rgb * glow, tint.a * c.a);
+}

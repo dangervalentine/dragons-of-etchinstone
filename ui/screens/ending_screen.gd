@@ -4,6 +4,7 @@ extends Control
 
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
+const Creature = preload("res://ui/fx/creature.gd")
 
 signal intent(data: Dictionary)
 
@@ -36,7 +37,9 @@ func render(vs: Dictionary) -> void:
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	left.custom_minimum_size.x = 560
 	left.alignment = BoxContainer.ALIGNMENT_CENTER
-	var sigil := UI.icon_rect("sigil_" + vs.stage.dragon, 200, colour if e.won else Color(T.INK_MUTED, 0.6))
+	var sigil := Creature.new()
+	sigil.custom_minimum_size = Vector2(220, 220)
+	sigil.setup(vs.stage.art, colour if e.won else Color(T.INK_MUTED, 0.6), vs.stage.element if e.won else "")
 	sigil.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	left.add_child(sigil)
 	var head := ("%s is defeated" % e.dragon) if e.won else "You have perished"

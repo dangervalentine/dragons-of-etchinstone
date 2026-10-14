@@ -10,6 +10,7 @@ const CardView = preload("res://ui/widgets/card_view.gd")
 const Solver = preload("res://ui/model/layout_solver.gd")
 
 signal intent(data: Dictionary)
+signal hover(id: String, on: bool)
 
 var _cards := {}
 var _tweens: Array = []
@@ -47,6 +48,7 @@ func sync(vs: Dictionary, plan: Dictionary, animate := false, arrive_from = null
 			view = CardView.new()
 			view.tapped.connect(func(card_id): intent.emit({"type": "card", "id": card_id}))
 			view.held.connect(func(card_id): intent.emit({"type": "inspect", "id": card_id}))
+			view.hovered.connect(func(card_id, on): hover.emit(card_id, on))
 			add_child(view)
 			_cards[id] = view
 		view.show_set_number = vs.sets.size() > 1

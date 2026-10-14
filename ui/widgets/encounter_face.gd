@@ -19,10 +19,13 @@ func render(enc: Dictionary) -> void:
 	var enemy: bool = enc.kind == "enemy"
 	var d: Dictionary = enc.data
 	var colour: Color = T.ether(enc.element)
-	set_look(enc.element, "sigil_" + str(enc.element))
+	set_look(enc.element, "sigil_" + str(enc.element), enc.get("art", ""))
 
 	band.add_child(UI.icon_rect("enemy" if enemy else "journey", 34, colour))
-	var title := UI.label(enc.title.to_upper(), T.HEADING, T.INK)
+	# Long names step down a size so they fit beside the XP star.
+	var fs: int = T.HEADING[1] if enc.title.length() <= 13 else (27 if enc.title.length() <= 15 else 24)
+	var title := UI.label(enc.title.to_upper(), [T.HEADING[0], fs], T.INK)
+	title.clip_text = true
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	band.add_child(title)
@@ -52,7 +55,7 @@ func render(enc: Dictionary) -> void:
 	var gap := UI.spacer()
 	body.add_child(gap)
 	var key: Dictionary = enc.key_card
-	var caption := UI.label("Key Card · %s · Level %d" % [key.name, key.level], T.LABEL, Color(T.INK, 0.8))
+	var caption := UI.label("%s · Key Card %s, Level %d" % [enc.subtitle, key.name, key.level], T.LABEL, Color(T.INK, 0.8))
 	caption.clip_text = true
 	body.add_child(caption)
 	_fit()

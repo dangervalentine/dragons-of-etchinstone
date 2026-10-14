@@ -14,6 +14,7 @@ const Sequencer = preload("res://ui/model/sequencer.gd")
 const Solver = preload("res://ui/model/layout_solver.gd")
 const Settings = preload("res://ui/model/settings.gd")
 const Undo = preload("res://ui/model/upgrade_undo.gd")
+const Art = preload("res://ui/model/art.gd")
 const PlayScreen = preload("res://ui/screens/play_screen.gd")
 const TitleScreen = preload("res://ui/screens/title_screen.gd")
 const EndingScreen = preload("res://ui/screens/ending_screen.gd")
@@ -432,7 +433,7 @@ func _banner(values: Dictionary, duration: float) -> void:
 	if values.phase == "final_journey" or values.phase == "final_enemy":
 		var d: Dictionary = game.dragon
 		b.show_banner("%s, %s" % [d.name, d.title], "The Final Journey" if values.phase == "final_journey" else "The Final Enemy",
-			"sigil_" + d.id, T.ether(d.early_damage.element), duration)
+			"../creatures/" + Art.dragon(d.id), T.ether(d.early_damage.element), duration)
 	else:
 		b.show_banner("Region %d" % values.region, db.region(values.region).name, "sigil_region", T.GOLD, duration)
 

@@ -277,6 +277,13 @@ on the first Encounter means without outside help (quickstart.md steps 18 to 20)
 - [X] T093 Upgrades can be undone until Continue is pressed, in `ui/model/upgrade_undo.gd` (tested in `tests/test_upgrade_undo.gd`) and `ui/main.gd`
 - [X] T094 The menu button has no tooltip covering the stage name, in `ui/widgets/header_bar.gd`
 
+- [X] T095 Show a game-icons.net silhouette for every Encounter and dragon, chosen by Region, Ether and Ability, credited in `art/creatures/CREDITS.md`, README and title screen; mapping in `ui/model/art.gd`, tested in `tests/test_art.gd`
+- [X] T096 Idle animation for every silhouette: a motion style per icon (breathe, hover, sway, wave, shimmer, flow, glow) in `ui/fx/shaders/creature_idle.gdshader`, with Ether particles, in `ui/fx/creature.gd`; still in reduced motion
+- [X] T098 Final Battle face: on the Final Journey the road runs to the dragon waiting on the far side beside the Move ladder; when the Final Enemy begins the dragon crosses to the near side and its battle figures and the Attack ladder take the other side, in `ui/widgets/dragon_face.gd`
+- [X] T099 Hovering a Mage Card for a moment opens a larger copy with every figure spelled out, and what it means in the current step, in `ui/widgets/card_detail.gd` and `ui/screens/play_screen.gd`
+- [X] T100 Every Encounter has a name (this project's own, matching its picture), shown as the Encounter's title, in the card detail and on the bestiary page, in `ui/model/art.gd`
+- [X] T097 Use the idling creatures on the Encounter and dragon faces, the setup face, the title crest and the ending screen
+
 ---
 
 ## Dependencies & Execution Order

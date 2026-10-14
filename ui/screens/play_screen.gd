@@ -17,6 +17,7 @@ const SlotRow = preload("res://ui/widgets/slot_row.gd")
 const HandTray = preload("res://ui/widgets/hand_tray.gd")
 const ActionBar = preload("res://ui/widgets/action_bar.gd")
 const EtherPicker = preload("res://ui/widgets/ether_picker.gd")
+const CardDetail = preload("res://ui/widgets/card_detail.gd")
 
 signal intent(data: Dictionary)
 
@@ -31,6 +32,9 @@ var slots := HBoxContainer.new()
 var actions := ActionBar.new()
 var hand := HandTray.new()
 var picker := EtherPicker.new()
+var detail := CardDetail.new()
+var _hover_id := ""
+var _hover_timer := Timer.new()
 
 var plan := {}
 var vs := {}
@@ -61,6 +65,12 @@ func _init() -> void:
 	hand.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(picker)
 	picker.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(detail)
+	_hover_timer.one_shot = true
+	_hover_timer.wait_time = 0.3
+	_hover_timer.timeout.connect(_show_detail)
+	add_child(_hover_timer)
+	hand.hover.connect(_on_hover)
 	_toast.add_theme_stylebox_override("panel", UI.box(Color(T.BG_BAND, 0.95), T.BAD, 2, 22, 10))
 	UI.style_label(_toast_label, ["body_bold", T.BODY[1]], T.INK)
 	_toast.add_child(_toast_label)
@@ -97,6 +107,11 @@ func render(state: Dictionary, animate := false, arrive_from = null) -> void:
 	# The hand plan depends on how many cards there are and how many sets.
 	plan = _replan(plan, vs)
 	hand.sync(vs, plan, animate, arrive_from)
+	if detail.visible:
+		if vs.cards.has(_hover_id):
+			_show_detail()
+		else:
+			detail.hide_card()
 	var fused_now := _fused_top(vs)
 	if fused_now != "" and fused_now != fused_before and animate:
 		hand.celebrate_fuse(fused_now, vs.cards[fused_now].fuse.element)
@@ -118,6 +133,25 @@ func _fused_top(state: Dictionary) -> String:
 		if f != null and f.part == "top":
 			return id
 	return ""
+
+
+## A card's detail opens after the pointer rests on it a moment, over the left column.
+func _on_hover(id: String, on: bool) -> void:
+	if on:
+		_hover_id = id
+		_hover_timer.start()
+	else:
+		_hover_timer.stop()
+		detail.hide_card(id)
+		if _hover_id == id:
+			_hover_id = ""
+
+
+func _show_detail() -> void:
+	if _hover_id == "" or not vs.cards.has(_hover_id) or plan.is_empty():
+		return
+	var area := Rect2(plan.regions.encounter.position, plan.regions.preview.end - plan.regions.encounter.position)
+	detail.show_card(vs.cards[_hover_id], area)
 
 
 ## Finish anything in motion and show the current state exactly.
@@ -206,14 +240,20 @@ func _render_setup_face() -> void:
 		return
 	_setup_key = key
 	setup_face.clear()
-	setup_face.set_look(vs.stage.get("element", ""), "sigil_" + vs.stage.dragon)
+	setup_face.set_look(vs.stage.get("element", ""), "sigil_" + vs.stage.dragon, vs.stage.get("art", ""))
 	setup_face.band.add_child(UI.icon_rect("crown", 34, T.GOLD))
 	var title := UI.label("PREPARE YOUR DECK", T.HEADING, T.INK)
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	setup_face.band.add_child(title)
-	setup_face.body.add_child(UI.label("Four Regions lie between you and the dragon. Your sixteen Mage Cards are your only weapons, and your deck is your time.", T.BODY, T.INK, true))
-	setup_face.body.add_child(UI.spacer())
-	setup_face.body.add_child(UI.label("The cards you choose start at a different Level.", T.LABEL, T.INK_MUTED, true))
+	# The words keep to the left; the dragon waits on the right.
+	for line in [["Four Regions lie between you and the dragon. Your sixteen Mage Cards are your only weapons, and your deck is your time.", T.BODY, T.INK], ["", T.LABEL, T.INK], ["The cards you choose start at a different Level.", T.LABEL, T.INK_MUTED]]:
+		if line[0] == "":
+			setup_face.body.add_child(UI.spacer())
+			continue
+		var l := UI.label(line[0], line[1], line[2], true)
+		l.custom_minimum_size.x = 230
+		l.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		setup_face.body.add_child(l)
 
 
 func _render_preview() -> void:

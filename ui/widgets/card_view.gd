@@ -13,6 +13,8 @@ const ROLE_NAMES := {"spell": "Spell", "element": "Element", "boost": "Boost"}
 
 signal tapped(id: String)
 signal held(id: String)
+## The pointer has come to rest on the card, or left it (mouse only).
+signal hovered(id: String, on: bool)
 
 var id := ""
 var model := {}
@@ -93,6 +95,7 @@ func _gui_input(event: InputEvent) -> void:
 				_hold.stop()
 				UI.pulse_scale(self, 1.0)
 				if not _held and Rect2(Vector2.ZERO, size).has_point(event.position):
+					hovered.emit(id, false)
 					tapped.emit(id)
 			accept_event()
 
@@ -109,6 +112,7 @@ func _set_hover(on: bool) -> void:
 		return
 	_hover = on
 	_show_alt(on)
+	hovered.emit(id, on)
 	_marks.queue_redraw()
 
 
