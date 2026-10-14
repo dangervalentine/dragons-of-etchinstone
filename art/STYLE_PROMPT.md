@@ -142,6 +142,19 @@ Ether is the Encounter's element from `data/cards.json`. Names come from
 `ui/model/art.gd`. Every subject line is followed by the style block (plus the journey
 sentence for journeys, and the moving-part sentence where there's a part).
 
+Writing a subject line:
+
+- **Put the unnatural feature in the silhouette.** The style block holds detail back,
+  so anything that is only detail gets dropped. The volcano shell worked because it
+  changes the tortoise's outline. The vulture's ribs, skull and lightning wingtips
+  didn't, and it came out a plain eagle. So the vulture's wing is a storm cloud and
+  its tail is a bolt of lightning: both are part of its shape.
+- **Name the eye here.** Say "a narrow, slanted eye" in the subject line. FLUX gives
+  the start of the prompt the most weight, and the same instruction left only in the
+  style block still came out as a round dot.
+- **Keep it to a few features.** Three or four parts, each described once. Every
+  extra detail named is more texture added to the image.
+
 ### Dragons
 
 | File | Name · Ether | Subject | Moving part · motion · fill behind it |
@@ -182,9 +195,9 @@ sentence for journeys, and the moving-part sentence where there's a part).
 | File | Name · Ether | Subject | Moving part · motion · fill behind it |
 |---|---|---|---|
 | rock-golem | Obsidian Golem · shadow | A golem of jagged, glassy obsidian slabs with fracture lines as cut-outs, a hollow skull face with a dark core, and shoulders crowned with shards. | — |
-| tortoise | Steam Tortoise · water | A colossal ancient tortoise seen side-on, whose shell is a small volcano: a smooth rocky cone with a crater at its peak, from which three thick plumes of steam billow upward, and two or three wide cracks cut across it. Its legs are heavy pillars of cooled lava, and a beaked, fanged, skull-like head pushes out on a long neck. | Head and neck · slide 40 units back into the shell, pivot at the shell opening · the front of the shell, solid, with a dark opening where the neck emerges. |
+| tortoise | Steam Tortoise · water | A colossal ancient tortoise seen side-on, whose shell is a small volcano: a smooth rocky cone with a crater at its peak, from which three thick plumes of steam billow upward, and two or three wide cracks cut across it. Its legs are heavy pillars of cooled lava, and a beaked, fanged, skull-like head with a narrow, slanted eye pushes out on a long neck. | Head and neck · slide 40 units back into the shell, pivot at the shell opening · the front of the shell, solid, with a dark opening where the neck emerges. |
 | scorpion | Sand Scorpion · fire | A giant sand scorpion seen side-on, with armour plates like burnt bronze, pincers raised, and its tail arched high overhead with a dripping venom stinger. | Tail · hinge 20° forward strike, pivot at the base of the tail · the rear of the body, solid. |
-| vulture | Storm Vulture · lightning | A gaunt storm vulture seen side-on with its near wing raised high in one broad, smooth shape whose tip splits into a single forked bolt of lightning, a bare hooked skull head on a long naked neck, its ribs cut out as white gaps across its starved chest, and long talons; the far wing is folded behind. | Near wing · hinge 35° downstroke, pivot at the shoulder · the shoulder and back, solid. |
+| vulture | Storm Vulture · lightning | A storm vulture seen side-on whose near wing, raised high, is a torn storm cloud, a jagged bolt of lightning forms its tail, and a bare hooked skull with a narrow, slanted eye sits on a long, naked, serpent-like neck; it stands on long talons, and the far wing is folded behind. | Near wing · hinge 35° downstroke, pivot at the shoulder · the shoulder and back, solid. |
 | volcano | Ash Slopes · water *(journey)* | A steep volcano under a fall of ash, a boiling crater lake at its summit sending up columns of steam, and scree of skulls on its slopes. | — |
 | desert | Glass Desert · lightning *(journey)* | A desert of fused glass dunes with lightning-struck spires of fulgurite and the bleached ribcage of a giant beast half buried in the sand. | — |
 | lava | Lava Fields · fire *(journey)* | Fields of cracked lava crust with molten rivers as cut-out channels and a tall fiery geyser bursting from a vent at the centre. | Geyser · surge 30% taller, pivot at the vent · the vent's rim and the crust, solid; the sky behind is empty. |

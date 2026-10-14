@@ -23,6 +23,16 @@ SIZE = 512
 THRESHOLD = 128
 # Specks smaller than this many pixels are noise, not detail.
 TURD_SIZE = 8
+# Generators like to stand a creature on a thin ground line: rows near the bottom
+# that run much wider than the feet above them. Where nothing stands on it, it is
+# cleared, if those stretches add up to GROUND_SPAN pixels; less is toes and claws.
+# Measured on the first generated tortoises and vultures: ground lines 206 to 225,
+# feet without one 97 at most.
+GROUND_DEPTH = 30
+GROUND_WIDER = 1.25
+GROUND_SPAN = 150
+# The line tapers at its ends; clear this far above its widest rows to catch them.
+GROUND_TAPER = 6
 
 
 def load_grey(src):
@@ -36,6 +46,38 @@ def load_grey(src):
         sys.exit("%s is %dx%d; the art must be square" % (src, img.width, img.height))
     img = img.resize((SIZE, SIZE), Image.LANCZOS)
     return np.asarray(img)
+
+
+def remove_ground(shape):
+    """Clears a ground line from under the subject, keeping what is under its feet.
+    Returns True if there was one."""
+    rows = np.flatnonzero(shape.any(axis=1))
+    bottom = rows[-1]
+    if bottom - GROUND_DEPTH - 15 < 0:
+        return False
+    width = shape.sum(axis=1)
+    # The feet: the rows just above where a ground line would be.
+    feet = np.median(width[bottom - GROUND_DEPTH - 15:bottom - GROUND_DEPTH])
+    wide = [y for y in range(bottom - GROUND_DEPTH, bottom + 1) if width[y] > feet * GROUND_WIDER]
+    if not wide:
+        return False
+    top = max(wide[0] - GROUND_TAPER, 1)
+    # Columns where the band has shape but nothing stands on it.
+    loose = shape[top:bottom + 1].any(axis=0) & ~shape[top - 1]
+    runs, start = [], None
+    for x, v in enumerate(np.append(loose, False)):
+        if v and start is None:
+            start = x
+        elif not v and start is not None:
+            runs.append((start, x))
+            start = None
+    # Stretches shorter than this are the edges of feet, not ground.
+    runs = [(a, b) for a, b in runs if b - a >= 12]
+    if sum(b - a for a, b in runs) < GROUND_SPAN:
+        return False
+    for a, b in runs:
+        shape[top:bottom + 1, a:b] = False
+    return True
 
 
 def path_data(curves):
@@ -59,12 +101,16 @@ def main():
     parser.add_argument("image", help="black shape on white, square")
     parser.add_argument("out", help="the SVG to write")
     parser.add_argument("--mask", help="white over the part to keep, black elsewhere")
+    parser.add_argument("--keep-ground", action="store_true",
+                        help="keep a ground line under the subject")
     args = parser.parse_args()
     shape = load_grey(args.image) < THRESHOLD
-    if args.mask:
-        shape &= load_grey(args.mask) >= THRESHOLD
     if not shape.any():
         sys.exit("no shape found; is the image black on white?")
+    if not args.keep_ground and remove_ground(shape):
+        print("removed a ground line")
+    if args.mask:
+        shape &= load_grey(args.mask) >= THRESHOLD
     # potracer fills the False pixels, as a black pixel is 0 in a 1-bit image.
     curves = potrace.Bitmap(~shape).trace(turdsize=TURD_SIZE, alphamax=1.0, opticurve=True)
     # Holes come back as curves inside curves; even-odd filling cuts them out.
