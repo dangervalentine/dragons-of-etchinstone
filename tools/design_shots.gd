@@ -119,6 +119,8 @@ func _best_final() -> Array:
 
 func _game() -> void:
 	await _shot("title")
+	ui.dispatch({"type": "setup_rules", "options": ui.menu})
+	await _shot("rules")
 	ui.start_game({"seed": 3, "dragon": "rodving", "difficulty": "casual", "cavalier": false, "glass_cannon": false})
 	for id in ui.game.setup_offer.slice(0, 3):
 		_press({"type": "card", "id": id})
