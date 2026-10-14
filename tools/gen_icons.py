@@ -1,4 +1,5 @@
 """Writes the icon set to art/icons/ as white 48-unit SVGs; the game tints them.
+Sigils are written larger because they are drawn large.
 
 Run: python3 tools/gen_icons.py
 """
@@ -66,9 +67,101 @@ ICONS = {
                    + poly("29,32 38,28 45,36 40,45 31,43"),
 }
 
-for name, body in ICONS.items():
-    svg = ('<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 48 48" fill="#ffffff">'
+
+
+def circle(cx, cy, r):
+    return "M%g %g a%g %g 0 1 0 0.01 0 Z" % (cx, cy - r, r, r)
+
+
+def ring(cx, cy, outer, inner):
+    return circle(cx, cy, outer) + " " + circle(cx, cy, inner)
+
+
+def gear(cx, cy, outer, inner, teeth, hole):
+    pts = []
+    for i in range(teeth * 4):
+        r = outer if i % 4 in (0, 1) else inner
+        a = math.radians(i * 90 / teeth - 45 / teeth)
+        pts.append("%.1f %.1f" % (cx + r * math.cos(a), cy + r * math.sin(a)))
+    return path("M" + " L".join(pts) + " Z " + circle(cx, cy, hole))
+
+
+def rotated(body, angle):
+    return '<g transform="rotate(%d 24 24)">%s</g>' % (angle, body)
+
+
+def scaled(body, factor, dx=0, dy=0):
+    return '<g transform="translate(%g %g) scale(%g) translate(-24 -24)">%s</g>' % (24 + dx, 24 + dy, factor, body)
+
+
+TICKS = "".join('<rect x="23" y="0.5" width="2" height="4" transform="rotate(%d 24 24)"/>' % a for a in range(0, 360, 30))
+
+
+def sigil(body):
+    """An Ether emblem: the element inside a double ring with tick marks."""
+    return path(ring(24, 24, 18.5, 17)) + path(ring(24, 24, 15, 14.4)) + TICKS + scaled(body, 0.5)
+
+
+def dragon_sigil(body, horns):
+    """A dragon's mark: an emblem in a diamond frame, crowned with horns."""
+    frame = path("M24 5 L43 24 L24 43 L5 24 Z M24 9 L9 24 L24 39 L39 24 Z")
+    return frame + horns + scaled(body, 0.42)
+
+
+_ARROW = path("M24 6 A18 18 0 0 1 42 24 H47 L39 35 L31 24 H36 A12 12 0 0 0 24 12 Z")
+_HORNS_UP = poly("10,2 16,12 12,14 6,8") + poly("38,2 32,12 36,14 42,8")
+_HORNS_WIDE = poly("1,12 12,14 10,18 3,18") + poly("47,12 36,14 38,18 45,18")
+_HORNS_CROWN = poly("24,0 27,6 21,6") + poly("12,4 17,11 13,13") + poly("36,4 31,11 35,13")
+_HORNS_DOWN = poly("4,34 12,32 14,36 8,42") + poly("44,34 36,32 34,36 40,42")
+
+ICONS.update({
+    # Piles
+    "deck": '<rect x="13" y="11" width="26" height="34" rx="3"/>' + path("M9 4 H31 Q34 4 34 7 V8 H12 Q10 8 10 10 V40 Q7 40 7 37 V7 Q7 4 9 4 Z"),
+    "discard": '<rect x="13" y="8" width="23" height="32" rx="3" transform="rotate(-16 24 24)" fill-opacity="0.5"/>'
+               '<rect x="13" y="9" width="23" height="32" rx="3" transform="rotate(10 24 24)"/>',
+    "trash": path("M9 10 H18 V5 H30 V10 H39 V15 H9 Z M21 8 H27 V10 H21 Z") + poly("11,18 37,18 34,45 14,45"),
+    # Roles
+    "spell": poly("20,6 24,22 40,26 24,30 20,46 16,30 0,26 16,22") + poly("38,1 40,8 47,10 40,12 38,19 36,12 29,10 36,8"),
+    "element_role": path("M14 6 H34 L44 18 L24 44 L4 18 Z M16 10 L10 18 H38 L32 10 Z"),
+    "reserve": path(ring(24, 24, 22, 17) + " " + circle(24, 24, 8)),
+    # Actions
+    "fuse": path(ring(17, 24, 13, 8)) + path(ring(31, 24, 13, 8)),
+    "divert": path("M8 45 V25 Q8 14 19 14 H30 V5 L45 18 L30 31 V22 H19 Q16 22 16 25 V45 Z"),
+    "regroup": _ARROW + rotated(_ARROW, 180),
+    "inspect": path(ring(20, 20, 16, 10.5)) + poly("29,33 33,29 46,42 42,46"),
+    "menu": "".join('<rect x="6" y="%d" width="36" height="6" rx="3"/>' % y for y in (9, 21, 33)),
+    "settings": gear(24, 24, 22, 16, 8, 7),
+    "help": path(ring(24, 24, 22, 17.5)) + path("M17 19 a7 7 0 1 1 10.5 6 Q26 26 26 29 H22 Q22 23.5 25.5 21.6 a3 3 0 1 0 -4.5 -2.6 Z")
+            + '<rect x="22" y="32" width="4" height="4" rx="1"/>',
+    "skip": poly("6,7 24,24 6,41") + poly("24,7 42,24 24,41"),
+    "undo": path("M20 4 L4 16 L20 28 V20 H28 Q38 20 38 30 Q38 40 28 40 H16 V46 H28 Q44 46 44 30 Q44 13 28 13 H20 Z"),
+    "close": rotated('<rect x="21" y="3" width="6" height="42" rx="3"/>', 45) + rotated('<rect x="21" y="3" width="6" height="42" rx="3"/>', -45),
+    # Verdicts
+    "victory": path(ring(24, 24, 22, 17.5)) + poly("12,25 16.5,20.5 22,26 31.5,14.5 36,19 22,35"),
+    "narrow_victory": poly("4,26 10,20 20,30 38,8 44,14 20,42"),
+    "loss": path(ring(24, 24, 22, 17.5)) + rotated('<rect x="21.5" y="11" width="5" height="26" rx="2"/>', 45)
+            + rotated('<rect x="21.5" y="11" width="5" height="26" rx="2"/>', -45),
+    "down_arrow": poly("24,45 43,24 32,24 32,3 16,3 16,24 5,24"),
+    "card_back": path("M10 2 H38 Q42 2 42 6 V42 Q42 46 38 46 H10 Q6 46 6 42 V6 Q6 2 10 2 Z M24 12 L34 24 L24 36 L14 24 Z"),
+})
+
+# Large, faint emblems drawn behind card and Encounter faces.
+SIGILS = {
+    "sigil_fire": sigil(ICONS["fire"]),
+    "sigil_water": sigil(ICONS["water"]),
+    "sigil_lightning": sigil(ICONS["lightning"]),
+    "sigil_shadow": sigil(ICONS["shadow"]),
+    "sigil_grimroch": dragon_sigil(ICONS["armor"], _HORNS_WIDE),
+    "sigil_helsang": dragon_sigil(ICONS["enemy"], _HORNS_CROWN),
+    "sigil_rodving": dragon_sigil(ICONS["fire"], _HORNS_UP),
+    "sigil_vuurhast": dragon_sigil(ICONS["night_travel"], _HORNS_DOWN),
+    "sigil_region": path(ring(24, 24, 22, 20.5)) + scaled(ICONS["mp"], 0.6, 0, 1) + TICKS,
+}
+
+for name, body in list(ICONS.items()) + list(SIGILS.items()):
+    side = 320 if name in SIGILS else 96
+    svg = ('<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 48 48" fill="#ffffff">' % (side, side)
            + body + "</svg>\n")
     with open(os.path.join(OUT, name + ".svg"), "w") as f:
         f.write(svg)
-print(len(ICONS), "icons written")
+print(len(ICONS) + len(SIGILS), "icons written")
