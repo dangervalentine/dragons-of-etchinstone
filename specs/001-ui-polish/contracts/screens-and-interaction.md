@@ -8,7 +8,8 @@ Sizes are in design units (see [design-tokens.md](design-tokens.md)).
 
 | Screen | Shown when | Primary action |
 |---|---|---|
-| Title | No game in progress | Start the adventure |
+| Title | No game in progress; first setup step (dragon) | Continue |
+| Rules | Second setup step (difficulty, alternate rules) | Set out |
 | Play | Any engine phase from setup to final_soak | Depends on the step (below) |
 | Ending | Phase is won or lost | Play again |
 
@@ -141,6 +142,10 @@ Committing an Action Set plays, in order, the steps listed in
 - ends with the screen in exactly the state a skip would produce.
 
 ## Title screen
+
+> Split into two setup steps by `specs/002-split-game-setup/contracts/setup-screens.md`,
+> which supersedes this section: dragons on the Title screen, difficulty and
+> alternate rules on the Rules screen.
 
 - Dragon choice: four options, each with name, title, Ether colour and sigil, and
   two or three figures that distinguish it (Initiative, early damage, Armor).

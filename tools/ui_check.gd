@@ -11,6 +11,9 @@ const Game = preload("res://engine/game.gd")
 const CardDB = preload("res://engine/card_db.gd")
 const CardView = preload("res://ui/widgets/card_view.gd")
 const StatChip = preload("res://ui/widgets/stat_chip.gd")
+const TitleScreen = preload("res://ui/screens/title_screen.gd")
+const RulesScreen = preload("res://ui/screens/rules_screen.gd")
+const Settings = preload("res://ui/model/settings.gd")
 
 const HELP_MIN := 44.0
 
@@ -213,14 +216,17 @@ func _play(where: String, game_seed: int, difficulty: String, animated: bool) ->
 		_inspect_screen("%s ending" % where)
 
 
-## The title screen, then each overlay over a game in progress, one at a time.
+## The two setup screens, then each overlay over a game in progress, one at a time.
 func _screens_and_overlays(where: String) -> void:
 	await _settle()
 	_inspect_screen("%s title" % where)
+	_ok(ui.screen.get_script() == TitleScreen, "%s: launch shows the dragon screen" % where)
+	_ok(not ui.screen._tiles.keys().any(func(k): return not k.begins_with("dragon:")), "%s: the dragon screen offers only dragons" % where)
 	ui.dispatch({"type": "settings"})
 	await _settle()
 	_inspect_screen("%s settings" % where)
 	ui._close_overlays()
+	await _setup_steps(where)
 	ui.start_game({"seed": 3, "dragon": "rodving", "difficulty": "normal", "cavalier": false, "glass_cannon": false})
 	await _settle()
 	var opens := {
@@ -242,6 +248,52 @@ func _screens_and_overlays(where: String) -> void:
 		_inspect_screen("%s %s overlay" % [where, key])
 		ui._close_overlays()
 		await process_frame
+
+
+## Through setup: on to the rules, back to the dragons and on again keeping every
+## choice, then set out with them.
+func _setup_steps(where: String) -> void:
+	ui.dispatch({"type": "setup_rules", "options": ui.menu})
+	await _settle()
+	_inspect_screen("%s rules" % where)
+	_ok(ui.screen.get_script() == RulesScreen, "%s: continue shows the rules screen" % where)
+	var keys: Array = ui.screen._tiles.keys()
+	_ok(keys.size() == 8 and keys.has("cavalier") and keys.has("glass_cannon") and keys.filter(func(k): return k.begins_with("difficulty:")).size() == 6,
+		"%s: the rules screen offers six difficulties and both rules" % where)
+	ui.dispatch({"type": "glossary"})
+	await _settle()
+	_inspect_screen("%s rules glossary" % where)
+	ui._close_overlays()
+	await process_frame
+	ui.screen._choose("difficulty", "hard")
+	ui.screen._choose("cavalier", null)
+	var kept: Dictionary = ui.screen.options.duplicate()
+	ui.screen.back()
+	await _settle()
+	_ok(ui.screen.get_script() == TitleScreen, "%s: back shows the dragon screen" % where)
+	var other: String = ui.db.dragon_ids().filter(func(id): return id != kept.dragon)[0]
+	ui.screen._choose(other)
+	ui.dispatch({"type": "setup_rules", "options": ui.screen.options})
+	await _settle()
+	var now: Dictionary = ui.screen.options
+	_ok(now.dragon == other and now.difficulty == kept.difficulty and now.cavalier == kept.cavalier and now.glass_cannon == kept.glass_cannon,
+		"%s: going back and on keeps the choices, %s" % [where, str(now)])
+	var esc := InputEventKey.new()
+	esc.keycode = KEY_ESCAPE
+	esc.pressed = true
+	ui._unhandled_key_input(esc)
+	await _settle()
+	_ok(ui.screen.get_script() == TitleScreen, "%s: escape on the rules screen goes back" % where)
+	ui.dispatch({"type": "setup_rules", "options": ui.screen.options})
+	await _settle()
+	var chosen: Dictionary = ui.screen.options.duplicate()
+	ui.dispatch({"type": "start", "options": chosen})
+	await _settle()
+	_ok(ui.game != null and ui.screen == ui.play, "%s: set out starts a game" % where)
+	for key in ["dragon", "difficulty", "cavalier", "glass_cannon"]:
+		_ok(Settings.last_options[key] == chosen[key], "%s: set out remembers %s" % [where, key])
+	ui.dispatch({"type": "to_title"})
+	await _settle()
 
 
 ## Animated runs press again while a sequence is still playing, as a quick player would.

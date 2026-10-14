@@ -17,6 +17,7 @@ const Undo = preload("res://ui/model/upgrade_undo.gd")
 const Art = preload("res://ui/model/art.gd")
 const PlayScreen = preload("res://ui/screens/play_screen.gd")
 const TitleScreen = preload("res://ui/screens/title_screen.gd")
+const RulesScreen = preload("res://ui/screens/rules_screen.gd")
 const EndingScreen = preload("res://ui/screens/ending_screen.gd")
 const Animator = preload("res://ui/fx/animator.gd")
 const FlightLayer = preload("res://ui/fx/flight_layer.gd")
@@ -58,6 +59,13 @@ func _ready() -> void:
 	theme = UI.build_theme()
 	Settings.load_all()
 	menu = Settings.last_options.duplicate()
+	# Options remembered from an older version may name a dragon or difficulty that is gone.
+	if not db.dragon_ids().has(menu.get("dragon")):
+		menu.dragon = Settings.DEFAULT_OPTIONS.dragon
+	if not Game.DIFFICULTY.has(menu.get("difficulty")):
+		menu.difficulty = Settings.DEFAULT_OPTIONS.difficulty
+	# The system back gesture steps back through setup; elsewhere it still quits.
+	get_tree().quit_on_go_back = false
 	UI.reduced_motion = Settings.reduced_motion()
 	var backdrop := ColorRect.new()
 	backdrop.material = ShaderMaterial.new()
@@ -210,6 +218,16 @@ func _show_title() -> void:
 	_switch(t)
 
 
+func _show_rules() -> void:
+	game = null
+	vs = {}
+	play = null
+	var r := RulesScreen.new()
+	r.setup(db, menu)
+	r.intent.connect(dispatch)
+	_switch(r)
+
+
 func _show_ending() -> void:
 	var e := EndingScreen.new()
 	e.intent.connect(dispatch)
@@ -269,6 +287,12 @@ func dispatch(intent: Dictionary) -> void:
 		"play_again":
 			start_game(menu)
 		"to_title":
+			_show_title()
+		"setup_rules":
+			menu = intent.options.duplicate()
+			_show_rules()
+		"setup_dragon":
+			menu = intent.options.duplicate()
 			_show_title()
 		"settings":
 			_open_menu(false)
@@ -522,6 +546,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if key == KEY_ESCAPE:
 		if top != null:
 			top.close()
+		elif screen != null and screen.get_script() == RulesScreen:
+			screen.back()
 		elif play != null and screen == play and draft.mode != "none":
 			dispatch({"type": "action", "id": "cancel"})
 		elif play != null and screen == play:
@@ -567,3 +593,11 @@ func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_PAUSED or what == NOTIFICATION_APPLICATION_FOCUS_OUT:
 		if animator != null:
 			animator.skip()
+	elif what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		var top := _top_overlay()
+		if top != null:
+			top.close()
+		elif screen != null and screen.get_script() == RulesScreen:
+			screen.back()
+		else:
+			get_tree().quit()

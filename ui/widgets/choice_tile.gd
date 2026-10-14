@@ -14,7 +14,7 @@ var _row: Control
 var base_height := -1.0
 
 
-static func make(title: String, desc: String, emblem := "", colour: Color = T.GOLD, emblem_colour = null) -> Button:
+static func make(title: String, desc: String, emblem := "", colour: Color = T.GOLD, emblem_colour = null, emblem_side := 56.0) -> Button:
 	var b = load("res://ui/widgets/choice_tile.gd").new()
 	b.accent = colour
 	b.custom_minimum_size = Vector2(T.TAP_MIN, T.TAP_MIN)
@@ -24,7 +24,7 @@ static func make(title: String, desc: String, emblem := "", colour: Color = T.GO
 	var row := UI.hbox(10)
 	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE, 10)
 	if emblem != "":
-		row.add_child(UI.icon_rect(emblem, 56, emblem_colour if emblem_colour != null else colour))
+		row.add_child(UI.icon_rect(emblem, emblem_side, emblem_colour if emblem_colour != null else colour))
 	var col := UI.vbox(0)
 	col.alignment = BoxContainer.ALIGNMENT_CENTER
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
