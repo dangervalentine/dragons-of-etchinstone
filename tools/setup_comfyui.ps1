@@ -12,7 +12,9 @@
 #         work: python3 tools/generate_art.py --server http://<this-pc>:8188 [--q8] ...
 #
 # The script only needs this one file; it doesn't need the game's repo. It's safe to
-# run again: finished steps are skipped.
+# run again: finished steps are skipped. ComfyUI's Python also gets what the repo's
+# art tools need, so with the repo on this PC they run here too:
+#   $HOME\ComfyUI\.venv\Scripts\python.exe tools\generate_art.py restyle tortoise --q8
 param(
 	[string]$Dir = (Join-Path $HOME "ComfyUI"),
 	[switch]$Q8,
@@ -59,7 +61,7 @@ $env:VIRTUAL_ENV = Join-Path $Dir ".venv"
 # The CUDA build of PyTorch; uv prefers the extra index over PyPI's CPU build.
 Run uv pip install -q --extra-index-url https://download.pytorch.org/whl/cu128 `
 	torch torchvision torchaudio -r requirements.txt -r (Join-Path $Node "requirements.txt") `
-	"huggingface_hub[cli]"
+	"huggingface_hub[cli]" resvg-py potracer
 $Python = Join-Path $Dir ".venv\Scripts\python.exe"
 $Hf = Join-Path $Dir ".venv\Scripts\hf.exe"
 Run $Python -c "import torch; assert torch.cuda.is_available(), 'PyTorch cannot see the GPU'; print('GPU:', torch.cuda.get_device_name(0))"

@@ -5,16 +5,25 @@ white, for review and then tools/vectorize_art.py.
 ComfyUI must be running (cd ~/ComfyUI && .venv/bin/python main.py) with the
 ComfyUI-GGUF custom node and the models named below: FLUX and FLUX Fill in
 models/unet, CLIP and T5 in models/text_encoders, ae.safetensors in models/vae.
+tools/setup_comfyui.sh (or .ps1 on Windows) sets all that up, and installs what
+restyle and start need (resvg-py, plus pillow, numpy and potracer for
+vectorize_art.py) into ComfyUI's Python, so run this script with that Python. Point
+--server at another computer's ComfyUI to share the work.
 
-tools/setup_comfyui.sh (or .ps1 on Windows) sets ComfyUI up the same way on another
-computer. Point --server at it to share the work: each computer takes some of the
-names.
+generate draws from the prompt alone. restyle starts from the current silhouette in
+art/creatures/ and redraws it in the prompt's style, keeping its pose and outline;
+--denoise sets how far it may stray (0 keeps it, 1 ignores it), and takes several
+values to compare them in one run. start writes that
+starting image to build/art/starts/ to paint on, for instance to block in a lightning
+tail in black, and restyle then uses the painted one.
 
 Run:
   python3 tools/generate_art.py list
   python3 tools/generate_art.py prompt tortoise
   python3 tools/generate_art.py generate tortoise vulture [--seed 7] [--count 4]
-  python3 tools/generate_art.py generate all --server http://other-mac.local:8188 --q8
+  python3 tools/generate_art.py restyle tortoise vulture [--denoise 0.85 0.9 0.95] [--count 4]
+  python3 tools/generate_art.py start vulture
+  python3 tools/generate_art.py generate all --server http://other-pc:8188 --q8
   python3 tools/generate_art.py body tortoise --image build/art/tortoise-7.png \\
       --mask build/art/tortoise-mask.png [--fill "the front of the shell, solid"]
 """
@@ -32,6 +41,8 @@ import uuid
 ROOT = os.path.join(os.path.dirname(__file__), "..")
 DOC = os.path.join(ROOT, "art", "STYLE_PROMPT.md")
 OUT = os.path.join(ROOT, "build", "art")
+STARTS = os.path.join(OUT, "starts")
+ART = os.path.join(ROOT, "art", "creatures")
 SERVER = "http://127.0.0.1:8188"
 
 # Q4_K_S builds: about 7 GB each, so a 24 GB Mac doesn't swap. The Q8 builds are
@@ -51,6 +62,13 @@ STEPS = 25
 # more literally. Fill is trained to work at 30.
 GUIDANCE = 3.5
 FILL_GUIDANCE = 30.0
+# How far restyle may stray from the starting silhouette by default. At 0.7 the first
+# tortoise and vulture came back almost unchanged: a flat black start holds FLUX
+# tightly, so the useful range is likely 0.85 to 0.95.
+DENOISE = 0.9
+# The starting silhouette is drawn this many art units in from each edge, the margin
+# the style block asks for; the art fills its 512-unit square edge to edge.
+START_MARGIN = 44
 
 
 # The doc
@@ -69,7 +87,7 @@ def quoted_after(text, heading):
 
 
 def read_doc():
-    text = open(DOC).read()
+    text = open(DOC, encoding="utf-8").read()
     style = quoted_after(text, "## Style block")
     journey = quoted_after(text, "For **journey scenes**")
     moving = quoted_after(text, "For **images with a moving part**")
@@ -156,11 +174,11 @@ def loaders(unet):
     }
 
 
-def sampler(model, positive, negative, latent, seed):
+def sampler(model, positive, negative, latent, seed, denoise=1.0):
     return {"class_type": "KSampler", "inputs": {
         "model": model, "positive": positive, "negative": negative,
         "latent_image": latent, "seed": seed, "steps": STEPS, "cfg": 1.0,
-        "sampler_name": "euler", "scheduler": "simple", "denoise": 1.0}}
+        "sampler_name": "euler", "scheduler": "simple", "denoise": denoise}}
 
 
 def text_to_image(prompt, seed, prefix):
@@ -174,6 +192,23 @@ def text_to_image(prompt, seed, prefix):
         "latent": {"class_type": "EmptySD3LatentImage", "inputs": {
             "width": SIZE, "height": SIZE, "batch_size": 1}},
         "sample": sampler(["unet", 0], ["guide", 0], ["neg", 0], ["latent", 0], seed),
+        "decode": {"class_type": "VAEDecode", "inputs": {"samples": ["sample", 0], "vae": ["vae", 0]}},
+        "save": {"class_type": "SaveImage", "inputs": {"images": ["decode", 0],
+                                                       "filename_prefix": prefix}},
+    })
+    return g
+
+
+def image_to_image(prompt, image, seed, denoise, prefix):
+    g = loaders(models["unet"])
+    g.update({
+        "image": {"class_type": "LoadImage", "inputs": {"image": image}},
+        "encode": {"class_type": "VAEEncode", "inputs": {"pixels": ["image", 0], "vae": ["vae", 0]}},
+        "pos": {"class_type": "CLIPTextEncode", "inputs": {"clip": ["clip", 0], "text": prompt}},
+        "guide": {"class_type": "FluxGuidance", "inputs": {"conditioning": ["pos", 0],
+                                                          "guidance": GUIDANCE}},
+        "neg": {"class_type": "CLIPTextEncode", "inputs": {"clip": ["clip", 0], "text": ""}},
+        "sample": sampler(["unet", 0], ["guide", 0], ["neg", 0], ["encode", 0], seed, denoise),
         "decode": {"class_type": "VAEDecode", "inputs": {"samples": ["sample", 0], "vae": ["vae", 0]}},
         "save": {"class_type": "SaveImage", "inputs": {"images": ["decode", 0],
                                                        "filename_prefix": prefix}},
@@ -203,16 +238,50 @@ def inpaint(prompt, image, mask, seed, prefix):
     return g
 
 
+# Starting images
+
+def render_start(name, dest):
+    """Draws art/creatures/<name>.svg black on white, SIZE pixels square, with the
+    style block's margin."""
+    try:
+        import resvg_py
+    except ImportError:
+        sys.exit("restyle and start need resvg-py: run this with ComfyUI's Python, "
+                 "or pip install resvg-py")
+    svg = open(os.path.join(ART, name + ".svg"), encoding="utf-8").read()
+    svg = svg.replace('fill="#fff"', 'fill="#000"')
+    m = START_MARGIN
+    svg = re.sub(r'viewBox="[^"]*"', 'viewBox="%d %d %d %d"' % (-m, -m, 512 + 2 * m, 512 + 2 * m), svg)
+    png = resvg_py.svg_to_bytes(svg_string=svg, width=SIZE, height=SIZE, background="#ffffff")
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    with open(dest, "wb") as f:
+        f.write(bytes(png))
+
+
+def start_for(name):
+    """The painted starting image if there is one, else a fresh one from the art."""
+    painted = os.path.join(STARTS, name + ".png")
+    if os.path.exists(painted):
+        print("starting from", os.path.relpath(painted, ROOT))
+        return painted
+    fresh = os.path.join(OUT, ".start-%s.png" % name)
+    render_start(name, fresh)
+    return fresh
+
+
 # Commands
 
 def main():
     global SERVER, models
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    p.add_argument("command", choices=["list", "prompt", "generate", "body"])
+    p.add_argument("command", choices=["list", "prompt", "generate", "restyle", "start", "body"])
     p.add_argument("names", nargs="*", help="file names from the doc's tables, e.g. tortoise, "
                    "or all")
     p.add_argument("--seed", type=int, help="the first seed; random if left out")
     p.add_argument("--count", type=int, default=1, help="how many seeds to try, one after another")
+    p.add_argument("--denoise", type=float, nargs="+", default=[DENOISE],
+                   help="restyle: how far to stray from the start, 0 to 1, one value or "
+                   "several to compare; %(default)s by default")
     p.add_argument("--image", help="body: the approved whole image")
     p.add_argument("--mask", help="body: white over the moving part")
     p.add_argument("--fill", help="body: what fills the gap, if not the doc's")
@@ -232,7 +301,7 @@ def main():
     for name in names:
         if name not in doc["subjects"]:
             sys.exit("%s isn't in %s; see 'list'" % (name, os.path.relpath(DOC)))
-    if a.command != "generate" and len(names) > 1:
+    if a.command not in ("generate", "restyle", "start") and len(names) > 1:
         sys.exit("%s takes one name" % a.command)
     os.makedirs(OUT, exist_ok=True)
     seed = a.seed if a.seed is not None else random.randrange(1 << 32)
@@ -247,6 +316,26 @@ def main():
                     print("have", os.path.relpath(dest, ROOT))
                     continue
                 run(text_to_image(prompt, s, "etch/" + name), dest)
+    elif a.command == "start":
+        for name in names:
+            dest = os.path.join(STARTS, name + ".png")
+            if os.path.exists(dest):
+                print("have", os.path.relpath(dest, ROOT), "(delete it to start again)")
+                continue
+            render_start(name, dest)
+            print("wrote", os.path.relpath(dest, ROOT), "- paint on it in black and white")
+    elif a.command == "restyle":
+        for name in names:
+            prompt = prompt_for(doc, name)
+            image = None
+            for d in a.denoise:
+                for s in range(seed, seed + a.count):
+                    dest = os.path.join(OUT, "%s-restyle%02d-%d.png" % (name, round(d * 100), s))
+                    if os.path.exists(dest):
+                        print("have", os.path.relpath(dest, ROOT))
+                        continue
+                    image = image or upload(start_for(name))
+                    run(image_to_image(prompt, image, s, d, "etch/" + name), dest)
     elif a.command == "body":
         name = names[0]
         if not (a.image and a.mask):
