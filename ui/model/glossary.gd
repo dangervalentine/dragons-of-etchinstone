@@ -63,7 +63,7 @@ const ENTRIES := {
 }
 
 ## Icons that are decoration or controls, not game symbols, and need no entry.
-const NOT_SYMBOLS := ["menu", "settings", "help", "skip", "close", "inspect", "card_back", "down_arrow", "undo"]
+const NOT_SYMBOLS := ["menu", "settings", "help", "skip", "close", "inspect", "card_back", "down_arrow", "undo", "book"]
 
 
 static func has(id: String) -> bool:

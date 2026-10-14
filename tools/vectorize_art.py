@@ -117,7 +117,7 @@ def main():
     svg = ('<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d">'
            '<path fill="#fff" fill-rule="evenodd" d="%s"/></svg>\n'
            % (SIZE, SIZE, SIZE, SIZE, path_data(curves)))
-    with open(args.out, "w") as f:
+    with open(args.out, "w", newline="\n") as f:
         f.write(svg)
     print("wrote", args.out)
 

@@ -133,6 +133,8 @@ ICONS.update({
     "settings": gear(24, 24, 22, 16, 8, 7),
     "help": path(ring(24, 24, 22, 17.5)) + path("M17 19 a7 7 0 1 1 10.5 6 Q26 26 26 29 H22 Q22 23.5 25.5 21.6 a3 3 0 1 0 -4.5 -2.6 Z")
             + '<rect x="22" y="32" width="4" height="4" rx="1"/>',
+    "book": path("M3 9 Q13 5 22.5 10 V42 Q13 37.5 3 41 Z M7 13 V35 Q13 33.5 18.5 35.5 V12.5 Q13 10 7 13 Z")
+            + path("M25.5 10 Q35 5 45 9 V41 Q35 37.5 25.5 42 Z M29.5 12.5 V35.5 Q35 33.5 41 35 V13 Q35 10 29.5 12.5 Z"),
     "skip": poly("6,7 24,24 6,41") + poly("24,7 42,24 24,41"),
     "undo": path("M20 4 L4 16 L20 28 V20 H28 Q38 20 38 30 Q38 40 28 40 H16 V46 H28 Q44 46 44 30 Q44 13 28 13 H20 Z"),
     "close": rotated('<rect x="21" y="3" width="6" height="42" rx="3"/>', 45) + rotated('<rect x="21" y="3" width="6" height="42" rx="3"/>', -45),
@@ -162,6 +164,7 @@ for name, body in list(ICONS.items()) + list(SIGILS.items()):
     side = 320 if name in SIGILS else 96
     svg = ('<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 48 48" fill="#ffffff">' % (side, side)
            + body + "</svg>\n")
-    with open(os.path.join(OUT, name + ".svg"), "w") as f:
+    # LF on every OS, as .gitattributes asks, so a rerun on Windows changes nothing.
+    with open(os.path.join(OUT, name + ".svg"), "w", newline="\n") as f:
         f.write(svg)
 print(len(ICONS) + len(SIGILS), "icons written")

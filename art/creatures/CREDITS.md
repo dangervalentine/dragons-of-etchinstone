@@ -6,11 +6,7 @@ background square of each icon was removed so the game can tint them.
 
 | Used for | Icon | Author | Source |
 |---|---|---|---|
-| Grimroch | spiked-dragon-head | Delapouite | https://game-icons.net/1x1/delapouite/spiked-dragon-head.html |
-| Helsang | dragon-head | Faithtoken | https://game-icons.net/1x1/faithtoken/dragon-head.html |
-| Rodving | sea-serpent | Lorc | https://game-icons.net/1x1/lorc/sea-serpent.html |
 | Final Journey | horizon-road | Delapouite | https://game-icons.net/1x1/delapouite/horizon-road.html |
-| Vuurhast | wyvern | Lorc | https://game-icons.net/1x1/lorc/wyvern.html |
 | R1 Enemy 1 | harpy | Lorc | https://game-icons.net/1x1/lorc/harpy.html |
 | R1 Enemy 2 | salamander | Lorc | https://game-icons.net/1x1/lorc/salamander.html |
 | R1 Enemy 3 | ice-golem | Delapouite | https://game-icons.net/1x1/delapouite/ice-golem.html |
@@ -43,3 +39,15 @@ background square of each icon was removed so the game can tint them.
 | R4 Journey 2 | forest-entrance | Delapouite | https://game-icons.net/1x1/delapouite/forest-entrance.html |
 | R4 Journey 3 | burning-forest | Delapouite | https://game-icons.net/1x1/delapouite/burning-forest.html |
 | R4 Journey 4 | stone-path | Delapouite | https://game-icons.net/1x1/delapouite/stone-path.html |
+
+## Made for this project
+
+The four dragons were generated for this project with FLUX.1-dev from the subject lines
+in `art/STYLE_PROMPT.md`, then converted with `tools/vectorize_art.py`.
+
+| Used for | Art |
+|---|---|
+| Grimroch | grimroch |
+| Helsang | helsang |
+| Rodving | rodving |
+| Vuurhast | vuurhast |

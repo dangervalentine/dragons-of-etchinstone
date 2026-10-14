@@ -17,12 +17,18 @@ values to compare them in one run. start writes that
 starting image to build/art/starts/ to paint on, for instance to block in a lightning
 tail in black, and restyle then uses the painted one.
 
+--style anchors generate or restyle on an approved image with FLUX Redux, so a new
+creature takes its line weight, gashes and proportions from one already drawn while
+the prompt still says what it is. At full strength Redux redraws the anchor itself,
+so it runs weak by default; --style-strength and --style-type tune it.
+
 Run:
   python3 tools/generate_art.py list
   python3 tools/generate_art.py prompt tortoise
   python3 tools/generate_art.py generate tortoise vulture [--seed 7] [--count 4]
   python3 tools/generate_art.py restyle tortoise vulture [--denoise 0.85 0.9 0.95] [--count 4]
   python3 tools/generate_art.py start vulture
+  python3 tools/generate_art.py generate harpy --style build/art/prime/rodving.png --q8
   python3 tools/generate_art.py generate all --server http://other-pc:8188 --q8
   python3 tools/generate_art.py body tortoise --image build/art/tortoise-7.png \\
       --mask build/art/tortoise-mask.png [--fill "the front of the shell, solid"]
@@ -69,6 +75,14 @@ DENOISE = 0.9
 # The starting silhouette is drawn this many art units in from each edge, the margin
 # the style block asks for; the art fills its 512-unit square edge to edge.
 START_MARGIN = 44
+# FLUX Redux, for --style. attn_bias weakens the anchor's image tokens in attention
+# rather than scaling them. Redux carries content more than style: in a harpy sweep
+# over the rodving prime, attn_bias 0.2 and multiply 0.15 still drew rodving with
+# feathers, and only about 0.05 gave the prompt's creature back.
+STYLE_MODEL = "flux1-redux-dev.safetensors"
+STYLE_VISION = "sigclip_vision_patch14_384.safetensors"
+STYLE_STRENGTH = 0.05
+STYLE_TYPE = "attn_bias"
 
 
 # The doc
@@ -181,7 +195,24 @@ def sampler(model, positive, negative, latent, seed, denoise=1.0):
         "sampler_name": "euler", "scheduler": "simple", "denoise": denoise}}
 
 
-def text_to_image(prompt, seed, prefix):
+def add_style(g, positive, style):
+    """Adds FLUX Redux to graph g, conditioning positive on the look of an uploaded
+    image; style is (image, strength, strength type). Returns the new positive."""
+    image, strength, kind = style
+    g.update({
+        "style_image": {"class_type": "LoadImage", "inputs": {"image": image}},
+        "vision": {"class_type": "CLIPVisionLoader", "inputs": {"clip_name": STYLE_VISION}},
+        "seen": {"class_type": "CLIPVisionEncode", "inputs": {
+            "clip_vision": ["vision", 0], "image": ["style_image", 0], "crop": "center"}},
+        "redux": {"class_type": "StyleModelLoader", "inputs": {"style_model_name": STYLE_MODEL}},
+        "styled": {"class_type": "StyleModelApply", "inputs": {
+            "conditioning": positive, "style_model": ["redux", 0],
+            "clip_vision_output": ["seen", 0], "strength": strength, "strength_type": kind}},
+    })
+    return ["styled", 0]
+
+
+def text_to_image(prompt, seed, prefix, style=None):
     g = loaders(models["unet"])
     g.update({
         "pos": {"class_type": "CLIPTextEncode", "inputs": {"clip": ["clip", 0], "text": prompt}},
@@ -196,10 +227,12 @@ def text_to_image(prompt, seed, prefix):
         "save": {"class_type": "SaveImage", "inputs": {"images": ["decode", 0],
                                                        "filename_prefix": prefix}},
     })
+    if style:
+        g["sample"]["inputs"]["positive"] = add_style(g, ["guide", 0], style)
     return g
 
 
-def image_to_image(prompt, image, seed, denoise, prefix):
+def image_to_image(prompt, image, seed, denoise, prefix, style=None):
     g = loaders(models["unet"])
     g.update({
         "image": {"class_type": "LoadImage", "inputs": {"image": image}},
@@ -213,6 +246,8 @@ def image_to_image(prompt, image, seed, denoise, prefix):
         "save": {"class_type": "SaveImage", "inputs": {"images": ["decode", 0],
                                                        "filename_prefix": prefix}},
     })
+    if style:
+        g["sample"]["inputs"]["positive"] = add_style(g, ["guide", 0], style)
     return g
 
 
@@ -282,6 +317,12 @@ def main():
     p.add_argument("--denoise", type=float, nargs="+", default=[DENOISE],
                    help="restyle: how far to stray from the start, 0 to 1, one value or "
                    "several to compare; %(default)s by default")
+    p.add_argument("--style", help="generate, restyle: an approved image whose look to "
+                   "follow, through FLUX Redux")
+    p.add_argument("--style-strength", type=float, default=STYLE_STRENGTH,
+                   help="how hard to follow --style; %(default)s by default")
+    p.add_argument("--style-type", choices=["attn_bias", "multiply"], default=STYLE_TYPE,
+                   help="how --style-strength applies; %(default)s by default")
     p.add_argument("--image", help="body: the approved whole image")
     p.add_argument("--mask", help="body: white over the moving part")
     p.add_argument("--fill", help="body: what fills the gap, if not the doc's")
@@ -305,17 +346,25 @@ def main():
         sys.exit("%s takes one name" % a.command)
     os.makedirs(OUT, exist_ok=True)
     seed = a.seed if a.seed is not None else random.randrange(1 << 32)
+    # Styled runs get their own file names: a tag for the anchor and setting.
+    tag, style = "", None
+    if a.style:
+        tag = "-%s-%s%02d" % (os.path.splitext(os.path.basename(a.style))[0],
+                              "ab" if a.style_type == "attn_bias" else "mu",
+                              round(a.style_strength * 100))
     if a.command == "prompt":
         print(prompt_for(doc, names[0]))
     elif a.command == "generate":
         for name in names:
             prompt = prompt_for(doc, name)
             for s in range(seed, seed + a.count):
-                dest = os.path.join(OUT, "%s-%d.png" % (name, s))
+                dest = os.path.join(OUT, "%s%s-%d.png" % (name, tag, s))
                 if os.path.exists(dest):
                     print("have", os.path.relpath(dest, ROOT))
                     continue
-                run(text_to_image(prompt, s, "etch/" + name), dest)
+                if a.style and not style:
+                    style = (upload(a.style), a.style_strength, a.style_type)
+                run(text_to_image(prompt, s, "etch/" + name, style), dest)
     elif a.command == "start":
         for name in names:
             dest = os.path.join(STARTS, name + ".png")
@@ -330,12 +379,14 @@ def main():
             image = None
             for d in a.denoise:
                 for s in range(seed, seed + a.count):
-                    dest = os.path.join(OUT, "%s-restyle%02d-%d.png" % (name, round(d * 100), s))
+                    dest = os.path.join(OUT, "%s-restyle%02d%s-%d.png" % (name, round(d * 100), tag, s))
                     if os.path.exists(dest):
                         print("have", os.path.relpath(dest, ROOT))
                         continue
                     image = image or upload(start_for(name))
-                    run(image_to_image(prompt, image, s, d, "etch/" + name), dest)
+                    if a.style and not style:
+                        style = (upload(a.style), a.style_strength, a.style_type)
+                    run(image_to_image(prompt, image, s, d, "etch/" + name, style), dest)
     elif a.command == "body":
         name = names[0]
         if not (a.image and a.mask):

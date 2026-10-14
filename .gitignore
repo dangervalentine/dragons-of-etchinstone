@@ -3,7 +3,8 @@
 *.translation
 
 # Export output
-build/
+build/*
+!build/.gdignore
 
 # Signing
 *.keystore
@@ -16,3 +17,6 @@ reference/
 
 # Agent folder (local skills, may hold credentials)
 .claude/
+
+# Python bytecode
+__pycache__/

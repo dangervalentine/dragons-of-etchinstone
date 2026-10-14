@@ -18,6 +18,7 @@ const HandTray = preload("res://ui/widgets/hand_tray.gd")
 const ActionBar = preload("res://ui/widgets/action_bar.gd")
 const EtherPicker = preload("res://ui/widgets/ether_picker.gd")
 const CardDetail = preload("res://ui/widgets/card_detail.gd")
+const Art = preload("res://ui/model/art.gd")
 
 signal intent(data: Dictionary)
 
@@ -240,7 +241,8 @@ func _render_setup_face() -> void:
 		return
 	_setup_key = key
 	setup_face.clear()
-	setup_face.set_look(vs.stage.get("element", ""), "sigil_" + vs.stage.dragon, vs.stage.get("art", ""))
+	var art: String = vs.stage.get("art", "")
+	setup_face.set_look(vs.stage.get("element", ""), "sigil_" + vs.stage.dragon, art, Art.head(art))
 	setup_face.band.add_child(UI.icon_rect("crown", 34, T.GOLD))
 	var title := UI.label("PREPARE YOUR DECK", T.HEADING, T.INK)
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER

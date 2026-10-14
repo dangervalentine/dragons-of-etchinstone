@@ -4,6 +4,7 @@ extends SceneTree
 ## godot --path . -s tools/shot.gd -- <output dir> [size name ...]
 
 const Solver = preload("res://ui/model/layout_solver.gd")
+const Rulebook = preload("res://ui/model/rulebook.gd")
 
 var out := "."
 var ui
@@ -61,6 +62,7 @@ func _press(intent: Dictionary) -> void:
 
 func _game(dir: String) -> void:
 	await _shot(dir + "/01_title")
+	await _rulebook(dir)
 	ui.start_game({"seed": 3, "dragon": "rodving", "difficulty": "casual", "cavalier": false, "glass_cannon": false})
 	for id in ui.game.setup_offer.slice(0, 3):
 		_press({"type": "card", "id": id})
@@ -131,3 +133,18 @@ func _game(dir: String) -> void:
 	await _shot(dir + "/15_menu")
 	ui._close_overlays()
 	ui.dispatch({"type": "to_title"})
+
+
+## How to Play: its first page, the contents, a page with an example card and one with a table.
+func _rulebook(dir: String) -> void:
+	Rulebook.position = {"section": 0, "page": 0}
+	_press({"type": "rulebook"})
+	var book = ui._top_overlay()
+	await _shot(dir + "/01a_rulebook")
+	book.toggle_contents()
+	await _shot(dir + "/01b_rulebook_contents")
+	book.show_page(Rulebook.find("mage_cards"), 0, false)
+	await _shot(dir + "/01c_rulebook_figure")
+	book.show_page(Rulebook.find("enemies"), 0, false)
+	await _shot(dir + "/01d_rulebook_table")
+	ui._close_overlays()

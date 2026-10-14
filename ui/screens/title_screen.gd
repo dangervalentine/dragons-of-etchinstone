@@ -7,6 +7,7 @@ const UI = preload("res://ui/theme/theme.gd")
 const ChoiceTile = preload("res://ui/widgets/choice_tile.gd")
 const Art = preload("res://ui/model/art.gd")
 const Creature = preload("res://ui/fx/creature.gd")
+const DragonStats = preload("res://ui/widgets/dragon_stats.gd")
 
 signal intent(data: Dictionary)
 
@@ -66,7 +67,7 @@ func _build() -> void:
 	help.pressed.connect(func(): intent.emit({"type": "glossary"}))
 	tools.add_child(help)
 	left.add_child(tools)
-	left.add_child(UI.label("Fan-made digital version. Game by Joe Klipfel, published by Chip Theory Games. Not affiliated with or endorsed by Chip Theory Games. Creature art from game-icons.net, CC BY 3.0.", T.LABEL, T.INK_MUTED, true))
+	left.add_child(UI.label("Fan-made digital version. Game by Joe Klipfel, published by Chip Theory Games. Not affiliated with or endorsed by Chip Theory Games. Encounter art from game-icons.net, CC BY 3.0; dragon art made for this project.", T.LABEL, T.INK_MUTED, true))
 	root.add_child(left)
 
 	# Right: the choices.
@@ -80,16 +81,21 @@ func _build() -> void:
 	dragons.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	for id in db.dragon_ids():
 		var d: Dictionary = db.dragon(id)
-		var desc := "%s\nInitiative %d · early damage %d" % [d.title, d.initiative, d.early_damage.value]
 		var colour: Color = T.ether(d.early_damage.element)
-		var tile: Button = ChoiceTile.make(d.name, desc, "../creatures/" + Art.dragon(id), colour, null, 96.0)
+		var tile: Button = ChoiceTile.make(d.name, d.title, "../creatures/" + Art.dragon(id), colour, null, 80.0, DragonStats.make(d))
 		tile.custom_minimum_size.y = 160
+		tile.tooltip_text = DragonStats.ladder_text(d)
 		tile.pressed.connect(_choose.bind(id))
 		dragons.add_child(tile)
 		_tiles["dragon:" + id] = tile
 	right.add_child(dragons)
 	var bottom := UI.hbox(T.S)
 	bottom.custom_minimum_size.y = T.TAP_MIN
+	# New players meet the rules beside their first choice.
+	var learn := UI.button("How to Play", "normal", "book")
+	learn.custom_minimum_size.x = 260
+	learn.pressed.connect(func(): intent.emit({"type": "rulebook"}))
+	bottom.add_child(learn)
 	bottom.add_child(UI.spacer())
 	var next := UI.button("Continue", "primary")
 	next.custom_minimum_size.x = 240

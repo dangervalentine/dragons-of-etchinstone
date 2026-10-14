@@ -6,6 +6,7 @@ extends "res://ui/widgets/face_frame.gd"
 ## take the other side.
 
 const StatChip = preload("res://ui/widgets/stat_chip.gd")
+const DragonStats = preload("res://ui/widgets/dragon_stats.gd")
 
 signal intent(data: Dictionary)
 
@@ -162,6 +163,8 @@ func _place(crossing: bool) -> void:
 	var near := minf(scene_w, h * 0.95)
 	var beast_near := Rect2((scene_w - near) / 2.0, (h - near) / 2.0, near, near)
 	var beast: Rect2 = beast_far if journey else beast_near
+	# Far off on the road the whole dragon shows; facing it, its head fills the side.
+	var look: Rect2 = Art.FULL if journey else Art.head(_beast.art_name)
 	_fit_ladder(panel)
 	if _tween != null and _tween.is_valid():
 		_tween.kill()
@@ -174,7 +177,11 @@ func _place(crossing: bool) -> void:
 		_scene.size = scene.size
 		_beast.position = beast.position
 		_beast.size = beast.size
+		_beast.crop = look
+		_panel.modulate.a = 1.0
 		_road.modulate.a = 1.0 if journey else 0.0
+		# Faded right out, the road stops drawing at all.
+		_road.visible = journey
 		return
 	# The dragon comes across the field: the figures slide away, the road fades,
 	# and the dragon grows into the near side.
@@ -188,7 +195,9 @@ func _place(crossing: bool) -> void:
 	_panel.position = panel.position
 	_tween.tween_property(_beast, "position", beast.position, CROSSING)
 	_tween.tween_property(_beast, "size", beast.size, CROSSING)
+	_tween.tween_property(_beast, "crop", look, CROSSING)
 	_tween.tween_property(_road, "modulate:a", 0.0, CROSSING * 0.6)
+	_tween.tween_callback(func() -> void: _road.visible = false).set_delay(CROSSING * 0.6)
 	_tween.tween_property(_panel, "modulate:a", 1.0, CROSSING * 0.5).set_delay(CROSSING * 0.6)
 
 
@@ -229,7 +238,7 @@ func _rung(tier: Dictionary, journey: bool, element: String) -> Control:
 	row.add_child(arrow)
 	row.add_child(UI.icon_rect("time" if journey else "hp", 24))
 	row.add_child(UI.label(str(cost), ["display_bold", 28]))
-	p.tooltip_text = ("Move %d or more: lose %d time" if journey else "Attack %d or more: take %d damage") % [need, cost]
+	p.tooltip_text = DragonStats.rung_text({"need": need, "cost": cost}, journey)
 	p.add_child(row)
 	UI.ignore_mouse(p)
 	_rungs.append(p)

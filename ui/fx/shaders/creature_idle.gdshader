@@ -11,14 +11,29 @@ uniform float speed = 1.0;
 // Offsets the cycle so two creatures never move in step.
 uniform float phase = 0.0;
 uniform vec4 tint : source_color = vec4(1.0);
-// A creature's moving part (a jaw) is a second layer drawn with the same idle
-// motion, so it moves as one with the body, and then its own motion on top.
-// 0 none, 1 hinge: turns about the pivot (in UV) by up to hinge_angle degrees,
-// clockwise when positive, now and then, and back.
-uniform int part_motion = 0;
+// A creature's moving part (a jaw) is a second texture drawn in the same pass,
+// with the same idle motion so it moves as one with the body, and then its hinge
+// on top: it turns about the pivot (in UV) by up to hinge_angle degrees,
+// clockwise when positive, now and then, and back. Body and part are one flat
+// tint, so they combine by alpha alone and the tint's alpha is applied once.
+uniform bool has_part = false;
+uniform sampler2D part_tex : filter_linear;
 uniform vec2 pivot = vec2(0.5);
 uniform float hinge_angle = 0.0;
 uniform float part_period = 4.0;
+
+// The node's modulate, its parents' included (a screen fading in or out). It
+// arrives in the vertex colour, which writing COLOR would otherwise throw away.
+varying vec4 modulate;
+
+void vertex() {
+	modulate = COLOR;
+}
+
+// 1 inside the art, 0 beyond its edge, where nothing is drawn.
+float inside(vec2 uv) {
+	return (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) ? 0.0 : 1.0;
+}
 
 void fragment() {
 	float t = TIME * speed + phase;
@@ -53,18 +68,17 @@ void fragment() {
 		float l = clamp(uv.y, 0.0, 1.0);
 		uv.x += 0.012 * a * l * sin(uv.y * 30.0 + t * 4.0);
 	}
-	if (part_motion == 1) {
+	float body = texture(TEXTURE, uv).a * inside(uv);
+	if (has_part) {
 		// Opens quickly, holds, closes, then rests for the second half of the cycle.
 		float p = fract(t / part_period);
 		float open = smoothstep(0.0, 0.12, p) * (1.0 - smoothstep(0.32, 0.5, p));
 		float r = -radians(hinge_angle) * open * a;
 		vec2 c = uv - pivot;
-		uv = vec2(c.x * cos(r) - c.y * sin(r), c.x * sin(r) + c.y * cos(r)) + pivot;
-	}
-	vec4 c = texture(TEXTURE, uv);
-	if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
-		c.a = 0.0;
+		vec2 puv = vec2(c.x * cos(r) - c.y * sin(r), c.x * sin(r) + c.y * cos(r)) + pivot;
+		float part = texture(part_tex, puv).a * inside(puv);
+		body = body + part * (1.0 - body);
 	}
 	float glow = mode == 7 ? 0.82 + 0.18 * a * sin(t * 1.1) : 1.0;
-	COLOR = vec4(tint.rgb * glow, tint.a * c.a);
+	COLOR = vec4(tint.rgb * glow, tint.a * body) * modulate;
 }

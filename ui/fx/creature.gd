@@ -2,8 +2,10 @@ extends Control
 ## A creature or landscape silhouette that is never quite still: it breathes,
 ## hovers or sways (see creature_idle.gdshader), and its Ether drifts around it
 ## as embers, bubbles, sparks or dark motes. Some are cut in two (Art.PARTS), and
-## their moving part, a jaw or a head, works on its own over the body. All of it
-## stops in reduced motion.
+## their moving part, a jaw or a head, works on its own over the body; the shader
+## draws both in one pass, so a see-through tint stays even where they overlap. A crop can
+## show just a region of the art, filling the widget with the rest of the picture
+## clipped; the Ether still drifts past the edge. All of it stops in reduced motion.
 
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
@@ -14,9 +16,21 @@ const MODES := {"still": 0, "breathe": 1, "hover": 2, "sway": 3, "wave": 4, "shi
 
 var art_name := ""
 var element := ""
+## The region of the art to show, in its 512 units: all of it, or a part such as a
+## dragon's head (Art.head), which is then fitted and centred in the widget, the art
+## beyond it clipped by the frame. The art stays whole, so parts pivot as usual;
+## tweening it zooms.
+var crop := Art.FULL:
+	set(value):
+		crop = value
+		_frame.clip_contents = crop != Art.FULL
+		_fit()
+## Holds the picture and clips it to the widget when cropped; the
+## particles sit outside it, free to drift past the edge.
+var _frame := Control.new()
+## The art: the whole piece, or the body with its moving part drawn in the same
+## pass (the shader's part_tex), so the tint's alpha is applied once.
 var _picture := _layer()
-## The moving part, over the picture; null when the art is one piece.
-var _part: TextureRect
 var _particles: CPUParticles2D
 var _still := false
 static var _dot: Texture2D
@@ -24,7 +38,9 @@ static var _dot: Texture2D
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_picture)
+	_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_frame)
+	_frame.add_child(_picture)
 	resized.connect(_fit)
 
 
@@ -44,21 +60,15 @@ func setup(name: String, tint: Color, ether := "", particles := true) -> void:
 	art_name = name
 	element = ether
 	var rig := Art.part(name)
-	if _part != null:
-		_part.queue_free()
-		_part = null
 	_picture.texture = UI.art(name + "-base" if not rig.is_empty() else name)
 	_idle(_picture, name, tint)
+	var m: ShaderMaterial = _picture.material
+	m.set_shader_parameter("has_part", not rig.is_empty())
+	m.set_shader_parameter("part_tex", UI.art(name + "-part") if not rig.is_empty() else null)
 	if not rig.is_empty():
-		_part = _layer()
-		_part.texture = UI.art(name + "-part")
-		_idle(_part, name, tint)
-		var m: ShaderMaterial = _part.material
-		m.set_shader_parameter("part_motion", 1)
 		m.set_shader_parameter("pivot", rig.pivot / 512.0)
 		m.set_shader_parameter("hinge_angle", rig.angle)
 		m.set_shader_parameter("part_period", rig.period)
-		add_child(_part)
 	if _particles != null:
 		_particles.queue_free()
 		_particles = null
@@ -70,7 +80,8 @@ func setup(name: String, tint: Color, ether := "", particles := true) -> void:
 	_fit()
 
 
-## The body and its part share every idle setting, so they move as one.
+## How the art idles and its tint. A moving part is drawn by the same material,
+## so it idles with the body and moves as one with it.
 static func _idle(layer: TextureRect, name: String, tint: Color) -> void:
 	var m: ShaderMaterial = layer.material
 	m.set_shader_parameter("tint", tint)
@@ -86,19 +97,22 @@ func _process(_delta: float) -> void:
 
 func _apply_motion() -> void:
 	_still = UI.reduced_motion
-	for layer in [_picture, _part]:
-		if layer != null:
-			layer.material.set_shader_parameter("amount", 0.0 if _still else 1.0)
+	_picture.material.set_shader_parameter("amount", 0.0 if _still else 1.0)
 	if _particles != null:
 		_particles.emitting = not _still
 		_particles.visible = not _still
 
 
 func _fit() -> void:
-	for layer in [_picture, _part]:
-		if layer != null:
-			layer.position = Vector2.ZERO
-			layer.size = size
+	# The picture is the whole square of art, scaled so `crop` fits the widget and
+	# placed so `crop` is centred in it.
+	var zoom := minf(size.x / crop.size.x, size.y / crop.size.y)
+	var side := Art.FULL.size.x * zoom
+	var at := (size - crop.size * zoom) / 2.0 - crop.position * zoom
+	_frame.position = Vector2.ZERO
+	_frame.size = size
+	_picture.position = at
+	_picture.size = Vector2(side, side)
 	if _particles != null:
 		_particles.position = size / 2.0
 		_particles.emission_rect_extents = size * Vector2(0.34, 0.3)

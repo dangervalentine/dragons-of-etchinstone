@@ -1,7 +1,8 @@
 extends "res://ui/overlays/overlay.gd"
 ## A banner across the screen announcing a new Region or a stage of the Final Battle.
 
-func show_banner(eyebrow: String, title: String, sigil: String, colour: Color, duration: float) -> void:
+## sigil: an icon name, a texture, or "" for none.
+func show_banner(eyebrow: String, title: String, sigil, colour: Color, duration: float) -> void:
 	close_outside = false
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_dim(0.45)
@@ -14,7 +15,9 @@ func show_banner(eyebrow: String, title: String, sigil: String, colour: Color, d
 	band.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var row := UI.hbox(T.L)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	if sigil != "":
+	if sigil is Texture2D:
+		row.add_child(UI.texture_rect(sigil, 140, colour))
+	elif sigil != "":
 		row.add_child(UI.icon_rect(sigil, 140, colour))
 	var col := UI.vbox(0)
 	col.alignment = BoxContainer.ALIGNMENT_CENTER

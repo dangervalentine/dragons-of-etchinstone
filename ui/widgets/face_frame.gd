@@ -7,6 +7,7 @@ const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
 const FIELD_SHADER = preload("res://ui/fx/shaders/ether_field.gdshader")
 const Creature = preload("res://ui/fx/creature.gd")
+const Art = preload("res://ui/model/art.gd")
 
 const BAND_H := 56
 const EDGE := 3
@@ -48,8 +49,8 @@ func _init() -> void:
 
 
 ## The Ether colours the face; `art_name`, a creature from art/creatures/, stands in
-## the field, or else the faint `sigil_name` emblem does.
-func set_look(ether, sigil_name: String, art_name := "") -> void:
+## the field, showing `crop` of it, or else the faint `sigil_name` emblem does.
+func set_look(ether, sigil_name: String, art_name := "", crop := Art.FULL) -> void:
 	element = ether
 	sigil = sigil_name
 	art = art_name
@@ -60,6 +61,7 @@ func set_look(ether, sigil_name: String, art_name := "") -> void:
 	if art_name != "":
 		if _creature.art_name != art_name:
 			_creature.setup(art_name, Color(tint.lightened(0.45), 0.55), ether if ether != null else "")
+		_creature.crop = crop
 	else:
 		_sigil.texture = UI.icon(sigil_name) if sigil_name != "" else null
 		_sigil.modulate = Color(1, 1, 1, 0.13)

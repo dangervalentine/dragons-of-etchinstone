@@ -31,9 +31,19 @@ const JOURNEY_NAMES := {
 	3: ["Ash Slopes", "Glass Desert", "Lava Fields", "Deep Caverns"],
 	4: ["Rope Bridge", "Forest Gate", "Burning Wood", "Old Stone Stair"],
 }
+## Each dragon's full-body art, made for this project (art/STYLE_PROMPT.md).
 const DRAGONS := {
-	"grimroch": "spiked-dragon-head", "helsang": "dragon-head",
-	"rodving": "sea-serpent", "vuurhast": "wyvern",
+	"grimroch": "grimroch", "helsang": "helsang",
+	"rodving": "rodving", "vuurhast": "vuurhast",
+}
+## The whole of a piece of art, in its 512 units.
+const FULL := Rect2(0, 0, 512, 512)
+## Where each dragon's head is in its art, square, for the places that face it.
+const HEADS := {
+	"grimroch": Rect2(300, 88, 172, 172),
+	"helsang": Rect2(292, 4, 174, 174),
+	"rodving": Rect2(278, 6, 160, 160),
+	"vuurhast": Rect2(284, 0, 178, 178),
 }
 
 
@@ -43,7 +53,7 @@ const DRAGONS := {
 ## glow: still places, which only brighten and dim.
 const MOTION := {
 	# Dragons
-	"spiked-dragon-head": "breathe", "dragon-head": "hover", "sea-serpent": "sway", "wyvern": "hover",
+	"grimroch": "breathe", "helsang": "breathe", "rodving": "breathe", "vuurhast": "sway",
 	# Region 1
 	"harpy": "hover", "salamander": "breathe", "ice-golem": "breathe", "troll": "breathe",
 	"peaks": "glow", "waterfall": "flow", "mountain-road": "glow", "cave-entrance": "glow",
@@ -62,7 +72,7 @@ const MOTION := {
 ## Slow, heavy things move slower; small, quick ones faster.
 const SPEED := {
 	"troll": 0.7, "rock-golem": 0.6, "ice-golem": 0.65, "tortoise": 0.55, "toad-teeth": 0.8,
-	"spiked-dragon-head": 0.6, "evil-tree": 0.7, "harpy": 1.3, "vulture": 1.1, "angular-spider": 0.9,
+	"grimroch": 0.6, "evil-tree": 0.7, "harpy": 1.3, "vulture": 1.1, "angular-spider": 0.9,
 	"eel": 1.2, "spectre": 0.8, "rope-bridge": 0.6,
 }
 ## Silhouettes cut into a body (<name>-base.svg) and a part that moves on its own
@@ -70,10 +80,10 @@ const SPEED := {
 ## in the art's 512 units; angle in degrees, clockwise when positive. See
 ## art/STYLE_PROMPT.md for how they are made.
 const PARTS := {
-	"spiked-dragon-head": {"motion": "hinge", "pivot": Vector2(262, 305), "angle": 16.0, "period": 4.0},
-	"dragon-head": {"motion": "hinge", "pivot": Vector2(330, 268), "angle": -14.0, "period": 3.6},
-	"sea-serpent": {"motion": "hinge", "pivot": Vector2(234, 136), "angle": -10.0, "period": 3.2},
-	"wyvern": {"motion": "hinge", "pivot": Vector2(252, 224), "angle": -11.0, "period": 4.4},
+	"grimroch": {"motion": "hinge", "pivot": Vector2(403, 191), "angle": 16.0, "period": 4.0},
+	"helsang": {"motion": "hinge", "pivot": Vector2(399, 158), "angle": 14.0, "period": 3.6},
+	"rodving": {"motion": "hinge", "pivot": Vector2(378.5, 100), "angle": 18.0, "period": 3.4},
+	"vuurhast": {"motion": "hinge", "pivot": Vector2(357.5, 96.5), "angle": 14.0, "period": 3.2},
 }
 
 
@@ -103,3 +113,8 @@ static func encounter_name(region: int, kind: String, index: int) -> String:
 
 static func dragon(id: String) -> String:
 	return DRAGONS.get(id, "")
+
+
+## The region of `name` to show where the dragon is faced: its head, or all of it.
+static func head(name: String) -> Rect2:
+	return HEADS.get(name, FULL)

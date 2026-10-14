@@ -38,6 +38,16 @@ static func art_rect(name: String, side: float, color: Color = T.INK) -> Texture
 	return t
 
 
+## Part of a creature's art, `region` in its 512 units, as a texture of its own.
+static func art_crop(name: String, region: Rect2) -> Texture2D:
+	var tex := art(name)
+	var k := tex.get_width() / 512.0
+	var a := AtlasTexture.new()
+	a.atlas = tex
+	a.region = Rect2(region.position * k, region.size * k)
+	return a
+
+
 static func icon(name: String) -> Texture2D:
 	if not _icons.has(name):
 		_icons[name] = load("res://art/icons/%s.svg" % name)
@@ -70,8 +80,12 @@ static func style_label(l: Label, type: Array, color: Color) -> void:
 
 
 static func icon_rect(name: String, side: float, color: Color = T.INK) -> TextureRect:
+	return texture_rect(icon(name), side, color)
+
+
+static func texture_rect(texture: Texture2D, side: float, color: Color = T.INK) -> TextureRect:
 	var t := TextureRect.new()
-	t.texture = icon(name)
+	t.texture = texture
 	t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	t.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	t.custom_minimum_size = Vector2(side, side)

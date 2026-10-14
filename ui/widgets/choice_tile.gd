@@ -1,6 +1,6 @@
 extends Button
 ## A selectable option on the title screen: a title, an optional emblem and a line
-## or two saying what the choice changes.
+## or two saying what the choice changes, with optional further content underneath.
 
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
@@ -14,7 +14,8 @@ var _row: Control
 var base_height := -1.0
 
 
-static func make(title: String, desc: String, emblem := "", colour: Color = T.GOLD, emblem_colour = null, emblem_side := 56.0) -> Button:
+## `extra`, if given, sits under the emblem and text across the whole tile.
+static func make(title: String, desc: String, emblem := "", colour: Color = T.GOLD, emblem_colour = null, emblem_side := 56.0, extra: Control = null) -> Button:
 	var b = load("res://ui/widgets/choice_tile.gd").new()
 	b.accent = colour
 	b.custom_minimum_size = Vector2(T.TAP_MIN, T.TAP_MIN)
@@ -22,7 +23,6 @@ static func make(title: String, desc: String, emblem := "", colour: Color = T.GO
 	b.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	b.focus_mode = Control.FOCUS_ALL
 	var row := UI.hbox(10)
-	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE, 10)
 	if emblem != "":
 		row.add_child(UI.icon_rect(emblem, emblem_side, emblem_colour if emblem_colour != null else colour))
 	var col := UI.vbox(0)
@@ -34,11 +34,18 @@ static func make(title: String, desc: String, emblem := "", colour: Color = T.GO
 		b._desc = UI.label(desc, T.LABEL, T.INK_MUTED, true)
 		col.add_child(b._desc)
 	row.add_child(col)
-	UI.ignore_mouse(row)
-	b.add_child(row)
+	var content: Control = row
+	if extra != null:
+		content = UI.vbox(T.S)
+		content.alignment = BoxContainer.ALIGNMENT_CENTER
+		content.add_child(row)
+		content.add_child(extra)
+	content.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE, 10)
+	UI.ignore_mouse(content)
+	b.add_child(content)
 	# A Button does not grow with its contents; once it has a width, make room for
 	# however many lines the description wraps to.
-	b._row = row
+	b._row = content
 	b.resized.connect(b._fit_text, CONNECT_DEFERRED)
 	b.selected = false
 	UI.press_feedback(b)

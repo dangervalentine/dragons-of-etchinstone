@@ -1,5 +1,5 @@
 extends "res://ui/overlays/overlay.gd"
-## The in-game menu (Resume, Settings, Glossary, Leave game), or just the settings
+## The in-game menu (Resume, Settings, How to Play, Glossary, Leave game), or just the settings
 ## when opened from the title screen.
 
 const Settings = preload("res://ui/model/settings.gd")
@@ -28,16 +28,25 @@ func setup(in_game: bool) -> void:
 	_refresh()
 	var buttons := UI.hbox(T.S)
 	if in_game:
-		var leave := UI.button("Leave game", "quiet", "close")
-		leave.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		leave.pressed.connect(func(): intent.emit({"type": "leave"}))
-		buttons.add_child(leave)
+		# The ways to read up on the rules, then the ways out.
+		var learn_row := UI.hbox(T.S)
+		var learn := UI.button("How to Play", "quiet", "book")
+		learn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		learn.pressed.connect(func():
+			close()
+			intent.emit({"type": "rulebook"}))
+		learn_row.add_child(learn)
 		var help := UI.button("Glossary", "quiet", "help")
 		help.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		help.pressed.connect(func():
 			close()
 			intent.emit({"type": "glossary"}))
-		buttons.add_child(help)
+		learn_row.add_child(help)
+		col.add_child(learn_row)
+		var leave := UI.button("Leave game", "quiet", "close")
+		leave.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		leave.pressed.connect(func(): intent.emit({"type": "leave"}))
+		buttons.add_child(leave)
 	var resume := UI.button("Resume" if in_game else "Done", "primary")
 	resume.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	resume.pressed.connect(close)

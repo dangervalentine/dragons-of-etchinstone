@@ -242,3 +242,14 @@ func test_ending_score_breakdown_adds_up() -> void:
 	g.result = {"move": 3, "tier": -1}
 	e = ViewState.build(g, Draft.new(), db, {"lost_at": "the Final Journey"}).ending
 	ok(not e.won and e.why != "" and e.where == "the Final Journey", "a loss says where and why")
+
+
+## The rulebook's example Encounters are built the same way as the live one.
+func test_encounter_model_matches_live_encounter() -> void:
+	for game_seed in [3, 7, 11]:
+		var g = _game(game_seed)
+		var enc: Dictionary = g.encounter()
+		var key: String = g.key_card()
+		var key_card := {"id": key, "name": db.mage(key).name, "level": g.cards[key].level, "element": db.mage(key).element}
+		var live = ViewState.build(g, Draft.new(), db).encounter
+		eq(ViewState.encounter_model(db, g.region, enc.kind, enc.index, enc.hardship, key_card), live, "seed %d" % game_seed)

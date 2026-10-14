@@ -24,6 +24,7 @@ const FlightLayer = preload("res://ui/fx/flight_layer.gd")
 const BACKDROP = preload("res://ui/fx/shaders/backdrop.gdshader")
 const InspectOverlay = preload("res://ui/overlays/inspect_overlay.gd")
 const GlossaryPopover = preload("res://ui/overlays/glossary_popover.gd")
+const RulebookOverlay = preload("res://ui/overlays/rulebook_overlay.gd")
 const StageBanner = preload("res://ui/overlays/stage_banner.gd")
 const ConfirmDialog = preload("res://ui/overlays/confirm_dialog.gd")
 const MenuOverlay = preload("res://ui/overlays/menu_overlay.gd")
@@ -160,6 +161,8 @@ func _on_resize() -> void:
 	for o in _overlays.get_children():
 		if o.has_method("close") and o.get_script() == InspectOverlay:
 			o.close()
+		elif o.get_script() == RulebookOverlay and not o.is_queued_for_deletion():
+			o.relayout(plan.content.grow(-T.M))
 	_update_notice()
 
 
@@ -302,6 +305,11 @@ func dispatch(intent: Dictionary) -> void:
 			var g := GlossaryPopover.new()
 			_overlays.add_child(g)
 			g.show_all(plan.content.grow(-T.M))
+		"rulebook":
+			var r := RulebookOverlay.new()
+			_overlays.add_child(r)
+			r.intent.connect(dispatch)
+			r.open(plan.content.grow(-T.M), intent.get("section", ""), db)
 		"leave":
 			var c := ConfirmDialog.new()
 			_overlays.add_child(c)
@@ -491,8 +499,9 @@ func _banner(values: Dictionary, duration: float) -> void:
 	_overlays.add_child(b)
 	if values.phase == "final_journey" or values.phase == "final_enemy":
 		var d: Dictionary = game.dragon
+		var art_name: String = Art.dragon(d.id)
 		b.show_banner("%s, %s" % [d.name, d.title], "The Final Journey" if values.phase == "final_journey" else "The Final Enemy",
-			"../creatures/" + Art.dragon(d.id), T.ether(d.early_damage.element), duration)
+			UI.art_crop(art_name, Art.head(art_name)), T.ether(d.early_damage.element), duration)
 	else:
 		b.show_banner("Region %d" % values.region, db.region(values.region).name, "sigil_region", T.GOLD, duration)
 
@@ -558,6 +567,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		return
 	if key == KEY_QUESTION or (key == KEY_SLASH and event.shift_pressed):
 		dispatch({"type": "glossary"})
+	elif key == KEY_H:
+		dispatch({"type": "rulebook"})
 	elif play == null or screen != play:
 		return
 	elif key >= KEY_1 and key <= KEY_7:

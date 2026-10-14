@@ -30,8 +30,9 @@ Paste this after every subject line, unchanged.
 > in the picture. The shape is carved with three to six bold white gashes, each a wide,
 > sharp-edged gap like a stroke cut into a linocut block, which mark the creature's
 > main features. The eye is a narrow, naturally shaped white cut-out, almond-shaped or
-> slanted and set under a heavy brow, never a round circle. The outline is smooth and
-> confident, built from a few large sweeping curves: limbs, wings and shells have
+> slanted and set under a heavy brow, never a round circle, and hollow: an empty slit
+> of pure white with no pupil inside it, which gives an eerie, menacing stare. The
+> outline is smooth and confident, built from a few large sweeping curves: limbs, wings and shells have
 > clean, unbroken edges, with only one or two sharp features where they matter, such
 > as a hooked beak or claws. Restraint everywhere: large plain areas of solid black,
 > and no small spikes, frills or feather fringes added along the edges. A strong,
@@ -116,7 +117,9 @@ Each part moves in one of these ways:
    > is. It is still a single solid black silhouette on pure white.
 
    This step matters. When the jaw opens or the wing lowers, whatever was behind it
-   shows, and that must be solid body, not a hole.
+   shows, and that must be solid body, not a hole. For the dragons, inpainting kept
+   redrawing a second jaw instead of removing it, so their bodies are drawn by
+   `tools/draw_throat.py <name>` instead.
 4. **Convert the layers.** Keep the whole image as well: it's still used for small
    icons and the title screen, and it means nothing breaks before the game supports
    parts.
@@ -132,9 +135,9 @@ Each part moves in one of these ways:
    the part turns about, or slides and grows from.
 
 Every layer is the same 512 × 512 canvas, so the layers line up exactly with no offsets
-to track. Playing the parts still needs game work: `ui/fx/creature.gd` has to draw the
-part over the base with the same idle shader settings, so they breathe and hover as one
-creature, and add the part's own motion on top.
+to track. `ui/fx/creature.gd` draws the part texture in the same shader pass as the
+body (`creature_idle.gdshader`'s `has_part`/`part_tex`), so the tint's alpha is applied
+once and they breathe, hover and move as one creature.
 
 ## Subject lines
 
@@ -155,14 +158,19 @@ Writing a subject line:
 - **Keep it to a few features.** Three or four parts, each described once. Every
   extra detail named is more texture added to the image.
 
-### Dragons
+### Dragons, full body
+
+One image per dragon, shown whole where the player chooses a dragon and cropped to
+the head where they face it. All four share one pose so the head crops line up:
+side-on facing right, standing on the hind legs, the head held high at the upper
+right, clear of the wings and body. Drawn from the dragon cards' artwork.
 
 | File | Name · Ether | Subject | Moving part · motion · fill behind it |
 |---|---|---|---|
-| spiked-dragon-head | Grimroch, Scales of Stone · water | The head of an immense dragon seen side-on, its hide plated like weathered granite slabs with water running down channels between them, a crown of jagged rock spikes, deep-set eye cut-outs, and closed jaws lined with tusk-like fangs. | Lower jaw · hinge 18° open, pivot at the back of the jaw · the underside of the skull and throat, solid. |
-| dragon-head | Helsang, The Undying · shadow | The head and neck of an undead dragon seen side-on, half scaled flesh and half bare skull, tattered frills and sunken eye sockets, with wisps of shadow curling out through the gaps between its bones, jaws closed. | Lower jaw · hinge 25° open, pivot at the back of the jaw · the throat and neck, solid. |
-| sea-serpent | Rodving, The Last Breath · fire | A great serpent dragon rising in coils from a sea of fire, seen side-on, with a finned crest made of flame, gills shown as cut-out slits, smoke trailing from its closed mouth. | Lower jaw · hinge 22° open, pivot at the back of the jaw · the throat, solid. |
-| wyvern | Vuurhast, Death and Darkness · lightning | A two-legged wyvern seen side-on with its near wing raised high, lightning running through the wing membrane as cut-out veins, a barbed tail and a horned, skull-like head; the far wing is folded against its body. | Near wing · hinge 35° downstroke, pivot at the shoulder · the shoulder and back, solid. |
+| grimroch | Grimroch, Scales of Stone · water | A hulking ice dragon seen side-on facing right, standing hunched on two thick hind legs like a great ape, with a massive barrel torso, long powerful arms hanging almost to the ground and ending in huge clawed hands, and no wings. Its hide is armoured in overlapping plates of glacier ice, and its back is a row of long, straight icicles standing up like spires: each one a narrow, perfectly straight cone of ice tapering to a needle point, tallest over the shoulders and shorter down the neck, stopping where the tail begins. Its tail is thick, heavy and completely smooth, with no spikes or spines, tapering to a blunt point along the ground. Its broad reptile head is thrust forward at the upper right, with a heavy brow and closed jaws lined with tusk-like fangs of ice. | Lower jaw · hinge 18° open, pivot at the back of the jaw · the underside of the skull and throat, solid. |
+| helsang | Helsang, The Undying · shadow | An undead dragon seen side-on facing right, standing upright on two gaunt hind legs, its emaciated body all sinew with its ribs cut out as gaps, long thin clawed arms and a long thin tail. Tattered bat wings are folded half-open behind its back, with holes torn through them. On a long thin neck its narrow, skull-like head is held high at the upper right, crowned with branching antler-like horns, its jaws closed, with wisps of shadow curling out from between its ribs. | Lower jaw · hinge 25° open, pivot at the back of the jaw · the throat and neck, solid. |
+| rodving | Rodving, The Last Breath · fire | A lean, fierce fire dragon seen side-on facing right, standing upright on two hind legs, with huge bat wings spread wide and raised behind it and flames licking along their edges. A long S-curved neck lifts its horned, wedge-shaped head high at the upper right, its jaws closed with a curl of smoke from the nostrils, and a very long whip-like tail barbed with spines curls along the bottom of the frame. | Lower jaw · hinge 22° open, pivot at the back of the jaw · the throat, solid. |
+| vuurhast | Vuurhast, Death and Darkness · lightning | A long serpentine eastern lightning dragon seen side-on facing right, rearing upright on two short clawed hind legs, its long snake-like body ribbed with belly plates and coiled in loops beneath it, and no wings. Its back, neck and tail are smooth and covered only in fine scales, with no spines, fins or spikes anywhere along them, and lightning runs along its body as cut-out veins. Its long head rises on a curving neck at the upper right, with two horns shaped exactly like jagged zigzag lightning bolts standing up from its skull, long whiskers trailing from its snout, and closed jaws. | Lower jaw · hinge 22° open, pivot at the back of the jaw · the throat, solid. |
 
 ### Region 1: Jade Mountains
 
@@ -216,6 +224,16 @@ Writing a subject line:
 | burning-forest | Burning Wood · fire *(journey)* | A forest ablaze: charred trunks wrapped in rising tongues of flame and sparks drifting upward. | — |
 | stone-path | Old Stone Stair · lightning *(journey)* | An old stone stair climbing steeply between toppled statues, its steps carved with runes, up to a lightning-struck archway at the top. | — |
 
+### Card-inspired Encounters (trial)
+
+Trials that take the idea of an enemy from the official cards, not its design.
+
+| File | Name · Ether | Subject | Moving part · motion · fill behind it |
+|---|---|---|---|
+| panda-fighter | Kung Fu Red Panda · lightning | A fierce red panda kung fu master seen strictly side-on facing right, its head in profile with the snout pointing right, crouched low like a predator in a wide fighting stance with both feet planted on the bottom margin. Its long wolfish muzzle is pulled back in a snarl, baring long fangs, its ears are laid flat back against the skull, and a heavy brow juts over a narrow, slanted, hollow white eye with no pupil. It wears a loose wrap-front jacket tied at the waist with a sash and wide trousers, the cloth in a few smooth sweeping folds. One clawed paw is thrust forward at the right and the other is drawn back beside its chest. Its fur is sleek, every edge a smooth clean curve, and behind it a long, thick tail curves up as one smooth tapering shape with a clean outline, ringed by three wide white bands cut across it. | — |
+| crane-monk | Crane Monk · water | A tall crane warrior monk seen side-on facing right, striding forward on two long thin legs with its feet on the bottom margin, holding a long straight sword angled forward and down. Its body is wrapped in a long robe of smooth cloth tied with a sash, the hem one clean curved edge sweeping back behind it. One wing spreads back from its shoulder as a single smooth, solid shape whose edge is four or five broad, rounded feather tips. Its feathers lie flat and sleek. A long S-curved neck lifts its slender head at the upper right, with a long, straight spear-like beak and a narrow, slanted, hollow white eye with no pupil under a heavy brow. | — |
+| axe-gnome | Axe Gnome · shadow | A small hunched, menacing gnome seen side-on facing right, leaping forward with a short hand-axe gripped out in front of it. It wears a very tall pointed hat that curls back and ends in a small round bell. It has a huge hooked nose, a narrow, slanted, hollow white eye with no pupil under a heavy scowling brow, and its hair and long beard are one smooth solid wedge of black sweeping back behind its head, with a single clean, unbroken edge. Its short legs are bent mid-leap, its pointed boots just above the bottom margin. | — |
+
 ### The Final Journey
 
 | File | Name · Ether | Subject | Moving part · motion · fill behind it |
@@ -268,7 +286,8 @@ A thin ground line under the subject is removed; `--keep-ground` keeps it.
 
 ## Credits
 
-The current images are from game-icons.net under CC BY 3.0. When you replace an image,
+The current images are from game-icons.net under CC BY 3.0, except the four dragons
+(see CREDITS.md, "Made for this project"). When you replace an image,
 update its row in `art/creatures/CREDITS.md`: name the generator, and if the result was
 made from the original icon (for example by image-to-image), keep the icon's credit
 too. `tests/test_art.gd` checks that every image has a row there.

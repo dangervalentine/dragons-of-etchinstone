@@ -229,22 +229,29 @@ static func _encounter(game, db) -> Variant:
 	if game.key_card() == null:
 		return null
 	var enc: Dictionary = game.encounter()
-	var enemy: bool = enc.kind == "enemy"
-	var effects := []
-	if enc.hardship != null:
-		effects.append(enc.hardship)
-	if enemy and enc.data.ability != null:
-		effects.append(enc.data.ability)
-	if not enemy and enc.data.peril != null:
-		effects.append(enc.data.peril)
 	var key: String = game.key_card()
-	return {"kind": enc.kind, "index": enc.index, "title": Art.encounter_name(game.region, enc.kind, enc.index),
-		"subtitle": "%s %d" % ["Enemy" if enemy else "Journey", enc.index], "element": enc.data.attack.element if enemy else enc.data.mp.element,
-		"data": enc.data, "effects": effects, "reward": enc.data.xp,
-		"art": Art.encounter(game.region, enc.kind, enc.index),
+	return encounter_model(db, game.region, enc.kind, enc.index, enc.hardship,
+		{"id": key, "name": db.mage(key).name, "level": game.cards[key].level, "element": db.mage(key).element})
+
+
+## A Region Encounter as the Encounter face draws it, with the Key Card that names
+## it ({id, name, level, element}). The rulebook builds its examples with this too.
+static func encounter_model(db, region: int, kind: String, index: int, hardship, key_card: Dictionary) -> Dictionary:
+	var data: Dictionary = db.encounter(region, kind, index)
+	var enemy: bool = kind == "enemy"
+	var effects := []
+	if hardship != null:
+		effects.append(hardship)
+	if enemy and data.ability != null:
+		effects.append(data.ability)
+	if not enemy and data.peril != null:
+		effects.append(data.peril)
+	return {"kind": kind, "index": index, "title": Art.encounter_name(region, kind, index),
+		"subtitle": "%s %d" % ["Enemy" if enemy else "Journey", index], "element": data.attack.element if enemy else data.mp.element,
+		"data": data, "effects": effects, "reward": data.xp,
+		"art": Art.encounter(region, kind, index),
 		"scene": Art.FINAL_JOURNEY,
-		"key_card": {"id": key, "name": db.mage(key).name, "level": game.cards[key].level,
-			"element": db.mage(key).element}}
+		"key_card": key_card}
 
 
 static func _sets(game, draft) -> Array:

@@ -1,0 +1,24 @@
+# LF everywhere, on every OS. Godot writes LF, and this keeps a Windows checkout
+# (core.autocrlf=true) from showing every file Godot touches as changed.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+*.wav binary
+*.ogg binary
+*.mp3 binary
+*.zip binary
+*.tpz binary
+*.apk binary
+*.aab binary
+*.ipa binary
+*.res binary
+*.scn binary
+*.gguf binary
+*.safetensors binary

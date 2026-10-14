@@ -14,6 +14,9 @@ const StatChip = preload("res://ui/widgets/stat_chip.gd")
 const TitleScreen = preload("res://ui/screens/title_screen.gd")
 const RulesScreen = preload("res://ui/screens/rules_screen.gd")
 const Settings = preload("res://ui/model/settings.gd")
+const RulebookOverlay = preload("res://ui/overlays/rulebook_overlay.gd")
+const GlossaryPopover = preload("res://ui/overlays/glossary_popover.gd")
+const Rulebook = preload("res://ui/model/rulebook.gd")
 
 const HELP_MIN := 44.0
 
@@ -114,6 +117,13 @@ func _inspect_screen(where: String) -> void:
 		if c is Label and not ui.plan.undersized and c.text != "":
 			_ok(view.encloses(c.get_global_rect()), "%s: text '%s' runs off the screen" % [where, c.text.left(30)])
 			_ok(safe.encloses(c.get_global_rect()), "%s: text '%s' at %s is outside the safe area %s" % [where, c.text.left(30), str(c.get_global_rect()), str(safe)])
+		if c is RichTextLabel and c.text != "":
+			var shown: String = c.get_parsed_text().left(30)
+			var size: int = c.get_theme_font_size("normal_font_size")
+			_ok(size >= T.TEXT_MIN, "%s: text '%s' is set at %d" % [where, shown, size])
+			if not ui.plan.undersized:
+				_ok(view.encloses(c.get_global_rect()), "%s: text '%s' runs off the screen" % [where, shown])
+				_ok(safe.encloses(c.get_global_rect()), "%s: text '%s' at %s is outside the safe area %s" % [where, shown, str(c.get_global_rect()), str(safe)])
 
 
 func _name(c: Control) -> String:
@@ -226,12 +236,14 @@ func _screens_and_overlays(where: String) -> void:
 	await _settle()
 	_inspect_screen("%s settings" % where)
 	ui._close_overlays()
+	await _rulebook_walk(where)
 	await _setup_steps(where)
 	ui.start_game({"seed": 3, "dragon": "rodving", "difficulty": "normal", "cavalier": false, "glass_cannon": false})
 	await _settle()
 	var opens := {
 		"menu": func(): ui.dispatch({"type": "menu"}),
 		"glossary": func(): ui.dispatch({"type": "glossary"}),
+		"rulebook": func(): ui.dispatch({"type": "rulebook"}),
 		"help": func(): ui.dispatch({"type": "help", "id": "soak", "source": null}),
 		"leave": func(): ui.dispatch({"type": "leave"}),
 		"inspect": func(): ui._inspect(ui.vs.hand[0]),
@@ -248,6 +260,151 @@ func _screens_and_overlays(where: String) -> void:
 		_inspect_screen("%s %s overlay" % [where, key])
 		ui._close_overlays()
 		await process_frame
+	await _rulebook_mid_game(where)
+
+
+## The rulebook from the title screen: every page in order, each one whole on the
+## screen, then closed with nothing on the title screen changed.
+func _rulebook_walk(where: String) -> void:
+	var options: Dictionary = ui.screen.options.duplicate()
+	Rulebook.position = {"section": 0, "page": 0}
+	ui._unhandled_key_input(_key(KEY_H))
+	await _settle()
+	var book = ui._top_overlay()
+	_ok(book != null and book.get_script() == RulebookOverlay, "%s: H opens the rulebook" % where)
+	if book == null or book.get_script() != RulebookOverlay:
+		return
+	_ok(book.shown() == {"section": 0, "page": 0}, "%s: the rulebook opens at its first page" % where)
+	book._unhandled_key_input(_key(KEY_RIGHT))
+	_ok(book.shown() == Rulebook.step({"section": 0, "page": 0}, 1), "%s: Right turns the page" % where)
+	book._unhandled_key_input(_key(KEY_C))
+	_ok(book._contents_open, "%s: C opens the contents" % where)
+	book._unhandled_key_input(_key(KEY_C))
+	book._unhandled_key_input(_key(KEY_LEFT))
+	_ok(not book._contents_open and book.shown() == {"section": 0, "page": 0}, "%s: C closes the contents and Left turns back" % where)
+	await process_frame
+	var pages := 0
+	while true:
+		pages += 1
+		book.modulate.a = 1.0
+		for c in book.find_children("*", "Control", true, false):
+			c.modulate.a = 1.0
+		var at: Dictionary = book.shown()
+		var label := "%s rulebook %s p%d" % [where, Rulebook.SECTIONS[at.section].id, at.page + 1]
+		_ok(book.fits(), "%s: the page does not fit" % label)
+		_inspect_screen(label)
+		var chips: Array = book.find_children("*", "Button", true, false).filter(func(b): return b.has_meta("term"))
+		_ok(chips.size() == Rulebook.terms(at.section, at.page).size(), "%s: %d terms chips for %d terms" % [label, chips.size(), Rulebook.terms(at.section, at.page).size()])
+		_ok(chips.all(func(b): return b.has_meta("help_target")), "%s: every terms chip is a help target" % label)
+		if Rulebook.SECTIONS[at.section].id == "mage_cards" and at.page == 0 and not chips.is_empty():
+			chips[0].pressed.emit()
+			await _settle()
+			var top = ui._top_overlay()
+			_ok(top != null and top.get_script() == GlossaryPopover, "%s: a terms chip opens its Glossary entry" % label)
+			if top != null:
+				top.modulate.a = 1.0
+			_inspect_screen("%s help" % label)
+			var esc_help := InputEventKey.new()
+			esc_help.keycode = KEY_ESCAPE
+			esc_help.pressed = true
+			ui._unhandled_key_input(esc_help)
+			await _settle()
+			_ok(ui._top_overlay() == book and book.shown() == at, "%s: closing the entry returns to the same page" % label)
+		if book._next.disabled:
+			break
+		book.next()
+		await process_frame
+		await process_frame
+	var total := 0
+	for i in Rulebook.section_count():
+		total += Rulebook.page_count(i)
+	_ok(pages == total, "%s: walked %d of %d rulebook pages" % [where, pages, total])
+	_ok(book._next.text == "End of rulebook", "%s: the last page says it is the end" % where)
+	_ok(book._prev.disabled == false or total == 1, "%s: the last page can step back" % where)
+	var esc := InputEventKey.new()
+	esc.keycode = KEY_ESCAPE
+	esc.pressed = true
+	ui._unhandled_key_input(esc)
+	await _settle()
+	_ok(ui._top_overlay() == null, "%s: escape closes the rulebook" % where)
+	_ok(ui.screen.get_script() == TitleScreen and ui.screen.options == options, "%s: the title screen is unchanged after the rulebook" % where)
+
+
+## Mid-game: Menu, How to Play, the contents, a jump and a step, then closed with
+## the game exactly as it was; reopened, the rulebook is on the page left.
+func _rulebook_mid_game(where: String) -> void:
+	ui._close_overlays()
+	ui.start_game({"seed": 3, "dragon": "rodving", "difficulty": "normal", "cavalier": false, "glass_cannon": false})
+	await _settle()
+	var g = ui.game
+	ui.dispatch({"type": "card", "id": g.hand[0]})
+	ui.dispatch({"type": "card", "id": g.hand[1]})
+	await _settle()
+	var draft: Dictionary = ui.draft.to_action()
+	var hand: Array = ui.vs.hand.duplicate()
+	var phase: String = g.phase
+	var deck: Array = g.deck.duplicate()
+	ui.dispatch({"type": "menu"})
+	await _settle()
+	var how: Button = null
+	for b in ui._top_overlay().find_children("*", "Button", true, false):
+		if b.text == "How to Play":
+			how = b
+	_ok(how != null, "%s: the in-game menu offers How to Play" % where)
+	if how == null:
+		ui._close_overlays()
+		return
+	how.pressed.emit()
+	await _settle()
+	var book = ui._top_overlay()
+	_ok(book != null and book.get_script() == RulebookOverlay and ui._overlays.get_children().filter(func(o): return not o.is_queued_for_deletion()).size() == 1,
+		"%s: How to Play replaces the menu with the rulebook" % where)
+	if book == null or book.get_script() != RulebookOverlay:
+		ui._close_overlays()
+		return
+	book.toggle_contents()
+	await process_frame
+	await process_frame
+	book.modulate.a = 1.0
+	for c in book.find_children("*", "Control", true, false):
+		c.modulate.a = 1.0
+	_inspect_screen("%s rulebook contents" % where)
+	_ok(book.fits(), "%s rulebook contents: does not fit" % where)
+	var entries: Array = book.find_children("*", "Button", true, false).filter(func(b): return b.has_meta("section"))
+	_ok(entries.size() == Rulebook.section_count(), "%s: the contents list every section (%d)" % [where, entries.size()])
+	var penalty: Button = null
+	for b in entries:
+		if b.get_meta("section") == Rulebook.find("penalty"):
+			penalty = b
+	if penalty != null:
+		penalty.pressed.emit()
+		await process_frame
+	_ok(book.shown() == {"section": Rulebook.find("penalty"), "page": 0}, "%s: choosing Penalty Phase shows it, got %s" % [where, str(book.shown())])
+	book.next()
+	await process_frame
+	var left: Dictionary = book.shown()
+	var esc := InputEventKey.new()
+	esc.keycode = KEY_ESCAPE
+	esc.pressed = true
+	ui._unhandled_key_input(esc)
+	await _settle()
+	_ok(ui._top_overlay() == null, "%s: escape closes the rulebook mid-game" % where)
+	_ok(ui.draft.to_action() == draft and ui.vs.hand == hand and g.phase == phase and g.deck == deck,
+		"%s: the game is unchanged after reading the rulebook" % where)
+	ui.dispatch({"type": "rulebook"})
+	await _settle()
+	book = ui._top_overlay()
+	_ok(book != null and book.get_script() == RulebookOverlay and book.shown() == left and Rulebook.position == left,
+		"%s: the rulebook reopens on the page left, %s" % [where, str(left)])
+	ui._close_overlays()
+	await process_frame
+
+
+func _key(code: int) -> InputEventKey:
+	var e := InputEventKey.new()
+	e.keycode = code
+	e.pressed = true
+	return e
 
 
 ## Through setup: on to the rules, back to the dragons and on again keeping every
