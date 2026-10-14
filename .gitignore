@@ -1,0 +1,15 @@
+# Godot 4+
+.godot/
+*.translation
+
+# Export output
+build/
+
+# Signing
+*.keystore
+*.jks
+
+# Copyrighted reference material
+reference/
+
+.DS_Store

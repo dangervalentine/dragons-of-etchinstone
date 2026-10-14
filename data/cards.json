@@ -1,0 +1,2536 @@
+{
+  "version": 3,
+  "source": "Chip Theory Games retail cards (scan 2026-10-13); cross-checked against PNP Gutter Fold 2.0 and pixel-card-variant v1.0",
+  "elements": [
+    "fire",
+    "water",
+    "lightning",
+    "shadow"
+  ],
+  "mage_cards": [
+    {
+      "id": "DOE-A01",
+      "name": "Brute Force",
+      "element": "water",
+      "pixel_variant_id": "purple-4",
+      "levels": [
+        {
+          "level": 1,
+          "encounter": {
+            "type": "enemy",
+            "index": 1
+          },
+          "hardship": "ambush",
+          "initiative": 1,
+          "basic": {
+            "type": "move",
+            "value": 2
+          },
+          "enhanced": {
+            "type": "attack",
+            "value": 4,
+            "element": "shadow"
+          },
+          "boost": 2,
+          "armor": {
+            "value": 1,
+            "element": null
+          },
+          "upgrade_cost": 1
+        },
+        {
+          "level": 2,
+          "encounter": {
+            "type": "enemy",
+            "index": 3
+          },
+          "hardship": null,
+          "initiative": 1,
+          "basic": {
+            "type": "move",
+            "value": 3
+          },
+          "enhanced": {
+            "type": "attack",
+            "value": 5,
+            "element": "shadow"
+          },
+          "boost": 3,
+          "armor": {
+            "value": 2,
+            "element": null
+          },
+          "upgrade_cost": 3
+        },
+        {
+          "level": 3,
+          "encounter": {
+            "type": "enemy",
+            "index": 1
+          },
+          "hardship": null,
+          "initiative": 2,
+          "basic": {
+            "type": "move",
+            "value": 5
+          },
+          "enhanced": {
+            "type": "attack",
+            "value": 9,
+            "element": "shadow"
+          },
+          "boost": 4,
+          "armor": {
+            "value": 2,
+            "element": "shadow"
+          },
+          "upgrade_cost": 4
+        },
+        {
+          "level": 4,
+          "encounter": {
+            "type": "enemy",
+            "index": 2
+          },
+          "hardship": null,
+          "initiative": 3,
+          "basic": {
+            "type": "move",
+            "value": 6
+          },
+          "enhanced": {
+            "type": "attack",
+            "value": 11,
+            "element": "shadow"
+          },
+          "boost": 5,
+          "armor": {
+            "value": 3,
+            "element": "shadow"
+          },
+          "upgrade_cost": null
+        }
+      ]
+    },
+    {
+      "id": "DOE-A02",
+      "name": "Sword of Light",
+      "element": "water",
+      "pixel_variant_id": "purple-2",
+      "levels": [
+        {
+          "level": 1,
+          "encounter": {
+            "type": "journey",
+            "index": 2
+          },
+          "hardship": null,
+          "initiative": 4,
+          "basic": {
+            "type": "attack",
+            "value": 2
+          },
+          "enhanced": {
+            "type": "attack",
+            "value": 4,
+            "element": "lightning"
+          },
+          "boost": 2,
+          "armor": {
+            "value": 1,
+            "element": null
+          },
+          "upgrade_cost": 2
+        },
+        {
+          "level": 2,
+          "encounter": {
+            "type": "journey",
+            "index": 1
+          },
+          "hardship": "night_travel",
+          "initiative": 6,
+          "basic": {
+            "type": "attack",
+            "value": 3
+          },
+          "enhanced": {
+            "type": "attack",
+            "value": 6,
+            "element": "lightning"
+          },
+          "boost": 2,
+          "armor": {
+            "value": 2,
+            "element": null
+          },
+          "upgrade_cost": 3
+        },
+        {
+          "level": 3,
+          "encounter": {
+            "type": "journey",
+            "index": 3
+          },
+          "hardship": null,
+          "initiative": 8,
+          "basic": {
+            "type": "attack",
+            "value": 4
+          },
+          "enhanced": {
+            "type": "attack",
+            "value": 7,
+            "element": "lightning"
+          },
+          "boost": 3,
+          "armor": {
+            "value": 3,
+            "element": null
+          },
+          "upgrade_cost": 4
+        },
+        {
+          "level": 4,
+          "encounter": {
+            "type": "journey",
+            "index": 1
+          },
+          "hardship": null,
+          "initiative": 10,
+          "basic": {
+            "type": "attack",
+            "value": 6
+          },
+          "enhanced": {
+            "type": "attack",
+            "value": 10,
+            "element": "lightning"
+          },
+          "boost": 4,
+          "armor": {
+            "value": 4,
+            "element": null
+          },
+          "upgrade_cost": null
+        }
+      ]
+    },
+    {
+      "id": "DOE-A03",
+      "name": "Destruction",
+      "element": "water",
+      "pixel_variant_id": "purple-1",
+      "levels": [
+        {
+          "level": 1,
+          "encounter": {
+            "type": "enemy",
+            "index": 1
+          },
+          "hardship": "hazards",
+          "initiative": 1,
+          "basic": {
+            "type": "attack",
+            "value": 2
+          },
+          "enhanced": {
+            "type": "attack",
+            "value": 6,
+            "element": "fire"
+          },
+          "boost": 1,
+          "armor": {
+            "value": 1,
+            "element": null
+          },
+          "upgrade_cost": 2
+        },
+        {
+          "level": 2,
+          "encounter": {
+            "type": "enemy",
+            "index": 1
+          },
+          "hardship": null,
+          "initiative": 1,
+          "basic": {
+            "type": "attack",
+            "value": 3
+          },
+          "enhanced": {
+            "type": "attack",
+            "value": 8,
+            "element": "fire"
+          },
+          "boost": 2,
+          "armor": {
+            "value": 1,
+            "element": null
+          },
+          "upgrade_cost": 4
+        },
+        {
+          "level": 3,
+          "encounter": {
+            "type": "enemy",
+            "index": 3
+          },
+          "hardship": null,
+          "initiative": 2,
+          "basic": {
+            "type": "attack",
+            "value": 5
+          },
+          "enhanced": {
+            "type": "attack",
+            "value": 10,
+            "element": "fire"
+          },
+          "boost": 2,
+          "armor": {
+            "value": 2,
+            "element": "fire"
+          },
+          "upgrade_cost": 5
+        },
+        {
+          "level": 4,
+          "encounter": {
+            "type": "enemy",
+            "index": 4
+          },
+          "hardship": null,
+          "initiative": 3,
+          "basic": {
+            "type": "attack",
+            "value": 6
+          },
+          "enhanced": {
+            "type": "attack",
+            "value": 13,
+            "element": "fire"
+          },
+          "boost": 3,
+          "armor": {
+            "value": 3,
+            "element": "fire"
+          },
+          "upgrade_cost": null
+        }
+      ]
+    },
+    {
+      "id": "DOE-A04",
+      "name": "Frostfire Wall",
+      "element": "water",
+      "pixel_variant_id": "purple-3",
+      "levels": [
+        {
+          "level": 1,
+          "encounter": {
+            "type": "journey",
+            "index": 2
+          },
+          "hardship": null,
+          "initiative": 4,
+          "basic": {
+            "type": "attack",
+            "value": 2
+          },
+          "enhanced": {
+            "type": "attack",
+            "value": 3,
+            "element": "water"
+          },
+          "boost": 1,
+          "armor": {
+            "value": 2,
+            "element": null
+          },
+          "upgrade_cost": 1
+        },
+        {
+          "level": 2,
+          "encounter": {
+            "type": "journey",
+            "index": 2
+          },
+          "hardship": "storm",
+          "initiative": 5,
+          "basic": {
+            "type": "attack",
+            "value": 3
+          },
+          "enhanced": {
+            "type": "attack",
+            "value": 5,
+            "element": "water"
+          },
+          "boost": 2,
+          "armor": {
+            "value": 2,
+            "element": "water"
+          },
+          "upgrade_cost": 3
+        },
+        {
+          "level": 3,
+          "encounter": {
+            "type": "journey",
+            "index": 1
+          },
+          "hardship": null,
+          "initiative": 6,
+          "basic": {
+            "type": "attack",
+            "value": 4
+          },
+          "enhanced": {
+            "type": "attack",
+            "value": 7,
+            "element": "water"
+          },
+          "boost": 4,
+          "armor": {
+            "value": 4,
+            "element": "water"
+          },
+          "upgrade_cost": 4
+        },
+        {
+          "level": 4,
+          "encounter": {
+            "type": "journey",
+            "index": 3
+          },
+          "hardship": null,
+          "initiative": 7,
+          "basic": {
+            "type": "attack",
+            "value": 6
+          },
+          "enhanced": {
+            "type": "attack",
+            "value": 10,
+            "element": "water"
+          },
+          "boost": 5,
+          "armor": {
+            "value": 6,
+            "element": "water"
+          },
+          "upgrade_cost": null
+        }
+      ]
+    },
+    {
+      "id": "DOE-A05",
+      "name": "Rain of Blood",
+      "element": "lightning",
+      "pixel_variant_id": "blue-1",
+      "levels": [
+        {
+          "level": 1,
+          "encounter": {
+            "type": "enemy",
+            "index": 3
+          },
+          "hardship": "hazards",
+          "initiative": 2,
+          "basic": {
+            "type": "attack",
+            "value": 3
+          },
+          "enhanced": {
+            "type": "attack",
+            "value": 6,
+            "element": "fire"
+          },
+          "boost": 1,
+          "armor": {
+            "value": 2,
+            "element": null
+          },
+          "upgrade_cost": 1
+        },
+        {
+          "level": 2,
+          "encounter": {
+            "type": "enemy",
+            "index": 2
+          },
+          "hardship": null,
+          "initiative": 3,
+          "basic": {
+            "type": "attack",
+            "value": 5
+          },
+          "enhanced": {
+            "type": "attack",
+            "value": 8,
+            "element": "fire"
+          },
+          "boost": 1,
+          "armor": {
+            "value": 2,
+            "element": null
+          },
+          "upgrade_cost": 3
+        },
+        {
+          "level": 3,
+          "encounter": {
+            "type": "enemy",
+            "index": 4
+          },
+          "hardship": null,
+          "initiative": 3,
+          "basic": {
+            "type": "attack",
+            "value": 6
+          },
+          "enhanced": {
+            "type": "attack",
+            "value": 11,
+            "element": "fire"
+          },
+          "boost": 2,
+          "armor": {
+            "value": 3,
+            "element": null
+          },
+          "upgrade_cost": 4
+        },
+        {
+          "level": 4,
+          "encounter": {
+            "type": "enemy",
+            "index": 4
+          },
+          "hardship": null,
+          "initiative": 4,
+          "basic": {
+            "type": "attack",
+            "value": 7
+          },
+          "enhanced": {
+            "type": "attack",
+            "value": 14,
+            "element": "fire"
+          },
+          "boost": 3,
+          "armor": {
+            "value": 5,
+            "element": null
+          },
+          "upgrade_cost": null
+        }
+      ]
+    },
+    {
+      "id": "DOE-A06",
+      "name": "Fleet Footed",
+      "element": "lightning",
+      "pixel_variant_id": "blue-4",
+      "levels": [
+        {
+          "level": 1,
+          "encounter": {
+            "type": "journey",
+            "index": 4
+          },
+          "hardship": null,
+          "initiative": 5,
+          "basic": {
+            "type": "move",
+            "value": 3
+          },
+          "enhanced": {
+            "type": "move",
+            "value": 5,
+            "element": "lightning"
+          },
+          "boost": 1,
+          "armor": {
+            "value": 2,
+            "element": null
+          },
+          "upgrade_cost": 2
+        },
+        {
+          "level": 2,
+          "encounter": {
+            "type": "journey",
+            "index": 3
+          },
+          "hardship": "night_travel",
+          "initiative": 5,
+          "basic": {
+            "type": "move",
+            "value": 5
+          },
+          "enhanced": {
+            "type": "move",
+            "value": 9,
+            "element": "lightning"
+          },
+          "boost": 2,
+          "armor": {
+            "value": 3,
+            "element": null
+          },
+          "upgrade_cost": 4
+        },
+        {
+          "level": 3,
+          "encounter": {
+            "type": "journey",
+            "index": 4
+          },
+          "hardship": null,
+          "initiative": 6,
+          "basic": {
+            "type": "move",
+            "value": 6
+          },
+          "enhanced": {
+            "type": "move",
+            "value": 11,
+            "element": "lightning"
+          },
+          "boost": 4,
+          "armor": {
+            "value": 3,
+            "element": "lightning"
+          },
+          "upgrade_cost": 6
+        },
+        {
+          "level": 4,
+          "encounter": {
+            "type": "journey",
+            "index": 2
+          },
+          "hardship": null,
+          "initiative": 7,
+          "basic": {
+            "type": "move",
+            "value": 8
+          },
+          "enhanced": {
+            "type": "move",
+            "value": 14,
+            "element": "lightning"
+          },
+          "boost": 5,
+          "armor": {
+            "value": 4,
+            "element": "lightning"
+          },
+          "upgrade_cost": null
+        }
+      ]
+    },
+    {
+      "id": "DOE-A07",
+      "name": "Adapt",
+      "element": "lightning",
+      "pixel_variant_id": "blue-3",
+      "levels": [
+        {
+          "level": 1,
+          "encounter": {
+            "type": "enemy",
+            "index": 3
+          },
+          "hardship": null,
+          "initiative": 2,
+          "basic": {
+            "type": "flex",
+            "value": 2
+          },
+          "enhanced": {
+            "type": "flex",
+            "value": 3,
+            "element": "shadow"
+          },
+          "boost": 2,
+          "armor": {
+            "value": 1,
+            "element": null
+          },
+          "upgrade_cost": 2
+        },
+        {
+          "level": 2,
+          "encounter": {
+            "type": "enemy",
+            "index": 4
+          },
+          "hardship": null,
+          "initiative": 3,
+          "basic": {
+            "type": "flex",
+            "value": 3
+          },
+          "enhanced": {
+            "type": "flex",
+            "value": 5,
+            "element": "shadow"
+          },
+          "boost": 3,
+          "armor": {
+            "value": 2,
+            "element": null
+          },
+          "upgrade_cost": 3
+        },
+        {
+          "level": 3,
+          "encounter": {
+            "type": "enemy",
+            "index": 2
+          },
+          "hardship": null,
+          "initiative": 4,
+          "basic": {
+            "type": "flex",
+            "value": 4
+          },
+          "enhanced": {
+            "type": "flex",
+            "value": 7,
+            "element": "shadow"
+          },
+          "boost": 4,
+          "armor": {
+            "value": 3,
+            "element": null
+          },
+          "upgrade_cost": 4
+        },
+        {
+          "level": 4,
+          "encounter": {
+            "type": "enemy",
+            "index": 2
+          },
+          "hardship": "hazards",
+          "initiative": 4,
+          "basic": {
+            "type": "flex",
+            "value": 6
+          },
+          "enhanced": {
+            "type": "flex",
+            "value": 9,
+            "element": "shadow"
+          },
+          "boost": 5,
+          "armor": {
+            "value": 3,
+            "element": "shadow"
+          },
+          "upgrade_cost": null
+        }
+      ]
+    },
+    {
+      "id": "DOE-A08",
+      "name": "River Swiftness",
+      "element": "lightning",
+      "pixel_variant_id": "blue-2",
+      "levels": [
+        {
+          "level": 1,
+          "encounter": {
+            "type": "journey",
+            "index": 4
+          },
+          "hardship": null,
+          "initiative": 5,
+          "basic": {
+            "type": "move",
+            "value": 2
+          },
+          "enhanced": {
+            "type": "move",
+            "value": 4,
+            "element": "water"
+          },
+          "boost": 1,
+          "armor": {
+            "value": 2,
+            "element": null
+          },
+          "upgrade_cost": 2
+        },
+        {
+          "level": 2,
+          "encounter": {
+            "type": "journey",
+            "index": 1
+          },
+          "hardship": null,
+          "initiative": 6,
+          "basic": {
+            "type": "move",
+            "value": 3
+          },
+          "enhanced": {
+            "type": "move",
+            "value": 6,
+            "element": "water"
+          },
+          "boost": 2,
+          "armor": {
+            "value": 2,
+            "element": null
+          },
+          "upgrade_cost": 4
+        },
+        {
+          "level": 3,
+          "encounter": {
+            "type": "journey",
+            "index": 2
+          },
+          "hardship": null,
+          "initiative": 8,
+          "basic": {
+            "type": "move",
+            "value": 5
+          },
+          "enhanced": {
+            "type": "move",
+            "value": 9,
+            "element": "water"
+          },
+          "boost": 3,
+          "armor": {
+            "value": 5,
+            "element": null
+          },
+          "upgrade_cost": 5
+        },
+        {
+          "level": 4,
+          "encounter": {
+            "type": "journey",
+            "index": 4
+          },
+          "hardship": "storm",
+          "initiative": 9,
+          "basic": {
+            "type": "move",
+            "value": 8
+          },
+          "enhanced": {
+            "type": "move",
+            "value": 12,
+            "element": "water"
+          },
+          "boost": 5,
+          "armor": {
+            "value": 5,
+            "element": "water"
+          },
+          "upgrade_cost": null
+        }
+      ]
+    },
+    {
+      "id": "DOE-A09",
+      "name": "River Swiftness",
+      "element": "shadow",
+      "pixel_variant_id": "yellow-1",
+      "levels": [
+        {
+          "level": 1,
+          "encounter": {
+            "type": "journey",
+            "index": 1
+          },
+          "hardship": null,
+          "initiative": 5,
+          "basic": {
+            "type": "move",
+            "value": 2
+          },
+          "enhanced": {
+            "type": "move",
+            "value": 4,
+            "element": "water"
+          },
+          "boost": 1,
+          "armor": {
+            "value": 2,
+            "element": null
+          },
+          "upgrade_cost": 2
+        },
+        {
+          "level": 2,
+          "encounter": {
+            "type": "journey",
+            "index": 2
+          },
+          "hardship": null,
+          "initiative": 6,
+          "basic": {
+            "type": "move",
+            "value": 3
+          },
+          "enhanced": {
+            "type": "move",
+            "value": 6,
+            "element": "water"
+          },
+          "boost": 2,
+          "armor": {
+            "value": 2,
+            "element": null
+          },
+          "upgrade_cost": 4
+        },
+        {
+          "level": 3,
+          "encounter": {
+            "type": "journey",
+            "index": 3
+          },
+          "hardship": "storm",
+          "initiative": 8,
+          "basic": {
+            "type": "move",
+            "value": 5
+          },
+          "enhanced": {
+            "type": "move",
+            "value": 9,
+            "element": "water"
+          },
+          "boost": 3,
+          "armor": {
+            "value": 5,
+            "element": null
+          },
+          "upgrade_cost": 5
+        },
+        {
+          "level": 4,
+          "encounter": {
+            "type": "journey",
+            "index": 4
+          },
+          "hardship": null,
+          "initiative": 9,
+          "basic": {
+            "type": "move",
+            "value": 8
+          },
+          "enhanced": {
+            "type": "move",
+            "value": 12,
+            "element": "water"
+          },
+          "boost": 5,
+          "armor": {
+            "value": 5,
+            "element": "water"
+          },
+          "upgrade_cost": null
+        }
+      ]
+    },
+    {
+      "id": "DOE-A10",
+      "name": "Rain of Blood",
+      "element": "shadow",
+      "pixel_variant_id": "yellow-4",
+      "levels": [
+        {
+          "level": 1,
+          "encounter": {
+            "type": "enemy",
+            "index": 4
+          },
+          "hardship": null,
+          "initiative": 2,
+          "basic": {
+            "type": "attack",
+            "value": 3
+          },
+          "enhanced": {
+            "type": "attack",
+            "value": 6,
+            "element": "fire"
+          },
+          "boost": 1,
+          "armor": {
+            "value": 2,
+            "element": null
+          },
+          "upgrade_cost": 1
+        },
+        {
+          "level": 2,
+          "encounter": {
+            "type": "enemy",
+            "index": 2
+          },
+          "hardship": null,
+          "initiative": 3,
+          "basic": {
+            "type": "attack",
+            "value": 5
+          },
+          "enhanced": {
+            "type": "attack",
+            "value": 8,
+            "element": "fire"
+          },
+          "boost": 1,
+          "armor": {
+            "value": 2,
+            "element": null
+          },
+          "upgrade_cost": 3
+        },
+        {
+          "level": 3,
+          "encounter": {
+            "type": "enemy",
+            "index": 4
+          },
+          "hardship": "ambush",
+          "initiative": 3,
+          "basic": {
+            "type": "attack",
+            "value": 6
+          },
+          "enhanced": {
+            "type": "attack",
+            "value": 11,
+            "element": "fire"
+          },
+          "boost": 2,
+          "armor": {
+            "value": 3,
+            "element": null
+          },
+          "upgrade_cost": 4
+        },
+        {
+          "level": 4,
+          "encounter": {
+            "type": "enemy",
+            "index": 1
+          },
+          "hardship": null,
+          "initiative": 4,
+          "basic": {
+            "type": "attack",
+            "value": 7
+          },
+          "enhanced": {
+            "type": "attack",
+            "value": 14,
+            "element": "fire"
+          },
+          "boost": 3,
+          "armor": {
+            "value": 5,
+            "element": null
+          },
+          "upgrade_cost": null
+        }
+      ]
+    },
+    {
+      "id": "DOE-A11",
+      "name": "Determined March",
+      "element": "shadow",
+      "pixel_variant_id": "yellow-3",
+      "levels": [
+        {
+          "level": 1,
+          "encounter": {
+            "type": "enemy",
+            "index": 4
+          },
+          "hardship": null,
+          "initiative": 2,
+          "basic": {
+            "type": "attack",
+            "value": 3
+          },
+          "enhanced": {
+            "type": "move",
+            "value": 5,
+            "element": "shadow"
+          },
+          "boost": 2,
+          "armor": {
+            "value": 2,
+            "element": null
+          },
+          "upgrade_cost": 2
+        },
+        {
+          "level": 2,
+          "encounter": {
+            "type": "enemy",
+            "index": 4
+          },
+          "hardship": null,
+          "initiative": 3,
+          "basic": {
+            "type": "attack",
+            "value": 4
+          },
+          "enhanced": {
+            "type": "move",
+            "value": 7,
+            "element": "shadow"
+          },
+          "boost": 3,
+          "armor": {
+            "value": 3,
+            "element": null
+          },
+          "upgrade_cost": 3
+        },
+        {
+          "level": 3,
+          "encounter": {
+            "type": "enemy",
+            "index": 2
+          },
+          "hardship": "ambush",
+          "initiative": 4,
+          "basic": {
+            "type": "attack",
+            "value": 5
+          },
+          "enhanced": {
+            "type": "move",
+            "value": 9,
+            "element": "shadow"
+          },
+          "boost": 5,
+          "armor": {
+            "value": 3,
+            "element": null
+          },
+          "upgrade_cost": 5
+        },
+        {
+          "level": 4,
+          "encounter": {
+            "type": "enemy",
+            "index": 2
+          },
+          "hardship": null,
+          "initiative": 5,
+          "basic": {
+            "type": "attack",
+            "value": 5
+          },
+          "enhanced": {
+            "type": "move",
+            "value": 12,
+            "element": "shadow"
+          },
+          "boost": 6,
+          "armor": {
+            "value": 4,
+            "element": "shadow"
+          },
+          "upgrade_cost": null
+        }
+      ]
+    },
+    {
+      "id": "DOE-A12",
+      "name": "Fleet Footed",
+      "element": "shadow",
+      "pixel_variant_id": "yellow-2",
+      "levels": [
+        {
+          "level": 1,
+          "encounter": {
+            "type": "journey",
+            "index": 1
+          },
+          "hardship": null,
+          "initiative": 5,
+          "basic": {
+            "type": "move",
+            "value": 3
+          },
+          "enhanced": {
+            "type": "move",
+            "value": 5,
+            "element": "lightning"
+          },
+          "boost": 1,
+          "armor": {
+            "value": 2,
+            "element": null
+          },
+          "upgrade_cost": 2
+        },
+        {
+          "level": 2,
+          "encounter": {
+            "type": "journey",
+            "index": 4
+          },
+          "hardship": null,
+          "initiative": 5,
+          "basic": {
+            "type": "move",
+            "value": 5
+          },
+          "enhanced": {
+            "type": "move",
+            "value": 9,
+            "element": "lightning"
+          },
+          "boost": 2,
+          "armor": {
+            "value": 3,
+            "element": null
+          },
+          "upgrade_cost": 4
+        },
+        {
+          "level": 3,
+          "encounter": {
+            "type": "journey",
+            "index": 1
+          },
+          "hardship": null,
+          "initiative": 6,
+          "basic": {
+            "type": "move",
+            "value": 6
+          },
+          "enhanced": {
+            "type": "move",
+            "value": 11,
+            "element": "lightning"
+          },
+          "boost": 4,
+          "armor": {
+            "value": 3,
+            "element": "lightning"
+          },
+          "upgrade_cost": 6
+        },
+        {
+          "level": 4,
+          "encounter": {
+            "type": "journey",
+            "index": 2
+          },
+          "hardship": "night_travel",
+          "initiative": 7,
+          "basic": {
+            "type": "move",
+            "value": 8
+          },
+          "enhanced": {
+            "type": "move",
+            "value": 14,
+            "element": "lightning"
+          },
+          "boost": 5,
+          "armor": {
+            "value": 4,
+            "element": "lightning"
+          },
+          "upgrade_cost": null
+        }
+      ]
+    },
+    {
+      "id": "DOE-A13",
+      "name": "Adapt",
+      "element": "fire",
+      "pixel_variant_id": "red-1",
+      "levels": [
+        {
+          "level": 1,
+          "encounter": {
+            "type": "enemy",
+            "index": 2
+          },
+          "hardship": "ambush",
+          "initiative": 2,
+          "basic": {
+            "type": "flex",
+            "value": 2
+          },
+          "enhanced": {
+            "type": "flex",
+            "value": 3,
+            "element": "shadow"
+          },
+          "boost": 2,
+          "armor": {
+            "value": 1,
+            "element": null
+          },
+          "upgrade_cost": 2
+        },
+        {
+          "level": 2,
+          "encounter": {
+            "type": "enemy",
+            "index": 3
+          },
+          "hardship": null,
+          "initiative": 3,
+          "basic": {
+            "type": "flex",
+            "value": 3
+          },
+          "enhanced": {
+            "type": "flex",
+            "value": 5,
+            "element": "shadow"
+          },
+          "boost": 3,
+          "armor": {
+            "value": 2,
+            "element": null
+          },
+          "upgrade_cost": 3
+        },
+        {
+          "level": 3,
+          "encounter": {
+            "type": "enemy",
+            "index": 1
+          },
+          "hardship": null,
+          "initiative": 4,
+          "basic": {
+            "type": "flex",
+            "value": 4
+          },
+          "enhanced": {
+            "type": "flex",
+            "value": 7,
+            "element": "shadow"
+          },
+          "boost": 4,
+          "armor": {
+            "value": 3,
+            "element": null
+          },
+          "upgrade_cost": 4
+        },
+        {
+          "level": 4,
+          "encounter": {
+            "type": "enemy",
+            "index": 2
+          },
+          "hardship": null,
+          "initiative": 4,
+          "basic": {
+            "type": "flex",
+            "value": 6
+          },
+          "enhanced": {
+            "type": "flex",
+            "value": 9,
+            "element": "shadow"
+          },
+          "boost": 5,
+          "armor": {
+            "value": 3,
+            "element": "shadow"
+          },
+          "upgrade_cost": null
+        }
+      ]
+    },
+    {
+      "id": "DOE-A14",
+      "name": "Frostfire Wall",
+      "element": "fire",
+      "pixel_variant_id": "red-3",
+      "levels": [
+        {
+          "level": 1,
+          "encounter": {
+            "type": "journey",
+            "index": 3
+          },
+          "hardship": "storm",
+          "initiative": 4,
+          "basic": {
+            "type": "attack",
+            "value": 2
+          },
+          "enhanced": {
+            "type": "attack",
+            "value": 3,
+            "element": "water"
+          },
+          "boost": 1,
+          "armor": {
+            "value": 2,
+            "element": null
+          },
+          "upgrade_cost": 1
+        },
+        {
+          "level": 2,
+          "encounter": {
+            "type": "journey",
+            "index": 4
+          },
+          "hardship": null,
+          "initiative": 5,
+          "basic": {
+            "type": "attack",
+            "value": 3
+          },
+          "enhanced": {
+            "type": "attack",
+            "value": 5,
+            "element": "water"
+          },
+          "boost": 2,
+          "armor": {
+            "value": 2,
+            "element": "water"
+          },
+          "upgrade_cost": 3
+        },
+        {
+          "level": 3,
+          "encounter": {
+            "type": "journey",
+            "index": 2
+          },
+          "hardship": null,
+          "initiative": 6,
+          "basic": {
+            "type": "attack",
+            "value": 4
+          },
+          "enhanced": {
+            "type": "attack",
+            "value": 7,
+            "element": "water"
+          },
+          "boost": 4,
+          "armor": {
+            "value": 4,
+            "element": "water"
+          },
+          "upgrade_cost": 4
+        },
+        {
+          "level": 4,
+          "encounter": {
+            "type": "journey",
+            "index": 3
+          },
+          "hardship": null,
+          "initiative": 7,
+          "basic": {
+            "type": "attack",
+            "value": 6
+          },
+          "enhanced": {
+            "type": "attack",
+            "value": 10,
+            "element": "water"
+          },
+          "boost": 5,
+          "armor": {
+            "value": 6,
+            "element": "water"
+          },
+          "upgrade_cost": null
+        }
+      ]
+    },
+    {
+      "id": "DOE-A15",
+      "name": "Burning Bridges",
+      "element": "fire",
+      "pixel_variant_id": "red-4",
+      "levels": [
+        {
+          "level": 1,
+          "encounter": {
+            "type": "enemy",
+            "index": 2
+          },
+          "hardship": "hazards",
+          "initiative": 1,
+          "basic": {
+            "type": "move",
+            "value": 2
+          },
+          "enhanced": {
+            "type": "move",
+            "value": 4,
+            "element": "fire"
+          },
+          "boost": 1,
+          "armor": {
+            "value": 1,
+            "element": null
+          },
+          "upgrade_cost": 2
+        },
+        {
+          "level": 2,
+          "encounter": {
+            "type": "enemy",
+            "index": 1
+          },
+          "hardship": null,
+          "initiative": 1,
+          "basic": {
+            "type": "move",
+            "value": 3
+          },
+          "enhanced": {
+            "type": "move",
+            "value": 5,
+            "element": "fire"
+          },
+          "boost": 2,
+          "armor": {
+            "value": 1,
+            "element": null
+          },
+          "upgrade_cost": 4
+        },
+        {
+          "level": 3,
+          "encounter": {
+            "type": "enemy",
+            "index": 3
+          },
+          "hardship": null,
+          "initiative": 2,
+          "basic": {
+            "type": "move",
+            "value": 4
+          },
+          "enhanced": {
+            "type": "move",
+            "value": 7,
+            "element": "fire"
+          },
+          "boost": 2,
+          "armor": {
+            "value": 2,
+            "element": "fire"
+          },
+          "upgrade_cost": 5
+        },
+        {
+          "level": 4,
+          "encounter": {
+            "type": "enemy",
+            "index": 4
+          },
+          "hardship": null,
+          "initiative": 3,
+          "basic": {
+            "type": "move",
+            "value": 5
+          },
+          "enhanced": {
+            "type": "move",
+            "value": 9,
+            "element": "fire"
+          },
+          "boost": 3,
+          "armor": {
+            "value": 3,
+            "element": "fire"
+          },
+          "upgrade_cost": null
+        }
+      ]
+    },
+    {
+      "id": "DOE-A16",
+      "name": "Motivated Flight",
+      "element": "fire",
+      "pixel_variant_id": "red-2",
+      "levels": [
+        {
+          "level": 1,
+          "encounter": {
+            "type": "journey",
+            "index": 3
+          },
+          "hardship": null,
+          "initiative": 4,
+          "basic": {
+            "type": "move",
+            "value": 2
+          },
+          "enhanced": {
+            "type": "move",
+            "value": 4,
+            "element": "lightning"
+          },
+          "boost": 1,
+          "armor": {
+            "value": 2,
+            "element": null
+          },
+          "upgrade_cost": 1
+        },
+        {
+          "level": 2,
+          "encounter": {
+            "type": "journey",
+            "index": 3
+          },
+          "hardship": null,
+          "initiative": 5,
+          "basic": {
+            "type": "move",
+            "value": 4
+          },
+          "enhanced": {
+            "type": "move",
+            "value": 8,
+            "element": "lightning"
+          },
+          "boost": 2,
+          "armor": {
+            "value": 2,
+            "element": "lightning"
+          },
+          "upgrade_cost": 3
+        },
+        {
+          "level": 3,
+          "encounter": {
+            "type": "journey",
+            "index": 4
+          },
+          "hardship": "night_travel",
+          "initiative": 7,
+          "basic": {
+            "type": "move",
+            "value": 5
+          },
+          "enhanced": {
+            "type": "move",
+            "value": 10,
+            "element": "lightning"
+          },
+          "boost": 3,
+          "armor": {
+            "value": 3,
+            "element": "lightning"
+          },
+          "upgrade_cost": 4
+        },
+        {
+          "level": 4,
+          "encounter": {
+            "type": "journey",
+            "index": 1
+          },
+          "hardship": null,
+          "initiative": 9,
+          "basic": {
+            "type": "move",
+            "value": 6
+          },
+          "enhanced": {
+            "type": "move",
+            "value": 12,
+            "element": "lightning"
+          },
+          "boost": 5,
+          "armor": {
+            "value": 5,
+            "element": "lightning"
+          },
+          "upgrade_cost": null
+        }
+      ]
+    }
+  ],
+  "regions": [
+    {
+      "region": 1,
+      "name": "Jade Mountains",
+      "card": "DOE-R01",
+      "enemies": [
+        {
+          "hp": 7,
+          "initiative": 8,
+          "attack": {
+            "value": 1,
+            "element": "lightning"
+          },
+          "armor": [
+            {
+              "element": "lightning",
+              "value": 1
+            }
+          ],
+          "ability": null,
+          "xp": 4
+        },
+        {
+          "hp": 11,
+          "initiative": 4,
+          "attack": {
+            "value": 2,
+            "element": "fire"
+          },
+          "armor": [
+            {
+              "element": "fire",
+              "value": 1
+            }
+          ],
+          "ability": null,
+          "xp": 7
+        },
+        {
+          "hp": 9,
+          "initiative": 6,
+          "attack": {
+            "value": 2,
+            "element": "water"
+          },
+          "armor": [
+            {
+              "element": "water",
+              "value": 2
+            }
+          ],
+          "ability": null,
+          "xp": 5
+        },
+        {
+          "hp": 13,
+          "initiative": 2,
+          "attack": {
+            "value": 3,
+            "element": "shadow"
+          },
+          "armor": [
+            {
+              "element": "shadow",
+              "value": 3
+            }
+          ],
+          "ability": null,
+          "xp": 8
+        }
+      ],
+      "journeys": [
+        {
+          "mp": {
+            "value": 12,
+            "element": "lightning"
+          },
+          "time_penalty": 2,
+          "peril": null,
+          "xp": 5
+        },
+        {
+          "mp": {
+            "value": 8,
+            "element": "water"
+          },
+          "time_penalty": 1,
+          "peril": null,
+          "xp": 3
+        },
+        {
+          "mp": {
+            "value": 11,
+            "element": "fire"
+          },
+          "time_penalty": 2,
+          "peril": null,
+          "xp": 4
+        },
+        {
+          "mp": {
+            "value": 10,
+            "element": "shadow"
+          },
+          "time_penalty": 1,
+          "peril": null,
+          "xp": 3
+        }
+      ]
+    },
+    {
+      "region": 2,
+      "name": "Living Marshes",
+      "card": "DOE-R01",
+      "enemies": [
+        {
+          "hp": 9,
+          "initiative": 6,
+          "attack": {
+            "value": 2,
+            "element": "shadow"
+          },
+          "armor": [
+            {
+              "element": "shadow",
+              "value": 1
+            }
+          ],
+          "ability": "ranged",
+          "xp": 5
+        },
+        {
+          "hp": 10,
+          "initiative": 8,
+          "attack": {
+            "value": 2,
+            "element": "lightning"
+          },
+          "armor": [
+            {
+              "element": "lightning",
+              "value": 1
+            }
+          ],
+          "ability": null,
+          "xp": 4
+        },
+        {
+          "hp": 15,
+          "initiative": 2,
+          "attack": {
+            "value": 4,
+            "element": "fire"
+          },
+          "armor": [
+            {
+              "element": "fire",
+              "value": 3
+            }
+          ],
+          "ability": "slow",
+          "xp": 8
+        },
+        {
+          "hp": 13,
+          "initiative": 5,
+          "attack": {
+            "value": 3,
+            "element": "water"
+          },
+          "armor": [
+            {
+              "element": "water",
+              "value": 2
+            }
+          ],
+          "ability": "freeze",
+          "xp": 7
+        }
+      ],
+      "journeys": [
+        {
+          "mp": {
+            "value": 10,
+            "element": "fire"
+          },
+          "time_penalty": 2,
+          "peril": "treacherous",
+          "xp": 4
+        },
+        {
+          "mp": {
+            "value": 13,
+            "element": "water"
+          },
+          "time_penalty": 2,
+          "peril": null,
+          "xp": 7
+        },
+        {
+          "mp": {
+            "value": 11,
+            "element": "lightning"
+          },
+          "time_penalty": 3,
+          "peril": null,
+          "xp": 5
+        },
+        {
+          "mp": {
+            "value": 9,
+            "element": "shadow"
+          },
+          "time_penalty": 2,
+          "peril": "steep",
+          "xp": 4
+        }
+      ]
+    },
+    {
+      "region": 3,
+      "name": "Burning Basin",
+      "card": "DOE-R02",
+      "enemies": [
+        {
+          "hp": 17,
+          "initiative": 5,
+          "attack": {
+            "value": 3,
+            "element": "shadow"
+          },
+          "armor": [
+            {
+              "element": "shadow",
+              "value": 3
+            }
+          ],
+          "ability": null,
+          "xp": 9
+        },
+        {
+          "hp": 14,
+          "initiative": 4,
+          "attack": {
+            "value": 3,
+            "element": "water"
+          },
+          "armor": [
+            {
+              "element": "water",
+              "value": 3
+            }
+          ],
+          "ability": "slow",
+          "xp": 8
+        },
+        {
+          "hp": 11,
+          "initiative": 9,
+          "attack": {
+            "value": 2,
+            "element": "fire"
+          },
+          "armor": [
+            {
+              "element": "fire",
+              "value": 2
+            }
+          ],
+          "ability": "poison",
+          "xp": 7
+        },
+        {
+          "hp": 9,
+          "initiative": 7,
+          "attack": {
+            "value": 2,
+            "element": "lightning"
+          },
+          "armor": [
+            {
+              "element": "lightning",
+              "value": 2
+            }
+          ],
+          "ability": "ranged",
+          "xp": 5
+        }
+      ],
+      "journeys": [
+        {
+          "mp": {
+            "value": 14,
+            "element": "water"
+          },
+          "time_penalty": 2,
+          "peril": "steep",
+          "xp": 7
+        },
+        {
+          "mp": {
+            "value": 12,
+            "element": "lightning"
+          },
+          "time_penalty": 3,
+          "peril": null,
+          "xp": 6
+        },
+        {
+          "mp": {
+            "value": 10,
+            "element": "fire"
+          },
+          "time_penalty": 3,
+          "peril": "treacherous",
+          "xp": 5
+        },
+        {
+          "mp": {
+            "value": 11,
+            "element": "shadow"
+          },
+          "time_penalty": 2,
+          "peril": null,
+          "xp": 5
+        }
+      ]
+    },
+    {
+      "region": 4,
+      "name": "Forest of Gath",
+      "card": "DOE-R02",
+      "enemies": [
+        {
+          "hp": 13,
+          "initiative": 6,
+          "attack": {
+            "value": 2,
+            "element": "shadow"
+          },
+          "armor": [
+            {
+              "element": "shadow",
+              "value": 3
+            },
+            {
+              "element": "water",
+              "value": 2
+            }
+          ],
+          "ability": "poison",
+          "xp": 7
+        },
+        {
+          "hp": 9,
+          "initiative": 10,
+          "attack": {
+            "value": 3,
+            "element": "fire"
+          },
+          "armor": [
+            {
+              "element": "fire",
+              "value": 1
+            }
+          ],
+          "ability": "ranged",
+          "xp": 5
+        },
+        {
+          "hp": 14,
+          "initiative": 8,
+          "attack": {
+            "value": 4,
+            "element": "lightning"
+          },
+          "armor": [
+            {
+              "element": "lightning",
+              "value": 2
+            },
+            {
+              "element": "fire",
+              "value": 2
+            }
+          ],
+          "ability": "freeze",
+          "xp": 8
+        },
+        {
+          "hp": 17,
+          "initiative": 7,
+          "attack": {
+            "value": 5,
+            "element": "water"
+          },
+          "armor": [
+            {
+              "element": "water",
+              "value": 3
+            },
+            {
+              "element": "shadow",
+              "value": 2
+            }
+          ],
+          "ability": null,
+          "xp": 9
+        }
+      ],
+      "journeys": [
+        {
+          "mp": {
+            "value": 14,
+            "element": "water"
+          },
+          "time_penalty": 2,
+          "peril": "treacherous",
+          "xp": 7
+        },
+        {
+          "mp": {
+            "value": 13,
+            "element": "shadow"
+          },
+          "time_penalty": 3,
+          "peril": null,
+          "xp": 6
+        },
+        {
+          "mp": {
+            "value": 12,
+            "element": "fire"
+          },
+          "time_penalty": 2,
+          "peril": null,
+          "xp": 5
+        },
+        {
+          "mp": {
+            "value": 11,
+            "element": "lightning"
+          },
+          "time_penalty": 3,
+          "peril": "steep",
+          "xp": 5
+        }
+      ]
+    }
+  ],
+  "dragons": [
+    {
+      "id": "grimroch",
+      "name": "Grimroch",
+      "title": "Scales of Stone",
+      "card": "DOE-D02",
+      "initiative": 10,
+      "early_damage": {
+        "value": 4,
+        "element": "water"
+      },
+      "armor": [
+        {
+          "element": "water",
+          "value": 5
+        },
+        {
+          "element": "lightning",
+          "value": 3
+        },
+        {
+          "element": "shadow",
+          "value": 2
+        }
+      ],
+      "mp_tiers": [
+        {
+          "mp": {
+            "value": 15,
+            "element": "water"
+          },
+          "time_penalty": 4
+        },
+        {
+          "mp": {
+            "value": 21,
+            "element": "water"
+          },
+          "time_penalty": 3
+        },
+        {
+          "mp": {
+            "value": 27,
+            "element": "water"
+          },
+          "time_penalty": 1
+        }
+      ],
+      "hp_tiers": [
+        {
+          "hp": 22,
+          "attack": {
+            "value": 26,
+            "element": "water"
+          }
+        },
+        {
+          "hp": 25,
+          "attack": {
+            "value": 20,
+            "element": "water"
+          }
+        },
+        {
+          "hp": 31,
+          "attack": {
+            "value": 11,
+            "element": "water"
+          }
+        }
+      ]
+    },
+    {
+      "id": "helsang",
+      "name": "Helsang",
+      "title": "The Undying",
+      "card": "DOE-D02",
+      "initiative": 12,
+      "early_damage": {
+        "value": 6,
+        "element": "shadow"
+      },
+      "armor": [
+        {
+          "element": "shadow",
+          "value": 4
+        },
+        {
+          "element": "water",
+          "value": 3
+        }
+      ],
+      "mp_tiers": [
+        {
+          "mp": {
+            "value": 19,
+            "element": "shadow"
+          },
+          "time_penalty": 3
+        },
+        {
+          "mp": {
+            "value": 23,
+            "element": "shadow"
+          },
+          "time_penalty": 2
+        },
+        {
+          "mp": {
+            "value": 29,
+            "element": "shadow"
+          },
+          "time_penalty": 1
+        }
+      ],
+      "hp_tiers": [
+        {
+          "hp": 21,
+          "attack": {
+            "value": 26,
+            "element": "shadow"
+          }
+        },
+        {
+          "hp": 26,
+          "attack": {
+            "value": 20,
+            "element": "shadow"
+          }
+        },
+        {
+          "hp": 30,
+          "attack": {
+            "value": 12,
+            "element": "shadow"
+          }
+        }
+      ]
+    },
+    {
+      "id": "rodving",
+      "name": "Rodving",
+      "title": "The Last Breath",
+      "card": "DOE-D01",
+      "initiative": 9,
+      "early_damage": {
+        "value": 9,
+        "element": "fire"
+      },
+      "armor": [
+        {
+          "element": "fire",
+          "value": 4
+        }
+      ],
+      "mp_tiers": [
+        {
+          "mp": {
+            "value": 20,
+            "element": "fire"
+          },
+          "time_penalty": 3
+        },
+        {
+          "mp": {
+            "value": 23,
+            "element": "fire"
+          },
+          "time_penalty": 2
+        },
+        {
+          "mp": {
+            "value": 28,
+            "element": "fire"
+          },
+          "time_penalty": 1
+        }
+      ],
+      "hp_tiers": [
+        {
+          "hp": 22,
+          "attack": {
+            "value": 27,
+            "element": "fire"
+          }
+        },
+        {
+          "hp": 27,
+          "attack": {
+            "value": 24,
+            "element": "fire"
+          }
+        },
+        {
+          "hp": 32,
+          "attack": {
+            "value": 15,
+            "element": "fire"
+          }
+        }
+      ]
+    },
+    {
+      "id": "vuurhast",
+      "name": "Vuurhast",
+      "title": "Death and Darkness",
+      "card": "DOE-D01",
+      "initiative": 13,
+      "early_damage": {
+        "value": 8,
+        "element": "lightning"
+      },
+      "armor": [
+        {
+          "element": "lightning",
+          "value": 4
+        },
+        {
+          "element": "fire",
+          "value": 1
+        }
+      ],
+      "mp_tiers": [
+        {
+          "mp": {
+            "value": 17,
+            "element": "lightning"
+          },
+          "time_penalty": 4
+        },
+        {
+          "mp": {
+            "value": 21,
+            "element": "lightning"
+          },
+          "time_penalty": 3
+        },
+        {
+          "mp": {
+            "value": 25,
+            "element": "lightning"
+          },
+          "time_penalty": 2
+        }
+      ],
+      "hp_tiers": [
+        {
+          "hp": 16,
+          "attack": {
+            "value": 23,
+            "element": "lightning"
+          }
+        },
+        {
+          "hp": 21,
+          "attack": {
+            "value": 20,
+            "element": "lightning"
+          }
+        },
+        {
+          "hp": 29,
+          "attack": {
+            "value": 13,
+            "element": "lightning"
+          }
+        }
+      ]
+    }
+  ],
+  "variant_dragons": [
+    {
+      "id": "pixel-magenta",
+      "name": "",
+      "initiative": 14,
+      "early_damage": {
+        "value": 6,
+        "element": "water"
+      },
+      "armor": [
+        {
+          "element": "water",
+          "value": 3
+        },
+        {
+          "element": "shadow",
+          "value": 2
+        },
+        {
+          "element": "lightning",
+          "value": 1
+        }
+      ],
+      "mp_tiers": [
+        {
+          "mp": {
+            "value": 20,
+            "element": "water"
+          },
+          "time_penalty": 4
+        },
+        {
+          "mp": {
+            "value": 25,
+            "element": "water"
+          },
+          "time_penalty": 3
+        },
+        {
+          "mp": {
+            "value": 30,
+            "element": "water"
+          },
+          "time_penalty": 2
+        }
+      ],
+      "hp_tiers": [
+        {
+          "hp": 20,
+          "attack": {
+            "value": 20,
+            "element": "water"
+          }
+        },
+        {
+          "hp": 23,
+          "attack": {
+            "value": 16,
+            "element": "water"
+          }
+        },
+        {
+          "hp": 26,
+          "attack": {
+            "value": 10,
+            "element": "water"
+          }
+        }
+      ]
+    },
+    {
+      "id": "pixel-white",
+      "name": "",
+      "initiative": 12,
+      "early_damage": {
+        "value": 6,
+        "element": "water"
+      },
+      "armor": [
+        {
+          "element": "fire",
+          "value": 4
+        },
+        {
+          "element": "lightning",
+          "value": 3
+        },
+        {
+          "element": "shadow",
+          "value": 2
+        }
+      ],
+      "mp_tiers": [
+        {
+          "mp": {
+            "value": 19,
+            "element": "shadow"
+          },
+          "time_penalty": 2
+        },
+        {
+          "mp": {
+            "value": 23,
+            "element": "water"
+          },
+          "time_penalty": 1
+        },
+        {
+          "mp": {
+            "value": 29,
+            "element": "fire"
+          },
+          "time_penalty": 3
+        }
+      ],
+      "hp_tiers": [
+        {
+          "hp": 21,
+          "attack": {
+            "value": 26,
+            "element": "lightning"
+          }
+        },
+        {
+          "hp": 26,
+          "attack": {
+            "value": 20,
+            "element": "water"
+          }
+        },
+        {
+          "hp": 30,
+          "attack": {
+            "value": 12,
+            "element": "shadow"
+          }
+        }
+      ]
+    }
+  ]
+}
