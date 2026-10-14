@@ -27,6 +27,7 @@ func _initialize() -> void:
 func _run() -> void:
 	for name in Solver.MATRIX:
 		await _open(name)
+		await _screens_and_overlays(name)
 		await _play(name, 11, "casual", false)
 	await _open("phone-16x9")
 	await _play("phone-16x9 animated", 5, "normal", true)
@@ -70,6 +71,8 @@ func _open(name: String) -> void:
 	await process_frame
 	_ok(ui.plan.undersized == (name == "upright-browser"), "%s: undersized is %s" % [name, ui.plan.undersized])
 	_ok(ui._notice != null if name == "upright-browser" else ui._notice == null, "%s: size notice" % name)
+	if ui._notice != null:
+		_ok(ui.plan.safe.grow(1.0).encloses(ui._notice.get_global_rect()), "%s: size notice at %s is outside the safe area" % [name, str(ui._notice.get_global_rect())])
 
 
 func _settle() -> void:
@@ -107,6 +110,7 @@ func _inspect_screen(where: String) -> void:
 			_ok(fs >= T.TEXT_MIN, "%s: text '%s' is set at %d" % [where, c.text.left(30), fs])
 		if c is Label and not ui.plan.undersized and c.text != "":
 			_ok(view.encloses(c.get_global_rect()), "%s: text '%s' runs off the screen" % [where, c.text.left(30)])
+			_ok(safe.encloses(c.get_global_rect()), "%s: text '%s' at %s is outside the safe area %s" % [where, c.text.left(30), str(c.get_global_rect()), str(safe)])
 
 
 func _name(c: Control) -> String:
@@ -207,6 +211,37 @@ func _play(where: String, game_seed: int, difficulty: String, animated: bool) ->
 	_ok(same_levels, "%s: same Levels as the engine-only game" % where)
 	if ui.screen != null and ui.screen != ui.play:
 		_inspect_screen("%s ending" % where)
+
+
+## The title screen, then each overlay over a game in progress, one at a time.
+func _screens_and_overlays(where: String) -> void:
+	await _settle()
+	_inspect_screen("%s title" % where)
+	ui.dispatch({"type": "settings"})
+	await _settle()
+	_inspect_screen("%s settings" % where)
+	ui._close_overlays()
+	ui.start_game({"seed": 3, "dragon": "rodving", "difficulty": "normal", "cavalier": false, "glass_cannon": false})
+	await _settle()
+	var opens := {
+		"menu": func(): ui.dispatch({"type": "menu"}),
+		"glossary": func(): ui.dispatch({"type": "glossary"}),
+		"help": func(): ui.dispatch({"type": "help", "id": "soak", "source": null}),
+		"leave": func(): ui.dispatch({"type": "leave"}),
+		"inspect": func(): ui._inspect(ui.vs.hand[0]),
+		"banner": func(): ui._banner({"phase": "challenge", "region": 1}, 60.0),
+	}
+	for key in opens:
+		opens[key].call()
+		await process_frame
+		await process_frame
+		for o in ui._overlays.get_children():
+			o.modulate.a = 1.0
+			for c in o.find_children("*", "Control", true, false):
+				c.modulate.a = 1.0
+		_inspect_screen("%s %s overlay" % [where, key])
+		ui._close_overlays()
+		await process_frame
 
 
 ## Animated runs press again while a sequence is still playing, as a quick player would.

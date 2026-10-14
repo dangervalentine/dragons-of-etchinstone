@@ -67,6 +67,18 @@ func test_cards_fit_the_hand_region_and_stay_legible() -> void:
 					ok(not plan.card_rects[i].intersects(plan.card_rects[j]), "%s: cards do not overlap" % name)
 
 
+func test_the_safe_area_keeps_clear_of_rounded_corners() -> void:
+	# A Pixel 9 Pro held sideways: 118-pixel corners, the camera on the left.
+	var window := Vector2(2142, 960)
+	var r := 118.0
+	var safe := Solver.clear_corners(Rect2(153, 0, 1989, 960), window, [r, r, r, r])
+	eq(safe.position.x, 153.0, "the camera already clears the left corners")
+	for p in [Vector2(safe.position.x, safe.position.y), Vector2(safe.end.x, safe.position.y), safe.end, Vector2(safe.position.x, safe.end.y)]:
+		var centre := Vector2(clampf(p.x, r, window.x - r), clampf(p.y, r, window.y - r))
+		ok(p.distance_to(centre) <= r * (1.0 - Solver.CORNER_CLEARANCE) + 0.01, "corner %s is clear of the curve" % str(p))
+	eq(Solver.clear_corners(Rect2(40, 40, 920, 520), Vector2(1000, 600), [0, 0, 0, 0]), Rect2(40, 40, 920, 520), "square corners change nothing")
+
+
 func test_seven_cards_use_two_rows_and_four_use_one() -> void:
 	eq(_plan("phone-16x9", 4, 1).hand_rows, 1, "four in a row")
 	eq(_plan("phone-16x9", 7, 2).hand_rows, 2, "seven in two rows")

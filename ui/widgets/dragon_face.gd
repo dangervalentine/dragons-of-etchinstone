@@ -24,6 +24,8 @@ var _scene := Control.new()
 var _road := Creature.new()
 var _beast := Creature.new()
 var _panel := VBoxContainer.new()
+var _how: Label
+var _room := INF
 var _tween: Tween
 
 
@@ -37,6 +39,7 @@ func _init() -> void:
 	_stage.add_child(_scene)
 	_panel.add_theme_constant_override("separation", 6)
 	_stage.add_child(_panel)
+	_panel.sort_children.connect(_trim)
 	_stage.resized.connect(func(): _place(false))
 
 
@@ -50,18 +53,18 @@ func render(enc: Dictionary) -> void:
 	_place(crossing and not UI.reduced_motion)
 
 
-## Light the rung the current Action Sets reach; -1 for none.
+## Light every rung the current Action Sets reach, since reaching one tier meets
+## the easier ones too; -1 for none.
 func set_reached(tier: int) -> void:
 	if tier == _reached:
 		return
 	_reached = tier
 	for i in _rungs.size():
-		var on: bool = i == tier
-		var passed: bool = tier >= 0 and i < tier
+		var on: bool = i <= tier
 		var rung: PanelContainer = _rungs[i]
 		rung.add_theme_stylebox_override("panel", UI.box(
 			Color(T.GOLD, 0.92) if on else Color(T.BG_BAND, 0.85),
-			T.GOLD if on or passed else Color(T.INK, 0.25), 2 if on else 1, T.RADIUS_S, 4))
+			T.GOLD if on else Color(T.INK, 0.25), 2 if on else 1, T.RADIUS_S, 4))
 		for l in rung.find_children("*", "Label", true, false):
 			l.add_theme_color_override("font_color", T.BG_BASE if on else T.INK)
 		for t in rung.find_children("*", "TextureRect", true, false):
@@ -96,12 +99,14 @@ func _build(enc: Dictionary) -> void:
 		_panel.remove_child(c)
 		c.queue_free()
 	_rungs = []
+	_how = null
 	if journey:
 		var intro := UI.label("THE FINAL JOURNEY", ["body_bold", T.LABEL[1]], T.GOLD)
 		_panel.add_child(intro)
 		var how := UI.label("Add the Move of both sets. Each tier reached costs less time.", T.LABEL, T.INK, true)
 		how.custom_minimum_size.x = 200
 		_panel.add_child(how)
+		_how = how
 	else:
 		_panel.add_child(UI.label("THE FINAL ENEMY", ["body_bold", T.LABEL[1]], T.GOLD))
 		# One row of figures, named once underneath; each explains itself when pressed.
@@ -122,11 +127,15 @@ func _build(enc: Dictionary) -> void:
 		var caption := UI.label(names, T.LABEL, T.INK_MUTED, true)
 		caption.custom_minimum_size.x = 200
 		_panel.add_child(caption)
+		_how = caption
 	var tiers: Array = d.mp_tiers if journey else d.hp_tiers
 	var rows := []
 	for i in tiers.size():
 		rows.append(_rung(tiers[i], journey, enc.element))
-	rows.reverse()
+	# The journey ladder runs from the easiest Move down to the hardest; the
+	# battle ladder puts the hardest Attack on top.
+	if not journey:
+		rows.reverse()
 	for r in rows:
 		_panel.add_child(r)
 	set_reached(-1)
@@ -153,6 +162,7 @@ func _place(crossing: bool) -> void:
 	var near := minf(scene_w, h * 0.95)
 	var beast_near := Rect2((scene_w - near) / 2.0, (h - near) / 2.0, near, near)
 	var beast: Rect2 = beast_far if journey else beast_near
+	_fit_ladder(panel)
 	if _tween != null and _tween.is_valid():
 		_tween.kill()
 	_road.position = road.position
@@ -180,6 +190,24 @@ func _place(crossing: bool) -> void:
 	_tween.tween_property(_beast, "size", beast.size, CROSSING)
 	_tween.tween_property(_road, "modulate:a", 0.0, CROSSING * 0.6)
 	_tween.tween_property(_panel, "modulate:a", 1.0, CROSSING * 0.5).set_delay(CROSSING * 0.6)
+
+
+## On short screens the ladder would run out of the frame; drop the line that
+## explains the panel first, since each rung and figure explains itself.
+## Wrapped text and figures only know their height once laid out, so this
+## checks after each sort of the panel.
+func _fit_ladder(panel: Rect2) -> void:
+	_room = panel.size.y
+	if _how != null:
+		_how.visible = true
+
+
+func _trim() -> void:
+	if _how == null or not _how.visible or _panel.get_child_count() == 0:
+		return
+	var last: Control = _panel.get_child(-1)
+	if last.position.y + last.size.y > _room:
+		_how.visible = false
 
 
 func _rung(tier: Dictionary, journey: bool, element: String) -> Control:

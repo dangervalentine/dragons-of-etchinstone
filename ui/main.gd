@@ -50,6 +50,8 @@ var _last_card := ""
 var _undo: Array = []
 ## For tools: pretend the device has these safe-area insets (design units).
 var safe_override := Rect2()
+## The device's safe area when the layout was last made, to notice it moving.
+var _device_safe := Rect2i()
 
 
 func _ready() -> void:
@@ -72,6 +74,14 @@ func _ready() -> void:
 	animator.finished.connect(_on_sequence_done)
 	add_child(animator)
 	get_window().size_changed.connect(_on_resize)
+	# Turning a phone end over end moves its notch to the other side without changing
+	# the window's size, and the safe area can settle after launch, so watch it too.
+	if OS.has_feature("mobile"):
+		var watch := Timer.new()
+		watch.wait_time = 0.25
+		watch.timeout.connect(_check_safe_area)
+		add_child(watch)
+		watch.start()
 	_show_title()
 	_on_resize.call_deferred()
 
@@ -88,8 +98,32 @@ func _safe_rect(view: Vector2) -> Rect2:
 	var safe := Rect2(DisplayServer.get_display_safe_area())
 	if window.x <= 0 or safe.size.x <= 0:
 		return Rect2(Vector2.ZERO, view)
+	safe = Solver.clear_corners(safe, window, _corner_radii())
 	var k := view.x / window.x
 	return Rect2(safe.position * k, safe.size * k).intersection(Rect2(Vector2.ZERO, view))
+
+
+## The screen's corner radii in pixels (top left, top right, bottom right, bottom
+## left), which the safe area leaves out. Only Android 12 and later reports them; on
+## iOS the safe area already keeps clear of the corners in landscape.
+func _corner_radii() -> Array:
+	var none := [0, 0, 0, 0]
+	if OS.get_name() != "Android" or OS.get_version().to_int() < 12 or not Engine.has_singleton("AndroidRuntime"):
+		return none
+	var activity = Engine.get_singleton("AndroidRuntime").getActivity()
+	var insets = activity.getWindow().getDecorView().getRootWindowInsets() if activity != null else null
+	if insets == null:
+		return none
+	var out := []
+	for position in 4:
+		var corner = insets.getRoundedCorner(position)
+		out.append(float(corner.getRadius()) if corner != null else 0.0)
+	return out
+
+
+func _check_safe_area() -> void:
+	if DisplayServer.get_display_safe_area() != _device_safe:
+		_on_resize()
 
 
 func _points_per_unit(view: Vector2) -> float:
@@ -103,6 +137,7 @@ func _points_per_unit(view: Vector2) -> float:
 func _on_resize() -> void:
 	animator.skip()
 	var view := get_viewport_rect().size
+	_device_safe = DisplayServer.get_display_safe_area()
 	var safe := _safe_rect(view)
 	var count: int = vs.hand.size() if not vs.is_empty() and vs.has("hand") else 4
 	var sets: int = maxi(1, vs.sets.size()) if not vs.is_empty() else 1
@@ -136,10 +171,10 @@ func _update_notice() -> void:
 			_notice.queue_free()
 			_notice = null
 		else:
-			var view := get_viewport_rect().size
+			var c: Rect2 = plan.content
 			_notice.reset_size()
-			_notice.size.x = minf(view.x - 2 * T.M, 1100.0)
-			_notice.position = Vector2((view.x - _notice.size.x) / 2.0, maxf(T.M, plan.content.position.y - _notice.size.y - T.M))
+			_notice.size.x = minf(c.size.x, 1100.0)
+			_notice.position = Vector2(c.position.x + (c.size.x - _notice.size.x) / 2.0, c.position.y)
 
 
 # ---------------------------------------------------------------- screens

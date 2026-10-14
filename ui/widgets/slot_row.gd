@@ -43,6 +43,9 @@ func render(vs: Dictionary) -> void:
 		var to_attack: bool = s.boost_to == "attack"
 		var t := UI.button("" if two else ("Attack" if to_attack else "Initiative"), "normal", "attack" if to_attack else "initiative")
 		t.custom_minimum_size = Vector2(T.TAP_MIN if two else 150, T.TAP_MIN)
+		# Sized like the slot subtitles so "Initiative" fits on one line.
+		t.add_theme_font_override("font", UI.font(T.LABEL[0]))
+		t.add_theme_font_size_override("font_size", T.LABEL[1])
 		t.tooltip_text = "Boost adds to %s. Tap to switch." % ("Attack" if to_attack else "Initiative")
 		t.pressed.connect(func(): intent.emit({"type": "toggle_boost_to", "set": set_index}))
 		var wrap := UI.vbox(0)

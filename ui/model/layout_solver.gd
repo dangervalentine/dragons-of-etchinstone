@@ -35,6 +35,32 @@ static func view_for_window(window_px: Vector2) -> Vector2:
 	return window_px / s
 
 
+## How far inside a rounded screen corner the safe area stops, as a share of its
+## radius. Phones report a circle, but their corners are smoother curves that begin
+## bending sooner, so touching the circle is not enough.
+const CORNER_CLEARANCE := 0.25
+
+
+## Shrink `safe` (within a window of `window` pixels) so none of its corners falls
+## outside the screen's rounded corners. `radii` are the screen's corner radii in
+## pixels: top left, top right, bottom right, bottom left.
+static func clear_corners(safe: Rect2, window: Vector2, radii: Array) -> Rect2:
+	var inset := [safe.position.x, safe.position.y, window.x - safe.end.x, window.y - safe.end.y]
+	# Each corner and the two edges (left, top, right, bottom) that meet there.
+	for corner: Array in [[0, 0, 1], [1, 2, 1], [2, 2, 3], [3, 0, 3]]:
+		var r: float = radii[corner[0]]
+		var a: float = inset[corner[1]]
+		var b: float = inset[corner[2]]
+		var reach := r * (1.0 - CORNER_CLEARANCE)
+		if a >= r or b >= r or pow(r - a, 2) + pow(r - b, 2) <= reach * reach:
+			continue
+		# Step in until the corner of the safe area is the clearance inside the curve.
+		var d := r - reach * sqrt(0.5)
+		inset[corner[1]] = maxf(a, d)
+		inset[corner[2]] = maxf(b, d)
+	return Rect2(inset[0], inset[1], window.x - inset[0] - inset[2], window.y - inset[1] - inset[3])
+
+
 ## view: the viewport in design units. safe: the part clear of notches, in design
 ## units. points_per_unit: how large a design unit is on this screen.
 static func solve(view: Vector2, safe: Rect2, hand_count := 4, set_count := 1, points_per_unit := 0.5) -> Dictionary:
