@@ -33,3 +33,14 @@ func test_every_encounter_has_its_own_name() -> void:
 				ok(name != "" and name.length() <= 18, "%d %s %d is named, briefly" % [region, kind, index])
 				ok(not seen.has(name), name + " is used once")
 				seen[name] = true
+
+
+func test_every_moving_part_has_its_body_and_part() -> void:
+	for name in Art.PARTS:
+		var rig: Dictionary = Art.PARTS[name]
+		ok(Art.MOTION.has(name), name + " is a silhouette in use")
+		ok(FileAccess.file_exists("res://art/creatures/%s-base.svg" % name), name + " has a body")
+		ok(FileAccess.file_exists("res://art/creatures/%s-part.svg" % name), name + " has a part")
+		eq(rig.motion, "hinge", name + " moves in a way the shader knows")
+		var p: Vector2 = rig.pivot
+		ok(p.x >= 0 and p.x <= 512 and p.y >= 0 and p.y <= 512, name + " pivots on the art")

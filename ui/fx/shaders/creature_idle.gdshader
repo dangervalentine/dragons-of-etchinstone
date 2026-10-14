@@ -11,6 +11,14 @@ uniform float speed = 1.0;
 // Offsets the cycle so two creatures never move in step.
 uniform float phase = 0.0;
 uniform vec4 tint : source_color = vec4(1.0);
+// A creature's moving part (a jaw) is a second layer drawn with the same idle
+// motion, so it moves as one with the body, and then its own motion on top.
+// 0 none, 1 hinge: turns about the pivot (in UV) by up to hinge_angle degrees,
+// clockwise when positive, now and then, and back.
+uniform int part_motion = 0;
+uniform vec2 pivot = vec2(0.5);
+uniform float hinge_angle = 0.0;
+uniform float part_period = 4.0;
 
 void fragment() {
 	float t = TIME * speed + phase;
@@ -44,6 +52,14 @@ void fragment() {
 		// Flow: running water, stronger toward the bottom.
 		float l = clamp(uv.y, 0.0, 1.0);
 		uv.x += 0.012 * a * l * sin(uv.y * 30.0 + t * 4.0);
+	}
+	if (part_motion == 1) {
+		// Opens quickly, holds, closes, then rests for the second half of the cycle.
+		float p = fract(t / part_period);
+		float open = smoothstep(0.0, 0.12, p) * (1.0 - smoothstep(0.32, 0.5, p));
+		float r = -radians(hinge_angle) * open * a;
+		vec2 c = uv - pivot;
+		uv = vec2(c.x * cos(r) - c.y * sin(r), c.x * sin(r) + c.y * cos(r)) + pivot;
 	}
 	vec4 c = texture(TEXTURE, uv);
 	if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {

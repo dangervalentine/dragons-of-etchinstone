@@ -65,6 +65,16 @@ const SPEED := {
 	"spiked-dragon-head": 0.6, "evil-tree": 0.7, "harpy": 1.3, "vulture": 1.1, "angular-spider": 0.9,
 	"eel": 1.2, "spectre": 0.8, "rope-bridge": 0.6,
 }
+## Silhouettes cut into a body (<name>-base.svg) and a part that moves on its own
+## (<name>-part.svg), drawn together; <name>.svg stays whole for small uses. pivot is
+## in the art's 512 units; angle in degrees, clockwise when positive. See
+## art/STYLE_PROMPT.md for how they are made.
+const PARTS := {
+	"spiked-dragon-head": {"motion": "hinge", "pivot": Vector2(262, 305), "angle": 16.0, "period": 4.0},
+	"dragon-head": {"motion": "hinge", "pivot": Vector2(330, 268), "angle": -14.0, "period": 3.6},
+	"sea-serpent": {"motion": "hinge", "pivot": Vector2(234, 136), "angle": -10.0, "period": 3.2},
+	"wyvern": {"motion": "hinge", "pivot": Vector2(252, 224), "angle": -11.0, "period": 4.4},
+}
 
 
 static func motion(name: String) -> String:
@@ -73,6 +83,11 @@ static func motion(name: String) -> String:
 
 static func speed(name: String) -> float:
 	return SPEED.get(name, 1.0)
+
+
+## The moving part of a silhouette, or {} when it is all one piece.
+static func part(name: String) -> Dictionary:
+	return PARTS.get(name, {})
 
 
 ## kind is "enemy" or "journey"; index is 1 to 4.

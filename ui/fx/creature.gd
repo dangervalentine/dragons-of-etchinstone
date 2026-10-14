@@ -1,7 +1,9 @@
 extends Control
 ## A creature or landscape silhouette that is never quite still: it breathes,
 ## hovers or sways (see creature_idle.gdshader), and its Ether drifts around it
-## as embers, bubbles, sparks or dark motes. All of it stops in reduced motion.
+## as embers, bubbles, sparks or dark motes. Some are cut in two (Art.PARTS), and
+## their moving part, a jaw or a head, works on its own over the body. All of it
+## stops in reduced motion.
 
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
@@ -12,7 +14,9 @@ const MODES := {"still": 0, "breathe": 1, "hover": 2, "sway": 3, "wave": 4, "shi
 
 var art_name := ""
 var element := ""
-var _picture := TextureRect.new()
+var _picture := _layer()
+## The moving part, over the picture; null when the art is one piece.
+var _part: TextureRect
 var _particles: CPUParticles2D
 var _still := false
 static var _dot: Texture2D
@@ -20,13 +24,18 @@ static var _dot: Texture2D
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	_picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_picture.material = ShaderMaterial.new()
-	_picture.material.shader = IDLE
 	add_child(_picture)
 	resized.connect(_fit)
+
+
+static func _layer() -> TextureRect:
+	var t := TextureRect.new()
+	t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	t.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	t.material = ShaderMaterial.new()
+	t.material.shader = IDLE
+	return t
 
 
 ## name: a file in art/creatures/. tint: the silhouette's colour. ether: which
@@ -34,12 +43,22 @@ func _init() -> void:
 func setup(name: String, tint: Color, ether := "", particles := true) -> void:
 	art_name = name
 	element = ether
-	_picture.texture = UI.art(name)
-	var m: ShaderMaterial = _picture.material
-	m.set_shader_parameter("tint", tint)
-	m.set_shader_parameter("mode", MODES[Art.motion(name)])
-	m.set_shader_parameter("speed", Art.speed(name))
-	m.set_shader_parameter("phase", float(hash(name) % 628) / 100.0)
+	var rig := Art.part(name)
+	if _part != null:
+		_part.queue_free()
+		_part = null
+	_picture.texture = UI.art(name + "-base" if not rig.is_empty() else name)
+	_idle(_picture, name, tint)
+	if not rig.is_empty():
+		_part = _layer()
+		_part.texture = UI.art(name + "-part")
+		_idle(_part, name, tint)
+		var m: ShaderMaterial = _part.material
+		m.set_shader_parameter("part_motion", 1)
+		m.set_shader_parameter("pivot", rig.pivot / 512.0)
+		m.set_shader_parameter("hinge_angle", rig.angle)
+		m.set_shader_parameter("part_period", rig.period)
+		add_child(_part)
 	if _particles != null:
 		_particles.queue_free()
 		_particles = null
@@ -51,6 +70,15 @@ func setup(name: String, tint: Color, ether := "", particles := true) -> void:
 	_fit()
 
 
+## The body and its part share every idle setting, so they move as one.
+static func _idle(layer: TextureRect, name: String, tint: Color) -> void:
+	var m: ShaderMaterial = layer.material
+	m.set_shader_parameter("tint", tint)
+	m.set_shader_parameter("mode", MODES[Art.motion(name)])
+	m.set_shader_parameter("speed", Art.speed(name))
+	m.set_shader_parameter("phase", float(hash(name) % 628) / 100.0)
+
+
 func _process(_delta: float) -> void:
 	if _still != UI.reduced_motion:
 		_apply_motion()
@@ -58,15 +86,19 @@ func _process(_delta: float) -> void:
 
 func _apply_motion() -> void:
 	_still = UI.reduced_motion
-	_picture.material.set_shader_parameter("amount", 0.0 if _still else 1.0)
+	for layer in [_picture, _part]:
+		if layer != null:
+			layer.material.set_shader_parameter("amount", 0.0 if _still else 1.0)
 	if _particles != null:
 		_particles.emitting = not _still
 		_particles.visible = not _still
 
 
 func _fit() -> void:
-	_picture.position = Vector2.ZERO
-	_picture.size = size
+	for layer in [_picture, _part]:
+		if layer != null:
+			layer.position = Vector2.ZERO
+			layer.size = size
 	if _particles != null:
 		_particles.position = size / 2.0
 		_particles.emission_rect_extents = size * Vector2(0.34, 0.3)
