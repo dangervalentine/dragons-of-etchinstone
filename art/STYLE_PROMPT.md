@@ -27,16 +27,21 @@ Paste this after every subject line, unchanged.
 > A bold game-icon silhouette in the style of a heraldic woodcut: one solid shape of
 > pure flat black, isolated on a plain pure-white background. The subject stands alone
 > in empty white space, with clean white all around it and beneath it, and nothing else
-> in the picture. Detail inside the shape is shown only by a few broad white cut-outs,
-> each as thick as a finger at icon size, such as wide cracks between plates, eye
-> holes, gaps between teeth, ribs and feather notches; most of the shape is unbroken
-> black. A strong, simple outline that reads instantly at thumbnail size. Square
-> composition, side or three-quarter profile, the whole subject centred and filling
-> most of the frame, with an even white margin and every part inside the frame. A
-> creature that stands has its feet resting on the bottom margin, ending in a clean
-> edge. The creature is mythic and menacing rather than natural: exaggerated
-> proportions, jagged spines, horns, hooked claws, unnatural growths, eyes shown as
-> empty cut-outs. It belongs to an ancient, dragon-haunted realm.
+> in the picture. The shape is carved with three to six bold white gashes, each a wide,
+> sharp-edged gap like a stroke cut into a linocut block, which mark the creature's
+> main features. The eye is a narrow, naturally shaped white cut-out, almond-shaped or
+> slanted and set under a heavy brow, never a round circle. The outline is smooth and
+> confident, built from a few large sweeping curves: limbs, wings and shells have
+> clean, unbroken edges, with only one or two sharp features where they matter, such
+> as a hooked beak or claws. Restraint everywhere: large plain areas of solid black,
+> and no small spikes, frills or feather fringes added along the edges. A strong,
+> simple outline that reads instantly at thumbnail size. Square composition, side or
+> three-quarter profile, the whole subject centred and filling most of the frame, with
+> an even white margin and every part inside the frame. A creature that stands has its
+> feet resting on the bottom margin, ending in a clean edge. The creature is mythic and
+> menacing rather than natural, through exaggerated proportions and one or two
+> unnatural features rather than added ornament. It belongs to an ancient,
+> dragon-haunted realm.
 
 For **journey scenes**, add this sentence to the style block:
 
@@ -177,9 +182,9 @@ sentence for journeys, and the moving-part sentence where there's a part).
 | File | Name · Ether | Subject | Moving part · motion · fill behind it |
 |---|---|---|---|
 | rock-golem | Obsidian Golem · shadow | A golem of jagged, glassy obsidian slabs with fracture lines as cut-outs, a hollow skull face with a dark core, and shoulders crowned with shards. | — |
-| tortoise | Steam Tortoise · water | A colossal ancient tortoise seen side-on, whose shell is a small volcano: a cracked rocky cone with a crater at its peak, from which three thick plumes of steam billow upward. Jagged basalt spines run along the shell's rim, its legs are pillars of cooled lava, and a beaked, fanged, skull-like head pushes out on a long neck. | Head and neck · slide 40 units back into the shell, pivot at the shell opening · the front of the shell, solid, with a dark opening where the neck emerges. |
+| tortoise | Steam Tortoise · water | A colossal ancient tortoise seen side-on, whose shell is a small volcano: a smooth rocky cone with a crater at its peak, from which three thick plumes of steam billow upward, and two or three wide cracks cut across it. Its legs are heavy pillars of cooled lava, and a beaked, fanged, skull-like head pushes out on a long neck. | Head and neck · slide 40 units back into the shell, pivot at the shell opening · the front of the shell, solid, with a dark opening where the neck emerges. |
 | scorpion | Sand Scorpion · fire | A giant sand scorpion seen side-on, with armour plates like burnt bronze, pincers raised, and its tail arched high overhead with a dripping venom stinger. | Tail · hinge 20° forward strike, pivot at the base of the tail · the rear of the body, solid. |
-| vulture | Storm Vulture · lightning | A gaunt storm vulture seen side-on with its near wing raised high and tattered, its feather tips splitting into forked lightning, a bare hooked skull-like head with a crest of crackling plumes, ribs showing through its starved body, and talons trailing lightning bolts; the far wing is folded behind. | Near wing · hinge 35° downstroke, pivot at the shoulder · the shoulder and back, solid. |
+| vulture | Storm Vulture · lightning | A gaunt storm vulture seen side-on with its near wing raised high in one broad, smooth shape whose tip splits into a single forked bolt of lightning, a bare hooked skull head on a long naked neck, its ribs cut out as white gaps across its starved chest, and long talons; the far wing is folded behind. | Near wing · hinge 35° downstroke, pivot at the shoulder · the shoulder and back, solid. |
 | volcano | Ash Slopes · water *(journey)* | A steep volcano under a fall of ash, a boiling crater lake at its summit sending up columns of steam, and scree of skulls on its slopes. | — |
 | desert | Glass Desert · lightning *(journey)* | A desert of fused glass dunes with lightning-struck spires of fulgurite and the bleached ribcage of a giant beast half buried in the sand. | — |
 | lava | Lava Fields · fire *(journey)* | Fields of cracked lava crust with molten rivers as cut-out channels and a tall fiery geyser bursting from a vent at the centre. | Geyser · surge 30% taller, pivot at the vent · the vent's rim and the crust, solid; the sky behind is empty. |
