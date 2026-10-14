@@ -222,14 +222,49 @@ Writing a subject line:
 |---|---|---|---|
 | horizon-road | The Final Journey *(journey)* | A long road running to the horizon between leaning standing stones, with a dragon perched at its far end, its wings folded. | — |
 
+## Generating
+
+`tools/generate_art.py` sends these prompts to a ComfyUI running FLUX, which
+`tools/setup_comfyui.sh` (macOS, Linux) or `tools/setup_comfyui.ps1` (Windows) sets
+up. Run the art tools with ComfyUI's own Python, which the setup script gives
+everything they need: `~/ComfyUI/.venv/bin/python` on a Mac,
+`$HOME\ComfyUI\.venv\Scripts\python.exe` on Windows. Images land in `build/art/`.
+
+- `restyle <names>` redraws the current silhouette in this style, keeping its pose and
+  outline. This is the main way to make the set. `--denoise` (0.9 by default) sets how
+  far it may stray: lower keeps more of the original, higher follows the prompt more.
+  0.7 came back almost unchanged; give several values (`--denoise 0.85 0.9 0.95`) to
+  compare them in one run.
+- `start <names>` writes the starting image to `build/art/starts/`. Paint new
+  features onto it in solid black (a lightning tail, a raised wing) or paint parts
+  out in white, and `restyle` uses the painted version from then on.
+- `generate <names>` draws from the prompt alone, with no starting image.
+- `--count 4` tries four seeds, and `--seed` sets the first. An image that already
+  exists is skipped, so a stopped batch picks up where it left off.
+- `--q8` uses the sharper Q8 models, on a computer with the memory for them.
+
+### On the Windows PC
+
+With the repo cloned and `setup_comfyui.ps1 -Q8` run once:
+
+1. Start ComfyUI and leave it running in its own window:
+   `cd $HOME\ComfyUI; .venv\Scripts\python.exe main.py`
+2. In a second window, from the repo:
+   `$HOME\ComfyUI\.venv\Scripts\python.exe tools\generate_art.py restyle tortoise vulture --denoise 0.85 0.9 0.95 --count 2 --q8`
+3. Review and pick in `build\art\`, then commit the chosen SVGs (below). The PNGs
+   stay out of git, so copy any worth keeping to the other computer by hand.
+
+If the setup script was run before restyle existed, run it again: it only adds what's
+missing.
+
 ## Converting an image
 
 ```sh
-pip install pillow numpy potracer
-python3 tools/vectorize_art.py generated/troll.png art/creatures/troll.svg
+python3 tools/vectorize_art.py build/art/troll-restyle70-3.png art/creatures/troll.svg
 ```
 
 Add `--mask mask.png` to keep only the part of the image under the mask's white area.
+A thin ground line under the subject is removed; `--keep-ground` keeps it.
 
 ## Credits
 

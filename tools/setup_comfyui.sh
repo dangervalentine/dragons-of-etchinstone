@@ -51,7 +51,8 @@ if [ "$(uname)" = "Linux" ] && command -v nvidia-smi >/dev/null; then
 	TORCH_INDEX="--extra-index-url https://download.pytorch.org/whl/cu128"
 fi
 VIRTUAL_ENV=.venv uv pip install -q $TORCH_INDEX torch torchvision torchaudio \
-	-r requirements.txt -r "$NODE/requirements.txt" "huggingface_hub[cli]"
+	-r requirements.txt -r "$NODE/requirements.txt" "huggingface_hub[cli]" \
+	resvg-py potracer
 
 echo "== Models (about 17 GB, more with --q8)"
 fetch() { # repo, file in repo, folder under models/, name to save as
