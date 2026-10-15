@@ -118,3 +118,28 @@ _Record observer results, bench numbers and the owner's decisions here._
   than the developer.
 - **Stutter on web and Android (SC-008)**: not checked yet. No emulator was running,
   and the web build was not opened in a browser.
+
+### Stage 2 sign-off (T040), 2026-10-15
+
+The owner saw the before/after play screens (placing cards, the Final Journey, Soak)
+and redirected rather than approving:
+
+- **Effects rejected.** The lit cracks, rift glow and motes "look like early 2000's
+  flash animation". They want flat lines, perhaps a consistent pattern generated in
+  ComfyUI (allowed on this Mac now), and strong raised boxes.
+- **A bigger layout shift**, after their reference (`~/Downloads/unnamed-2.png`):
+  - Full-size role slots above the Hand, with Fuse and Divert moved up beside them.
+  - Tapping a card sends its number (for example the Spell's damage) up into its slot.
+  - The left box shows the math adding up to the result, including Hardships and
+    any other modifiers.
+- **Cards.** Shown in the proportions and layout of the printed cards, one Level per
+  face.
+
+Actions taken:
+- **Removed:** the cracks, glow, motes and seam responses. Board responses now play
+  only at the zones' rims.
+- **Kept:** the chamfered, raised boxes and the plain stone grain as a starting point.
+- **Bench after removal:** average 2.07 ms, p99 3.29 ms: PASS.
+
+The new layout needs the spec revised before more tasks: the full slot band
+reverses US1's compact rail.

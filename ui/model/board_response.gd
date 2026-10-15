@@ -1,10 +1,10 @@
 extends RefCounted
-## What the board does when something happens: the rift, the seams and the zones
-## answer each action, not only the card involved. Each answer has a moving form and
+## What the board does when something happens: the zones answer each action at
+## their rims, not only the card involved. Each answer has a moving form and
 ## a still one for reduced motion. Pure: a table and a lookup.
 
 ## event -> {target, colour, motion: {kind, duration}, still: {...}}.
-## target: a zone ("hand", "encounter", "header", "rail_token"), "seams" or "rift".
+## target: a zone: "hand", "encounter", "header" or "rail_token".
 ## colour: "ether" (the card's or the Encounter's), "focus", "gold", "bad" or "neutral".
 const TABLE := {
 	"place": {"target": "rail_token", "colour": "ether", "motion": {"kind": "flare", "duration": 0.25},
@@ -17,7 +17,7 @@ const TABLE := {
 		"still": {"tint": "neutral", "hold": 0.25}},
 	"regroup": {"target": "header", "colour": "neutral", "motion": {"kind": "sweep", "duration": 0.35},
 		"still": {"tint": "neutral", "hold": 0.25}},
-	"play": {"target": "rift", "colour": "ether", "motion": {"kind": "surge", "duration": 0.4},
+	"play": {"target": "encounter", "colour": "ether", "motion": {"kind": "flare", "duration": 0.4},
 		"still": {"tint": "ether", "hold": 0.25}},
 	"hit_enemy": {"target": "encounter", "colour": "ether", "motion": {"kind": "shudder", "duration": 0.35},
 		"still": {"tint": "ether", "hold": 0.25}},
@@ -25,11 +25,11 @@ const TABLE := {
 		"still": {"tint": "bad", "hold": 0.25}},
 	"soak": {"target": "hand", "colour": "bad", "motion": {"kind": "flare", "duration": 0.25},
 		"still": {"tint": "bad", "hold": 0.25}},
-	"upgrade": {"target": "hand", "colour": "gold", "motion": {"kind": "burst", "duration": 0.4},
+	"upgrade": {"target": "hand", "colour": "gold", "motion": {"kind": "flare", "duration": 0.4},
 		"still": {"tint": "gold", "hold": 0.25}},
-	"encounter_won": {"target": "seams", "colour": "gold", "motion": {"kind": "surge", "duration": 0.4},
+	"encounter_won": {"target": "encounter", "colour": "gold", "motion": {"kind": "flare", "duration": 0.4},
 		"still": {"tint": "gold", "hold": 0.25}},
-	"encounter_lost": {"target": "seams", "colour": "bad", "motion": {"kind": "dim", "duration": 0.4},
+	"encounter_lost": {"target": "encounter", "colour": "bad", "motion": {"kind": "dim", "duration": 0.4},
 		"still": {"tint": "bad", "hold": 0.25}},
 }
 

@@ -22,9 +22,6 @@ const Art = preload("res://ui/model/art.gd")
 const StoneStyle = preload("res://ui/theme/stone_style.gd")
 
 signal intent(data: Dictionary)
-## The zones the rift light must stay out from under, and where it comes from, in
-## this screen's coordinates. Sent whenever the layout changes.
-signal board_changed(zones: Array, source: Vector2)
 
 var header := HeaderBar.new()
 var encounter_face := EncounterFace.new()
@@ -156,20 +153,6 @@ func _place_hand_panel() -> void:
 	var panel := Rect2(cards.position.x - 10.0, top, cards.size.x + 20.0, bottom - top)
 	_hand_panel.position = panel.position
 	_hand_panel.size = panel.size
-	_send_board()
-
-
-## Tell the rift where the zones are and where its light comes from: the Encounter.
-func _send_board() -> void:
-	if plan.is_empty():
-		return
-	var zones := [Rect2(_hand_panel.position, _hand_panel.size)]
-	for key in ["encounter", "preview", "rail", "header"]:
-		var r: Rect2 = plan.regions[key]
-		if r.size.x > 0.0 and r.size.y > 0.0:
-			zones.append(r)
-	zones.append(Rect2(plan.regions.actions.position, plan.regions.commit.end - plan.regions.actions.position))
-	board_changed.emit(zones, plan.regions.encounter.get_center())
 
 
 ## The part of the screen waiting on the player comes forward; the rest steps back.

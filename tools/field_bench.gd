@@ -22,23 +22,19 @@ func _run() -> void:
 	Engine.max_fps = 0
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
 	var db = load("res://engine/card_db.gd").new()
-	# Behind the faces, the carved-stone backdrop with its rift light and motes
-	# moving (feature 006), as on the play screen.
+	# Behind the faces, the stone backdrop (feature 006), as on the play screen.
 	var bg := ColorRect.new()
 	bg.color = Color("100e17")
 	bg.size = Vector2(1280, 720)
 	bg.material = ShaderMaterial.new()
 	bg.material.shader = load("res://ui/fx/shaders/backdrop.gdshader")
 	root.add_child(bg)
-	var rift = load("res://ui/fx/rift_layer.gd").new()
-	rift.size = Vector2(1280, 720)
-	root.add_child(rift)
-	rift.setup(bg.material)
-	rift.material_ref.set_shader_parameter("view_size", Vector2(1280, 720))
-	rift.set_stone(true)
-	rift.set_ether("fire")
-	rift.set_zones([Rect2(16, 76, 400, 352), Rect2(16, 440, 400, 264), Rect2(440, 200, 824, 340)])
-	rift.set_source(Vector2(216, 252))
+	var layer = load("res://ui/fx/backdrop_layer.gd").new()
+	layer.size = Vector2(1280, 720)
+	root.add_child(layer)
+	layer.setup(bg.material)
+	layer.material_ref.set_shader_parameter("view_size", Vector2(1280, 720))
+	layer.set_stone(true)
 	var ids: Array = db.mage_ids()
 	for i in FACES:
 		var id: String = ids[(i * 5) % ids.size()]

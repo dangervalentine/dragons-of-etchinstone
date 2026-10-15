@@ -23,7 +23,7 @@ const EndingScreen = preload("res://ui/screens/ending_screen.gd")
 const Animator = preload("res://ui/fx/animator.gd")
 const FlightLayer = preload("res://ui/fx/flight_layer.gd")
 const BACKDROP = preload("res://ui/fx/shaders/backdrop.gdshader")
-const RiftLayer = preload("res://ui/fx/rift_layer.gd")
+const BackdropLayer = preload("res://ui/fx/backdrop_layer.gd")
 const BoardResponse = preload("res://ui/model/board_response.gd")
 const InspectOverlay = preload("res://ui/overlays/inspect_overlay.gd")
 const GlossaryPopover = preload("res://ui/overlays/glossary_popover.gd")
@@ -48,8 +48,8 @@ var _screen_host := Control.new()
 var _flight := FlightLayer.new()
 var _overlays := Control.new()
 var _backdrop := ColorRect.new()
-## The rift light in the stone backdrop, and the motes from it.
-var rift := RiftLayer.new()
+## The stone backdrop's settings.
+var backdrop_layer := BackdropLayer.new()
 var _backdrop_ether := ""
 var _notice: Control = null
 var _notice_dismissed := false
@@ -81,8 +81,8 @@ func _ready() -> void:
 	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(backdrop)
-	add_child(rift)
-	rift.setup(backdrop.material)
+	add_child(backdrop_layer)
+	backdrop_layer.setup(backdrop.material)
 	for layer in [_screen_host, _flight, _overlays]:
 		layer.set_anchors_preset(Control.PRESET_FULL_RECT)
 		layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -93,8 +93,6 @@ func _ready() -> void:
 	animator.flight = _flight
 	animator.show_banner = _banner
 	animator.respond = _respond
-	animator.started.connect(func(): rift.set_busy(true))
-	animator.finished.connect(func(): rift.set_busy(false))
 	animator.finished.connect(_on_sequence_done)
 	add_child(animator)
 	get_window().size_changed.connect(_on_resize)
@@ -208,12 +206,8 @@ func _update_notice() -> void:
 func _switch(to: Control) -> void:
 	var old := screen
 	screen = to
-	# Stage 2 of feature 006: only the play screen is carved stone so far.
-	rift.set_stone(to == play)
-	if to != play:
-		rift.set_ether(null)
-		rift.set_zones([])
-		_backdrop_ether = "-"  # so the next game's Encounter sets the rift again
+	# Stage 2 of feature 006: only the play screen stands on stone so far.
+	backdrop_layer.set_stone(to == play)
 	_screen_host.add_child(to)
 	to.set_anchors_preset(Control.PRESET_FULL_RECT)
 	if old != null:
@@ -274,9 +268,6 @@ func start_game(opts: Dictionary) -> void:
 	draft.reset(1)
 	play = PlayScreen.new()
 	play.intent.connect(dispatch)
-	play.board_changed.connect(func(zones, source):
-		rift.set_zones(zones)
-		rift.set_source(source))
 	_switch(play)
 	_refresh(false)
 	if game.phase == "challenge":
@@ -534,7 +525,6 @@ func _tint_backdrop(state: Dictionary) -> void:
 	if ether == _backdrop_ether:
 		return
 	_backdrop_ether = ether
-	rift.set_ether(ether)
 	var m: ShaderMaterial = _backdrop.material
 	var to := 1.0 if ether != "" else 0.0
 	if ether != "":
@@ -547,16 +537,15 @@ func _tint_backdrop(state: Dictionary) -> void:
 	create_tween().tween_method(func(v): m.set_shader_parameter("tint_amount", v), from, to, T.BASE)
 
 
-## Cards' Ether fields and the rift move only while no overlay covers the play screen.
+## Cards' Ether fields move only while no overlay covers the play screen.
 func _fields_live() -> void:
 	var live := _overlays.get_child_count() == 0
-	rift.set_live(live)
 	if play != null and is_instance_valid(play):
 		play.set_fields_live(live)
 
 
-## The board answers an event (contracts/board-life.md): at a zone on the play
-## screen, or in the rift's seams. `ether` colours it where the table says so.
+## The board answers an event (contracts/board-life.md) at a zone's rim on the
+## play screen. `ether` colours it where the table says so.
 func _respond(event: String, ether = null, card_id := "") -> void:
 	if play == null or screen != play or not BoardResponse.TABLE.has(event):
 		return
@@ -573,11 +562,7 @@ func _respond(event: String, ether = null, card_id := "") -> void:
 			colour = T.BAD
 		_:
 			colour = T.SEAM_NEUTRAL
-	if r.target == "seams" or r.target == "rift" or r.motion.kind == "burst":
-		var at = play.point("hand") if r.target == "hand" else null
-		rift.respond(event, colour, at)
-	if r.target != "seams" and r.target != "rift":
-		play.flare(r.target, colour, r.motion.kind, r.motion.duration, card_id)
+	play.flare(r.target, colour, r.motion.kind, r.motion.duration, card_id)
 
 
 # ---------------------------------------------------------------- overlays

@@ -358,11 +358,13 @@ first look), and `test_stone_contrast` is green.
 
 ## Stage 2 sign-off gate (US2 scenario 5 — exit point)
 
-- [ ] T040 Take the stage 2 screenshots with `godot --path . -s tools/shot.gd -- build/006-after phone-16x9 desktop`. Build a side-by-side for the owner of `05_challenge_assigned.png` and `12_final_journey.png` (before from `build/006-before`), and send it with the SendUserFile tool. Ask: *"Which looks more like Dragons of Etchinstone, and more finished?"* Record the answer under "Results" in `quickstart.md`.
+- [X] T040 Take the stage 2 screenshots with `godot --path . -s tools/shot.gd -- build/006-after phone-16x9 desktop`. Build a side-by-side for the owner of `05_challenge_assigned.png` and `12_final_journey.png` (before from `build/006-before`), and send it with the SendUserFile tool. Ask: *"Which looks more like Dragons of Etchinstone, and more finished?"* Record the answer under "Results" in `quickstart.md`.
   - **If the owner prefers before**: `git revert` the US2 and US3 commits (T030, T039 and any fixes), keep US1, run `./tools/test.sh`, commit, and **stop**. Skip Phase 6.
   - **If the owner wants the procedural stone replaced by textures**: hand off a Windows-PC generation command for `art/stone/grain.png` and `art/stone/cracks.png` (seamless 512², the luminance band from T005). Do not run it here. `Stone` picks them up automatically (T020).
 
 ---
+
+**T040 outcome (2026-10-15)**: the owner redirected rather than approved; see quickstart.md, "Stage 2 sign-off (T040)". The cracks, glow, motes and seam responses were removed and the raised boxes kept. **Phase 6 is on hold until the spec is revised** for the new layout (full slots with rising numbers, actions beside them, a math box, printed card proportions, a flat generated pattern).
 
 ## Phase 6: User Story 4 - Every screen in the same world (Priority: P4)
 

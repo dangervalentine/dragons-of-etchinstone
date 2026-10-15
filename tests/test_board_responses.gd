@@ -8,7 +8,7 @@ const BoardResponse = preload("res://ui/model/board_response.gd")
 
 const EVENTS := ["place", "take_back", "fuse", "divert", "regroup", "play", "hit_enemy",
 	"take_damage", "soak", "upgrade", "encounter_won", "encounter_lost"]
-const KINDS := ["flare", "surge", "shudder", "burst", "sweep", "dim"]
+const KINDS := ["flare", "shudder", "sweep", "dim"]
 ## Every step kind ui/fx/animator.gd handles.
 const STEPS := ["play_cards", "tally", "verdict", "gain_xp", "damage", "pay_time", "poison_pending",
 	"knock_out", "downgrade", "upgrade", "trash", "discard", "gather_shuffle", "stage_banner", "draw", "ending"]
@@ -21,7 +21,7 @@ func test_every_event_has_a_moving_and_a_still_form() -> void:
 		if not BoardResponse.TABLE.has(e):
 			continue
 		var r: Dictionary = BoardResponse.TABLE[e]
-		ok(r.target != "", e + " has a target")
+		ok(["hand", "encounter", "header", "rail_token"].has(r.target), e + " answers at a zone")
 		ok(["ether", "focus", "gold", "bad", "neutral"].has(r.colour), e + " has a colour")
 		ok(KINDS.has(r.motion.kind), e + " moves in a known way")
 		ok(r.motion.duration >= T.FAST and r.motion.duration <= T.REVEAL, e + " is quick, never long")
