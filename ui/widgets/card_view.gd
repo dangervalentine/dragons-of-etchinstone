@@ -5,6 +5,7 @@ extends Control
 
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
+const Haptics = preload("res://ui/fx/haptics.gd")
 const CardFace = preload("res://ui/widgets/card_face.gd")
 
 const HOLD_SECONDS := 0.35
@@ -102,6 +103,7 @@ func _gui_input(event: InputEvent) -> void:
 				UI.pulse_scale(self, 1.0)
 				if not _held and Rect2(Vector2.ZERO, size).has_point(event.position):
 					hovered.emit(id, false)
+					Haptics.tap()
 					tapped.emit(id)
 			accept_event()
 
@@ -110,6 +112,7 @@ func _on_hold() -> void:
 	if _pressing:
 		_held = true
 		UI.pulse_scale(self, 1.0)
+		Haptics.hold()
 		held.emit(id)
 
 

@@ -2,6 +2,7 @@ extends RefCounted
 ## Builds fonts, styles and small common controls from the tokens.
 
 const T = preload("res://ui/theme/tokens.gd")
+const Haptics = preload("res://ui/fx/haptics.gd")
 
 ## Set from the settings; travel and shake are replaced by fades when true.
 static var reduced_motion := false
@@ -197,12 +198,14 @@ static func style_button(b: Button, kind: String) -> void:
 	b.add_theme_color_override("icon_disabled_color", Color(T.INK_MUTED, 0.6))
 
 
-## Scale a control down a touch while it is held, so every press is felt at once.
+## Scale a control down a touch while it is held, and tick the phone on the press,
+## so every press is felt at once.
 static func press_feedback(c: Control) -> void:
 	c.resized.connect(func(): c.pivot_offset = c.size / 2.0)
 	if c is BaseButton:
 		c.button_down.connect(func(): pulse_scale(c, 0.96))
 		c.button_up.connect(func(): pulse_scale(c, 1.0))
+		c.pressed.connect(Haptics.tap)
 
 
 static func pulse_scale(c: Control, to: float) -> void:

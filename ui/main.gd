@@ -15,6 +15,7 @@ const Solver = preload("res://ui/model/layout_solver.gd")
 const Settings = preload("res://ui/model/settings.gd")
 const Undo = preload("res://ui/model/upgrade_undo.gd")
 const Art = preload("res://ui/model/art.gd")
+const Haptics = preload("res://ui/fx/haptics.gd")
 const PlayScreen = preload("res://ui/screens/play_screen.gd")
 const TitleScreen = preload("res://ui/screens/title_screen.gd")
 const RulesScreen = preload("res://ui/screens/rules_screen.gd")
@@ -494,6 +495,7 @@ func _refuse(text: String, card_id := "") -> void:
 	if play == null:
 		return
 	play.toast(text)
+	Haptics.refuse()
 	var view: Control = play.hand.card(card_id) if card_id != "" else null
 	if view != null:
 		UI.shake(view)
