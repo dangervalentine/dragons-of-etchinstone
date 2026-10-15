@@ -11,7 +11,7 @@ view.
 ## The art
 
 - `art/creatures/grimroch.svg`, `helsang.svg`, `rodving.svg` and `vuurhast.svg`, converted
-  with `tools/vectorize_art.py` from the approved images (`build/art/prime/`, not in git).
+  with `tools/vectorize_art.py` from the approved images (`art/source/`).
   Their subject lines are in the "Dragons, full body" table of `art/STYLE_PROMPT.md`.
 - All four share one pose: side-on facing right, on the hind legs, the head at the upper
   right. That keeps the head crops in the same part of each image.

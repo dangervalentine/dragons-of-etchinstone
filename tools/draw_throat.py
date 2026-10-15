@@ -15,20 +15,20 @@ teeth; filling only the throat, with the jaw already painted out, cut holes in t
 head instead. The throat is mostly hidden behind the jaw, so a drawn curve is enough.
 
 The constants below are in the 1024-pixel images, read off a grid render of each
-build/art/prime/<name>.png (art/STYLE_PROMPT.md, "Making the two layers"):
+art/source/<name>.png (art/STYLE_PROMPT.md, "Making the two layers"):
   H     the hinge, the back corner of the mouth; Art.PARTS pivot is H / 2
   F     the front end of the gap between the teeth
   K     where the jaw mask's top edge ends, about 15 px behind the hinge
   Q, C  the throat curve's control point and its end, on the neck's underside
   back  points closing the throat behind the hinge, inside the head
 
-The mask is build/art/<name>-mask.png: white over the lower jaw, its teeth and the
+The mask is art/source/masks/<name>-mask.png: white over the lower jaw, its teeth and the
 jaw underside, running past the hinge; the same mask cuts the part layer.
 
 Needs: pip install pillow numpy
 Run: python3 tools/draw_throat.py grimroch
      python3 tools/vectorize_art.py build/art/grimroch-body-hand.png art/creatures/grimroch-base.svg
-     python3 tools/vectorize_art.py build/art/prime/grimroch.png --mask build/art/grimroch-mask.png \\
+     python3 tools/vectorize_art.py art/source/grimroch.png --mask art/source/masks/grimroch-mask.png \\
          art/creatures/grimroch-part.svg
 """
 import argparse
@@ -73,12 +73,12 @@ def throat(rig):
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("name", choices=sorted(DRAGONS))
-    parser.add_argument("--image", help="the approved whole image (build/art/prime/<name>.png)")
-    parser.add_argument("--mask", help="white over the jaw (build/art/<name>-mask.png)")
+    parser.add_argument("--image", help="the approved whole image (art/source/<name>.png)")
+    parser.add_argument("--mask", help="white over the jaw (art/source/masks/<name>-mask.png)")
     parser.add_argument("--out", help="the body image to write (build/art/<name>-body-hand.png)")
     a = parser.parse_args()
-    image = a.image or "build/art/prime/%s.png" % a.name
-    mask = a.mask or "build/art/%s-mask.png" % a.name
+    image = a.image or "art/source/%s.png" % a.name
+    mask = a.mask or "art/source/masks/%s-mask.png" % a.name
     out = a.out or "build/art/%s-body-hand.png" % a.name
 
     s = SUPERSAMPLE
