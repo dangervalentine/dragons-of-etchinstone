@@ -27,12 +27,12 @@ tools/test.sh
 ## 2. Stage 1: space (US1; SC-001, SC-002)
 
 ```sh
-godot --headless --path . -s tools/space_audit.gd
+godot --path . -s tools/space_audit.gd
 ```
 
 **Expected**
 - At `phone-16x9` with one set, the role-rail area is ≤ 50% of the baseline band
-  (824 × 154).
+  (824 × 153).
 - With two sets (Final Battle), the rail area is below the baseline (824 × 96).
 - No zone is more than about 1/3 empty in any standard state.
 
@@ -107,3 +107,6 @@ For every screen and overlay in
 ## Results
 
 _Record observer results, bench numbers and the owner's decisions here._
+
+- **Pre-feature bench (T004, 2026-10-15, Apple M5 Pro, Compatibility renderer)**:
+  `field_bench` average 2.14 ms, p99 3.88 ms, worst 6.67 ms: PASS.

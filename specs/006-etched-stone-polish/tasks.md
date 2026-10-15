@@ -60,11 +60,11 @@ the code it checks.
 **Purpose**: Record today's look, band size and empty space so later checks compare
 against them. Do this on the unmodified code (commit `cdae3d2`).
 
-- [ ] T001 Capture "before" screenshots (build/ is git-ignored; do not commit them):
+- [X] T001 Capture "before" screenshots (build/ is git-ignored; do not commit them):
   - Run `godot --path . -s tools/shot.gd -- build/006-before`.
   - Run `godot --path . -s tools/design_shots.gd -- build/006-before/design`.
   - Confirm `build/006-before/phone-16x9/05_challenge_assigned.png` and `12_final_journey.png` exist.
-- [ ] T002 Create `tools/space_audit.gd`, an `extends SceneTree` tool modelled on `tools/shot.gd`.
+- [X] T002 Create `tools/space_audit.gd`, an `extends SceneTree` tool modelled on `tools/shot.gd`.
   - **Drive**: load `res://scenes/main.tscn` at the `phone-16x9` matrix size (1280 × 720) and drive the same seeded states as `shot.gd`: challenge empty, one placed, all assigned, soak, upgrade, final journey, final enemy.
   - **Role display share**: the global rect of the role display (today the play screen's `slots` region node; after US1 the `rail`) as a share of `plan.content` area.
   - **Per-zone empty fraction** for every play-screen zone: `1 − area(union of visible descendant Controls' global rects ∩ zone rect) / area(zone rect)`. Approximate the union with a 16-unit occupancy grid.
@@ -72,10 +72,10 @@ against them. Do this on the unmodified code (commit `cdae3d2`).
     - Judge `MAX_EMPTY` at `phone-16x9` and `phone-small` only.
   - **Output**: one line per state and zone, plus `MAX_EMPTY` per state.
   - **Flags**: with `-- --baseline <file>` it writes JSON; with `-- --compare <file>` it prints the rail-against-band ratio and FAILs if any zone's empty fraction exceeds 1/3 or the one-set ratio exceeds 0.5.
-- [ ] T003 Run `godot --headless --path . -s tools/space_audit.gd -- --baseline specs/006-etched-stone-polish/baseline.json` on unchanged code.
+- [X] T003 Run `godot --path . -s tools/space_audit.gd -- --baseline specs/006-etched-stone-polish/baseline.json` on unchanged code.
   - Write `specs/006-etched-stone-polish/baseline.md` with a short table: per state, the band size and share, and the emptiest zone and its fraction.
-  - Expect the band to be 824 × 154 at one set and 824 × 96 at two (research D1).
-- [ ] T004 Run `godot --path . -s tools/field_bench.gd` and record the average and p99 frame times at the bottom of `specs/006-etched-stone-polish/quickstart.md` under "Results", as the pre-feature bench.
+  - Expect the band to be 824 × 153 at one set and 824 × 96 at two (research D1).
+- [X] T004 Run `godot --path . -s tools/field_bench.gd` and record the average and p99 frame times at the bottom of `specs/006-etched-stone-polish/quickstart.md` under "Results", as the pre-feature bench.
 
 ---
 
@@ -85,10 +85,10 @@ against them. Do this on the unmodified code (commit `cdae3d2`).
 
 **⚠️ CRITICAL**: Complete before any user story.
 
-- [ ] T005 In `ui/theme/tokens.gd` add, with `##` comments, under new `# Rail`, `# Stone` and `# Rift` headings:
+- [X] T005 In `ui/theme/tokens.gd` add, with `##` comments, under new `# Rail`, `# Stone` and `# Rift` headings:
   - `RAIL_TOKEN_W := 132`
   - `PREVIEW_MIN := 150`
-  - `STONE_L_MIN := 0.012`, `STONE_L_MAX := 0.026` (relative luminance; the top must not exceed `luminance(BG_RAISED)`)
+  - `STONE_L_MIN := 0.008`, `STONE_L_MAX := 0.022` (relative luminance; the top must not exceed `luminance(BG_RAISED)`)
   - `CHAMFER_S := 6`, `CHAMFER_M := 12`, `CHAMFER_L := 20`
   - `BEVEL_LIGHT := Color(1, 1, 1, 0.10)`, `BEVEL_SHADOW := Color(0, 0, 0, 0.45)`
   - `SEAM_NEUTRAL := Color("8f7fd6")`
@@ -123,7 +123,7 @@ steps 1–8 pass; nothing else looks different.
 - [ ] T007 [P] [US1] Update `tests/test_layout_solver.gd`:
   - In `ORDER` and every assertion, rename the `slots` region to `rail`.
   - Replace `test …spare height goes to the slots` (line 118) with `test_rail_is_one_tap_target_tall()`: for every matrix size, with `sets` 1 and 2, `regions.rail.size.y == T.TAP_MIN`; with 0 sets it is `0.0`.
-  - Add `test_rail_area_is_at_most_half_the_old_band()`: at `phone-16x9` with one set, `regions.rail.size.x * regions.rail.size.y <= 0.5 * 824 * 154`.
+  - Add `test_rail_area_is_at_most_half_the_old_band()`: at `phone-16x9` with one set, `regions.rail.size.x * regions.rail.size.y <= 0.5 * 824 * 153`.
   - Add `test_preview_takes_what_it_needs()`: `solve(..., preview_needed := 200)` gives `regions.preview.size.y == 200` at `phone-16x9`; `preview_needed := 0` gives `PREVIEW_MIN`; a huge value is capped at half the body height. The encounter always fills the rest of the column (`encounter.end.y + GAP == preview.position.y`).
   - Keep `test_hand_cards_are_no_smaller_than_before` passing unchanged.
 
@@ -167,7 +167,7 @@ steps 1–8 pass; nothing else looks different.
 - [ ] T013 [US1] In `ui/main.gd` (around line 158, the `Solver.slot_rows(vs)` call), pass the visible preview widget's `needed_height()` through to `Solver.solve()` the same way. Update any other `"slots"` region references found by `grep -rn '"slots"\|regions.slots' ui tools tests`.
 - [ ] T014 [US1] Delete `ui/widgets/slot_row.gd` and `ui/widgets/slot_row.gd.uid` once nothing references them (`grep -rn slot_row ui tools tests`).
 - [ ] T015 [US1] Add a non-regression check to `tools/ui_check.gd` using the same empty-fraction maths as `tools/space_audit.gd` (T002). For every play state it already drives at `phone-16x9` and `phone-small` only (the minimum sizes SC-002 names), FAIL when any play-screen zone's empty fraction is over 1/3. Measure zones as drawn panels: for the Hand, `_hand_panel`'s rect, not `regions.hand` (see T002). Move the shared maths into a small `static func empty_fraction(zone: Rect2, root: Control) -> float` in `ui/model/layout_solver.gd` and call it from both tools.
-- [ ] T016 [US1] Run `./tools/test.sh` (all green) and `godot --headless --path . -s tools/space_audit.gd -- --compare specs/006-etched-stone-polish/baseline.json` (PASS). Then take `godot --path . -s tools/shot.gd -- build/006-us1 phone-16x9 desktop` and compare by eye with `build/006-before`: only the rail and the left split differ (FR-022).
+- [ ] T016 [US1] Run `./tools/test.sh` (all green) and `godot --path . -s tools/space_audit.gd -- --compare specs/006-etched-stone-polish/baseline.json` (PASS). Then take `godot --path . -s tools/shot.gd -- build/006-us1 phone-16x9 desktop` and compare by eye with `build/006-before`: only the rail and the left split differ (FR-022).
 - [ ] T017 [US1] Walk quickstart §2 by-hand steps 1–8 (including 6b) on the desktop build and on the Android emulator (`install-on-emulators` skill). Fix any defect found. Commit "Role rail and a content-driven left column".
 
 **Checkpoint**: US1 is complete and shippable on its own.
@@ -371,7 +371,7 @@ item is present; `ui_check` is green.
 - [ ] T046 [P] [US4] Rulebook and glossary as **scrolls**, in `ui/overlays/rulebook_overlay.gd`, `ui/widgets/rulebook_figure.gd` and `ui/overlays/glossary_popover.gd`: a slab body with `orn_scroll_end` caps top and bottom (full glossary), and a small slab for the popover. Keep the contents, sections, figures, tables, navigation and every entry.
 - [ ] T047 [P] [US4] The remaining overlays as **slabs**: `ui/overlays/overlay.gd` (base: dim over stone), `ui/overlays/inspect_overlay.gd` (rift source in the card's Ether), `ui/overlays/menu_overlay.gd`, `ui/overlays/confirm_dialog.gd` and `ui/overlays/size_notice.gd`. Keep every option and button.
 - [ ] T048 [US4] Check the Final Battle in the play screen: the dragon's Ether lights the rift (from T024), and the road from 003 reads as carved into the Encounter well in `ui/widgets/dragon_face.gd`. Adjust only styling.
-- [ ] T049 [US4] Run `./tools/test.sh` (green at every matrix size) and `godot --headless --path . -s tools/space_audit.gd -- --compare specs/006-etched-stone-polish/baseline.json` (PASS). Then take the full screenshots:
+- [ ] T049 [US4] Run `./tools/test.sh` (green at every matrix size) and `godot --path . -s tools/space_audit.gd -- --compare specs/006-etched-stone-polish/baseline.json` (PASS). Then take the full screenshots:
   - `godot --path . -s tools/shot.gd -- build/006-after`
   - `godot --path . -s tools/design_shots.gd -- build/006-after/design`
 

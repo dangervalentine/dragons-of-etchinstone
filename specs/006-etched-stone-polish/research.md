@@ -44,7 +44,7 @@ token per role per set and the Boost-to toggle at the end.
 
 | Window | Sets | Band (w × h) | Card |
 |---|---|---|---|
-| phone-16x9 1280 × 720 | 1 | 824 × 154 | 197 × 275 |
+| phone-16x9 1280 × 720 | 1 | 824 × 153 | 197 × 275 |
 | phone-16x9 | 2 | 824 × 96 | 137 × 191 (2 rows) |
 | desktop 1280 × 800, tablet 1280 × 960 | 1 | 824 × 192 | 197 × 275 |
 | phone-tall 1558 × 720 | 1 | 917 × 126 | 220 × 308 |
@@ -52,7 +52,7 @@ token per role per set and the Boost-to toggle at the end.
 
 **Rationale**:
 - With one set at 1280 × 720, the rail is about 4 × 132 + 3 × 8 = 552 × 88 against
-  the band's 824 × 154. That is a 62% cut in area, which meets SC-001 (≥ 50%).
+  the band's 824 × 153. That is a 62% cut in area, which meets SC-001 (≥ 50%).
   Height alone falls 43%; the fixed-width tokens make the rest.
 - Taps, the active slot, the Boost toggle and the recap all keep a home, so
   FR-003, FR-004 and FR-020 hold.

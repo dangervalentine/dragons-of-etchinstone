@@ -171,3 +171,72 @@ static func _card_gap(width: float, card_w: float, in_row: int) -> float:
 
 static func _gap_min(in_row: int) -> float:
 	return CARD_GAP_MIN if in_row <= 4 else CARD_GAP_CROWDED
+
+
+## How much of `zone` (a global rect) shows nothing: one minus the share of it
+## covered by what is drawn inside, on a 16-unit grid. "What is drawn" is every
+## visible leaf Control under `root` (a Label counts only where its text is), so a
+## container filling the zone does not count as content.
+static func empty_fraction(zone: Rect2, root: Control) -> float:
+	const CELL := 16.0
+	var cols := maxi(1, int(zone.size.x / CELL))
+	var rows := maxi(1, int(zone.size.y / CELL))
+	var filled := PackedByteArray()
+	filled.resize(cols * rows)
+	for r in _drawn_rects(root):
+		var hit: Rect2 = zone.intersection(r)
+		if hit.size.x <= 0.0 or hit.size.y <= 0.0:
+			continue
+		var x0 := clampi(int((hit.position.x - zone.position.x) / CELL), 0, cols - 1)
+		var y0 := clampi(int((hit.position.y - zone.position.y) / CELL), 0, rows - 1)
+		var x1 := clampi(int(ceilf((hit.end.x - zone.position.x) / CELL)), 1, cols)
+		var y1 := clampi(int(ceilf((hit.end.y - zone.position.y) / CELL)), 1, rows)
+		for y in range(y0, y1):
+			for x in range(x0, x1):
+				filled[y * cols + x] = 1
+	var count := 0
+	for b in filled:
+		count += b
+	return 1.0 - count / float(cols * rows)
+
+
+static func _drawn_rects(root: Control) -> Array:
+	var out := []
+	for node in root.find_children("*", "Control", true, false):
+		var c := node as Control
+		if not c.is_visible_in_tree() or c.modulate.a < 0.1 or c.size == Vector2.ZERO:
+			continue
+		# Layout containers and bare panels are background, not content; a panel that
+		# draws its own box inside the zone (a chip, a recap) is content.
+		if c.get_class() == "Panel" or (c is Container and not c is BaseButton and not c is PanelContainer):
+			continue
+		var leaf := true
+		for child in c.get_children():
+			if child is Control and child.visible:
+				leaf = false
+				break
+		if not leaf and not c is BaseButton and not c is PanelContainer:
+			continue
+		if c is Label:
+			if c.text == "":
+				continue
+			var font: Font = c.get_theme_font("font")
+			var fs: int = c.get_theme_font_size("font_size")
+			var width := c.size.x if c.autowrap_mode != TextServer.AUTOWRAP_OFF else -1.0
+			var ts := font.get_multiline_string_size(c.text, HORIZONTAL_ALIGNMENT_LEFT, width, fs)
+			ts = Vector2(minf(ts.x, c.size.x), minf(ts.y, c.size.y))
+			var g := c.get_global_rect()
+			var x := g.position.x
+			if c.horizontal_alignment == HORIZONTAL_ALIGNMENT_CENTER:
+				x += (g.size.x - ts.x) / 2.0
+			elif c.horizontal_alignment == HORIZONTAL_ALIGNMENT_RIGHT:
+				x += g.size.x - ts.x
+			var y := g.position.y
+			if c.vertical_alignment == VERTICAL_ALIGNMENT_CENTER:
+				y += (g.size.y - ts.y) / 2.0
+			elif c.vertical_alignment == VERTICAL_ALIGNMENT_BOTTOM:
+				y += g.size.y - ts.y
+			out.append(Rect2(x, y, ts.x, ts.y))
+		else:
+			out.append(c.get_global_rect())
+	return out

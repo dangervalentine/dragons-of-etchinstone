@@ -64,4 +64,4 @@ names the target. It keeps the same intent and semantics as today.
   - no name in the visible text.
 - Tap intents map one to one with the old `slot_row` intents for the same view state.
 - Layout: the rail is 88 tall at every matrix size when present and 0 when absent. At
-  `phone-16x9` with one set, its area is ≤ 50% of the old band's (824 × 154).
+  `phone-16x9` with one set, its area is ≤ 50% of the old band's (824 × 153).

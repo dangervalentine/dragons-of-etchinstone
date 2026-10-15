@@ -58,6 +58,33 @@ const BRONZE := Color("5a4632")
 const BRONZE_DARK := Color("3a2c1f")
 const BRONZE_LIGHT := Color("a88a63")
 
+# Rail
+## Width of one role token in the role rail when there is a single Action Set.
+const RAIL_TOKEN_W := 132
+## The least height the preview takes in the left column; the Encounter gets the rest.
+const PREVIEW_MIN := 150
+
+# Stone
+## The luminance band the stone grain is remapped into. The top stays no lighter
+## than BG_RAISED, so text keeps its contrast on the brightest stone.
+const STONE_L_MIN := 0.008
+const STONE_L_MAX := 0.022
+## Cut-corner sizes: small chips, wells and buttons, slabs.
+const CHAMFER_S := 6
+const CHAMFER_M := 12
+const CHAMFER_L := 20
+## The edges of a carved bevel.
+const BEVEL_LIGHT := Color(1, 1, 1, 0.10)
+const BEVEL_SHADOW := Color(0, 0, 0, 0.45)
+
+# Rift
+## The rift light where there is no Ether: a cold violet.
+const SEAM_NEUTRAL := Color("8f7fd6")
+## How bright the seams may be beneath a zone: never, so light never sits under text.
+const SEAM_MAX_UNDER_TEXT := 0.0
+## Most motes drifting from the rift at once.
+const MOTES_MAX := 24
+
 # Motion, in seconds
 const INSTANT := 0.08
 const FAST := 0.15
@@ -67,6 +94,8 @@ const COUNT := 0.6
 const REVEAL := 0.4
 const STAGGER := 0.12
 const SEQUENCE_MAX := 3.0
+## How long the rift light takes to change to a new Ether.
+const RIFT_TINT_TIME := REVEAL
 
 # The landscape layout
 const DESIGN_MIN := Vector2(1280, 720)

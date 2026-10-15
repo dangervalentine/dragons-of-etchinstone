@@ -1,0 +1,240 @@
+{
+	"phone-16x9/challenge_assigned": {
+		"max_empty": [
+			"preview",
+			0.26
+		],
+		"role_share": 0.147,
+		"role_size": [
+			824.0,
+			153.5
+		],
+		"zones": {
+			"encounter": 0.0,
+			"hand": 0.05,
+			"preview": 0.26,
+			"slots": 0.0
+		}
+	},
+	"phone-16x9/challenge_empty": {
+		"max_empty": [
+			"preview",
+			0.17
+		],
+		"role_share": 0.147,
+		"role_size": [
+			824.0,
+			153.5
+		],
+		"zones": {
+			"encounter": 0.0,
+			"hand": 0.05,
+			"preview": 0.17,
+			"slots": 0.0
+		}
+	},
+	"phone-16x9/challenge_one": {
+		"max_empty": [
+			"preview",
+			0.2
+		],
+		"role_share": 0.147,
+		"role_size": [
+			824.0,
+			153.5
+		],
+		"zones": {
+			"encounter": 0.0,
+			"hand": 0.05,
+			"preview": 0.2,
+			"slots": 0.0
+		}
+	},
+	"phone-16x9/final_journey": {
+		"max_empty": [
+			"hand",
+			0.22
+		],
+		"role_share": 0.092,
+		"role_size": [
+			824.0,
+			96.0
+		],
+		"zones": {
+			"encounter": 0.0,
+			"hand": 0.22,
+			"preview": 0.08,
+			"slots": 0.0
+		}
+	},
+	"phone-16x9/next": {
+		"max_empty": [
+			"preview",
+			0.17
+		],
+		"role_share": 0.147,
+		"role_size": [
+			824.0,
+			153.5
+		],
+		"zones": {
+			"encounter": 0.0,
+			"hand": 0.05,
+			"preview": 0.17,
+			"slots": 0.0
+		}
+	},
+	"phone-16x9/soak": {
+		"max_empty": [
+			"preview",
+			0.42
+		],
+		"role_share": 0.147,
+		"role_size": [
+			824.0,
+			153.5
+		],
+		"zones": {
+			"encounter": 0.0,
+			"hand": 0.05,
+			"preview": 0.42,
+			"slots": 0.0
+		}
+	},
+	"phone-16x9/upgrade": {
+		"max_empty": [
+			"preview",
+			0.71
+		],
+		"role_share": 0.147,
+		"role_size": [
+			824.0,
+			153.5
+		],
+		"zones": {
+			"encounter": 0.0,
+			"hand": 0.05,
+			"preview": 0.71,
+			"slots": 0.0
+		}
+	},
+	"phone-small/challenge_assigned": {
+		"max_empty": [
+			"preview",
+			0.26
+		],
+		"role_share": 0.147,
+		"role_size": [
+			824.0,
+			153.5
+		],
+		"zones": {
+			"encounter": 0.0,
+			"hand": 0.05,
+			"preview": 0.26,
+			"slots": 0.0
+		}
+	},
+	"phone-small/challenge_empty": {
+		"max_empty": [
+			"preview",
+			0.17
+		],
+		"role_share": 0.147,
+		"role_size": [
+			824.0,
+			153.5
+		],
+		"zones": {
+			"encounter": 0.0,
+			"hand": 0.05,
+			"preview": 0.17,
+			"slots": 0.0
+		}
+	},
+	"phone-small/challenge_one": {
+		"max_empty": [
+			"preview",
+			0.2
+		],
+		"role_share": 0.147,
+		"role_size": [
+			824.0,
+			153.5
+		],
+		"zones": {
+			"encounter": 0.0,
+			"hand": 0.05,
+			"preview": 0.2,
+			"slots": 0.0
+		}
+	},
+	"phone-small/final_journey": {
+		"max_empty": [
+			"hand",
+			0.22
+		],
+		"role_share": 0.092,
+		"role_size": [
+			824.0,
+			96.0
+		],
+		"zones": {
+			"encounter": 0.0,
+			"hand": 0.22,
+			"preview": 0.08,
+			"slots": 0.0
+		}
+	},
+	"phone-small/next": {
+		"max_empty": [
+			"preview",
+			0.17
+		],
+		"role_share": 0.147,
+		"role_size": [
+			824.0,
+			153.5
+		],
+		"zones": {
+			"encounter": 0.0,
+			"hand": 0.05,
+			"preview": 0.17,
+			"slots": 0.0
+		}
+	},
+	"phone-small/soak": {
+		"max_empty": [
+			"preview",
+			0.42
+		],
+		"role_share": 0.147,
+		"role_size": [
+			824.0,
+			153.5
+		],
+		"zones": {
+			"encounter": 0.0,
+			"hand": 0.05,
+			"preview": 0.42,
+			"slots": 0.0
+		}
+	},
+	"phone-small/upgrade": {
+		"max_empty": [
+			"preview",
+			0.71
+		],
+		"role_share": 0.147,
+		"role_size": [
+			824.0,
+			153.5
+		],
+		"zones": {
+			"encounter": 0.0,
+			"hand": 0.05,
+			"preview": 0.71,
+			"slots": 0.0
+		}
+	}
+}
