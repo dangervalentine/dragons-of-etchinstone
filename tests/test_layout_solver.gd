@@ -4,7 +4,7 @@ extends "res://tests/base.gd"
 const Solver = preload("res://ui/model/layout_solver.gd")
 const T = preload("res://ui/theme/tokens.gd")
 
-const ORDER := ["header", "encounter", "preview", "slots", "hand", "actions", "commit"]
+const ORDER := ["header", "encounter", "preview", "rail", "hand", "actions", "commit"]
 
 
 func _plan(name: String, hand := 4, sets := 1) -> Dictionary:
@@ -89,7 +89,7 @@ func test_controls_are_big_enough_to_tap() -> void:
 		var plan := _plan(name, 7, 2)
 		ok(plan.regions.commit.size.y >= T.TAP_MIN and plan.regions.commit.size.x >= T.TAP_MIN, name + " commit")
 		ok(plan.regions.actions.size.y >= T.TAP_MIN, name + " actions")
-		ok(plan.regions.slots.size.y >= T.TAP_MIN, name + " slots")
+		ok(plan.regions.rail.size.y >= T.TAP_MIN, name + " rail")
 
 
 func test_commit_is_in_the_bottom_right_corner() -> void:
@@ -103,7 +103,8 @@ func test_region_order_is_the_same_for_every_step() -> void:
 	var b := _plan("desktop", 7, 2)
 	for key in ["header", "encounter", "preview", "actions", "commit"]:
 		eq(a.regions[key], b.regions[key], key + " does not move between steps")
-	eq(a.regions.slots.position, b.regions.slots.position, "slots start in the same place")
+	for plan in [a, b]:
+		eq(plan.regions.rail.end.y + Solver.GAP, plan.regions.hand.position.y, "the Hand starts just under the rail")
 
 
 func test_larger_screens_are_used_not_left_empty() -> void:
@@ -112,10 +113,15 @@ func test_larger_screens_are_used_not_left_empty() -> void:
 		var used := 0.0
 		for key in ORDER:
 			used += plan.regions[key].get_area()
+		# The rail is only as wide as its tokens on purpose (feature 006); its row
+		# across the column is still the rail's, not empty screen.
+		var rail: Rect2 = plan.regions.rail
+		used += rail.size.y * plan.regions.hand.size.x - rail.get_area()
 		var safe := _safe(name)
-		ok(used >= safe.get_area() * 0.8, "%s: regions cover %d%% of the safe area" % [name, int(100 * used / safe.get_area())])
+		# Hand cards are bound by width, so on taller screens some height has no use
+		# but margin: the rail and Hand are centred and share it above and below.
+		ok(used >= safe.get_area() * 0.75, "%s: regions cover %d%% of the safe area" % [name, int(100 * used / safe.get_area())])
 	ok(_plan("tablet").card_size.x >= _plan("phone-16x9").card_size.x, "cards are no smaller on a tablet")
-	ok(_plan("tablet").regions.slots.size.y > _plan("phone-16x9").regions.slots.size.y, "spare height goes to the slots")
 	var wide := _plan("desktop-ultrawide")
 	ok(wide.content.size.x <= T.DESIGN_MAX.x, "content is capped on an ultrawide window")
 	ok(absf(wide.content.get_center().x - wide.view.x / 2.0) <= 1.0, "and centred")
@@ -185,13 +191,44 @@ func test_extra_space_goes_to_content() -> void:
 		ok(plan.regions.encounter.size.y >= base.regions.encounter.size.y, name + ": Encounter no shorter than on a 16:9 phone")
 
 
-func test_an_empty_slots_row_gives_its_room_to_the_hand() -> void:
+func test_an_empty_rail_gives_its_room_to_the_hand() -> void:
 	eq(Solver.slot_rows({"sets": [{}, {}], "played": null}), 2, "a row per Action Set")
 	eq(Solver.slot_rows({"sets": [], "played": {}}), 1, "the recap after a battle")
 	eq(Solver.slot_rows({"sets": [], "played": null}), 0, "nothing to show while Soaking the Final Battle")
 	for name in Solver.MATRIX:
 		var with_row := _plan(name, 8, 1)
 		var without := _plan(name, 8, 0)
-		eq(without.regions.slots.size.y, 0.0, "%s: no slots row" % name)
+		eq(without.regions.rail.size.y, 0.0, "%s: no rail" % name)
 		eq(without.regions.hand.position.y, without.regions.encounter.position.y, "%s: the Hand starts at the top of the body" % name)
 		ok(without.card_size.x >= with_row.card_size.x, "%s: cards are no smaller" % name)
+
+
+func test_rail_is_one_tap_target_tall() -> void:
+	for name in Solver.MATRIX:
+		for sets in [1, 2]:
+			eq(_plan(name, 4 if sets == 1 else 7, sets).regions.rail.size.y, float(T.TAP_MIN), "%s with %d sets" % [name, sets])
+		eq(_plan(name, 8, 0).regions.rail.size.y, 0.0, name + " with no sets")
+
+
+## The slot band at 1280 x 720 with one set, before feature 006: 824 x 153.
+func test_rail_area_is_at_most_half_the_old_band() -> void:
+	var rail: Rect2 = _plan("phone-16x9").regions.rail
+	ok(rail.get_area() <= 0.5 * 824 * 153, "rail is %s, at most half of 824 x 153" % str(rail.size))
+	var two: Rect2 = _plan("phone-16x9", 7, 2).regions.rail
+	ok(two.get_area() < 824 * 96, "with two sets, smaller than the old 824 x 96 band")
+
+
+func test_preview_takes_what_it_needs() -> void:
+	var m: Array = Solver.MATRIX["phone-16x9"]
+	var view: Vector2 = Solver.view_for_window(m[0])
+	var safe := _safe("phone-16x9")
+	var at := func(needed: float) -> Dictionary:
+		return Solver.solve(view, safe, 4, 1, 0.5, needed)
+	eq(at.call(200.0).regions.preview.size.y, 200.0, "the preview takes the height it asks for")
+	eq(at.call(10.0).regions.preview.size.y, float(T.PREVIEW_MIN), "but never less than the floor")
+	var huge: Dictionary = at.call(5000.0)
+	var body_h: float = huge.regions.preview.end.y - huge.regions.encounter.position.y
+	ok(huge.regions.preview.size.y <= roundf(body_h * 0.5) + 1.0, "and never more than half the column")
+	for needed in [0.0, 10.0, 200.0, 5000.0]:
+		var p: Dictionary = at.call(needed)
+		eq(p.regions.encounter.end.y + Solver.GAP, p.regions.preview.position.y, "the Encounter fills the rest (%d)" % needed)

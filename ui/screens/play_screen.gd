@@ -1,7 +1,7 @@
 extends Control
 ## The one screen used for every step of play, from choosing starting cards to the
 ## last blow against the dragon. Seven regions in fixed places: header, Encounter,
-## preview, slots, Hand, secondary actions and the primary action. Widgets update
+## preview, role rail, Hand, secondary actions and the primary action. Widgets update
 ## in place; card nodes persist so they can move.
 
 const T = preload("res://ui/theme/tokens.gd")
@@ -13,7 +13,7 @@ const FaceFrame = preload("res://ui/widgets/face_frame.gd")
 const PreviewPanel = preload("res://ui/widgets/preview_panel.gd")
 const SoakMeter = preload("res://ui/widgets/soak_meter.gd")
 const XpPurse = preload("res://ui/widgets/xp_purse.gd")
-const SlotRow = preload("res://ui/widgets/slot_row.gd")
+const RoleRail = preload("res://ui/widgets/role_rail.gd")
 const HandTray = preload("res://ui/widgets/hand_tray.gd")
 const ActionBar = preload("res://ui/widgets/action_bar.gd")
 const EtherPicker = preload("res://ui/widgets/ether_picker.gd")
@@ -29,7 +29,7 @@ var setup_face := FaceFrame.new()
 var preview := PreviewPanel.new()
 var soak_meter := SoakMeter.new()
 var xp_purse := XpPurse.new()
-var slots := HBoxContainer.new()
+var rail := RoleRail.new()
 var actions := ActionBar.new()
 var hand := HandTray.new()
 var picker := EtherPicker.new()
@@ -50,7 +50,7 @@ var _setup_key := ""
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	for key in ["encounter", "preview", "slots", "actions", "header"]:
+	for key in ["encounter", "preview", "rail", "actions", "header"]:
 		var r := Control.new()
 		r.name = key
 		r.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -60,8 +60,7 @@ func _init() -> void:
 		_fill(_regions.encounter, face)
 	for panel in [preview, soak_meter, xp_purse]:
 		_fill(_regions.preview, panel)
-	slots.add_theme_constant_override("separation", T.M)
-	_fill(_regions.slots, slots)
+	_fill(_regions.rail, rail)
 	_fill(_regions.actions, actions)
 	_fill(_regions.header, header)
 	# The Hand sits on its own panel, raised while it is waiting on the player.
@@ -83,7 +82,7 @@ func _init() -> void:
 	_toast.modulate.a = 0.0
 	_toast.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_toast)
-	for w in [header, encounter_face, dragon_face, preview, actions, hand, picker]:
+	for w in [header, encounter_face, dragon_face, preview, rail, actions, hand, picker]:
 		w.intent.connect(func(data): intent.emit(data))
 
 
@@ -107,14 +106,15 @@ func render(state: Dictionary, animate := false, arrive_from = null) -> void:
 	if plan.is_empty():
 		return
 	header.render(vs)
-	_render_encounter()
+	# The preview first: the layout depends on how tall it needs to be, as well as
+	# how many cards and sets there are; everything else is drawn at the final sizes.
 	_render_preview()
-	_render_slots()
-	actions.render(vs)
-	_render_prominence()
-	# The hand plan depends on how many cards there are and how many sets.
 	plan = _replan(plan, vs)
 	_place_hand_panel()
+	_render_encounter()
+	rail.render(vs)
+	actions.render(vs)
+	_render_prominence()
 	hand.sync(vs, plan, animate, arrive_from)
 	if detail.visible:
 		if vs.cards.has(_hover_id):
@@ -244,11 +244,14 @@ func _replan(p: Dictionary, state: Dictionary) -> Dictionary:
 	var count: int = state.hand.size()
 	var Solver = load("res://ui/model/layout_solver.gd")
 	var sets: int = Solver.slot_rows(state)
-	if p.get("for", []) == [count, sets]:
+	# The preview asks for the height its fullest look needs this Encounter, so this
+	# changes between steps and Encounters, not as cards are placed.
+	var needed := roundi(_preview_widget().needed_height(p.regions.preview.size.x))
+	if p.get("for", []) == [count, sets, needed]:
 		return p
-	var q: Dictionary = Solver.solve(p.view, p.safe, count, sets, p.points_per_unit)
+	var q: Dictionary = Solver.solve(p.view, p.safe, count, sets, p.points_per_unit, needed)
 	q["safe"] = p.safe
-	q["for"] = [count, sets]
+	q["for"] = [count, sets, needed]
 	if q.regions != p.regions:
 		plan = q
 		for key in _regions:
@@ -256,8 +259,12 @@ func _replan(p: Dictionary, state: Dictionary) -> Dictionary:
 			_regions[key].position = r.position
 			_regions[key].size = r.size
 		actions.apply_layout(q.regions.actions, q.regions.commit)
-		_render_slots()
 	return q
+
+
+## Whichever of the preview, the Soak meter and the XP purse is showing.
+func _preview_widget() -> Control:
+	return soak_meter if soak_meter.visible else (xp_purse if xp_purse.visible else preview)
 
 
 func _render_encounter() -> void:
@@ -312,22 +319,6 @@ func _render_preview() -> void:
 		xp_purse.render(vs)
 	else:
 		preview.render(vs)
-
-
-func _render_slots() -> void:
-	var count: int = vs.sets.size() if not vs.sets.is_empty() else (1 if vs.played != null else 0)
-	while slots.get_child_count() > count:
-		var c := slots.get_child(slots.get_child_count() - 1)
-		slots.remove_child(c)
-		c.queue_free()
-	while slots.get_child_count() < count:
-		var row := SlotRow.new()
-		row.set_index = slots.get_child_count()
-		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		row.intent.connect(func(data): intent.emit(data))
-		slots.add_child(row)
-	for row in slots.get_children():
-		row.render(vs)
 
 
 func _fill(parent: Control, child: Control) -> void:

@@ -19,6 +19,12 @@ func _init() -> void:
 	_meter.draw.connect(_draw_meter)
 
 
+## The height this panel needs at `width`.
+func needed_height(width: float) -> float:
+	var margins: Vector2 = get_theme_stylebox("panel").get_minimum_size()
+	return UI.stack_height(_box, width - margins.x) + margins.y
+
+
 func render(vs: Dictionary) -> void:
 	var s: Dictionary = vs.soak
 	_due = maxi(1, s.due)

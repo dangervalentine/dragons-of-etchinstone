@@ -10,6 +10,11 @@ const BOTTOM_H := 96
 const GAP := 12
 const COLUMN_GAP := 24
 const CARD_LIFT := 14          # room above the Hand for a placed card to rise into
+## The most room left between the top of the Hand region and its cards; anything
+## more goes below them.
+const HAND_TOP_AIR := 12.0
+## The Boost-to toggle at the end of a one-set role rail, wide enough for "Initiative".
+const RAIL_TOGGLE_W := 150
 const CARD_MAX_W := 250.0
 ## Room between Hand cards side by side; a little less once more than four share a row.
 const CARD_GAP_MIN := 12.0
@@ -65,9 +70,9 @@ static func clear_corners(safe: Rect2, window: Vector2, radii: Array) -> Rect2:
 	return Rect2(inset[0], inset[1], window.x - inset[0] - inset[2], window.y - inset[1] - inset[3])
 
 
-## How many rows the slots region shows for a view state: one per Action Set while
-## building, the recap of the set just played after a battle, or none, when the Hand
-## can have the room.
+## How many Action Sets the role rail shows for a view state: one per Action Set
+## while building, the recap of the set just played after a battle, or none, when the
+## Hand can have the room.
 static func slot_rows(vs: Dictionary) -> int:
 	if vs.is_empty():
 		return 1
@@ -77,9 +82,10 @@ static func slot_rows(vs: Dictionary) -> int:
 
 
 ## view: the viewport in design units. safe: the part clear of notches, in design
-## units. points_per_unit: how large a design unit is on this screen. set_count: rows
-## in the slots region, 0 to give its room to the Hand.
-static func solve(view: Vector2, safe: Rect2, hand_count := 4, set_count := 1, points_per_unit := 0.5) -> Dictionary:
+## units. points_per_unit: how large a design unit is on this screen. set_count:
+## Action Sets in the role rail, 0 to give its room to the Hand. preview_needed: the
+## height the preview asks for; 0 keeps the fixed split.
+static func solve(view: Vector2, safe: Rect2, hand_count := 4, set_count := 1, points_per_unit := 0.5, preview_needed := 0.0) -> Dictionary:
 	var left := maxf(safe.position.x, T.M)
 	var top := maxf(safe.position.y, T.M)
 	var right := minf(safe.end.x, view.x - T.M)
@@ -97,28 +103,38 @@ static func solve(view: Vector2, safe: Rect2, hand_count := 4, set_count := 1, p
 	var body_y := c.position.y + HEADER_H + GAP
 	var body_h := c.end.y - body_y
 	var left_w := clampf(roundf(c.size.x * 0.32), 400.0, 548.0)
-	var encounter_h := roundf(body_h * 0.56)
+	# The preview takes what its state asks for, within limits; the Encounter the rest.
+	var preview_h := body_h - roundf(body_h * 0.56) - GAP
+	if preview_needed > 0.0:
+		preview_h = clampf(roundf(preview_needed), T.PREVIEW_MIN, roundf(body_h * 0.5))
+	var encounter_h := body_h - preview_h - GAP
 	var right_x := c.position.x + left_w + COLUMN_GAP
 	var right_w := c.end.x - right_x
-	var slots_h := 0.0 if set_count == 0 else (112.0 if set_count == 1 else 96.0)
+	# The role rail: one row of tokens a tap target tall, only as wide as its tokens.
+	var rail_h := 0.0 if set_count == 0 else float(T.TAP_MIN)
+	var rail_w := minf(right_w, (3 * T.RAIL_TOKEN_W + RAIL_TOGGLE_W + 3 * T.S) if set_count == 1 else (8 * T.TAP_MIN + 7 * T.S))
 	var bottom_y := c.end.y - BOTTOM_H
 	var commit_w := clampf(roundf(right_w * 0.3), 220.0, 320.0)
-	# Cards are bound by width on tall screens; give the height they cannot use to the slots.
-	var trial := _fit_cards(Rect2(right_x, 0, right_w, bottom_y - GAP - (body_y + slots_h + GAP)), hand_count)
-	var spare: float = bottom_y - GAP - (body_y + slots_h + GAP) - CARD_LIFT - trial.rows * trial.size.y - (trial.rows - 1) * GAP
-	if set_count > 0:
-		slots_h += clampf((spare - 24.0) * 0.5, 0.0, 80.0)
-	var hand_y: float = body_y + slots_h + (GAP if set_count > 0 else 0.0)
+	# The rail and the Hand sit together, each token just above its card. Where the
+	# cards cannot use all the height (they are bound by width), the pair is centred
+	# in the column so the spare room is shared above and below, not left in one band.
+	var rail_gap: float = GAP if set_count > 0 else 0.0
+	var column_h := bottom_y - GAP - body_y
+	var fit: Dictionary = _fit_cards(Rect2(right_x, 0, right_w, column_h - rail_h - rail_gap), hand_count)
+	var group_h: float = rail_h + rail_gap + CARD_LIFT + fit.rows * fit.size.y + (fit.rows - 1) * GAP + HAND_TOP_AIR
+	var shift: float = roundf(maxf(0.0, column_h - group_h) / 2.0) if set_count > 0 else 0.0
+	var rail_y := body_y + shift
+	var hand_y: float = rail_y + rail_h + rail_gap
 	var regions := {
 		"header": Rect2(c.position.x, c.position.y, c.size.x, HEADER_H),
 		"encounter": Rect2(c.position.x, body_y, left_w, encounter_h),
-		"preview": Rect2(c.position.x, body_y + encounter_h + GAP, left_w, body_h - encounter_h - GAP),
-		"slots": Rect2(right_x, body_y, right_w, slots_h),
+		"preview": Rect2(c.position.x, body_y + encounter_h + GAP, left_w, preview_h),
+		"rail": Rect2(roundf(right_x + (right_w - rail_w) / 2.0), rail_y, rail_w if set_count > 0 else right_w, rail_h),
 		"hand": Rect2(right_x, hand_y, right_w, bottom_y - GAP - hand_y),
 		"actions": Rect2(right_x, bottom_y, right_w - commit_w - GAP, BOTTOM_H),
 		"commit": Rect2(c.end.x - commit_w, bottom_y, commit_w, BOTTOM_H),
 	}
-	var fit := _fit_cards(regions.hand, hand_count)
+	fit = _fit_cards(regions.hand, hand_count)
 	return {
 		"view": view, "content": c, "regions": regions,
 		"card_size": fit.size, "hand_rows": fit.rows,
@@ -128,14 +144,17 @@ static func solve(view: Vector2, safe: Rect2, hand_count := 4, set_count := 1, p
 	}
 
 
-## Where each of `count` cards sits in the Hand region, row by row, centred.
+## Where each of `count` cards sits in the Hand region, row by row, centred across
+## and close under the top, so each card sits just below its role token; the height
+## the cards cannot use is left above the actions.
 static func card_rects(hand: Rect2, card: Vector2, count: int, rows: int) -> Array:
 	var out := []
 	if count <= 0:
 		return out
 	var per_row := ceili(count / float(rows))
 	var total_h := rows * card.y + (rows - 1) * GAP
-	var y0 := hand.position.y + CARD_LIFT + (hand.size.y - CARD_LIFT - total_h) / 2.0
+	var spare := hand.size.y - CARD_LIFT - total_h
+	var y0 := hand.position.y + CARD_LIFT + minf(spare / 2.0, HAND_TOP_AIR)
 	for i in count:
 		var row := i / per_row
 		var in_row := mini(per_row, count - row * per_row)
@@ -173,31 +192,28 @@ static func _gap_min(in_row: int) -> float:
 	return CARD_GAP_MIN if in_row <= 4 else CARD_GAP_CROWDED
 
 
-## How much of `zone` (a global rect) shows nothing: one minus the share of it
-## covered by what is drawn inside, on a 16-unit grid. "What is drawn" is every
-## visible leaf Control under `root` (a Label counts only where its text is), so a
-## container filling the zone does not count as content.
+## How much of `zone` (a global rect) is empty: the share of its height, in 16-unit
+## rows, with nothing drawn across it. Room beside a short line of text is not
+## counted; a band with nothing in it is. "What is drawn" is every visible leaf
+## Control under `root` (a Label only where its text is), so a container filling
+## the zone does not count as content.
 static func empty_fraction(zone: Rect2, root: Control) -> float:
-	const CELL := 16.0
-	var cols := maxi(1, int(zone.size.x / CELL))
-	var rows := maxi(1, int(zone.size.y / CELL))
-	var filled := PackedByteArray()
-	filled.resize(cols * rows)
+	const ROW := 16.0
+	var rows := maxi(1, int(zone.size.y / ROW))
+	var used := PackedByteArray()
+	used.resize(rows)
 	for r in _drawn_rects(root):
 		var hit: Rect2 = zone.intersection(r)
 		if hit.size.x <= 0.0 or hit.size.y <= 0.0:
 			continue
-		var x0 := clampi(int((hit.position.x - zone.position.x) / CELL), 0, cols - 1)
-		var y0 := clampi(int((hit.position.y - zone.position.y) / CELL), 0, rows - 1)
-		var x1 := clampi(int(ceilf((hit.end.x - zone.position.x) / CELL)), 1, cols)
-		var y1 := clampi(int(ceilf((hit.end.y - zone.position.y) / CELL)), 1, rows)
+		var y0 := clampi(int((hit.position.y - zone.position.y) / ROW), 0, rows - 1)
+		var y1 := clampi(int(ceilf((hit.end.y - zone.position.y) / ROW)), 1, rows)
 		for y in range(y0, y1):
-			for x in range(x0, x1):
-				filled[y * cols + x] = 1
+			used[y] = 1
 	var count := 0
-	for b in filled:
+	for b in used:
 		count += b
-	return 1.0 - count / float(cols * rows)
+	return 1.0 - count / float(rows)
 
 
 static func _drawn_rects(root: Control) -> Array:
@@ -206,9 +222,11 @@ static func _drawn_rects(root: Control) -> Array:
 		var c := node as Control
 		if not c.is_visible_in_tree() or c.modulate.a < 0.1 or c.size == Vector2.ZERO:
 			continue
-		# Layout containers and bare panels are background, not content; a panel that
-		# draws its own box inside the zone (a chip, a recap) is content.
+		# Layout containers, spacers and bare panels are background, not content; a
+		# panel that draws its own box inside the zone (a chip, a recap) is content.
 		if c.get_class() == "Panel" or (c is Container and not c is BaseButton and not c is PanelContainer):
+			continue
+		if c.get_class() == "Control" and c.get_script() == null and c.get_signal_connection_list("draw").is_empty():
 			continue
 		var leaf := true
 		for child in c.get_children():

@@ -298,6 +298,45 @@ static func vbox(separation: int = T.S) -> VBoxContainer:
 	return col
 
 
+## The height a VBoxContainer's children need when it is `width` wide, worked out
+## from the fonts for wrapped labels (whose own minimum lags a frame behind).
+static func stack_height(box: VBoxContainer, width: float) -> float:
+	var h := 0.0
+	var n := 0
+	for c in box.get_children():
+		if not c is Control or not c.visible or c.is_queued_for_deletion():
+			continue
+		n += 1
+		if c is Label and c.autowrap_mode != TextServer.AUTOWRAP_OFF:
+			var font: Font = c.get_theme_font("font")
+			var fs: int = c.get_theme_font_size("font_size")
+			h += font.get_multiline_string_size(c.text, HORIZONTAL_ALIGNMENT_LEFT, width, fs).y
+		elif c is FlowContainer:
+			h += _flow_height(c, width)
+		else:
+			h += c.get_combined_minimum_size().y
+	return h + maxi(0, n - 1) * box.get_theme_constant("separation")
+
+
+static func _flow_height(flow: FlowContainer, width: float) -> float:
+	var x := 0.0
+	var row_h := 0.0
+	var total := 0.0
+	var hs: int = flow.get_theme_constant("h_separation")
+	var vs: int = flow.get_theme_constant("v_separation")
+	for c in flow.get_children():
+		if not c is Control or not c.visible:
+			continue
+		var m: Vector2 = c.get_combined_minimum_size()
+		if x > 0.0 and x + m.x > width:
+			total += row_h + vs
+			x = 0.0
+			row_h = 0.0
+		x += m.x + hs
+		row_h = maxf(row_h, m.y)
+	return total + row_h
+
+
 static func spacer() -> Control:
 	var c := Control.new()
 	c.size_flags_horizontal = Control.SIZE_EXPAND_FILL

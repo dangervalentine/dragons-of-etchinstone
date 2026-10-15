@@ -112,7 +112,7 @@ steps 1–8 pass; nothing else looks different.
 
 ### Tests for User Story 1 (write first; they must fail)
 
-- [ ] T006 [P] [US1] Create `tests/test_role_rail.gd` against a new pure static function `ViewState.rail_tokens(vs: Dictionary) -> Array` in `ui/model/view_state.gd` (shapes per data-model.md § RoleToken). Use real view states built as `test_view_state.gd` does and assert:
+- [X] T006 [P] [US1] Create `tests/test_role_rail.gd` against a new pure static function `ViewState.rail_tokens(vs: Dictionary) -> Array` in `ui/model/view_state.gd` (shapes per data-model.md § RoleToken). Use real view states built as `test_view_state.gd` does and assert:
   - (a) one set, nothing placed: 3 tokens `spell`, `element`, `boost`. The active one has `state == "next"` and the others `"empty"`; each empty `tap == {"type": "select_slot", "set": 0, "role": <role>}`.
   - (b) after placing a card in Spell: that token `state == "filled"`, `card_id` set, `ether` equal to the card's element, `tap == {"type": "take_back", "id": <id>}`, and `contribution == [basic.value, enhanced.value, enhanced.element]` from the card's current Level.
   - (c) Element contribution is `[element, initiative]`; Boost is `[boost]`.
@@ -120,7 +120,7 @@ steps 1–8 pass; nothing else looks different.
   - (e) Final Battle (`final_enemy`, two sets): 6 tokens with `set` 0 and 1.
   - (f) after a battle (`vs.played` set, `vs.sets` empty): `played` tokens for each role, plus a `reserve` token whose state is `kept` when `played.reserve_kept`, else `discarded`; a recap token with a card has `tap == {"type": "inspect", "id": <id>}`, and one without a card (Reserve "None") has `tap == null`. The Hand card ids in `played.roles` each carry `vs.cards[id].played_role == [set, role]`.
   - (g) intent parity: for each building state, the set of non-null `tap` intents equals the set of intents the current `ui/widgets/slot_row.gd` buttons would emit (enumerate them by hand from `slot_row._slot`). The recap's `inspect` taps are new; they are not covered by parity.
-- [ ] T007 [P] [US1] Update `tests/test_layout_solver.gd`:
+- [X] T007 [P] [US1] Update `tests/test_layout_solver.gd`:
   - In `ORDER` and every assertion, rename the `slots` region to `rail`.
   - Replace `test …spare height goes to the slots` (line 118) with `test_rail_is_one_tap_target_tall()`: for every matrix size, with `sets` 1 and 2, `regions.rail.size.y == T.TAP_MIN`; with 0 sets it is `0.0`.
   - Add `test_rail_area_is_at_most_half_the_old_band()`: at `phone-16x9` with one set, `regions.rail.size.x * regions.rail.size.y <= 0.5 * 824 * 153`.
@@ -129,25 +129,25 @@ steps 1–8 pass; nothing else looks different.
 
 ### Implementation for User Story 1
 
-- [ ] T008 [US1] In `ui/model/layout_solver.gd`:
+- [X] T008 [US1] In `ui/model/layout_solver.gd`:
   - **Signature**: change `solve()` to `solve(view, safe, hand_count := 4, set_count := 1, points_per_unit := 0.5, preview_needed := 0.0)`.
   - **Rail**: rename the `slots` region to `rail`. It is `T.TAP_MIN` tall when `set_count > 0`, else 0, with the spare-height top-up deleted. Its width is `minf(right_w, (3 * T.RAIL_TOKEN_W + 150 + 3 * T.S) if set_count == 1 else (8 * T.TAP_MIN + 7 * T.S))`, centred over the right column.
   - **Preview split**: `preview_h = clampf(preview_needed, T.PREVIEW_MIN, roundf(body_h * 0.5))` when `preview_needed > 0`, else keep today's `body_h - encounter_h - GAP`. `encounter_h = body_h - preview_h - GAP`.
   - **Docs**: update the doc comments.
 
   Make T007 pass.
-- [ ] T009 [US1] In `ui/model/view_state.gd`, add `static func rail_tokens(vs: Dictionary) -> Array` per data-model.md § RoleToken (fields `set`, `role`, `state`, `card_id`, `contribution`, `ether`, `tap`, `tooltip`, plus a toggle entry `{"role": "boost_to", "set", "target": "attack"|"initiative", "tap": {"type": "toggle_boost_to", "set": n}}` when `sets[n].show_boost_to`).
+- [X] T009 [US1] In `ui/model/view_state.gd`, add `static func rail_tokens(vs: Dictionary) -> Array` per data-model.md § RoleToken (fields `set`, `role`, `state`, `card_id`, `contribution`, `ether`, `tap`, `tooltip`, plus a toggle entry `{"role": "boost_to", "set", "target": "attack"|"initiative", "tap": {"type": "toggle_boost_to", "set": n}}` when `sets[n].show_boost_to`).
   - Call it from `build()` as `vs["rail"] = rail_tokens(vs)`.
   - Reuse the role and contribution logic from `ui/widgets/slot_row.gd` (`_contribution`, `_render_played`), moved here as data.
   - Recap tokens with a card get `tap = {"type": "inspect", "id": id}` (data-model.md § RoleToken).
   - While `vs.played` is set, give each Hand card that was played `played_role = [set, role]`. Do this in `build()`'s per-card loop, where `vs.cards[id]` is built, reading `played.roles`.
 
   Make T006 pass.
-- [ ] T010 [P] [US1] Add `func needed_height() -> float` to `ui/widgets/preview_panel.gd`, `ui/widgets/soak_meter.gd` and `ui/widgets/xp_purse.gd`.
+- [X] T010 [P] [US1] Add `func needed_height() -> float` to `ui/widgets/preview_panel.gd`, `ui/widgets/soak_meter.gd` and `ui/widgets/xp_purse.gd`.
   - Return the height of the panel's **fullest composition for the current Encounter kind and phase**, not the state last rendered (research D2: stable within an Encounter). For example, an Enemy challenge preview is sized for both comparisons plus the verdict even while "Still needed" shows, and the Final Battle for all tiers plus the verdict.
   - Compute it by measuring the fullest layout once per `[encounter kind, phase]` and caching it: `get_combined_minimum_size().y` of the content container plus the panel's content margins.
   - Tighten `preview_panel.gd`'s composition so its rows stack from the top with `T.S` gaps and the verdict sits directly under them, not pinned to the bottom of an oversized panel.
-- [ ] T011 [US1] Create `ui/widgets/role_rail.gd` (`extends HBoxContainer`, centred, separation `T.S`), replacing `ui/widgets/slot_row.gd`. It has `signal intent(data)` and `func render(vs)`, which draws one `Button` per entry of `vs.rail`.
+- [X] T011 [US1] Create `ui/widgets/role_rail.gd` (`extends HBoxContainer`, centred, separation `T.S`), replacing `ui/widgets/slot_row.gd`. It has `signal intent(data)` and `func render(vs)`, which draws one `Button` per entry of `vs.rail`.
   - **Size**: `custom_minimum_size = Vector2(T.RAIL_TOKEN_W if one set else T.TAP_MIN, T.TAP_MIN)`.
   - **Styling**: today's `UI.box` styling from `slot_row._slot` (focus rim and shadow for `next`, the Ether border for `filled`).
   - **Content**:
@@ -160,17 +160,24 @@ steps 1–8 pass; nothing else looks different.
   - **Rects**: add `func token_rect(set: int, role: String) -> Rect2` returning the token's global rect.
   - **Style**: no card name anywhere. Doc comments in the file's style.
   - **"Played as" ribbon**: in `ui/widgets/card_view.gd`, when `model.played_role` is set (recap only), draw the existing role ribbon (`ROLE_NAMES` / `ROLE_ICONS`, set number with two sets) in `T.INK_MUTED` instead of the building colours, so the recap links role to card without names (contracts/role-rail.md).
-- [ ] T012 [US1] In `ui/screens/play_screen.gd`:
+- [X] T012 [US1] In `ui/screens/play_screen.gd`:
   - Rename the `slots` region to `rail`, and replace `slots`, `SlotRow` and `_render_slots()` with a single `RoleRail` instance filled into `_regions.rail` (`rail.render(vs)`; connect `intent`).
   - In `_replan()`, pass `preview_needed` from whichever of `preview`, `soak_meter` or `xp_purse` is visible (`needed_height()`), and replan when it changes: extend the `for` key to `[count, sets, roundi(preview_needed)]`. Because T010 measures the fullest composition, this changes only between phases or Encounters, never between card placements.
   - Update `apply_layout()`'s region loop.
-- [ ] T013 [US1] In `ui/main.gd` (around line 158, the `Solver.slot_rows(vs)` call), pass the visible preview widget's `needed_height()` through to `Solver.solve()` the same way. Update any other `"slots"` region references found by `grep -rn '"slots"\|regions.slots' ui tools tests`.
-- [ ] T014 [US1] Delete `ui/widgets/slot_row.gd` and `ui/widgets/slot_row.gd.uid` once nothing references them (`grep -rn slot_row ui tools tests`).
-- [ ] T015 [US1] Add a non-regression check to `tools/ui_check.gd` using the same empty-fraction maths as `tools/space_audit.gd` (T002). For every play state it already drives at `phone-16x9` and `phone-small` only (the minimum sizes SC-002 names), FAIL when any play-screen zone's empty fraction is over 1/3. Measure zones as drawn panels: for the Hand, `_hand_panel`'s rect, not `regions.hand` (see T002). Move the shared maths into a small `static func empty_fraction(zone: Rect2, root: Control) -> float` in `ui/model/layout_solver.gd` and call it from both tools.
-- [ ] T016 [US1] Run `./tools/test.sh` (all green) and `godot --path . -s tools/space_audit.gd -- --compare specs/006-etched-stone-polish/baseline.json` (PASS). Then take `godot --path . -s tools/shot.gd -- build/006-us1 phone-16x9 desktop` and compare by eye with `build/006-before`: only the rail and the left split differ (FR-022).
+- [X] T013 [US1] In `ui/main.gd` (around line 158, the `Solver.slot_rows(vs)` call), pass the visible preview widget's `needed_height()` through to `Solver.solve()` the same way. Update any other `"slots"` region references found by `grep -rn '"slots"\|regions.slots' ui tools tests`.
+- [X] T014 [US1] Delete `ui/widgets/slot_row.gd` and `ui/widgets/slot_row.gd.uid` once nothing references them (`grep -rn slot_row ui tools tests`).
+- [X] T015 [US1] Add a non-regression check to `tools/ui_check.gd` using the same empty-fraction maths as `tools/space_audit.gd` (T002). For every play state it already drives at `phone-16x9` and `phone-small` only (the minimum sizes SC-002 names), FAIL when any play-screen zone's empty fraction is over 1/3. Measure zones as drawn panels: for the Hand, `_hand_panel`'s rect, not `regions.hand` (see T002). Move the shared maths into a small `static func empty_fraction(zone: Rect2, root: Control) -> float` in `ui/model/layout_solver.gd` and call it from both tools.
+- [X] T016 [US1] Run `./tools/test.sh` (all green) and `godot --path . -s tools/space_audit.gd -- --compare specs/006-etched-stone-polish/baseline.json` (PASS). Then take `godot --path . -s tools/shot.gd -- build/006-us1 phone-16x9 desktop` and compare by eye with `build/006-before`: only the rail and the left split differ (FR-022).
 - [ ] T017 [US1] Walk quickstart §2 by-hand steps 1–8 (including 6b) on the desktop build and on the Android emulator (`install-on-emulators` skill). Fix any defect found. Commit "Role rail and a content-driven left column".
 
 **Checkpoint**: US1 is complete and shippable on its own.
+
+**Implementation notes (US1, 2026-10-15)**:
+- **The rail and Hand move as a pair.** Cards are width-bound, so on taller views the rail and Hand are centred together in the right column (`layout_solver.gd`, `HAND_TOP_AIR`). This shares the spare height above and below, instead of one empty band under the Hand. `test_larger_screens_are_used_not_left_empty` now allows 75% coverage, with the reason in a comment.
+- **Measuring empty space.** It is the share of a zone's *height*, in 16-unit rows, that nothing crosses (research D12). Spacers, bare panels and layout containers are not content. The baseline was re-recorded with this measure on `02004c7`.
+- **`tools/ui_check.gd` now really runs at each matrix size.** Headless, the root window stays 1280 × 1280, so every "matrix size" had been checked at that one size. The check now hosts the game in a `SubViewport` sized to each view in design units. It runs the SC-002 space check after each settle, at `phone-16x9` and `phone-small`. All checks pass at the real sizes.
+- **The "played as" marker.** It is drawn on the card's top fate tag ("Spell · Discarded after"), because the bottom ribbon is taken by the Soak and Upgrade notes during the recap.
+- **T017.** The walkthrough steps 1–6b were driven against the real rail buttons on desktop by a script, and all passed. The device half is open: no Android emulator was running, only a physical phone over wireless adb, which was not used without asking.
 
 ---
 

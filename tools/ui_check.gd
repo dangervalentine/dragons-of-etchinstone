@@ -21,6 +21,8 @@ const Rulebook = preload("res://ui/model/rulebook.gd")
 const HELP_MIN := 44.0
 
 var failures := 0
+## The viewport the game runs in, sized for each window in the matrix.
+var host: SubViewport
 var checks := 0
 var ui
 var db = CardDB.new()
@@ -39,7 +41,7 @@ func _run() -> void:
 	await _play("phone-16x9 animated", 5, "normal", true)
 	await _open("desktop")
 	await _resize_mid_turn()
-	print("ui check: %d checks, %d failed" % [checks, failures])
+	print("ui check: %d checks, %d failed (%d space checks)" % [checks, failures, space_checks])
 	ui.free()
 	quit(1 if failures > 0 else 0)
 
@@ -58,21 +60,27 @@ func _ok(cond: bool, what: String) -> void:
 func _open(name: String) -> void:
 	var m: Array = Solver.MATRIX[name]
 	var view: Vector2 = Solver.view_for_window(m[0])
-	if name == "upright-browser":
-		view = Vector2(720, 1280)
-	root.size = Vector2i(view)
+	# The game runs in a viewport of exactly this size, in design units, as the
+	# project's stretch settings make it: a headless window keeps one
+	# size whatever it is asked for, so the root cannot stand in for each screen.
+	if host == null:
+		host = SubViewport.new()
+		host.disable_3d = true
+		root.add_child(host)
+	host.size = Vector2i(view)
+	current_size = name
 	await process_frame
 	if ui != null:
 		ui.free()
 	ui = load("res://scenes/main.tscn").instantiate()
-	var real: Vector2 = root.get_visible_rect().size
+	var real: Vector2 = Vector2(host.size)
 	var k: float = real.x / m[0].x
 	var inset: Array = m[1]
 	if name == "phone-tall-flipped":
 		inset = [inset[2], inset[1], inset[0], inset[3]]
 	if inset != [0, 0, 0, 0]:
 		ui.safe_override = Rect2(inset[0] * k, inset[1] * k, real.x - (inset[0] + inset[2]) * k, real.y - (inset[1] + inset[3]) * k)
-	root.add_child(ui)
+	host.add_child(ui)
 	await process_frame
 	await process_frame
 	_ok(ui.plan.undersized == (name == "upright-browser"), "%s: undersized is %s" % [name, ui.plan.undersized])
@@ -81,10 +89,46 @@ func _open(name: String) -> void:
 		_ok(ui.plan.safe.grow(1.0).encloses(ui._notice.get_global_rect()), "%s: size notice at %s is outside the safe area" % [name, str(ui._notice.get_global_rect())])
 
 
+## The minimum window sizes, where no play-screen zone may be over a third empty
+## (feature 006, SC-002). Zones are the panels drawn: the Encounter, the preview,
+## the role rail and the panel round the Hand.
+const SPACE_SIZES := ["phone-16x9", "phone-small"]
+const MAX_EMPTY := 1.0 / 3.0
+var space_checks := 0
+## The matrix entry the game is laid out for now.
+var current_size := ""
+
+
+## Run once the screen has settled and its containers have laid out.
+func _check_space(where: String) -> void:
+	if ui.screen == null or ui.screen != ui.play or ui.play.plan.is_empty() or ui.animator.is_playing():
+		return
+	var size_name := current_size
+	if not SPACE_SIZES.has(size_name):
+		return
+	# Only when the window really has that size: a headless window may not resize.
+	if ui.play.plan.view != Solver.view_for_window(Solver.MATRIX[size_name][0]):
+		return
+	var play = ui.play
+	var zones := {"encounter": [play._regions.encounter.get_global_rect(), play.encounter_node()],
+		"hand": [play._hand_panel.get_global_rect(), play.hand]}
+	for panel in [play.preview, play.soak_meter, play.xp_purse]:
+		if panel.visible:
+			zones["preview"] = [panel.get_global_rect(), panel]
+	if play._regions.rail.size.y > 0.0:
+		zones["rail"] = [play._regions.rail.get_global_rect(), play._regions.rail]
+	space_checks += 1
+	for key in zones:
+		var e: float = Solver.empty_fraction(zones[key][0], zones[key][1])
+		_ok(e <= MAX_EMPTY, "%s: %s is %d%% empty" % [where, key, int(e * 100.0)])
+
+
 func _settle() -> void:
 	ui.animator.skip()
 	await process_frame
 	await process_frame
+	if ui.game != null:
+		_check_space("%s %s" % [current_size, ui.game.phase])
 
 
 ## Everything a player can press or must read, checked against the screen.
@@ -93,7 +137,7 @@ func _inspect_screen(where: String) -> void:
 	if ui.animator.is_playing():
 		return
 	var safe: Rect2 = ui.plan.safe.grow(1.0)
-	var view := Rect2(Vector2.ZERO, root.get_visible_rect().size).grow(1.0)
+	var view := Rect2(Vector2.ZERO, Vector2(host.size)).grow(1.0)
 	var nodes: Array = ui.screen.find_children("*", "Control", true, false) + ui._overlays.find_children("*", "Control", true, false)
 	for node in nodes:
 		var c := node as Control
@@ -471,7 +515,8 @@ func _resize_mid_turn() -> void:
 	ui.dispatch({"type": "card", "id": g.hand[0]})
 	ui.dispatch({"type": "card", "id": g.hand[1]})
 	var before: Dictionary = ui.draft.to_action()
-	root.size = Vector2i(1280, 720)
+	host.size = Vector2i(1280, 720)
+	ui._on_resize()
 	await process_frame
 	await process_frame
 	_ok(ui.draft.to_action() == before, "resize keeps the placed cards")

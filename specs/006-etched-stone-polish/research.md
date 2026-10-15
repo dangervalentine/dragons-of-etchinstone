@@ -315,8 +315,12 @@ content, not instead of it.
 - **SC-001**: the role display's area as a share of the content rect. It is compared
   with a baseline recorded from the current build before stage 1 and written to
   `specs/006-etched-stone-polish/baseline.md`.
-- **SC-002**: for each zone, the empty fraction: panel area minus the union of its
-  visible children's rects, over panel area. It fails if any zone is over 1/3 empty.
+- **SC-002**: for each zone, the empty fraction: the share of the panel's height, in
+  16-unit rows, that nothing drawn crosses. It fails if any zone is over 1/3 empty.
+  It counts rows rather than area because the waste the spec targets is vertical
+  bands (the preview's empty lower half). The room beside a short left-aligned line
+  of text is normal typography, and an area measure counted it as 60% "empty" in the
+  XP purse.
   - **A zone is the panel drawn on screen**, not the solver's region. The Hand zone
     is `_hand_panel`'s rect (the cards' bounds plus margins), not `regions.hand`.
     The Hand region is deliberately taller than its cards (D2), and the stone

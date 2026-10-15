@@ -15,6 +15,11 @@ const HELP_W := 64.0
 var _box := VBoxContainer.new()
 var _bars: Array = []
 var _verdict: Control = null
+## The height asked for so far for each Encounter and step, so the panel does not
+## change size as cards are placed: it is sized for its fullest look at once.
+var _needed := {}
+var _key := ""
+var _kind := ""
 
 
 func _init() -> void:
@@ -31,6 +36,9 @@ func render(vs: Dictionary) -> void:
 	_verdict = null
 	var p = vs.preview
 	var prompt: Dictionary = vs.prompt
+	var enc = vs.encounter
+	_kind = enc.kind if enc != null else ""
+	_key = "%s|%s|%s" % [enc.get("title", "") if enc != null else "", vs.phase, vs.mode]
 	var fatal: bool = p != null and p.fatal and vs.mode == "none"
 	var box := UI.raised_panel_box("rest", T.BAD if fatal else Color(0, 0, 0, 0), 12)
 	if fatal:
@@ -53,6 +61,24 @@ func render(vs: Dictionary) -> void:
 	if p.changed.has("verdict"):
 		UI.flash(_verdict, T.INK)
 	_box.add_child(_outcome_row(p))
+
+
+## The height this panel needs at `width`: the larger of what it shows now and its
+## fullest look for this Encounter (every comparison, the verdict and the outcome),
+## and never less than it asked for earlier in the same Encounter and step.
+func needed_height(width: float) -> float:
+	var margins: Vector2 = get_theme_stylebox("panel").get_minimum_size()
+	var sep: int = _box.get_theme_constant("separation")
+	var h: float = UI.stack_height(_box, width - margins.x)
+	# Fullest look: the comparison rows, a spacer, the verdict and the outcome row.
+	var rows: Array = [52.0, 76.0] if _kind == "enemy" else [52.0]
+	var full: float = rows.reduce(func(a, b): return a + b, 0.0) + 36.0 + 44.0 + (rows.size() + 2) * sep
+	if _kind.begins_with("final"):
+		full += 26.0  # the warning when playing would end the game
+	h = maxf(h, full) + margins.y
+	h = maxf(h, _needed.get(_key, 0.0))
+	_needed[_key] = h
+	return h
 
 
 ## Count the totals up from nothing; used when the Action Set is played.

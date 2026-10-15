@@ -14,6 +14,12 @@ func _init() -> void:
 	add_child(_box)
 
 
+## The height this panel needs at `width`.
+func needed_height(width: float) -> float:
+	var margins: Vector2 = get_theme_stylebox("panel").get_minimum_size()
+	return UI.stack_height(_box, width - margins.x) + margins.y
+
+
 func render(vs: Dictionary) -> void:
 	for c in _box.get_children():
 		_box.remove_child(c)

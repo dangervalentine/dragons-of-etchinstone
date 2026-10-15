@@ -297,7 +297,12 @@ func _draw_marks() -> void:
 	elif model.get("fate", "") == "stays":
 		_tag("Stays in Hand", "reserve", T.GOLD, T.BG_BASE)
 	elif model.get("fate", "") == "spent":
-		_tag("Discarded after", "discard", T.BG_RAISED, T.INK_MUTED)
+		# The role it was just played as, so the recap needs no names.
+		var played = model.get("played_role")
+		if played != null:
+			_tag("%s · Discarded after" % ROLE_NAMES[played[1]], ROLE_ICONS[played[1]], T.BG_RAISED, T.INK_MUTED)
+		else:
+			_tag("Discarded after", "discard", T.BG_RAISED, T.INK_MUTED)
 
 	var fuse = model.get("fuse")
 	if fuse != null and fuse.part == "top":
