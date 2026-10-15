@@ -40,8 +40,8 @@ const SECTIONS := [
 	]},
 	{"id": "mage_cards", "title": "Mage Cards", "pages": [
 		{"text": [
-			{"p": "Your sixteen Mage Cards are your spells, your shield and your clock. Each belongs to one of the four Ethers, shown by its colour."},
-			{"p": "A card has four [[crown|Levels]], each with its own figures; higher is stronger. Only the current Level counts, and it is the only one drawn."},
+			{"p": "Your sixteen Mage Cards are your spells, your shield and your clock. Each belongs to one of the four Ethers, shown by its colour and the mark beside its name."},
+			{"p": "A card has four [[crown|Levels]], each with its own figures; higher is stronger. Only the current Level counts, and it is the only one drawn; hold a card to see all four. In each step, the figures that matter are lit."},
 			{"list": [
 				"The strip under the name: the Encounter this card brings as [[key_card|Key Card]], and any Hardship.",
 				"{icon:initiative} Initiative: your speed when it is the Element.",

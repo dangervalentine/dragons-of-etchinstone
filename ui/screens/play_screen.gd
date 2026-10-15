@@ -34,6 +34,8 @@ var actions := ActionBar.new()
 var hand := HandTray.new()
 var picker := EtherPicker.new()
 var detail := CardDetail.new()
+var _hand_panel := Panel.new()
+var _input_region := ""
 var _hover_id := ""
 var _hover_timer := Timer.new()
 
@@ -62,6 +64,9 @@ func _init() -> void:
 	_fill(_regions.slots, slots)
 	_fill(_regions.actions, actions)
 	_fill(_regions.header, header)
+	# The Hand sits on its own panel, raised while it is waiting on the player.
+	_hand_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_hand_panel)
 	add_child(hand)
 	hand.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(picker)
@@ -89,6 +94,7 @@ func apply_layout(p: Dictionary) -> void:
 		_regions[key].position = r.position
 		_regions[key].size = r.size
 	actions.apply_layout(p.regions.actions, p.regions.commit)
+	_place_hand_panel()
 	if not vs.is_empty():
 		render(vs)
 
@@ -105,8 +111,10 @@ func render(state: Dictionary, animate := false, arrive_from = null) -> void:
 	_render_preview()
 	_render_slots()
 	actions.render(vs)
+	_render_prominence()
 	# The hand plan depends on how many cards there are and how many sets.
 	plan = _replan(plan, vs)
+	_place_hand_panel()
 	hand.sync(vs, plan, animate, arrive_from)
 	if detail.visible:
 		if vs.cards.has(_hover_id):
@@ -124,6 +132,32 @@ func render(state: Dictionary, animate := false, arrive_from = null) -> void:
 		picker.open(target, plan.content)
 	else:
 		picker.close()
+
+
+## The Hand's panel: round the cards themselves, with room for a placed card to rise.
+func _place_hand_panel() -> void:
+	var rects: Array = plan.get("card_rects", [])
+	if rects.is_empty():
+		return
+	var cards: Rect2 = rects[0]
+	for r in rects:
+		cards = cards.merge(r)
+	var hand: Rect2 = plan.regions.hand
+	var top := maxf(cards.position.y - 24.0, hand.position.y - 6.0)
+	var bottom := minf(cards.end.y + 12.0, hand.end.y + 6.0)
+	var panel := Rect2(cards.position.x - 10.0, top, cards.size.x + 20.0, bottom - top)
+	_hand_panel.position = panel.position
+	_hand_panel.size = panel.size
+
+
+## The part of the screen waiting on the player comes forward; the rest steps back.
+func _render_prominence() -> void:
+	var region: String = vs.get("input_region", "hand")
+	if region == _input_region:
+		return
+	_input_region = region
+	_hand_panel.add_theme_stylebox_override("panel", UI.raised_panel_box("active" if region == "hand" else "rest"))
+	actions.set_ready(region == "commit")
 
 
 func _fused_top(state: Dictionary) -> String:
@@ -156,6 +190,12 @@ func _show_detail() -> void:
 
 
 ## Finish anything in motion and show the current state exactly.
+## Start or stop the cards' Ether fields moving: off while an overlay covers the screen.
+func set_fields_live(on: bool) -> void:
+	hand.set_live(on)
+	detail.set_live(on)
+
+
 func settle() -> void:
 	hand.finish()
 	preview.settle()

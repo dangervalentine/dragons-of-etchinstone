@@ -83,7 +83,7 @@ func _draw() -> void:
 		if element != "":
 			var e := side * 0.42
 			draw_circle(Vector2(rect.end.x + e * 0.1, rect.end.y - e * 0.6), e * 0.62, T.BG_BAND)
-			draw_texture_rect(UI.icon(element), Rect2(rect.end.x - e * 0.4, rect.end.y - e * 1.1, e, e), false, T.ether(element))
+			draw_texture_rect(UI.icon(element), Rect2(rect.end.x - e * 0.4, rect.end.y - e * 1.1, e, e), false, T.ether_ink(element))
 	if caption != "":
 		var cf := UI.font("body_medium")
 		var cs: int = T.LABEL[1]

@@ -107,6 +107,30 @@ static func box(bg: Color, border: Color = Color.TRANSPARENT, width := 0, radius
 	return s
 
 
+## WCAG contrast ratio between two colours, from 1 to 21.
+static func contrast(a: Color, b: Color) -> float:
+	return T.ratio(a, b)
+
+
+## The ink, light or dark, that reads best on a background.
+static func best_ink(bg: Color) -> Color:
+	return T.INK if contrast(T.INK, bg) >= contrast(T.BG_BASE, bg) else T.BG_BASE
+
+
+## A play-screen panel lifted off the backdrop by its shadow. "active" is the one
+## waiting on the player: lighter, with a focus rim. "rest" steps back. `border`
+## keeps a panel's own meaningful edge colour (such as the damage on the Soak meter).
+static func raised_panel_box(kind: String, border := Color(0, 0, 0, 0), margin: int = T.S) -> StyleBoxFlat:
+	var active := kind == "active"
+	var s := box(T.BG_RAISED if active else T.BG_SURFACE,
+		border if border.a > 0.0 else (Color(T.FOCUS, 0.6) if active else Color(T.LINE_SOFT, 0.5)),
+		2 if active or border.a > 0.0 else 1, T.RADIUS_M, margin)
+	s.shadow_color = Color(0, 0, 0, 0.4 if active else 0.3)
+	s.shadow_size = 12 if active else 6
+	s.shadow_offset = Vector2(0, 4 if active else 2)
+	return s
+
+
 static func panel(bg: Color = T.BG_SURFACE, border: Color = T.LINE_SOFT, width := 1, radius: int = T.RADIUS_M, margin: int = T.S) -> PanelContainer:
 	var p := PanelContainer.new()
 	p.add_theme_stylebox_override("panel", box(bg, border, width, radius, margin))
@@ -151,8 +175,15 @@ static func style_button(b: Button, kind: String) -> void:
 			width = 3
 		"quiet":
 			bg = T.BG_SURFACE
-	b.add_theme_stylebox_override("normal", box(bg, border, width))
-	b.add_theme_stylebox_override("hover", box(bg.lightened(0.08), border.lightened(0.25), width))
+	var normal := box(bg, border, width)
+	normal.shadow_color = Color(0, 0, 0, 0.3)
+	normal.shadow_size = 5
+	normal.shadow_offset = Vector2(0, 2)
+	b.add_theme_stylebox_override("normal", normal)
+	var hover := normal.duplicate()
+	hover.bg_color = bg.lightened(0.08)
+	hover.border_color = border.lightened(0.25)
+	b.add_theme_stylebox_override("hover", hover)
 	b.add_theme_stylebox_override("pressed", box(bg.darkened(0.15), border, width))
 	b.add_theme_stylebox_override("disabled", box(Color(T.BG_SURFACE, 0.6), Color(T.LINE_SOFT, 0.5), 1))
 	var focus := box(Color.TRANSPARENT, T.GOLD, 3)

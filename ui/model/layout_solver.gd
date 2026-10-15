@@ -5,12 +5,16 @@ extends RefCounted
 
 const T = preload("res://ui/theme/tokens.gd")
 
-const HEADER_H := 56
+const HEADER_H := 48
 const BOTTOM_H := 96
-const GAP := 8
-const COLUMN_GAP := 16
+const GAP := 12
+const COLUMN_GAP := 24
 const CARD_LIFT := 14          # room above the Hand for a placed card to rise into
 const CARD_MAX_W := 250.0
+## Room between Hand cards side by side; a little less once more than four share a row.
+const CARD_GAP_MIN := 12.0
+const CARD_GAP_CROWDED := 10.0
+const CARD_GAP_MAX := 36.0
 ## Below this many points per design unit, 22-unit text is under about 9 points.
 const LEGIBLE_SCALE := 0.41
 
@@ -80,17 +84,17 @@ static func solve(view: Vector2, safe: Rect2, hand_count := 4, set_count := 1, p
 
 	var body_y := c.position.y + HEADER_H + GAP
 	var body_h := c.end.y - body_y
-	var left_w := clampf(roundf(c.size.x * 0.335), 400.0, 580.0)
+	var left_w := clampf(roundf(c.size.x * 0.32), 400.0, 548.0)
 	var encounter_h := roundf(body_h * 0.56)
 	var right_x := c.position.x + left_w + COLUMN_GAP
 	var right_w := c.end.x - right_x
-	var slots_h := 120.0 if set_count == 1 else 104.0
+	var slots_h := 112.0 if set_count == 1 else 96.0
 	var bottom_y := c.end.y - BOTTOM_H
 	var commit_w := clampf(roundf(right_w * 0.3), 220.0, 320.0)
 	# Cards are bound by width on tall screens; give the height they cannot use to the slots.
 	var trial := _fit_cards(Rect2(right_x, 0, right_w, bottom_y - GAP - (body_y + slots_h + GAP)), hand_count)
 	var spare: float = bottom_y - GAP - (body_y + slots_h + GAP) - CARD_LIFT - trial.rows * trial.size.y - (trial.rows - 1) * GAP
-	slots_h += clampf(spare - 24.0, 0.0, 96.0)
+	slots_h += clampf((spare - 24.0) * 0.5, 0.0, 80.0)
 	var hand_y := body_y + slots_h + GAP
 	var regions := {
 		"header": Rect2(c.position.x, c.position.y, c.size.x, HEADER_H),
@@ -138,7 +142,7 @@ static func _fit_cards(hand: Rect2, count: int) -> Dictionary:
 		if rows == 2 and n <= 4:
 			continue
 		var cols := ceili(n / float(rows))
-		var w: float = (hand.size.x - (cols - 1) * GAP) / cols
+		var w: float = (hand.size.x - (cols - 1) * _gap_min(cols)) / cols
 		var h: float = (hand.size.y - CARD_LIFT - (rows - 1) * GAP) / rows
 		w = floorf(minf(minf(w, h * T.CARD_ASPECT), CARD_MAX_W))
 		if w > best.size.x:
@@ -149,4 +153,8 @@ static func _fit_cards(hand: Rect2, count: int) -> Dictionary:
 static func _card_gap(width: float, card_w: float, in_row: int) -> float:
 	if in_row <= 1:
 		return 0.0
-	return clampf((width - in_row * card_w) / (in_row - 1), GAP, 28.0)
+	return clampf((width - in_row * card_w) / (in_row - 1), _gap_min(in_row), CARD_GAP_MAX)
+
+
+static func _gap_min(in_row: int) -> float:
+	return CARD_GAP_MIN if in_row <= 4 else CARD_GAP_CROWDED

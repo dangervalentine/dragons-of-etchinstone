@@ -12,6 +12,7 @@ var primary := Button.new()
 var _actions := HBoxContainer.new()
 var _was_enabled := false
 var _kind := ""
+var _ready := false
 
 
 func _init() -> void:
@@ -56,3 +57,22 @@ func render(vs: Dictionary) -> void:
 	if p.enabled and not _was_enabled and is_inside_tree():
 		UI.flash(primary, T.GOLD)
 	_was_enabled = p.enabled
+	if _ready:
+		_glow()
+
+
+## The primary action glows while it is the thing waiting on the player.
+func set_ready(on: bool) -> void:
+	_ready = on
+	UI.style_button(primary, _kind if _kind != "" else "primary")
+	if on:
+		_glow()
+
+
+func _glow() -> void:
+	var s = primary.get_theme_stylebox("normal")
+	if s is StyleBoxFlat and s.shadow_size < 14:
+		s = s.duplicate()
+		s.shadow_color = Color(T.FOCUS, 0.45)
+		s.shadow_size = 14
+		primary.add_theme_stylebox_override("normal", s)

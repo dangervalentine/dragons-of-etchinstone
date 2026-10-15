@@ -28,6 +28,12 @@ func ids() -> Array:
 	return _cards.keys()
 
 
+## Start or stop every card's Ether field moving.
+func set_live(on: bool) -> void:
+	for view in _cards.values():
+		view.set_live(on)
+
+
 ## Bring the cards in line with the view state. `animate` glides moved cards;
 ## `arrive_from` (a global point) is where new cards come from, one after another.
 func sync(vs: Dictionary, plan: Dictionary, animate := false, arrive_from = null) -> void:

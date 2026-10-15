@@ -111,9 +111,19 @@ func _slot(role: String, card, active: bool, compact: bool) -> Button:
 	b.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	b.clip_contents = true
 	var filled: bool = card != null
-	var border: Color = T.GOLD if active else (T.ether(card.element) if filled else T.LINE_SOFT)
+	# The slot being filled next wears the same focus colour as the parts of the
+	# Hand cards it is asking for.
+	var border: Color = T.FOCUS if active else (T.ether(card.element) if filled else T.LINE_SOFT)
 	var bg: Color = T.BG_RAISED if filled else T.BG_SURFACE
-	b.add_theme_stylebox_override("normal", UI.box(bg, border, 3 if active else 2, T.RADIUS_M, 6))
+	var normal := UI.box(bg, border, 3 if active else 2, T.RADIUS_M, 6)
+	if active:
+		normal.shadow_color = Color(T.FOCUS, 0.35)
+		normal.shadow_size = 10
+	else:
+		normal.shadow_color = Color(0, 0, 0, 0.3)
+		normal.shadow_size = 6
+		normal.shadow_offset = Vector2(0, 2)
+	b.add_theme_stylebox_override("normal", normal)
 	b.add_theme_stylebox_override("hover", UI.box(bg.lightened(0.07), border.lightened(0.2), 3 if active else 2, T.RADIUS_M, 6))
 	b.add_theme_stylebox_override("pressed", UI.box(bg.darkened(0.1), border, 3, T.RADIUS_M, 6))
 	b.add_theme_stylebox_override("focus", UI.box(Color.TRANSPARENT, T.GOLD, 3, T.RADIUS_M, 6))
@@ -123,10 +133,10 @@ func _slot(role: String, card, active: bool, compact: bool) -> Button:
 	col.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE, 6)
 	var head := UI.hbox(5)
 	head.alignment = BoxContainer.ALIGNMENT_CENTER
-	head.add_child(UI.icon_rect(ROLE_ICONS[role], 22, T.GOLD if active or filled else T.INK_MUTED))
+	head.add_child(UI.icon_rect(ROLE_ICONS[role], 22, T.FOCUS if active else (T.GOLD if filled else T.INK_MUTED)))
 	# In the narrow Final Battle slots the role icon and set number stand for the name.
 	var role_name: String = str(set_index + 1) if compact else ROLE_NAMES[role].to_upper()
-	head.add_child(UI.label(role_name, ["body_bold", T.LABEL[1]], T.GOLD if active else T.INK_MUTED))
+	head.add_child(UI.label(role_name, ["body_bold", T.LABEL[1]], T.FOCUS if active else T.INK_MUTED))
 	b.tooltip_text = "%s %d" % [ROLE_NAMES[role], set_index + 1] if compact else ROLE_NAMES[role]
 	col.add_child(head)
 	if filled:
@@ -160,7 +170,7 @@ func _contribution(role: String, card: Dictionary, compact := false) -> Control:
 	match role:
 		"spell":
 			if compact:
-				var cc: Color = T.ether(lv.enhanced.element)
+				var cc: Color = T.ether_ink(lv.enhanced.element)
 				row.add_child(UI.label(str(lv.basic.value), num))
 				var sep := UI.label("/", ["body_medium", 20], T.INK_MUTED)
 				sep.set_meta("small_ok", "a separator")
@@ -173,12 +183,12 @@ func _contribution(role: String, card: Dictionary, compact := false) -> Control:
 			var sep := UI.label(" or ", ["body_medium", 18], T.INK_MUTED)
 			sep.set_meta("small_ok", "a separator")
 			row.add_child(sep)
-			var c: Color = T.ether(lv.enhanced.element)
+			var c: Color = T.ether_ink(lv.enhanced.element)
 			row.add_child(UI.label(str(lv.enhanced.value), num, c))
 			_action_icons(row, lv.enhanced.type, c)
 			row.add_child(UI.icon_rect(lv.enhanced.element, 20, c))
 		"element":
-			row.add_child(UI.icon_rect(card.element, 26, T.ether(card.element)))
+			row.add_child(UI.icon_rect(card.element, 26, T.ether_ink(card.element)))
 			row.add_child(UI.icon_rect("initiative", 24, T.INK_MUTED))
 			row.add_child(UI.label(str(lv.initiative), num))
 		"boost":

@@ -6,6 +6,7 @@ extends RefCounted
 const Game = preload("res://engine/game.gd")
 const Rules = preload("res://engine/rules.gd")
 const Art = preload("res://ui/model/art.gd")
+const Emphasis = preload("res://ui/model/emphasis.gd")
 
 const ROLE_NAMES := {"spell": "Spell", "element": "Element", "boost": "Boost"}
 const DIFFICULTY_NAMES := {
@@ -69,11 +70,30 @@ static func build(game, draft, db, extra := {}) -> Dictionary:
 			total += game._soak_value(id)
 		vs.soak = {"due": game.damage_due, "element": game.damage_element, "total": total,
 			"covered": total >= game.damage_due, "poison": phase == "poison"}
+	var ctx := Emphasis.context(game, draft)
+	vs["next_role"] = ctx.next_role
 	for id in vs.hand:
 		vs.cards[id] = _card(game, draft, db, id, vs)
+		vs.cards[id]["focus"] = Emphasis.focus(vs.cards[id], game.level_data(id), ctx)
 	vs["prompt"] = _prompt(game, draft, vs)
 	vs["secondary"] = _secondary(game, draft, vs)
+	vs["input_region"] = _input_region(game, draft, vs)
 	return vs
+
+
+## The part of the play screen waiting on the player: the Hand while a card is
+## still to be chosen, the commit control once everything is ready.
+static func _input_region(game, draft, vs: Dictionary) -> String:
+	if not vs.prompt.primary.enabled:
+		return "hand"
+	match game.phase:
+		"challenge", "final_journey", "final_enemy":
+			return "commit" if draft.mode == "none" and vs.preview.status == "ready" else "hand"
+		"upgrade":
+			for id in vs.hand:
+				if vs.cards[id].eligible:
+					return "hand"
+	return "commit"
 
 
 ## The predicted result of committing the draft, shaped for display. Every figure

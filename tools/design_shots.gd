@@ -24,7 +24,41 @@ func _run() -> void:
 	ui = load("res://scenes/main.tscn").instantiate()
 	root.add_child(ui)
 	await _game()
+	await _ethers()
 	quit()
+
+
+## One Mage Card of each Ether at Hand size, held still, and the same in greyscale:
+## each Ether should be recognisable by its field and sigil alone.
+func _ethers() -> void:
+	root.remove_child(ui)
+	ui.queue_free()
+	var bg := ColorRect.new()
+	bg.color = Color("100e17")
+	bg.size = Vector2(4000, 4000)
+	root.add_child(bg)
+	var db = load("res://engine/card_db.gd").new()
+	var seen := {}
+	for id in db.mage_ids():
+		var e: String = db.mage(id).element
+		if seen.has(e):
+			continue
+		seen[e] = true
+		var m: Dictionary = db.mage(id)
+		var face = load("res://ui/widgets/card_face.gd").new()
+		face.size = Vector2(220, 308)
+		face.position = Vector2(110 + (seen.size() - 1) * 270, 130)
+		face.set_model({"id": id, "name": m.name, "element": e, "level": 2, "stats": db.mage_level(id, 2)})
+		face.motion = false
+		bg.add_child(face)
+	for i in 5:
+		await process_frame
+	await create_timer(0.3).timeout
+	var img := root.get_texture().get_image()
+	img.save_png("%s/ethers.png" % out)
+	img.convert(Image.FORMAT_L8)
+	img.save_png("%s/ethers_grey.png" % out)
+	print("ethers %s" % img.get_size())
 
 
 func _shot(name: String, skip := true) -> void:

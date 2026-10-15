@@ -82,7 +82,7 @@ func _build(enc: Dictionary) -> void:
 	if first or band.get_child_count() == 0:
 		clear()
 		set_look(enc.element, "")
-		band.add_child(UI.icon_rect("sigil_" + d.id, 44, colour))
+		band.add_child(UI.icon_rect("sigil_" + d.id, 44, T.ether_ink(enc.element)))
 		var title := UI.label(d.name.to_upper(), T.HEADING, T.INK)
 		title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		band.add_child(title)
@@ -116,10 +116,10 @@ func _build(enc: Dictionary) -> void:
 		stats.add_theme_constant_override("v_separation", 2)
 		stats.add_child(_chip({"icon": "initiative", "text": str(d.initiative), "color": T.BG_BAND,
 			"glossary_id": "initiative", "min_size": Vector2(44, 48)}))
-		stats.add_child(_chip({"icon": "attack", "text": "+%d" % d.early_damage.value, "color": colour, "ink": T.BG_BASE,
+		stats.add_child(_chip({"icon": "attack", "text": "+%d" % d.early_damage.value, "color": colour, "ink": T.ether_shade(enc.element, "plate_ink"),
 			"element": d.early_damage.element, "plate": true, "glossary_id": "early_damage", "min_size": Vector2(84, 48)}))
 		for a in d.armor:
-			stats.add_child(_chip({"icon": "armor", "text": str(a.value), "color": T.ether(a.element), "ink": T.BG_BASE,
+			stats.add_child(_chip({"icon": "armor", "text": str(a.value), "color": T.ether(a.element), "ink": T.ether_shade(a.element, "plate_ink"),
 				"element": a.element, "glossary_id": "armor", "min_size": Vector2(44, 48)}))
 		_panel.add_child(stats)
 		var names := "Initiative · early · Armor"
@@ -229,7 +229,7 @@ func _rung(tier: Dictionary, journey: bool, element: String) -> Control:
 	row.add_child(UI.icon_rect("move" if journey else "attack", 24))
 	row.add_child(UI.label(str(need), ["display_bold", 28]))
 	if journey:
-		var e := UI.icon_rect(element, 20, T.ether(element))
+		var e := UI.icon_rect(element, 20, T.ether_ink(element))
 		e.set_meta("keep_colour", true)
 		row.add_child(e)
 	var arrow := UI.label("→", ["display_bold", 24], T.INK)

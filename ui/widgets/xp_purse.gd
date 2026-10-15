@@ -9,7 +9,7 @@ var amount: Label
 
 
 func _init() -> void:
-	add_theme_stylebox_override("panel", UI.box(T.BG_SURFACE, T.GOLD, 2, T.RADIUS_M, 12))
+	add_theme_stylebox_override("panel", UI.raised_panel_box("rest", T.GOLD, 12))
 	_box.add_theme_constant_override("separation", 8)
 	add_child(_box)
 

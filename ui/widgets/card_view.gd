@@ -54,10 +54,16 @@ func set_model(m: Dictionary) -> void:
 	_showing_alt = false
 	_face.set_model(m)
 	_face.dimmed = not m.get("eligible", true)
+	_face.set_focus(m.get("focus", {}))
 	if _hover:
 		_show_alt(true)
 	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if m.get("eligible", true) else Control.CURSOR_ARROW
 	_marks.queue_redraw()
+
+
+## Whether the card's Ether field moves: off while something covers the screen.
+func set_live(on: bool) -> void:
+	_face.motion = on
 
 
 ## Put the card where it belongs, at once.
@@ -214,7 +220,7 @@ func _draw_marks() -> void:
 		var c := Vector2(w - d * 0.4, size.y * 0.46)
 		_marks.draw_circle(c, d / 2.0 + 3, T.GOLD)
 		_marks.draw_circle(c, d / 2.0, T.BG_BASE)
-		_marks.draw_texture_rect(UI.icon(fuse.element), Rect2(c - Vector2(d, d) * 0.3, Vector2(d, d) * 0.6), false, T.ether(fuse.element))
+		_marks.draw_texture_rect(UI.icon(fuse.element), Rect2(c - Vector2(d, d) * 0.3, Vector2(d, d) * 0.6), false, T.ether_ink(fuse.element))
 
 
 func _ribbon(text: String, icon_name: String, bg: Color, ink: Color) -> void:

@@ -44,6 +44,8 @@ var animator := Animator.new()
 var _screen_host := Control.new()
 var _flight := FlightLayer.new()
 var _overlays := Control.new()
+var _backdrop := ColorRect.new()
+var _backdrop_ether := ""
 var _notice: Control = null
 var _notice_dismissed := false
 var _lost_at := ""
@@ -68,7 +70,7 @@ func _ready() -> void:
 	# The system back gesture steps back through setup; elsewhere it still quits.
 	get_tree().quit_on_go_back = false
 	UI.reduced_motion = Settings.reduced_motion()
-	var backdrop := ColorRect.new()
+	var backdrop := _backdrop
 	backdrop.material = ShaderMaterial.new()
 	backdrop.material.shader = BACKDROP
 	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -78,6 +80,9 @@ func _ready() -> void:
 		layer.set_anchors_preset(Control.PRESET_FULL_RECT)
 		layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(layer)
+	# Cards under an overlay hold still, so only what can be seen is animated.
+	_overlays.child_entered_tree.connect(func(_n): _fields_live.call_deferred())
+	_overlays.child_exiting_tree.connect(func(_n): _fields_live.call_deferred())
 	animator.flight = _flight
 	animator.show_banner = _banner
 	animator.finished.connect(_on_sequence_done)
@@ -275,6 +280,7 @@ func _refresh(animate := true, show := true) -> void:
 	vs = ViewState.build(game, draft, db, {"previous_preview": previous, "lost_at": _lost_at, "undo": _undo.size()})
 	if show and play != null and screen == play and not animator.is_playing():
 		play.render(vs, animate)
+		_tint_backdrop(vs)
 
 
 # ---------------------------------------------------------------- intents
@@ -474,6 +480,7 @@ func _act(action: Dictionary, call: Callable) -> void:
 	_refresh(false, false)
 	if steps.is_empty():
 		play.render(vs, true)
+		_tint_backdrop(vs)
 		return
 	animator.play(steps, play, vs)
 
@@ -490,6 +497,31 @@ func _refuse(text: String, card_id := "") -> void:
 	var view: Control = play.hand.card(card_id) if card_id != "" else null
 	if view != null:
 		UI.shake(view)
+
+
+## The backdrop takes on a little of the Encounter's Ether behind it.
+func _tint_backdrop(state: Dictionary) -> void:
+	var enc = state.get("encounter")
+	var ether: String = str(enc.element) if enc != null and enc.element != null else ""
+	if ether == _backdrop_ether:
+		return
+	_backdrop_ether = ether
+	var m: ShaderMaterial = _backdrop.material
+	var to := 1.0 if ether != "" else 0.0
+	if ether != "":
+		m.set_shader_parameter("ether_tint", T.ether_shade(ether, "deep").lightened(0.2))
+	if Settings.reduced_motion() or not is_inside_tree():
+		m.set_shader_parameter("tint_amount", to)
+		return
+	var set = m.get_shader_parameter("tint_amount")
+	var from: float = set if set != null else 0.0
+	create_tween().tween_method(func(v): m.set_shader_parameter("tint_amount", v), from, to, T.BASE)
+
+
+## Cards' Ether fields move only while no overlay covers the play screen.
+func _fields_live() -> void:
+	if play != null and is_instance_valid(play):
+		play.set_fields_live(_overlays.get_child_count() == 0)
 
 
 # ---------------------------------------------------------------- overlays

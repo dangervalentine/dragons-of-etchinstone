@@ -16,7 +16,7 @@ var _verdict: Control = null
 
 
 func _init() -> void:
-	add_theme_stylebox_override("panel", UI.box(T.BG_SURFACE, T.LINE_SOFT, 1, T.RADIUS_M, 12))
+	add_theme_stylebox_override("panel", UI.raised_panel_box("rest", Color(0, 0, 0, 0), 12))
 	_box.add_theme_constant_override("separation", 6)
 	add_child(_box)
 
@@ -30,7 +30,10 @@ func render(vs: Dictionary) -> void:
 	var p = vs.preview
 	var prompt: Dictionary = vs.prompt
 	var fatal: bool = p != null and p.fatal and vs.mode == "none"
-	add_theme_stylebox_override("panel", UI.box(T.BG_SURFACE, T.BAD if fatal else T.LINE_SOFT, 3 if fatal else 1, T.RADIUS_M, 12))
+	var box := UI.raised_panel_box("rest", T.BAD if fatal else Color(0, 0, 0, 0), 12)
+	if fatal:
+		box.set_border_width_all(3)
+	add_theme_stylebox_override("panel", box)
 	if p == null or vs.mode != "none" or p.status != "ready":
 		_prompt(vs, p, prompt)
 		return
@@ -156,7 +159,7 @@ func _pill(text: String, icon_name: String, element: String, colour: Color, help
 	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(l)
 	if element != "":
-		row.add_child(UI.icon_rect(element, 22, T.ether(element)))
+		row.add_child(UI.icon_rect(element, 22, T.ether_ink(element)))
 	UI.ignore_mouse(row)
 	var m := MarginContainer.new()
 	for side in ["left", "right"]:

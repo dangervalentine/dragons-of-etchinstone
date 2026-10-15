@@ -43,7 +43,7 @@ func _init() -> void:
 	body.add_theme_constant_override("separation", 6)
 	add_child(body)
 	_edge.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_edge.draw.connect(func(): _edge.draw_style_box(_frame(false), Rect2(Vector2.ZERO, size)))
+	_edge.draw.connect(_draw_edge)
 	add_child(_edge)
 	resized.connect(_fit)
 
@@ -109,6 +109,13 @@ func _draw() -> void:
 	draw_style_box(_frame(true), Rect2(Vector2.ZERO, size))
 
 
+## The Ether edge, with a faint highlight along the top so the face reads as raised.
+func _draw_edge() -> void:
+	_edge.draw_style_box(_frame(false), Rect2(Vector2.ZERO, size))
+	var r := float(T.RADIUS_CARD)
+	_edge.draw_line(Vector2(r, EDGE + 1), Vector2(size.x - r, EDGE + 1), Color(1, 1, 1, 0.12), 1.0)
+
+
 func _frame(filled: bool) -> StyleBoxFlat:
 	var s := StyleBoxFlat.new()
 	s.bg_color = T.BG_BAND
@@ -118,7 +125,7 @@ func _frame(filled: bool) -> StyleBoxFlat:
 	s.set_corner_radius_all(T.RADIUS_CARD)
 	s.anti_aliasing_size = 0.6
 	if filled:
-		s.shadow_color = Color(0, 0, 0, 0.35)
-		s.shadow_size = 8
-		s.shadow_offset = Vector2(0, 3)
+		s.shadow_color = Color(0, 0, 0, 0.45)
+		s.shadow_size = 12
+		s.shadow_offset = Vector2(0, 4)
 	return s

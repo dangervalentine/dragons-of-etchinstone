@@ -41,11 +41,22 @@ const GOOD := Color("6fcf8e")
 const CAUTION := Color("e9b44c")
 const BAD := Color("ff6b5e")
 const HP := Color("d2536a")
+## The printed cards' Ether hues: saturated, so a card reads as its Ether at a glance.
 const ETHER := {
-	"fire": Color("e2543a"), "water": Color("4a9cf0"),
-	"lightning": Color("e8ad2a"), "shadow": Color("a56cf0"),
+	"fire": Color("c8261d"), "water": Color("1f5fd0"),
+	"lightning": Color("e99a1c"), "shadow": Color("6b34c0"),
 }
+## Which character the card field shader draws for each Ether.
+const ETHER_ID := {"fire": 0, "water": 1, "lightning": 2, "shadow": 3}
 const DISABLED_ALPHA := 0.45
+## The rim and glow on whatever matters in the current step, on cards and slots alike.
+const FOCUS := Color("ffe08a")
+## The near-black of a Mage Card's frame and bands.
+const CARD_FRAME := Color("0d0b10")
+## The Key Card strip under the name.
+const BRONZE := Color("5a4632")
+const BRONZE_DARK := Color("3a2c1f")
+const BRONZE_LIGHT := Color("a88a63")
 
 # Motion, in seconds
 const INSTANT := 0.08
@@ -72,3 +83,40 @@ const VERDICT := {
 
 static func ether(element) -> Color:
 	return ETHER.get(element, LINE_SOFT) if element != null else LINE_SOFT
+
+
+## A shade of an Ether for one job: base (the hue), deep (field centre and shadow),
+## lit (highlights and glow), plate (an enhanced action's fill) or plate_ink (the
+## ink with the most contrast on that plate).
+static func ether_shade(element, role: String) -> Color:
+	var base := ether(element)
+	match role:
+		"deep":
+			return base.darkened(0.55)
+		"lit":
+			return base.lightened(0.35)
+		"plate":
+			return base.darkened(0.1) if element == "lightning" else base
+		"plate_ink":
+			var plate := ether_shade(element, "plate")
+			return INK if ratio(INK, plate) >= ratio(BG_BASE, plate) else BG_BASE
+	return base
+
+
+## An Ether as text or an icon on the dark panels: its lit shade, which keeps 3:1.
+static func ether_ink(element) -> Color:
+	return ether_shade(element, "lit")
+
+
+## Relative luminance of a colour, as WCAG 2.1 defines it.
+static func luminance(c: Color) -> float:
+	var ch := func(v: float) -> float:
+		return v / 12.92 if v <= 0.04045 else pow((v + 0.055) / 1.055, 2.4)
+	return 0.2126 * ch.call(c.r) + 0.7152 * ch.call(c.g) + 0.0722 * ch.call(c.b)
+
+
+## WCAG contrast ratio between two colours, from 1 to 21.
+static func ratio(a: Color, b: Color) -> float:
+	var la := luminance(a)
+	var lb := luminance(b)
+	return (maxf(la, lb) + 0.05) / (minf(la, lb) + 0.05)

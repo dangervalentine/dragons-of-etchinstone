@@ -21,10 +21,14 @@ func render(enc: Dictionary) -> void:
 	var colour: Color = T.ether(enc.element)
 	set_look(enc.element, "sigil_" + str(enc.element), enc.get("art", ""))
 
-	band.add_child(UI.icon_rect("enemy" if enemy else "journey", 34, colour))
+	band.add_child(UI.icon_rect("enemy" if enemy else "journey", 34, T.ether_ink(enc.element)))
 	# Long names step down a size so they fit beside the XP star.
-	var fs: int = T.HEADING[1] if enc.title.length() <= 13 else (27 if enc.title.length() <= 15 else 24)
-	var title := UI.label(enc.title.to_upper(), [T.HEADING[0], fs], T.INK)
+	var text: String = enc.title.to_upper()
+	var room := (size.x if size.x > 0.0 else 400.0) - 150.0
+	var fs: int = T.HEADING[1]
+	while fs > T.TEXT_MIN and UI.font(T.HEADING[0]).get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > room:
+		fs -= 1
+	var title := UI.label(text, [T.HEADING[0], fs], T.INK)
 	title.clip_text = true
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -38,13 +42,13 @@ func render(enc: Dictionary) -> void:
 		targets.add_child(_chip({"icon": "hp", "text": str(d.hp), "color": T.HP, "caption": "HP", "glossary_id": "hp"}))
 		targets.add_child(_chip({"icon": "initiative", "text": str(d.initiative), "color": T.BG_BAND,
 			"caption": "Initiative", "glossary_id": "initiative", "min_size": Vector2(88, 72)}))
-		targets.add_child(_chip({"icon": "attack", "text": str(d.attack.value), "color": colour, "ink": T.BG_BASE,
+		targets.add_child(_chip({"icon": "attack", "text": str(d.attack.value), "color": colour, "ink": T.ether_shade(enc.element, "plate_ink"),
 			"element": d.attack.element, "plate": true, "caption": "Attack", "glossary_id": "attack", "min_size": Vector2(104, 72)}))
 		for a in d.armor:
-			targets.add_child(_chip({"icon": "armor", "text": str(a.value), "color": T.ether(a.element), "ink": T.BG_BASE,
+			targets.add_child(_chip({"icon": "armor", "text": str(a.value), "color": T.ether(a.element), "ink": T.ether_shade(a.element, "plate_ink"),
 				"element": a.element, "caption": "Armor", "glossary_id": "armor", "min_size": Vector2(78, 72)}))
 	else:
-		targets.add_child(_chip({"icon": "mp", "text": str(d.mp.value), "color": colour, "ink": T.BG_BASE,
+		targets.add_child(_chip({"icon": "mp", "text": str(d.mp.value), "color": colour, "ink": T.ether_shade(enc.element, "plate_ink"),
 			"element": d.mp.element, "plate": true, "caption": "MP to cover", "glossary_id": "mp", "min_size": Vector2(130, 72)}))
 		targets.add_child(_chip({"icon": "time", "text": str(d.time_penalty), "color": T.BG_BAND,
 			"plate": true, "caption": "Time Penalty", "glossary_id": "time", "min_size": Vector2(130, 72)}))

@@ -51,7 +51,7 @@ static func make(d: Dictionary) -> Control:
 	name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	armor.add_child(name)
 	for a in d.armor:
-		armor.add_child(StatChip.make({"icon": "armor", "text": str(a.value), "color": T.ether(a.element), "ink": T.BG_BASE,
+		armor.add_child(StatChip.make({"icon": "armor", "text": str(a.value), "color": T.ether(a.element), "ink": T.ether_shade(a.element, "plate_ink"),
 			"element": a.element, "min_size": Vector2(40, 34)}))
 	col.add_child(armor)
 	var ladders := UI.hbox(T.S)
@@ -76,7 +76,7 @@ static func _rung(rung: Dictionary, journey: bool) -> Control:
 	row.add_child(UI.icon_rect("move" if journey else "attack", ICON))
 	row.add_child(UI.label(str(rung.need), FIGURE))
 	if journey:
-		row.add_child(UI.icon_rect(rung.element, ICON * 0.8, T.ether(rung.element)))
+		row.add_child(UI.icon_rect(rung.element, ICON * 0.8, T.ether_ink(rung.element)))
 	row.add_child(UI.label("→", FIGURE, T.INK_MUTED))
 	row.add_child(UI.icon_rect("time" if journey else "hp", ICON))
 	row.add_child(UI.label(str(rung.cost), FIGURE))

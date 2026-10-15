@@ -22,6 +22,7 @@ func _init() -> void:
 	add_theme_stylebox_override("panel", UI.box(Color(T.BG_RAISED, 0.98), T.GOLD, 2, T.RADIUS_M, 14))
 	var row := UI.hbox(14)
 	_face.custom_minimum_size = Vector2(170, 238)
+	_face.motion = false
 	_face.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	row.add_child(_face)
 	_rows.add_theme_constant_override("separation", 5)
@@ -34,6 +35,7 @@ func _init() -> void:
 func show_card(m: Dictionary, area: Rect2) -> void:
 	_shown_id = m.id
 	_face.set_model(m)
+	_face.motion = true
 	for c in _rows.get_children():
 		_rows.remove_child(c)
 		c.queue_free()
@@ -41,7 +43,7 @@ func show_card(m: Dictionary, area: Rect2) -> void:
 	var name := UI.label(m.name.to_upper(), ["display_bold", 26], T.INK, true)
 	name.custom_minimum_size.x = 230
 	_rows.add_child(name)
-	_line(m.element, "%s Ether · Level %d of %d" % [m.element.capitalize(), m.level, m.max_level], T.ether(m.element))
+	_line(m.element, "%s Ether · Level %d of %d" % [m.element.capitalize(), m.level, m.max_level], T.ether_ink(m.element))
 	var key: Dictionary = lv.encounter
 	var key_text := "%s (%s %d)" % [m.key_name, key.type.capitalize(), key.index]
 	if lv.hardship != null:
@@ -50,7 +52,7 @@ func show_card(m: Dictionary, area: Rect2) -> void:
 	_row("initiative", "Initiative", str(lv.initiative))
 	_row("attack" if lv.basic.type != "move" else "move", "Basic action", "%d %s" % [lv.basic.value, ACTION_NAMES[lv.basic.type]])
 	var e: String = lv.enhanced.element
-	_row(e, "Enhanced action", "%d %s, with a %s Element" % [lv.enhanced.value, ACTION_NAMES[lv.enhanced.type], e.capitalize()], T.ether(e))
+	_row(e, "Enhanced action", "%d %s, with a %s Element" % [lv.enhanced.value, ACTION_NAMES[lv.enhanced.type], e.capitalize()], T.ether_ink(e))
 	_row("boost", "Boost", "+%d" % lv.boost)
 	var armor: String = str(lv.armor.value)
 	if lv.armor.element != null:
@@ -70,10 +72,16 @@ func show_card(m: Dictionary, area: Rect2) -> void:
 		create_tween().tween_property(self, "modulate:a", 1.0, T.FAST)
 
 
+## Whether the face's Ether field moves; it only does while the detail is shown.
+func set_live(on: bool) -> void:
+	_face.motion = on and visible
+
+
 func hide_card(id := "") -> void:
 	if id == "" or id == _shown_id:
 		visible = false
 		_shown_id = ""
+		_face.motion = false
 
 
 ## What the card means right now: its role, its Soak, its Upgrade, or why it is out.

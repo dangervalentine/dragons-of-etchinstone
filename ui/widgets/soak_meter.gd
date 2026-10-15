@@ -12,7 +12,7 @@ var _total := 0
 
 
 func _init() -> void:
-	add_theme_stylebox_override("panel", UI.box(T.BG_SURFACE, T.BAD, 2, T.RADIUS_M, 12))
+	add_theme_stylebox_override("panel", UI.raised_panel_box("rest", T.BAD, 12))
 	_box.add_theme_constant_override("separation", 8)
 	add_child(_box)
 	_meter.custom_minimum_size.y = 34
@@ -32,7 +32,7 @@ func render(vs: Dictionary) -> void:
 	head.add_child(UI.icon_rect("poison" if s.poison else "hp", 36, T.BAD))
 	head.add_child(UI.label(("Poison: %d damage" if s.poison else "%d damage") % s.due, T.HEADING, T.BAD))
 	if s.element != "":
-		head.add_child(UI.icon_rect(s.element, 30, T.ether(s.element)))
+		head.add_child(UI.icon_rect(s.element, 30, T.ether_ink(s.element)))
 	_box.add_child(head)
 	_box.add_child(_meter)
 	var status := "Covered. Take the damage to go on." if s.covered else "%d more to Soak." % (s.due - s.total)

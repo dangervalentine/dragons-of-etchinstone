@@ -29,11 +29,12 @@ def path(d):
 RING = "M24 2 a22 22 0 1 0 0.01 0 Z M24 6.5 a17.5 17.5 0 1 1 -0.01 0 Z"
 
 ICONS = {
-    # Ether elements
-    "fire": path("M25 3 C27 14 39 18 39 31 A15 15 0 0 1 9 31 C9 23 15 21 16 12 C19 16 22 15 25 3 Z"),
-    "water": path("M24 3 C24 3 39 22 39 31 A15 15 0 0 1 9 31 C9 22 24 3 24 3 Z"),
-    "lightning": poly("29,2 9,27 21,27 17,46 39,19 27,19"),
-    "shadow": poly("24,2 30,18 46,24 30,30 24,46 18,30 2,24 18,18"),
+    # Ether elements, in the shapes printed beside each card's name
+    "fire": path("M29 2 C30 10 38 15 39 26 C40 37 33 45 23.5 45 C14.5 45 9 38.5 9 31 C9 23 15 19 18 12"
+                 " C19 18 21 21 24 22 C22 15 24 7 29 2 Z"),
+    "water": path("M24 2 C24 2 39 21 39 31 A15 15 0 0 1 9 31 C9 21 24 2 24 2 Z"),
+    "lightning": poly("33,1 11,26 22.5,26 14,47 38,19 26.5,19 36,1"),
+    "shadow": path("M24 1 Q26.4 21.6 43 24 Q26.4 26.4 24 47 Q21.6 26.4 5 24 Q21.6 21.6 24 1 Z"),
     # Card stats
     "attack": poly("24,2 30,10 30,29 37,29 37,34 27,34 27,42 30,42 30,46 18,46 18,42 21,42 21,34 11,34 11,29 18,29 18,10"),
     "move": path("M15 4 H29 V25 L41 31 Q45 33 45 38 V43 H11 V33 Q15 29 15 23 Z"),
@@ -98,8 +99,11 @@ TICKS = "".join('<rect x="23" y="0.5" width="2" height="4" transform="rotate(%d 
 
 
 def sigil(body):
-    """An Ether emblem: the element inside a double ring with tick marks."""
-    return path(ring(24, 24, 18.5, 17)) + path(ring(24, 24, 15, 14.4)) + TICKS + scaled(body, 0.5)
+    """An Ether emblem: the element etched as an outline around a smaller solid copy,
+    over a faint, larger flare of the same shape."""
+    flare = '<g fill-opacity="0.35">%s</g>' % scaled(body, 0.98)
+    outline = '<g fill="none" stroke="#ffffff" stroke-width="1.6" stroke-linejoin="round">%s</g>' % scaled(body, 0.8)
+    return flare + outline + scaled(body, 0.52)
 
 
 def dragon_sigil(body, horns):

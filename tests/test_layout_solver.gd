@@ -119,3 +119,67 @@ func test_larger_screens_are_used_not_left_empty() -> void:
 	var wide := _plan("desktop-ultrawide")
 	ok(wide.content.size.x <= T.DESIGN_MAX.x, "content is capped on an ultrawide window")
 	ok(absf(wide.content.get_center().x - wide.view.x / 2.0) <= 1.0, "and centred")
+
+
+## Hand card widths from the layout before feature 005, which gave the field more
+## room: cards must never come out smaller than these. Keys are "cards/sets".
+const BASELINE_CARD_W := {
+	"desktop": {"4/1": 197, "5/1": 160, "7/1": 160, "7/2": 166},
+	"desktop-ultrawide": {"4/1": 250, "5/1": 226, "7/1": 159, "7/2": 159},
+	"phone-16x9": {"4/1": 197, "5/1": 156, "7/1": 132, "7/2": 137},
+	"phone-small": {"4/1": 197, "5/1": 156, "7/1": 132, "7/2": 137},
+	"phone-tall": {"4/1": 220, "5/1": 174, "7/1": 123, "7/2": 129},
+	"phone-tall-flipped": {"4/1": 220, "5/1": 174, "7/1": 123, "7/2": 129},
+	"tablet": {"4/1": 197, "5/1": 214, "7/1": 197, "7/2": 197},
+}
+
+
+func test_hand_cards_are_no_smaller_than_before() -> void:
+	for name in BASELINE_CARD_W:
+		for key in BASELINE_CARD_W[name]:
+			var shape: PackedStringArray = key.split("/")
+			var plan := _plan(name, int(shape[0]), int(shape[1]))
+			ok(plan.card_size.x >= BASELINE_CARD_W[name][key],
+				"%s %s: card width %d, at least %d" % [name, key, plan.card_size.x, BASELINE_CARD_W[name][key]])
+
+
+## The gap between two rectangles that do not overlap: how far apart their nearest edges are.
+func _gap(a: Rect2, b: Rect2) -> float:
+	var dx := maxf(b.position.x - a.end.x, a.position.x - b.end.x)
+	var dy := maxf(b.position.y - a.end.y, a.position.y - b.end.y)
+	return maxf(dx, dy)
+
+
+func test_regions_have_air() -> void:
+	for name in Solver.MATRIX:
+		for shape in [[4, 1], [7, 2]]:
+			var plan := _plan(name, shape[0], shape[1])
+			for i in ORDER.size():
+				for j in range(i + 1, ORDER.size()):
+					var g := _gap(plan.regions[ORDER[i]], plan.regions[ORDER[j]])
+					ok(g >= 12.0, "%s: %s and %s are %.0f apart, at least 12" % [name, ORDER[i], ORDER[j], g])
+
+
+func test_hand_cards_have_air() -> void:
+	for name in Solver.MATRIX:
+		for shape in [[4, 1], [5, 1], [7, 2]]:
+			var rects: Array = _plan(name, shape[0], shape[1]).card_rects
+			for i in rects.size() - 1:
+				var a: Rect2 = rects[i]
+				var b: Rect2 = rects[i + 1]
+				if is_equal_approx(a.position.y, b.position.y):
+					var least := 12.0 if shape[0] <= 4 else 10.0
+					ok(b.position.x - a.end.x >= least, "%s %s: cards %.0f apart, at least %d" % [name, str(shape), b.position.x - a.end.x, least])
+
+
+func test_extra_space_goes_to_content() -> void:
+	var base := _plan("phone-16x9")
+	for name in Solver.MATRIX:
+		if name == "upright-browser":
+			continue
+		var plan := _plan(name)
+		ok(plan.card_size.x >= base.card_size.x, name + ": cards no smaller than on a 16:9 phone")
+		# A notch or home bar can leave less height than a 16:9 phone has at all.
+		if _safe(name).size.y < _safe("phone-16x9").size.y:
+			continue
+		ok(plan.regions.encounter.size.y >= base.regions.encounter.size.y, name + ": Encounter no shorter than on a 16:9 phone")
