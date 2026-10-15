@@ -53,7 +53,7 @@ static func _mage(db, size: Vector2) -> Control:
 	_row(rows, lv.enhanced.element, "Enhanced: %d %s" % [lv.enhanced.value, ACTION_NAMES[lv.enhanced.type]], T.ether_ink(lv.enhanced.element))
 	_row(rows, "boost", "Boost +%d" % lv.boost)
 	_row(rows, "armor", "Armor %d" % lv.armor.value)
-	_row(rows, "xp", "Upgrade: %d XP" % lv.upgrade_cost if lv.upgrade_cost != null else "Highest Level", T.GOLD)
+	_row(rows, "upgrade", "Upgrade: %d XP" % lv.upgrade_cost if lv.upgrade_cost != null else "Highest Level", T.GOLD)
 	row.add_child(rows)
 	return row
 

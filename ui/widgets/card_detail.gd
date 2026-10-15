@@ -58,7 +58,7 @@ func show_card(m: Dictionary, area: Rect2) -> void:
 	if lv.armor.element != null:
 		armor += ", %d against %s" % [lv.armor.value * 2, String(lv.armor.element).capitalize()]
 	_row("armor", "Armor (Soaks)", armor)
-	_row("xp", "Upgrade", ("%d XP to Level %d" % [lv.upgrade_cost, m.level + 1]) if lv.upgrade_cost != null else "Highest Level", T.GOLD)
+	_row("upgrade", "Upgrade", ("%d XP to Level %d" % [lv.upgrade_cost, m.level + 1]) if lv.upgrade_cost != null else "Highest Level", T.GOLD)
 	var now := _context(m)
 	if now != "":
 		var l := UI.label(now, ["body_bold", T.LABEL[1]], T.GOLD, true)

@@ -68,3 +68,15 @@ func test_reduced_motion_holds_the_field_still() -> void:
 	eq(f._field.material.get_shader_parameter("motion"), 0.0, "still when covered")
 	Settings.motion = before
 	f.free()
+
+
+func test_longest_line_is_the_widest_so_every_name_fits_two_lines() -> void:
+	var font: Font = CardFace._name_font(100)
+	var widest := font.get_string_size(CardFace.LONGEST_LINE, HORIZONTAL_ALIGNMENT_LEFT, -1, 100).x
+	for id in db.mage_ids():
+		var name: String = db.mage(id).name.to_upper()
+		var lines: Array = CardFace.name_lines(name, 100, widest)
+		ok(lines.size() <= 2, "%s takes at most two lines" % name)
+		for line in lines:
+			ok(font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, 100).x <= widest,
+				"%s is no wider than %s" % [line, CardFace.LONGEST_LINE])

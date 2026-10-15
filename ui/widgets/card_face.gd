@@ -17,6 +17,9 @@ const FIELD_SHADER = preload("res://ui/fx/shaders/ether_card.gdshader")
 ## How far a quietened plate's fill moves toward the band colour; tests/test_card_contrast.gd checks it.
 const QUIET := 0.75
 const STEEL := Color("8f8aa0")
+## The widest line any Mage Card name needs in capitals, a single unbreakable word;
+## every name is set at the size that fits it.
+const LONGEST_LINE := "DESTRUCTION"
 
 var model := {}
 ## Greyed out, for a card that cannot be chosen.
@@ -133,7 +136,7 @@ func _geo() -> Dictionary:
 	var strip := roundf(h * 0.09)
 	var field := Rect2(b, band + strip, w - 2 * b, h - band - strip - b)
 	var gap := maxf(2.0, roundf(field.size.y * 0.014))
-	var row := floorf((field.size.y - pad - 3 * gap) / 5.3)
+	var row := floorf((field.size.y - pad - 3 * gap) / 5.08)
 	var plate_w := roundf(w * 0.44)
 	var x := pad
 	var y := field.position.y + pad * 0.5
@@ -142,17 +145,18 @@ func _geo() -> Dictionary:
 	y += row + gap
 	g.basic = Rect2(x, y, plate_w, row)
 	y += row
-	g.arrow = Rect2(x, y, plate_w, row * 0.3)
-	y += row * 0.3
-	g.enhanced = Rect2(x, y, plate_w + roundf(row * 0.45), row)
+	# The plates nearly touch, as printed; the arrow sits in their notches.
+	g.arrow = Rect2(x, y, plate_w, row * 0.08)
+	y += row * 0.08
+	g.enhanced = Rect2(x, y, plate_w, row)
 	y += row + gap
 	g.boost = Rect2(x, y, roundf(plate_w * 0.72), row)
 	y += row + gap
 	g.armor = Rect2(x, y, roundf(row * 1.75), row)
-	var crown := roundf(band * 0.8)
-	g.level = Rect2(pad, (band - crown) / 2.0, crown, crown)
-	var name_x: float = g.level.end.x + pad * 0.5
-	g.name = Rect2(name_x, 2, w - name_x - pad * 0.6, band - 4)
+	var crown := roundf(band * 0.68)
+	g.level = Rect2(pad * 0.55, (band - crown) / 2.0, crown, crown)
+	var name_x: float = g.level.end.x + pad * 0.15
+	g.name = Rect2(name_x, 2, w - name_x - pad * 0.3, band - 4)
 	g.key = Rect2(b, band, roundf(w * 0.5), strip)
 	g.cost = Rect2(roundf(w * 0.62), band, w - roundf(w * 0.62) - b, strip)
 	g.ether = field
@@ -235,14 +239,8 @@ func _draw_ink() -> void:
 	# The basic action, the arrow down to the enhanced action, and the enhanced action.
 	r = g.basic
 	_ring("basic", r)
-	_raised(_octagon(r), _fill_for("basic", T.BG_BAND), "basic")
-	_action(r, lv.basic, _ink_for("basic", T.INK), "", num)
-	var a: Rect2 = g.arrow
-	var ax: float = a.position.x + a.size.x * 0.32
-	var ah: float = a.size.y * 0.9
-	_ink.draw_colored_polygon(PackedVector2Array([Vector2(ax - ah, a.position.y + a.size.y * 0.05),
-		Vector2(ax + ah, a.position.y + a.size.y * 0.05), Vector2(ax, a.position.y + a.size.y * 0.05 + ah)]),
-		Color(T.INK_MUTED, 0.9))
+	_raised(_twin_octagon(r), _fill_for("basic", T.BG_BAND), "basic")
+	_action(r, lv.basic, _ink_for("basic", T.INK), num)
 	r = g.enhanced
 	var enh = lv.enhanced.element
 	_ring("enhanced", r)
@@ -251,29 +249,30 @@ func _draw_ink() -> void:
 	if dimmed:
 		enh_fill = T.INK_MUTED.darkened(0.55)
 		enh_ink = T.INK_MUTED
-	_raised(_octagon(r), _fill_for("enhanced", enh_fill), "enhanced")
-	_action(r, lv.enhanced, _ink_for("enhanced", enh_ink), enh, num)
-	_pip(enh, Vector2(r.end.x - r.size.y * 0.12, r.position.y + r.size.y * 0.1), r.size.y * 0.42)
+	_raised(_twin_octagon(r), _fill_for("enhanced", enh_fill), "enhanced")
+	_action(r, lv.enhanced, _ink_for("enhanced", enh_ink), num)
+	_corner_sigil(enh, Vector2(r.end.x - r.size.y * 0.06, r.end.y - r.size.y * 0.06), r.size.y * 0.42)
+	_down_arrow(g)
 
 	# Boost.
 	r = g.boost
 	_ring("boost", r)
-	_raised(_octagon(r, 0.12), _fill_for("boost", T.BG_BAND), "boost")
+	_raised(_notched(r), _fill_for("boost", T.BG_BAND), "boost")
 	_number(r, "+%d" % lv.boost, num, _ink_for("boost", T.INK))
 
 	# Armor, on its shield: filled with the Armor's Ether when it has one.
 	r = g.armor
 	var armored: bool = lv.armor.element != null
 	var shield := Rect2(r.position, Vector2(r.size.y, r.size.y))
-	_ring("armor", Rect2(r.position, Vector2(r.size.y * (1.7 if armored else 1.0), r.size.y)))
+	_ring("armor", Rect2(r.position, Vector2(r.size.y * (1.15 if armored else 1.0), r.size.y)))
 	var shield_fill := T.ether_shade(lv.armor.element, "plate") if armored and not dimmed else T.BG_BAND
 	_raised(_shield(shield), _fill_for("armor", shield_fill), "armor")
 	_number(Rect2(shield.position.x, shield.position.y - shield.size.y * 0.06, shield.size.x, shield.size.y),
 		str(lv.armor.value), num * 0.8, _ink_for("armor", UI.best_ink(shield_fill) if armored and not dimmed else T.INK))
 	if armored:
-		_pip(lv.armor.element, Vector2(shield.end.x + shield.size.y * 0.32, shield.get_center().y), shield.size.y * 0.5)
+		_corner_sigil(lv.armor.element, Vector2(shield.end.x - shield.size.x * 0.12, shield.end.y - shield.size.y * 0.1), shield.size.y * 0.42)
 	if _focus.get("mark", "") == "soaks_more" and not dimmed:
-		_chip("×2", Vector2(r.position.x + r.size.y * (1.7 if armored else 1.05) + 3, shield.get_center().y),
+		_chip("×2", Vector2(r.position.x + r.size.y * (1.2 if armored else 1.05) + 3, shield.get_center().y),
 			shield.size.y * 0.62, T.ether_shade(_focus.get("damage_element", ""), "lit"), _focus_t)
 
 	_draw_top_band(g, e)
@@ -297,18 +296,18 @@ func _draw_top_band(g: Dictionary, e) -> void:
 	_ring("level", c)
 	_glow_rim(_rect_pts(c.grow(1), c.size.y * 0.2), _lift("level"))
 	_icon("crown", c, _ink_for("level", T.INK) if not dimmed else T.INK_MUTED)
-	_number(Rect2(c.position + Vector2(0, c.size.y * 0.12), c.size), str(model.level), c.size.y * 0.56, T.BG_BASE)
+	_number(Rect2(c.position + Vector2(0, c.size.y * 0.06), c.size), str(model.level), c.size.y * 0.5, T.BG_BASE)
 	if model.get("downgraded", false):
 		var a: float = c.size.y * 0.5
 		_icon("down_arrow", Rect2(c.end - Vector2(a * 0.8, a * 0.8), Vector2(a, a)), T.BAD)
 	var n: Rect2 = g.name
-	var pip: float = band * 0.36
+	var pip: float = band * 0.3
 	var pip_c := Vector2(n.position.x + pip * 0.5, band / 2.0)
 	var lift := _lift("ether")
 	if lift > 0.0:
-		_ink.draw_circle(pip_c, pip * 0.9, Color(T.FOCUS, 0.3 * lift))
+		_ink.draw_circle(pip_c, pip * 0.72, Color(T.FOCUS, 0.3 * lift))
 	_icon(e, Rect2(pip_c - Vector2(pip, pip) / 2.0, Vector2(pip, pip)), T.ether_shade(e, "lit") if not dimmed else T.INK_MUTED)
-	var text_x: float = n.position.x + pip + g.pad * 0.3
+	var text_x: float = n.position.x + pip + g.pad * 0.1
 	_name(Rect2(text_x, n.position.y, n.end.x - text_x, n.size.y), model.name.to_upper(),
 		_ink_for("name", T.INK) if not dimmed else T.INK_MUTED)
 
@@ -363,7 +362,7 @@ func _draw_strip(g: Dictionary, lv: Dictionary) -> void:
 	_ring("upgrade_cost", rim_rect)
 	if mark == "" or mark == "affordable":
 		_glow_rim(_rect_pts(rim_rect, rim_rect.size.y * 0.4), _lift("cost"))
-	_icon("xp", Rect2(cx, band + (strip - si) / 2.0, si, si), colour)
+	_icon("upgrade", Rect2(cx, band + (strip - si) / 2.0, si, si), colour)
 	_text(Vector2(cx - cost_w - 3, band), strip, cost, strip * 0.8, colour)
 	# The thin rule running from the cost to the card's edge, as printed.
 	_ink.draw_line(Vector2(cx + si + 2, band + strip / 2.0), Vector2(w - b, band + strip / 2.0), Color(T.BRONZE_LIGHT, 0.7), 1.0)
@@ -413,11 +412,6 @@ func _draw_sword(g: Dictionary) -> void:
 	_ink.draw_rect(Rect2(cx - blade / 2.0 + 1, top + 1, blade, bottom - top), Color(0, 0, 0, 0.4))
 	_ink.draw_rect(Rect2(cx - blade / 2.0, top, blade, bottom - top), steel.darkened(0.15))
 	_ink.draw_line(Vector2(cx - blade / 2.0 + 0.5, top), Vector2(cx - blade / 2.0 + 0.5, bottom), steel.lightened(0.35), 1.0)
-	var guard_y: float = g.arrow.get_center().y
-	var guard := Rect2(g.b + 1, guard_y - blade * 0.8, cx - g.b + blade * 2.5, blade * 1.6)
-	_ink.draw_rect(Rect2(guard.position + Vector2(1, 1), guard.size), Color(0, 0, 0, 0.4))
-	_ink.draw_rect(guard, steel.darkened(0.1))
-	_ink.draw_line(guard.position + Vector2(0, 0.5), Vector2(guard.end.x, guard.position.y + 0.5), steel.lightened(0.35), 1.0)
 	_ink.draw_circle(Vector2(cx, bottom), blade * 1.5, steel.darkened(0.2))
 	_ink.draw_circle(Vector2(cx, bottom - blade * 0.4), blade * 0.7, steel.lightened(0.3))
 
@@ -524,19 +518,52 @@ func _chip(text: String, centre: Vector2, h: float, bg: Color, alpha: float) -> 
 	_number(rect, text, fs, Color(UI.best_ink(bg), alpha))
 
 
-## An Ether icon on a small dark disc.
-func _pip(element, centre: Vector2, d: float) -> void:
+## A bare Ether icon, a shade brighter than its plate, on a soft drop shadow that lifts it off
+## the plate, at the printed card's enhanced plate corner.
+func _corner_sigil(element, centre: Vector2, d: float) -> void:
 	if element == null:
 		return
-	_ink.draw_circle(centre, d / 2.0, T.CARD_FRAME)
-	var i := d * 0.68
-	_icon(element, Rect2(centre - Vector2(i, i) / 2.0, Vector2(i, i)), T.ether_shade(element, "lit") if not dimmed else T.INK_MUTED)
+	var colour: Color = T.ether_shade(element, "plate").lerp(T.ether_shade(element, "lit"), 0.5) if not dimmed else T.INK_MUTED
+	var r := Rect2(centre - Vector2(d, d) / 2.0, Vector2(d, d))
+	var w := maxf(1.0, d * 0.08)
+	for k in 8:
+		var off := Vector2.RIGHT.rotated(k * PI / 4.0) * w + Vector2(w * 0.4, w * 1.2)
+		_icon(element, Rect2(r.position + off, r.size), Color(0, 0, 0, 0.22))
+	_icon(element, r, colour)
 
 
 # ---------------------------------------------------------------- shapes
 
 func _octagon(r: Rect2, cut_share := 0.28) -> PackedVector2Array:
 	return _rect_pts(r, r.size.y * cut_share)
+
+
+## An action plate as printed: two octagons pushed together, leaving a V notch
+## top and bottom where they meet.
+func _twin_octagon(r: Rect2) -> PackedVector2Array:
+	var c := r.size.y * 0.22
+	var d := c * 0.6
+	var m := r.get_center().x
+	var x0 := r.position.x
+	var y0 := r.position.y
+	return PackedVector2Array([
+		Vector2(x0 + c, y0), Vector2(m - c, y0), Vector2(m, y0 + d), Vector2(m + c, y0),
+		Vector2(r.end.x - c, y0), Vector2(r.end.x, y0 + c), Vector2(r.end.x, r.end.y - c), Vector2(r.end.x - c, r.end.y),
+		Vector2(m + c, r.end.y), Vector2(m, r.end.y - d), Vector2(m - c, r.end.y), Vector2(x0 + c, r.end.y),
+		Vector2(x0, r.end.y - c), Vector2(x0, y0 + c)])
+
+
+## The Boost plate as printed: a block with a square step cut from each corner.
+func _notched(r: Rect2) -> PackedVector2Array:
+	var n := r.size.y * 0.14
+	var x0 := r.position.x
+	var y0 := r.position.y
+	var x1 := r.end.x
+	var y1 := r.end.y
+	return PackedVector2Array([
+		Vector2(x0 + n, y0), Vector2(x1 - n, y0), Vector2(x1 - n, y0 + n), Vector2(x1, y0 + n),
+		Vector2(x1, y1 - n), Vector2(x1 - n, y1 - n), Vector2(x1 - n, y1), Vector2(x0 + n, y1),
+		Vector2(x0 + n, y1 - n), Vector2(x0, y1 - n), Vector2(x0, y0 + n), Vector2(x0 + n, y0 + n)])
 
 
 func _rect_pts(r: Rect2, cut: float) -> PackedVector2Array:
@@ -547,47 +574,65 @@ func _rect_pts(r: Rect2, cut: float) -> PackedVector2Array:
 		Vector2(r.position.x, r.end.y - c), Vector2(r.position.x, r.position.y + c)])
 
 
-## A banner with a notched point at the bottom, for Initiative.
+## The arrow from the basic plate down to the enhanced one, in the gap where the
+## plates' notches meet, as printed.
+func _down_arrow(g: Dictionary) -> void:
+	var row: float = g.row
+	var cx: float = g.basic.get_center().x
+	var top: float = g.basic.end.y - row * 0.1
+	var bottom: float = g.enhanced.position.y + row * 0.12
+	var shaft := row * 0.06
+	var head := row * 0.14
+	var neck := bottom - head * 0.9
+	var pts := PackedVector2Array([Vector2(cx - shaft, top), Vector2(cx + shaft, top), Vector2(cx + shaft, neck),
+		Vector2(cx + head, neck), Vector2(cx, bottom), Vector2(cx - head, neck), Vector2(cx - shaft, neck)])
+	var closed := pts.duplicate()
+	closed.append(pts[0])
+	_ink.draw_polyline(closed, Color(T.BG_BASE, 0.9), maxf(2.0, row * 0.06), true)
+	_ink.draw_colored_polygon(pts, STEEL if not dimmed else T.LINE_SOFT)
+
+
+## The Initiative banner as printed: sides curving in between flared top corners
+## and flared tails, with a shallow notch between the tails.
 func _pennant(r: Rect2) -> PackedVector2Array:
-	var x := r.position.x
-	var y := r.position.y
-	var s := r.size.x
-	return PackedVector2Array([Vector2(x, y), Vector2(x + s, y), Vector2(x + s, y + s),
-		Vector2(x + s / 2.0, y + s * 0.8), Vector2(x, y + s)])
+	return _shape(r, [[0, 0], [1, 0], [0.955, 0.2], [0.935, 0.4], [0.94, 0.6], [0.96, 0.8], [1, 1], [0.5, 0.82],
+		[0, 1], [0.04, 0.8], [0.06, 0.6], [0.065, 0.4], [0.045, 0.2]])
 
 
-## A heater shield, for Armor.
+## The Armor shield as printed: a peak at the top where the blade meets it, sharp
+## shoulders, straight sides, then curving in to a point.
 func _shield(r: Rect2) -> PackedVector2Array:
-	var x := r.position.x
-	var y := r.position.y
-	var s := r.size.x
-	return PackedVector2Array([Vector2(x + s * 0.5, y), Vector2(x + s, y + s * 0.12), Vector2(x + s, y + s * 0.52),
-		Vector2(x + s * 0.82, y + s * 0.8), Vector2(x + s * 0.5, y + s), Vector2(x + s * 0.18, y + s * 0.8),
-		Vector2(x, y + s * 0.52), Vector2(x, y + s * 0.12)])
+	return _shape(r, [[0.5, 0], [1, 0.2], [0.98, 0.55], [0.92, 0.72], [0.8, 0.85], [0.5, 1],
+		[0.2, 0.85], [0.08, 0.72], [0.02, 0.55], [0, 0.2]])
+
+
+## Points given as fractions of a rectangle.
+func _shape(r: Rect2, uv: Array) -> PackedVector2Array:
+	var pts := PackedVector2Array()
+	for p in uv:
+		pts.append(r.position + Vector2(p[0] * r.size.x, p[1] * r.size.y))
+	return pts
 
 
 # ---------------------------------------------------------------- ink
 
 ## A number with the icons for its action type; `element` adds its Ether icon.
-func _action(rect: Rect2, action: Dictionary, ink: Color, element, num: float) -> void:
-	var icons := []
-	if action.type != "move":
-		icons.append("attack")
-	if action.type != "attack":
-		icons.append("move")
-	if element != null and element != "":
-		icons.append(element)
-	var i := rect.size.y * 0.6
-	var text := str(action.value)
-	var font := UI.font("display_bold")
-	var tw := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, int(num)).x
-	var total := tw + icons.size() * (i + 2)
-	var x := rect.position.x + maxf(4.0, (rect.size.x - total) / 2.0)
-	_text(Vector2(x, rect.position.y), rect.size.y, text, num, ink)
-	x += tw + 3
-	for name in icons:
-		_icon(name, Rect2(x, rect.position.y + (rect.size.y - i) / 2.0, i, i), ink)
-		x += i + 2
+## The number in the plate's left octagon and the action in its right, as printed.
+func _action(rect: Rect2, action: Dictionary, ink: Color, num: float) -> void:
+	var half := Vector2(rect.size.x / 2.0, rect.size.y)
+	_number(Rect2(rect.position, half), str(action.value), num, ink)
+	var right := Rect2(rect.position + Vector2(half.x, 0), half)
+	if action.type == "attack" or action.type == "move":
+		var i := rect.size.y * 0.6
+		_icon(action.type, Rect2(right.get_center() - Vector2(i, i) / 2.0, Vector2(i, i)), ink)
+		return
+	# Either action: Attack over Move in the one octagon, split by a thin rule.
+	var s := rect.size.y * 0.39
+	var cx := right.get_center().x
+	var mid := rect.position.y + rect.size.y / 2.0
+	_icon("attack", Rect2(cx - s / 2.0, rect.position.y + rect.size.y * 0.06, s, s), ink)
+	_ink.draw_line(Vector2(cx - s * 0.6, mid), Vector2(cx + s * 0.6, mid), ink, maxf(1.0, rect.size.y * 0.04))
+	_icon("move", Rect2(cx - s / 2.0, rect.end.y - rect.size.y * 0.06 - s, s, s), ink)
 
 
 func _icon(name: String, rect: Rect2, color: Color) -> void:
@@ -614,34 +659,58 @@ func _text(pos: Vector2, row_h: float, text: String, font_size: float, color: Co
 
 ## The name on one or two lines, at the largest size that fits.
 func _name(rect: Rect2, text: String, color: Color) -> void:
-	var font := UI.font("display")
-	var words := text.split(" ")
-	var lines := [text]
-	if words.size() > 1:
-		# Break where the two lines are closest in length.
-		var best := 100000.0
-		for i in range(1, words.size()):
-			var a := " ".join(words.slice(0, i))
-			var b := " ".join(words.slice(i))
-			var worst := maxf(a.length(), b.length())
-			if worst < best:
-				best = worst
-				lines = [a, b]
-	# One line if it fits at a good size.
-	var one := int(minf(T.CARD_NAME[1] * size.x / 190.0, rect.size.y * 0.62))
-	if font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, one).x <= rect.size.x:
-		lines = [text]
-	var fs := int(minf(T.CARD_NAME[1] * size.x / 190.0, rect.size.y / (lines.size() * 1.3)))
-	while fs > 9:
-		var fits := true
-		for line in lines:
-			if font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > rect.size.x:
-				fits = false
-		if fits:
-			break
-		fs -= 1
-	var line_h := font.get_height(fs) * 0.9
-	var y := rect.position.y + (rect.size.y - line_h * lines.size()) / 2.0 + font.get_ascent(fs) * 0.9
+	var fs := name_size(rect.size)
+	var font := _name_font(fs)
+	var lines := name_lines(text, fs, rect.size.x)
+	var line_h := fs * 1.06
+	var cap := fs * 0.72
+	var y := rect.position.y + (rect.size.y - line_h * (lines.size() - 1) + cap) / 2.0
 	for line in lines:
 		_ink.draw_string(font, Vector2(rect.position.x, y), line, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, color)
 		y += line_h
+
+
+## A name on one line if it fits, or else on two broken where the longer line is
+## shortest.
+static func name_lines(text: String, fs: int, width: float) -> Array:
+	var font := _name_font(fs)
+	var words := text.split(" ")
+	var lines := [text]
+	var best := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+	if best <= width:
+		return lines
+	for i in range(1, words.size()):
+		var a := " ".join(words.slice(0, i))
+		var b := " ".join(words.slice(i))
+		var wide := maxf(font.get_string_size(a, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x,
+			font.get_string_size(b, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x)
+		if wide < best:
+			best = wide
+			lines = [a, b]
+	return lines
+
+
+## The one name size for every card of this size: two lines' worth of the band, at
+## most, and no wider than the widest line any name breaks into, so all names match.
+static func name_size(area: Vector2) -> int:
+	var fs := int(area.y * 0.43)
+	while fs > 6 and _name_font(fs).get_string_size(LONGEST_LINE, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > area.x:
+		fs -= 1
+	return fs
+
+
+static var _name_fonts := {}
+
+
+## The display face, heavy enough to read at small sizes, with its letters drawn a
+## little closer in step with the size, as on the printed card's title. Built on the
+## font file itself: a variation of a variation drops the weight back to Regular.
+static func _name_font(fs: int) -> Font:
+	var squeeze := -roundi(fs * 0.05)
+	if not _name_fonts.has(squeeze):
+		var v := FontVariation.new()
+		v.base_font = load("res://art/fonts/Cinzel.ttf")
+		v.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): 800}
+		v.spacing_glyph = squeeze
+		_name_fonts[squeeze] = v
+	return _name_fonts[squeeze]

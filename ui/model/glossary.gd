@@ -53,7 +53,7 @@ const ENTRIES := {
 	"regroup": {"name": "Regroup", "icon": "regroup", "text": "Once, on the Final Journey: discard one card, shuffle the rest of your Hand back into the deck and draw again."},
 	"soak": {"name": "Soak", "icon": "armor", "text": "Absorb damage by Downgrading cards in your Hand. Each card Soaks its Armor, doubled if the Armor's Ether matches the damage."},
 	"downgrade": {"name": "Downgrade", "icon": "down_arrow", "text": "Lower a card by one Level. A card can be Downgraded once per Encounter and cannot be Upgraded in the same Encounter. At Level 1 it is Trashed."},
-	"upgrade": {"name": "Upgrade", "icon": "crown", "text": "Spend XP to raise a card in your Hand by one Level. The cost is shown beside the XP star on the card."},
+	"upgrade": {"name": "Upgrade", "icon": "crown", "text": "Spend XP to raise a card in your Hand by one Level. The cost is shown beside the upgrade star on the card."},
 	"knock_out": {"name": "Knock Out", "icon": "down_arrow", "text": "If your Hand cannot Soak all the damage, every card in it is Downgraded and four cards are discarded from your deck."},
 	"victory": {"name": "Complete Victory", "icon": "victory", "text": "You matched the target. You earn the XP and take no Combat Damage or Time Penalty."},
 	"narrow_victory": {"name": "Narrow Victory", "icon": "narrow_victory", "text": "You reached at least half the target. You earn the XP but still take the Combat Damage or Time Penalty."},
