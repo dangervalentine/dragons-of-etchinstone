@@ -49,6 +49,7 @@ func _init() -> void:
 	_edge.draw.connect(_draw_edge)
 	add_child(_edge)
 	resized.connect(_fit)
+	_stone.changed.connect(queue_redraw)
 
 
 ## The Ether colours the face; `art_name`, a creature from art/creatures/, stands in

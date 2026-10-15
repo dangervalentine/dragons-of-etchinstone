@@ -393,3 +393,51 @@ func test_card_parts_use_the_help_cursor_and_the_rest_the_hand() -> void:
 	eq(v.mouse_default_cursor_shape, Control.CURSOR_POINTING_HAND, "over the background")
 	eq(v.tooltip_text, "", "no explanation")
 	v.free()
+
+
+## The lit zone follows where the player's input goes: a Hand card, or the commit
+## control once everything is ready; never the rail, and never the preview, which
+## only shows what the Hand choices add up to (feature 006, research D9).
+func test_the_active_zone_is_the_hand_or_the_commit_control() -> void:
+	var g = _game(5, "casual")
+	var d = Draft.new()
+	var seen := {}
+	var guard := 0
+	while g.phase != "won" and g.phase != "lost" and guard < 300:
+		guard += 1
+		var vs: Dictionary = ViewState.build(g, d, db)
+		seen[vs.input_region] = true
+		ok(vs.input_region in ["hand", "commit"], "%s: %s" % [g.phase, vs.input_region])
+		match g.phase:
+			"setup":
+				g.choose_setup_cards(g.setup_offer.slice(0, g.setup_picks))
+			"challenge":
+				var hand: Array = g.hand.duplicate()
+				d = Draft.new()
+				for id in hand.slice(0, mini(3, hand.size())):
+					d.tap(id)
+				eq(ViewState.build(g, d, db).input_region, "commit", "ready to play: the commit control")
+				g.play(d.to_action())
+				d = Draft.new()
+			"penalty", "poison", "final_soak":
+				var ids := []
+				var total := 0
+				for id in g.hand:
+					if total >= g.damage_due:
+						break
+					ids.append(id)
+					total += g._soak_value(id)
+				g.soak(ids)
+			"upgrade":
+				g.finish()
+			"final_journey", "final_enemy":
+				d = Draft.new()
+				d.reset(2)
+				for id in g.hand.slice(0, mini(6, g.hand.size())):
+					d.tap(id)
+				g.play_final(d.to_action())
+				d = Draft.new()
+			_:
+				break
+	ok(g.phase == "won" or g.phase == "lost", "the game ran to its end (%s after %d steps)" % [g.phase, guard])
+	ok(seen.has("hand") and seen.has("commit"), "both seen over a game")

@@ -303,20 +303,20 @@ first look), and `test_stone_contrast` is green.
 
 ### Tests for User Story 3 (write first)
 
-- [ ] T031 [P] [US3] Create `tests/test_board_responses.gd` against `ui/model/board_response.gd` (T033):
+- [X] T031 [P] [US3] Create `tests/test_board_responses.gd` against `ui/model/board_response.gd` (T033):
   - (a) `BoardResponse.TABLE` has exactly the 12 events `place`, `take_back`, `fuse`, `divert`, `regroup`, `play`, `hit_enemy`, `take_damage`, `soak`, `upgrade`, `encounter_won`, `encounter_lost`. Each has `target`, `colour`, `motion.kind` in `["flare","surge","shudder","burst","sweep","dim"]`, `motion.duration` between `T.FAST` and `T.REVEAL`, and a non-empty `still`.
   - (b) For every step kind the animator handles (`play_cards`, `tally`, `verdict`, `gain_xp`, `damage`, `pay_time`, `poison_pending`, `knock_out`, `downgrade`, `upgrade`, `trash`, `discard`, `gather_shuffle`, `stage_banner`, `draw`, `ending`), `BoardResponse.for_step(kind, values, encounter_kind)` returns either an event in `TABLE` or `""`. It is `""` only for kinds listed in `BoardResponse.QUIET_STEPS`, and `play_cards` against an Enemy returns `hit_enemy`.
   - (c) `verdict` with outcome `complete`/`narrow` gives `encounter_won`, and `loss` gives `encounter_lost`.
-- [ ] T032 [P] [US3] Extend `tests/test_view_state.gd` for the active zone (research D9):
+- [X] T032 [P] [US3] Extend `tests/test_view_state.gd` for the active zone (research D9):
   - It is `"preview"` in the Soak and Upgrade phases.
   - It is never `"rail"`: walk a seeded game through building, Soak, Upgrade and the Final Battle and assert `input_region in ["hand", "preview", "commit"]` at every step (research D9).
   - It is unchanged otherwise. The existing `hand`/`commit` cases still pass.
 
 ### Implementation for User Story 3
 
-- [ ] T033 [US3] Create `ui/model/board_response.gd` (pure, `extends RefCounted`) with `const TABLE`, `const QUIET_STEPS` and `static func for_step(kind, values, encounter_kind) -> String`, filled from contracts/board-life.md § Responses. Make T031 pass.
-- [ ] T034 [US3] Extend `_input_region()` in `ui/model/view_state.gd` per T032 and research D9. Make T032 pass, then run `./tools/test.sh`.
-- [ ] T035 [US3] In `ui/fx/rift_layer.gd`, add ambient life:
+- [X] T033 [US3] Create `ui/model/board_response.gd` (pure, `extends RefCounted`) with `const TABLE`, `const QUIET_STEPS` and `static func for_step(kind, values, encounter_kind) -> String`, filled from contracts/board-life.md § Responses. Make T031 pass.
+- [X] T034 [US3] Extend `_input_region()` in `ui/model/view_state.gd` per T032 and research D9. Make T032 pass, then run `./tools/test.sh`.
+- [X] T035 [US3] In `ui/fx/rift_layer.gd`, add ambient life:
   - **Motes**: a `CPUParticles2D`, `amount = T.MOTES_MAX`, lifetime 4–7 s, emitting from `rift_source` in a wide upward cone with slight drift, colour from `seam_colour` at alpha about 0.5 fading to 0, size 2–5 units.
   - **Shimmer**: `motion` and `time_scale` uniform control.
   - **`set_busy(on)`**: stops emitting and halves the shimmer amplitude during animator sequences.
@@ -330,11 +330,11 @@ first look), and `test_stone_contrast` is green.
     - `sweep`: a seam pulse along the header.
 
     Under reduced motion, apply the `still` form: hold the tint for `T.BASE`.
-- [ ] T036 [US3] In `ui/screens/play_screen.gd`, the active zone:
+- [X] T036 [US3] In `ui/screens/play_screen.gd`, the active zone:
   - Keep a `_zone_styles := {hand, rail, preview, encounter, commit}` map of `StoneStyle`s.
   - In `_render_prominence()`, tween `glow` to 1 on the zone named by `vs.input_region` and 0 elsewhere over `T.BASE` (instant under reduced motion).
   - While waiting, run a looping tween breathing the active `glow` between 0.85 and 1.0 over about 3 s, killed on change and absent under reduced motion.
-- [ ] T037 [US3] Wire the responses:
+- [X] T037 [US3] Wire the responses:
   - **Animator**: in `ui/fx/animator.gd` `_run()`, call `BoardResponse.for_step(st.kind, st.values, <encounter kind>)` and, if non-empty, `rift.respond(event, colour)`. Take `colour` from the card's or Encounter's Ether as the table says, via a `rift` reference set by `main.gd`, as `flight` is.
   - **Busy state**: call `rift.set_busy(true)` at sequence start and `false` on `finished`.
   - **Draft events**: in `ui/main.gd` `dispatch()`, after the draft change succeeds, call `rift.respond`:
@@ -343,10 +343,16 @@ first look), and `test_stone_contrast` is green.
     - `fuse` when a fuse completes (`fuse_element`);
     - `divert`, `regroup`.
   - **Rail feedback**: for `place` and `take_back`, also flare or fall the matching rail token via `role_rail.token_rect()` and a short `UI.flash`, or set its style colour under reduced motion.
-- [ ] T038 [US3] Extend `tools/field_bench.gd`: add the stone backdrop (with `stone_amount = 1`, a seam colour, `motion = 1`) behind the 11 faces, and a live `rift_layer` emitting motes. Run it and require PASS (average ≤ 16.7 ms, p99 ≤ 33 ms). If it fails, apply research D7's fallbacks in order (motes to 12, then Ether behaviours to the plain shimmer) and re-run. Record the numbers under "Results" in `quickstart.md`.
+- [X] T038 [US3] Extend `tools/field_bench.gd`: add the stone backdrop (with `stone_amount = 1`, a seam colour, `motion = 1`) behind the 11 faces, and a live `rift_layer` emitting motes. Run it and require PASS (average ≤ 16.7 ms, p99 ≤ 33 ms). If it fails, apply research D7's fallbacks in order (motes to 12, then Ether behaviours to the plain shimmer) and re-run. Record the numbers under "Results" in `quickstart.md`.
 - [ ] T039 [US3] Run `./tools/test.sh` (green). With someone other than the developer, run quickstart §3 step 1 (SC-004: cards and Encounter frame covered, 3 of 4 named) and step 2 (SC-005: 5-second first look). Record both under "Results" in `quickstart.md`. Walk quickstart §3 steps 3–5 on desktop. Then run step 6 (stutter) on the web build and the Android emulator via the `install-on-emulators` skill. Fix defects. Commit "Board life: motes, seam shimmer, active zone and responses".
 
 **Checkpoint**: Stage 2 is complete on the play screen.
+
+**Implementation notes (US3, 2026-10-15)**:
+- **Active zone (T032, T034).** It stays `hand` or `commit`; research D9 is revised. In Soak and Upgrade the input is still a Hand card, so lighting the preview would point away from it. The test plays a seeded game to its end and checks this.
+- **Motes.** They rise from the whole stone, not from the Encounter: the rift source sits behind the Encounter panel, where motes would be hidden. The bloom still centres on the Encounter.
+- **Responses.** Zone responses (Hand, Encounter, header, rail token) are played by `play_screen.flare()`; seam and rift responses by `rift_layer.respond()`. `main._respond()` routes each one. The animator calls it for each sequence step through `BoardResponse.for_step()`.
+- **T039.** Tests are green and the desktop runs show no script errors. Still open: the SC-004 and SC-005 viewer checks (they need someone other than the developer) and the stutter check on the web build and Android emulator (no emulator was running).
 
 ---
 

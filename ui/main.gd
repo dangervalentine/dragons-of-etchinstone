@@ -24,6 +24,7 @@ const Animator = preload("res://ui/fx/animator.gd")
 const FlightLayer = preload("res://ui/fx/flight_layer.gd")
 const BACKDROP = preload("res://ui/fx/shaders/backdrop.gdshader")
 const RiftLayer = preload("res://ui/fx/rift_layer.gd")
+const BoardResponse = preload("res://ui/model/board_response.gd")
 const InspectOverlay = preload("res://ui/overlays/inspect_overlay.gd")
 const GlossaryPopover = preload("res://ui/overlays/glossary_popover.gd")
 const RulebookOverlay = preload("res://ui/overlays/rulebook_overlay.gd")
@@ -91,6 +92,9 @@ func _ready() -> void:
 	_overlays.child_exiting_tree.connect(func(_n): _fields_live.call_deferred())
 	animator.flight = _flight
 	animator.show_banner = _banner
+	animator.respond = _respond
+	animator.started.connect(func(): rift.set_busy(true))
+	animator.finished.connect(func(): rift.set_busy(false))
 	animator.finished.connect(_on_sequence_done)
 	add_child(animator)
 	get_window().size_changed.connect(_on_resize)
@@ -355,12 +359,14 @@ func dispatch(intent: Dictionary) -> void:
 		"take_back":
 			draft.take_back(intent.id)
 			_refresh()
+			_respond("take_back", null, intent.id)
 		"toggle_boost_to":
 			draft.toggle_boost_to(intent.set)
 			_refresh()
 		"fuse_element":
 			draft.choose_fuse_element(intent.element)
 			_refresh(true)
+			_respond("fuse", intent.element)
 		"action":
 			_on_action(intent.id)
 		"primary":
@@ -382,6 +388,8 @@ func _on_card(id: String) -> void:
 			if draft.picks.has(id) or card.get("eligible", false):
 				draft.toggle_pick(id)
 				_refresh()
+				if draft.picks.has(id):
+					_respond("soak")
 			else:
 				_refuse("That card cannot Soak: %s." % card.get("reason", "").to_lower(), id)
 		"upgrade":
@@ -395,8 +403,10 @@ func _on_card(id: String) -> void:
 		"challenge", "final_journey", "final_enemy":
 			match draft.mode:
 				"divert":
+					_respond("divert")
 					_act({"kind": "divert", "cards": [id], "id": id}, func(): return game.divert(id))
 				"regroup":
+					_respond("regroup")
 					_act({"kind": "regroup", "cards": [id], "id": id}, func(): return game.regroup(id))
 				"fuse_pick":
 					var err: String = draft.pick_for_fuse(id, db)
@@ -410,6 +420,8 @@ func _on_card(id: String) -> void:
 					_refresh()
 					if err != "":
 						_refuse(err, id)
+					else:
+						_respond("place" if draft.slot_of(id) != null else "take_back", db.mage(id).element, id)
 
 
 func _on_action(id: String) -> void:
@@ -535,10 +547,37 @@ func _tint_backdrop(state: Dictionary) -> void:
 	create_tween().tween_method(func(v): m.set_shader_parameter("tint_amount", v), from, to, T.BASE)
 
 
-## Cards' Ether fields move only while no overlay covers the play screen.
+## Cards' Ether fields and the rift move only while no overlay covers the play screen.
 func _fields_live() -> void:
+	var live := _overlays.get_child_count() == 0
+	rift.set_live(live)
 	if play != null and is_instance_valid(play):
-		play.set_fields_live(_overlays.get_child_count() == 0)
+		play.set_fields_live(live)
+
+
+## The board answers an event (contracts/board-life.md): at a zone on the play
+## screen, or in the rift's seams. `ether` colours it where the table says so.
+func _respond(event: String, ether = null, card_id := "") -> void:
+	if play == null or screen != play or not BoardResponse.TABLE.has(event):
+		return
+	var r: Dictionary = BoardResponse.TABLE[event]
+	var colour: Color
+	match r.colour:
+		"ether":
+			colour = T.ether_shade(ether, "lit") if ether != null and ether != "" else T.SEAM_NEUTRAL
+		"focus":
+			colour = T.FOCUS
+		"gold":
+			colour = T.GOLD
+		"bad":
+			colour = T.BAD
+		_:
+			colour = T.SEAM_NEUTRAL
+	if r.target == "seams" or r.target == "rift" or r.motion.kind == "burst":
+		var at = play.point("hand") if r.target == "hand" else null
+		rift.respond(event, colour, at)
+	if r.target != "seams" and r.target != "rift":
+		play.flare(r.target, colour, r.motion.kind, r.motion.duration, card_id)
 
 
 # ---------------------------------------------------------------- overlays

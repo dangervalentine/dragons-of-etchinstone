@@ -7,13 +7,17 @@ extends Node
 
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
+const BoardResponse = preload("res://ui/model/board_response.gd")
 
+signal started
 signal finished
 
 var screen: Control
 var flight: Control
 ## Called with (values, duration) to show a stage banner.
 var show_banner: Callable
+## Called with (event, ether) so the board answers a step (contracts/board-life.md).
+var respond: Callable
 
 var _after := {}
 var _master: Tween
@@ -32,6 +36,7 @@ func play(steps: Array, play_screen: Control, after_vs: Dictionary) -> void:
 	screen.detail.hide_card()
 	_after = after_vs
 	_playing = true
+	started.emit()
 	_master = create_tween()
 	for st in steps:
 		var d: float = st.duration
@@ -69,6 +74,12 @@ func _keep(tw: Tween) -> Tween:
 
 
 func _run(st: Dictionary, d: float) -> void:
+	if respond.is_valid():
+		var enc = screen.vs.get("encounter") if screen.vs != null else null
+		var event := BoardResponse.for_step(st.kind, st.get("values", {}), enc.kind if enc != null else "")
+		if event != "":
+			var ether = st.get("values", {}).get("element", "") if st.kind == "damage" else (enc.element if enc != null else null)
+			respond.call(event, ether)
 	match st.kind:
 		"play_cards":
 			_strike(st.cards, d)

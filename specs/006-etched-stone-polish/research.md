@@ -226,8 +226,7 @@ no snap (edge case).
   below screens. It emits from the rift point with a lifetime of 4–7 s and at most
   24 alive, tinted to the Ether, and drifts up and out. `CPUParticles2D` rather than
   `GPUParticles2D` because the Compatibility renderer and web are the weak targets.
-- **Active zone**: the zone named by `vs.input_region` (extended in D9 to name
-  preview, hand or commit) has its `StoneStyle.glow` tweened to 1 and
+- **Active zone**: the zone named by `vs.input_region` (hand or commit; D9) has its `StoneStyle.glow` tweened to 1 and
   the others to 0 over `T.BASE`. It breathes slowly (±15%) while waiting.
 - **Budget**: ≤ 1 ms GPU for the backdrop, seams and motes at 1280 × 720, measured
   by the extended `tools/field_bench.gd` against 005's PASS thresholds. If it fails,
@@ -262,14 +261,17 @@ the animator emits maps to a response with both forms (FR-015, FR-016).
 
 ## D9. Which zone is "active"
 
-**Decision**: `view_state._input_region` already returns `hand` or `commit`. Extend
-it to return `preview` in Soak and Upgrade, where the decision is read off the meter
-or purse. Do **not** add a `rail` zone. The player's input is always a Hand card or
-the commit control, and the rail is only where an optional choice lives: picking a
-role out of order, or the Boost-to toggle, which defaults to Attack
-(`turn_draft.gd`), so it is never "pending". The rail's next token already carries
-the focus rim. It stays a pure function of game, draft and view state,
-and is tested in `test_view_state.gd`.
+**Decision** (revised during implementation, 2026-10-15): keep
+`view_state._input_region` as it is: `hand` while a card is still to be chosen,
+`commit` once everything is ready. The lit zone follows where the player's input
+goes.
+- **No `preview` zone.** The first draft added one for Soak and Upgrade, but in both
+  the player still taps Hand cards. The meter and purse only show what those taps
+  add up to, so lighting the preview would point away from the input.
+- **No `rail` zone (U1).** The Boost-to toggle defaults to Attack and is never
+  pending.
+- **Tested.** `test_view_state.gd` plays a seeded game to its end and checks the
+  region is only ever `hand` or `commit`.
 
 ## D10. Woodcut ornament and lettering
 

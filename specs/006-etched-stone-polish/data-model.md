@@ -19,7 +19,7 @@ A place on a screen with one job, drawn as a well cut into the stone.
 
 **Rules**
 - On the play screen, exactly one zone has `glow = 1` at rest: the one named by
-  `vs.input_region` (D9), which is one of `hand`, `preview` or `commit`; never `rail`.
+  `vs.input_region` (D9), which is `hand` or `commit`.
 - A zone's text must keep contrast against its brightest fill plus maximum glow
   (D5; `test_stone_contrast.gd`).
 - Zone rects are passed to the backdrop (≤ 8) so the rift seams fade beneath them.

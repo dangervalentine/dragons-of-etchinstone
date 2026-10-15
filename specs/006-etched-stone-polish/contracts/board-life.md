@@ -26,7 +26,6 @@ Ambient motion and the board's response to each action. Data shapes:
 | `vs.input_region` | Lit zone |
 |---|---|
 | `hand` | Hand well |
-| `preview` | Preview, Soak meter or XP purse (the decision is read there) |
 | `commit` | The primary action's plinth (with today's `actions.set_ready`) |
 
 The light moves with a `T.BASE` cross-fade, or instantly under reduced motion

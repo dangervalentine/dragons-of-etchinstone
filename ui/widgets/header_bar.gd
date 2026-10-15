@@ -86,6 +86,7 @@ func _init() -> void:
 	UI.press_feedback(menu_button)
 	add_child(menu_button)
 	resized.connect(_fit)
+	_lintel.changed.connect(queue_redraw)
 
 
 func _draw() -> void:

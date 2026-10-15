@@ -41,6 +41,7 @@ var detail := CardDetail.new()
 var _hand_panel := Panel.new()
 ## The deepest place cut into the stone: the Hand's well.
 var _hand_well := StoneStyle.new("well", 0.9)
+var _breath: Tween
 var _input_region := ""
 var _hover_id := ""
 var _hover_timer := Timer.new()
@@ -177,8 +178,67 @@ func _render_prominence() -> void:
 	if region == _input_region:
 		return
 	_input_region = region
-	_hand_well.glow = 1.0 if region == "hand" else 0.0
 	actions.set_ready(region == "commit")
+	# The zone waiting on the player lights up and breathes slowly; the light moves
+	# with a cross-fade, or at once in reduced motion.
+	if _breath != null and _breath.is_valid():
+		_breath.kill()
+	var lit: StyleBox = _hand_well if region == "hand" else primary_style()
+	for style in [_hand_well, primary_style()]:
+		if style == null or style.get("glow") == null:
+			continue
+		var to := 1.0 if style == lit else 0.0
+		if UI.reduced_motion or not is_inside_tree():
+			style.glow = to
+		else:
+			create_tween().tween_property(style, "glow", to, T.BASE)
+	if lit != null and lit.get("glow") != null and not UI.reduced_motion and is_inside_tree():
+		_breath = create_tween().set_loops()
+		_breath.tween_interval(T.BASE)
+		_breath.tween_property(lit, "glow", 0.85, 1.5).set_trans(Tween.TRANS_SINE)
+		_breath.tween_property(lit, "glow", 1.0, 1.5).set_trans(Tween.TRANS_SINE)
+
+
+func primary_style() -> StyleBox:
+	return actions.primary.get_theme_stylebox("normal")
+
+
+## The board's answer at one zone (contracts/board-life.md): its rim lights in
+## `colour` and fades, the Encounter shudders, a rail token flares. In reduced
+## motion the rim is held lit for a moment instead.
+func flare(target: String, colour: Color, kind: String, duration: float, card_id := "") -> void:
+	if target == "rail_token":
+		rail.flare(card_id, colour, duration)
+		return
+	var style: StyleBox = null
+	var node: Control = null
+	match target:
+		"hand":
+			style = _hand_well
+			node = _hand_panel
+		"encounter":
+			node = encounter_node()
+			style = node.get("_stone")
+		"header":
+			style = header.get("_lintel")
+			node = header
+	if style == null:
+		return
+	var was_colour: Color = style.glow_colour
+	var was: float = style.glow
+	style.glow_colour = colour
+	if UI.reduced_motion:
+		style.glow = 1.0
+		get_tree().create_timer(T.BASE).timeout.connect(func():
+			style.glow = was
+			style.glow_colour = was_colour)
+		return
+	if kind == "shudder" and node != null:
+		UI.shake(node, 6.0)
+	var tw := create_tween()
+	tw.tween_property(style, "glow", 1.0, duration * 0.3)
+	tw.tween_property(style, "glow", was, duration * 1.4)
+	tw.tween_callback(func(): style.glow_colour = was_colour)
 
 
 func _fused_top(state: Dictionary) -> String:

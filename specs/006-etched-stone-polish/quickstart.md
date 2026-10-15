@@ -110,3 +110,11 @@ _Record observer results, bench numbers and the owner's decisions here._
 
 - **Pre-feature bench (T004, 2026-10-15, Apple M5 Pro, Compatibility renderer)**:
   `field_bench` average 2.14 ms, p99 3.88 ms, worst 6.67 ms: PASS.
+- **Stage 2 bench (T038, 2026-10-15, same machine)**: with the stone backdrop, rift
+  seams (Fire) and motes behind the 11 faces, `field_bench` gives average 2.15 ms,
+  p99 3.79 ms, worst 13.12 ms: PASS. That is about 0.01 ms over the pre-feature
+  average (C2's ≤ 1 ms budget). No phone or web build has been measured.
+- **Viewer checks (T039, SC-004, SC-005)**: not run yet. They need someone other
+  than the developer.
+- **Stutter on web and Android (SC-008)**: not checked yet. No emulator was running,
+  and the web build was not opened in a browser.

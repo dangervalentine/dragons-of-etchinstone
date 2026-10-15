@@ -34,6 +34,29 @@ func render(vs: Dictionary) -> void:
 		_tokens["%d/%s" % [t.set, t.role]] = b
 
 
+## Light the token a card fills for a moment, in `colour` (the board's answer to
+## placing it); held still under reduced motion.
+func flare(card_id: String, colour: Color, duration: float) -> void:
+	for key in _tokens:
+		var b: Control = _tokens[key]
+		if not b is Button or b.tooltip_text == "":
+			continue
+		var style = b.get_theme_stylebox("normal")
+		if style.get("glow") == null or b.get_meta("card_id", "") != card_id:
+			continue
+		var was: float = style.glow
+		style.glow_colour = colour
+		if UI.reduced_motion:
+			style.glow = 1.0
+			b.get_tree().create_timer(T.BASE).timeout.connect(func():
+				if is_instance_valid(b):
+					style.glow = was)
+			return
+		var tw := b.create_tween()
+		tw.tween_property(style, "glow", 1.0, duration * 0.3)
+		tw.tween_property(style, "glow", was, duration * 1.4)
+
+
 ## Global rectangle of a token, for effects that aim at it.
 func token_rect(set_index: int, role: String) -> Rect2:
 	var b: Control = _tokens.get("%d/%s" % [set_index, role])
@@ -46,6 +69,7 @@ func _token(t: Dictionary, two: bool) -> Button:
 	b.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	b.clip_contents = true
 	b.tooltip_text = t.tooltip
+	b.set_meta("card_id", t.card_id if t.card_id != null else "")
 	var state: String = t.state
 	var next := state == "next"
 	var filled := state == "filled"
