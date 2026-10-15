@@ -147,6 +147,7 @@ func test_reserve_boost_only_when_it_counts() -> void:
 			var reserve = g._reserve([action], null)
 			var vs: Dictionary = ViewState.build(g, d, db)
 			eq(_regions(vs, reserve).has("boost"), counts, "seed %d: the Reserve's Boost lights up exactly when it counts" % game_seed)
+			eq(vs.cards[reserve].reserve_boosts, counts, "seed %d: the Reserve is marked as adding its Boost exactly when it counts" % game_seed)
 			if counts:
 				counted += 1
 			else:

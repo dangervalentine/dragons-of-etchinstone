@@ -242,10 +242,10 @@ func encounter_node() -> Control:
 
 func _replan(p: Dictionary, state: Dictionary) -> Dictionary:
 	var count: int = state.hand.size()
-	var sets: int = maxi(1, state.sets.size())
+	var Solver = load("res://ui/model/layout_solver.gd")
+	var sets: int = Solver.slot_rows(state)
 	if p.get("for", []) == [count, sets]:
 		return p
-	var Solver = load("res://ui/model/layout_solver.gd")
 	var q: Dictionary = Solver.solve(p.view, p.safe, count, sets, p.points_per_unit)
 	q["safe"] = p.safe
 	q["for"] = [count, sets]

@@ -183,3 +183,15 @@ func test_extra_space_goes_to_content() -> void:
 		if _safe(name).size.y < _safe("phone-16x9").size.y:
 			continue
 		ok(plan.regions.encounter.size.y >= base.regions.encounter.size.y, name + ": Encounter no shorter than on a 16:9 phone")
+
+
+func test_an_empty_slots_row_gives_its_room_to_the_hand() -> void:
+	eq(Solver.slot_rows({"sets": [{}, {}], "played": null}), 2, "a row per Action Set")
+	eq(Solver.slot_rows({"sets": [], "played": {}}), 1, "the recap after a battle")
+	eq(Solver.slot_rows({"sets": [], "played": null}), 0, "nothing to show while Soaking the Final Battle")
+	for name in Solver.MATRIX:
+		var with_row := _plan(name, 8, 1)
+		var without := _plan(name, 8, 0)
+		eq(without.regions.slots.size.y, 0.0, "%s: no slots row" % name)
+		eq(without.regions.hand.position.y, without.regions.encounter.position.y, "%s: the Hand starts at the top of the body" % name)
+		ok(without.card_size.x >= with_row.card_size.x, "%s: cards are no smaller" % name)

@@ -75,6 +75,8 @@ static func build(game, draft, db, extra := {}) -> Dictionary:
 	for id in vs.hand:
 		vs.cards[id] = _card(game, draft, db, id, vs)
 		vs.cards[id]["focus"] = Emphasis.focus(vs.cards[id], game.level_data(id), ctx)
+		# The Reserve's Boost is adding to the Move, so the card is playing a part too.
+		vs.cards[id]["reserve_boosts"] = vs.cards[id].reserve and vs.cards[id].focus.regions.has("boost")
 	vs["prompt"] = _prompt(game, draft, vs)
 	vs["secondary"] = _secondary(game, draft, vs)
 	vs["input_region"] = _input_region(game, draft, vs)
@@ -293,7 +295,7 @@ static func _card(game, draft, db, id: String, vs: Dictionary) -> Dictionary:
 	var c := {
 		"id": id, "name": m.name, "element": m.element, "level": game.cards[id].level,
 		"max_level": m.levels.size(), "stats": lv,
-		"state": "available", "role": null, "fuse": null, "reserve": false,
+		"state": "available", "role": null, "fuse": null, "reserve": false, "reserve_boosts": false,
 		"eligible": true, "reason": "", "note": "", "note_icon": "", "match": false,
 		"selection_order": -1,
 		"downgraded": game.downgraded.has(id),

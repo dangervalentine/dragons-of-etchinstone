@@ -1,6 +1,7 @@
 extends Control
 ## Owns the card nodes on the play screen, one per visible card, and puts each
-## where it belongs: its place in the Hand, lifted when it fills a role, tucked
+## where it belongs: its place in the Hand, lifted when it fills a role (or is the
+## Reserve whose Boost is adding to the Move), tucked
 ## behind its partner when fused. Cards keep their node while they stay visible,
 ## so they can glide from one place to the next.
 
@@ -60,7 +61,7 @@ func sync(vs: Dictionary, plan: Dictionary, animate := false, arrive_from = null
 		view.show_set_number = vs.sets.size() > 1
 		view.set_model(m)
 		var home: Rect2 = Rect2(rects[i].position - global_position, rects[i].size)
-		if m.state == "assigned" or m.state == "selected" or m.get("fate", "") == "stays":
+		if m.state == "assigned" or m.state == "selected" or m.get("fate", "") == "stays" or m.get("reserve_boosts", false):
 			home.position.y -= Solver.CARD_LIFT
 		view.home = home
 		view.z_index = 0

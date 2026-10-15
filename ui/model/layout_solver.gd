@@ -65,8 +65,20 @@ static func clear_corners(safe: Rect2, window: Vector2, radii: Array) -> Rect2:
 	return Rect2(inset[0], inset[1], window.x - inset[0] - inset[2], window.y - inset[1] - inset[3])
 
 
+## How many rows the slots region shows for a view state: one per Action Set while
+## building, the recap of the set just played after a battle, or none, when the Hand
+## can have the room.
+static func slot_rows(vs: Dictionary) -> int:
+	if vs.is_empty():
+		return 1
+	if not vs.sets.is_empty():
+		return vs.sets.size()
+	return 1 if vs.get("played") != null else 0
+
+
 ## view: the viewport in design units. safe: the part clear of notches, in design
-## units. points_per_unit: how large a design unit is on this screen.
+## units. points_per_unit: how large a design unit is on this screen. set_count: rows
+## in the slots region, 0 to give its room to the Hand.
 static func solve(view: Vector2, safe: Rect2, hand_count := 4, set_count := 1, points_per_unit := 0.5) -> Dictionary:
 	var left := maxf(safe.position.x, T.M)
 	var top := maxf(safe.position.y, T.M)
@@ -88,14 +100,15 @@ static func solve(view: Vector2, safe: Rect2, hand_count := 4, set_count := 1, p
 	var encounter_h := roundf(body_h * 0.56)
 	var right_x := c.position.x + left_w + COLUMN_GAP
 	var right_w := c.end.x - right_x
-	var slots_h := 112.0 if set_count == 1 else 96.0
+	var slots_h := 0.0 if set_count == 0 else (112.0 if set_count == 1 else 96.0)
 	var bottom_y := c.end.y - BOTTOM_H
 	var commit_w := clampf(roundf(right_w * 0.3), 220.0, 320.0)
 	# Cards are bound by width on tall screens; give the height they cannot use to the slots.
 	var trial := _fit_cards(Rect2(right_x, 0, right_w, bottom_y - GAP - (body_y + slots_h + GAP)), hand_count)
 	var spare: float = bottom_y - GAP - (body_y + slots_h + GAP) - CARD_LIFT - trial.rows * trial.size.y - (trial.rows - 1) * GAP
-	slots_h += clampf((spare - 24.0) * 0.5, 0.0, 80.0)
-	var hand_y := body_y + slots_h + GAP
+	if set_count > 0:
+		slots_h += clampf((spare - 24.0) * 0.5, 0.0, 80.0)
+	var hand_y: float = body_y + slots_h + (GAP if set_count > 0 else 0.0)
 	var regions := {
 		"header": Rect2(c.position.x, c.position.y, c.size.x, HEADER_H),
 		"encounter": Rect2(c.position.x, body_y, left_w, encounter_h),

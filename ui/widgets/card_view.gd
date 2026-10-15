@@ -251,8 +251,9 @@ func _draw_marks() -> void:
 		s.set_corner_radius_all(radius + 2)
 		s.set_expand_margin_all(2)
 		_marks.draw_style_box(s, Rect2(Vector2.ZERO, size))
+	var boosting: bool = model.get("reserve_boosts", false)
 	if state == "reserve":
-		_dashed_outline()
+		_dashed_outline(T.GOLD if boosting else T.INK_MUTED)
 
 	var ribbon := ""
 	var ribbon_icon := ""
@@ -262,6 +263,9 @@ func _draw_marks() -> void:
 		var role: Array = model.role
 		ribbon = ROLE_NAMES[role[1]] + (" %d" % (role[0] + 1) if show_set_number else "")
 		ribbon_icon = ROLE_ICONS[role[1]]
+	elif state == "reserve" and boosting:
+		ribbon = "+%d" % model.stats.boost
+		ribbon_icon = "boost"
 	elif state == "reserve":
 		ribbon = "Reserve"
 		ribbon_icon = "reserve"
@@ -369,8 +373,8 @@ func _centred(rect: Rect2, text: String, font_size: float, color: Color, font_na
 	_marks.draw_string(font, Vector2(rect.get_center().x - sz.x / 2.0, base), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, color)
 
 
-func _dashed_outline() -> void:
+func _dashed_outline(colour: Color) -> void:
 	var r := Rect2(Vector2(-2, -2), size + Vector2(4, 4))
 	var corners := [r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)]
 	for i in 4:
-		_marks.draw_dashed_line(corners[i], corners[(i + 1) % 4], T.INK_MUTED, 3.0, 10.0)
+		_marks.draw_dashed_line(corners[i], corners[(i + 1) % 4], colour, 3.0, 10.0)

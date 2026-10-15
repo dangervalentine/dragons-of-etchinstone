@@ -1,9 +1,9 @@
 extends "res://ui/widgets/face_frame.gd"
-## The dragon in the Final Battle. On the Final Journey the road runs off to the
-## dragon, small and waiting on the far side, beside the ladder of Move totals and
-## the Time Penalty each leaves. When the Final Enemy begins the dragon crosses to
-## the near side, large, and its battle figures and the ladder of Attack totals
-## take the other side.
+## The dragon in the Final Battle. On the Final Journey the road is the picture,
+## running off to the dragon, small and faint where it meets the horizon, beside
+## the ladder of Move totals and the Time Penalty each leaves. When the Final Enemy
+## begins the dragon crosses to the near side, large and solid, and its battle
+## figures and the ladder of Attack totals take the other side.
 
 const StatChip = preload("res://ui/widgets/stat_chip.gd")
 const DragonStats = preload("res://ui/widgets/dragon_stats.gd")
@@ -15,6 +15,10 @@ signal intent(data: Dictionary)
 const SCENE_SHARE := 0.4
 const BATTLE_SHARE := 0.33
 const CROSSING := 0.9
+## Where the road meets the horizon in its art, in 512 units: the dragon waits there.
+const ROAD_END := Vector2(318, 125)
+## How strongly the far-off dragon shows while the road is the focus.
+const FAR_ALPHA := 0.35
 
 var _shown := {}
 var _kind := ""
@@ -92,7 +96,7 @@ func _build(enc: Dictionary) -> void:
 		sub.clip_text = true
 		band.add_child(sub)
 		body.add_child(_stage)
-		_road.setup(enc.scene, Color(colour.lightened(0.5), 0.5), "", false)
+		_road.setup(enc.scene, Color(colour.lightened(0.75), 1.0), "", false)
 		_beast.setup(enc.art, Color(colour.lightened(0.4), 0.9), enc.element)
 	_road.visible = true
 
@@ -154,12 +158,15 @@ func _place(crossing: bool) -> void:
 	var panel_x := 0.0 if journey else scene_w + T.S
 	var panel := Rect2(panel_x, 0, w - scene_w - T.S, h)
 	var scene := Rect2(scene_x, 0, scene_w, h)
-	# On the road, the dragon is small and far off at the top of the picture;
-	# in battle it fills its side.
-	var road_side := minf(scene_w, h * 0.75)
+	# On the road, the dragon is small and far off, standing where the road meets
+	# the horizon; in battle it fills its side.
+	var road_side := minf(scene_w, h * 0.8)
 	var road := Rect2((scene_w - road_side) / 2.0, h - road_side, road_side, road_side)
-	var far := minf(scene_w * 0.5, h * 0.36)
-	var beast_far := Rect2(scene_w - far, 0, far, far)
+	var k := road_side / 512.0
+	var far := minf(road_side * 0.46, h * 0.4)
+	# The art's feet are a little above its bottom edge.
+	var feet := road.position + ROAD_END * k + Vector2(0, far * 0.04)
+	var beast_far := Rect2(clampf(feet.x - far / 2.0, 0.0, scene_w - far), maxf(0.0, feet.y - far), far, far)
 	var near := minf(scene_w, h * 0.95)
 	var beast_near := Rect2((scene_w - near) / 2.0, (h - near) / 2.0, near, near)
 	var beast: Rect2 = beast_far if journey else beast_near
@@ -178,13 +185,14 @@ func _place(crossing: bool) -> void:
 		_beast.position = beast.position
 		_beast.size = beast.size
 		_beast.crop = look
+		_beast.modulate.a = FAR_ALPHA if journey else 1.0
 		_panel.modulate.a = 1.0
 		_road.modulate.a = 1.0 if journey else 0.0
 		# Faded right out, the road stops drawing at all.
 		_road.visible = journey
 		return
 	# The dragon comes across the field: the figures slide away, the road fades,
-	# and the dragon grows into the near side.
+	# and the dragon grows into the near side, solid now.
 	var start := _beast.global_position
 	_scene.position = scene.position
 	_scene.size = scene.size
@@ -196,6 +204,7 @@ func _place(crossing: bool) -> void:
 	_tween.tween_property(_beast, "position", beast.position, CROSSING)
 	_tween.tween_property(_beast, "size", beast.size, CROSSING)
 	_tween.tween_property(_beast, "crop", look, CROSSING)
+	_tween.tween_property(_beast, "modulate:a", 1.0, CROSSING)
 	_tween.tween_property(_road, "modulate:a", 0.0, CROSSING * 0.6)
 	_tween.tween_callback(func() -> void: _road.visible = false).set_delay(CROSSING * 0.6)
 	_tween.tween_property(_panel, "modulate:a", 1.0, CROSSING * 0.5).set_delay(CROSSING * 0.6)

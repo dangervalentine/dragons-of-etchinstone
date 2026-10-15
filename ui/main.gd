@@ -155,7 +155,7 @@ func _on_resize() -> void:
 	_device_safe = DisplayServer.get_display_safe_area()
 	var safe := _safe_rect(view)
 	var count: int = vs.hand.size() if not vs.is_empty() and vs.has("hand") else 4
-	var sets: int = maxi(1, vs.sets.size()) if not vs.is_empty() else 1
+	var sets: int = Solver.slot_rows(vs)
 	plan = Solver.solve(view, safe, count, sets, _points_per_unit(view))
 	plan["safe"] = safe
 	plan["for"] = [count, sets]
