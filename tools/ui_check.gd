@@ -17,6 +17,11 @@ const Settings = preload("res://ui/model/settings.gd")
 const RulebookOverlay = preload("res://ui/overlays/rulebook_overlay.gd")
 const GlossaryPopover = preload("res://ui/overlays/glossary_popover.gd")
 const Rulebook = preload("res://ui/model/rulebook.gd")
+const HistoryStore = preload("res://ui/model/history_store.gd")
+const RecordsScreen = preload("res://ui/screens/records_screen.gd")
+
+## Games played here are recorded in their own folder, never the player's records.
+const HISTORY_DIR := "user://tool_history/"
 
 const HELP_MIN := 44.0
 
@@ -27,7 +32,12 @@ var db = CardDB.new()
 
 
 func _initialize() -> void:
+	_clear_history()
 	_run()
+
+
+func _clear_history() -> void:
+	HistoryStore.use_empty(HISTORY_DIR)
 
 
 func _run() -> void:
@@ -37,6 +47,10 @@ func _run() -> void:
 		await _play(name, 11, "casual", false)
 	await _open("phone-16x9")
 	await _play("phone-16x9 animated", 5, "normal", true)
+	await _open("desktop")
+	await _ending_placing("desktop")
+	await _open("phone-tall")
+	await _ending_placing("phone-tall")
 	await _open("desktop")
 	await _resize_mid_turn()
 	print("ui check: %d checks, %d failed" % [checks, failures])
@@ -149,6 +163,7 @@ func _play(where: String, game_seed: int, difficulty: String, animated: bool) ->
 	var opts := {"seed": game_seed, "dragon": db.dragon_ids()[game_seed % 4], "difficulty": difficulty, "cavalier": false, "glass_cannon": false}
 	var shadow = Game.new(db, opts)
 	ui.start_game(opts)
+	var recorded := HistoryStore.records.size()
 	await _settle()
 	var g = ui.game
 	var guard := 0
@@ -222,8 +237,18 @@ func _play(where: String, game_seed: int, difficulty: String, animated: bool) ->
 	for id in g.cards:
 		same_levels = same_levels and g.cards[id].level == shadow.cards[id].level
 	_ok(same_levels, "%s: same Levels as the engine-only game" % where)
+	_ok(HistoryStore.records.size() == recorded + 1, "%s: the game left one record (%d)" % [where, HistoryStore.records.size() - recorded])
+	if HistoryStore.records.size() > recorded:
+		var r: Dictionary = HistoryStore.records[-1]
+		_ok(r.outcome == g.phase, "%s: recorded as %s, ended %s" % [where, r.outcome, g.phase])
+		_ok(r.difficulty == difficulty and r.dragon == opts.dragon, "%s: recorded with its options" % where)
+		_ok(r.score == g.score(), "%s: recorded score %d is the game's %d" % [where, r.score, g.score()])
+		_ok(r.active_ms > 0, "%s: some active time was recorded" % where)
+		_ok(not FileAccess.file_exists(HISTORY_DIR + "in_progress.json"), "%s: no game left in progress" % where)
 	if ui.screen != null and ui.screen != ui.play:
 		_inspect_screen("%s ending" % where)
+		if g.phase == "lost":
+			_ok(not _has_label(ui.screen, "New best") and not _has_label(ui.screen, "Best against"), "%s: a loss does not place" % where)
 
 
 ## The two setup screens, then each overlay over a game in progress, one at a time.
@@ -236,6 +261,7 @@ func _screens_and_overlays(where: String) -> void:
 	await _settle()
 	_inspect_screen("%s settings" % where)
 	ui._close_overlays()
+	await _records_walk(where)
 	await _rulebook_walk(where)
 	await _setup_steps(where)
 	ui.start_game({"seed": 3, "dragon": "rodving", "difficulty": "normal", "cavalier": false, "glass_cannon": false})
@@ -261,6 +287,142 @@ func _screens_and_overlays(where: String) -> void:
 		ui._close_overlays()
 		await process_frame
 	await _rulebook_mid_game(where)
+
+
+## The Records screen from the title, empty and then with a seeded history: each
+## tab, difficulty and dragon filter whole on the screen, then back to the title.
+func _records_walk(where: String) -> void:
+	var kept: Array = HistoryStore.records.duplicate()
+	HistoryStore.records = []
+	ui.dispatch({"type": "records", "from": "title"})
+	await _settle()
+	_ok(ui.screen.get_script() == RecordsScreen, "%s: Records opens" % where)
+	_inspect_screen("%s records, empty" % where)
+	_ok(_has_label(ui.screen, "No game won on"), "%s: an empty board says so" % where)
+	HistoryStore.records = _sample_records(60)
+	ui.screen.refresh()
+	await _settle()
+	_inspect_screen("%s records leaderboard" % where)
+	for key in ui.screen._tiles.keys().filter(func(k): return k.begins_with("dragon:")):
+		ui.screen._tiles[key].pressed.emit()
+		await process_frame
+		_inspect_screen("%s records %s" % [where, key])
+	ui.screen._tiles["dragon:"].pressed.emit()
+	for key in ui.screen._tiles.keys().filter(func(k): return k.begins_with("difficulty:")):
+		ui.screen._tiles[key].pressed.emit()
+		await process_frame
+		_inspect_screen("%s records %s" % [where, key])
+	await _history_walk(where)
+	await _clear_walk(where)
+	ui.screen._tiles["back"].pressed.emit()
+	await _settle()
+	_ok(ui.screen.get_script() == TitleScreen, "%s: Back returns to the title" % where)
+	HistoryStore.records = kept
+
+
+## A won game's ending names its placing, and its Leaderboard button goes to the
+## Records and back to the same ending. The win is made directly on the engine
+## (the check's own games are played to lose) and recorded the way a real one is.
+func _ending_placing(where: String) -> void:
+	HistoryStore.use_empty(HISTORY_DIR)
+	for i in 2:
+		ui.start_game({"seed": 8, "dragon": "helsang", "difficulty": "hard", "cavalier": false, "glass_cannon": false})
+		await _settle()
+		ui.game.phase = "won"
+		ui._record("won")
+		ui._refresh(false, false)
+		ui._show_ending()
+		await _settle()
+		var first := i == 0
+		_ok(_has_label(ui.screen, "New best on Hard") == first, "%s: the %s win %s a new best" % [where, "first" if first else "second", "is" if first else "is not"])
+		if not first:
+			_ok(_has_label(ui.screen, "2nd on Hard"), "%s: the second equal win is 2nd" % where)
+	_inspect_screen("%s ending with a placing" % where)
+	var board: Button = ui.screen.find_children("*", "Button", true, false).filter(func(b): return b.text == "Leaderboard")[0]
+	board.pressed.emit()
+	await _settle()
+	_ok(ui.screen.get_script() == RecordsScreen, "%s: the ending's Leaderboard button opens Records" % where)
+	_ok(_has_label(ui.screen, "1st"), "%s: the win is on the board" % where)
+	_inspect_screen("%s records from the ending" % where)
+	ui.screen.back()
+	await _settle()
+	_ok(ui.screen.get_script() != RecordsScreen and ui.game != null and ui.game.phase == "won", "%s: Back returns to the ending" % where)
+	_ok(_has_label(ui.screen, "2nd on Hard"), "%s: the ending is as it was" % where)
+	HistoryStore.use_empty(HISTORY_DIR)
+
+
+## The History tab: the first and last pages of a long history, a difficulty this
+## version no longer has, and back to the Leaderboard.
+func _history_walk(where: String) -> void:
+	var s = ui.screen
+	s._tiles["difficulty:normal"].pressed.emit()
+	s._tiles["tab:history"].pressed.emit()
+	await process_frame
+	_inspect_screen("%s records history" % where)
+	_ok(s._tiles["prev"].disabled, "%s: no newer page than the first" % where)
+	var pages := 1
+	while not s._tiles["next"].disabled and pages < 20:
+		s._tiles["next"].pressed.emit()
+		pages += 1
+	await process_frame
+	_ok(pages > 1, "%s: a long history has more than one page" % where)
+	_inspect_screen("%s records history, last page" % where)
+	_ok(s._tiles.has("difficulty:other"), "%s: games from a lost difficulty are under Other" % where)
+	s._tiles["difficulty:other"].pressed.emit()
+	await process_frame
+	_inspect_screen("%s records history, other" % where)
+	s._tiles["tab:leaderboard"].pressed.emit()
+	await process_frame
+	_ok(not s._tiles.has("difficulty:other") and s._difficulty == "normal", "%s: the Leaderboard has no Other" % where)
+
+
+## Clear records asks first: keeping them changes nothing, clearing empties both tabs.
+## The seeded records are only in memory, so nothing on disk is lost.
+func _clear_walk(where: String) -> void:
+	var count := HistoryStore.records.size()
+	ui.screen._tiles["clear"].pressed.emit()
+	await process_frame
+	await process_frame
+	_inspect_screen("%s clear records dialog" % where)
+	ui._top_overlay().close()
+	await _settle()
+	_ok(HistoryStore.records.size() == count, "%s: keeping the records changes nothing" % where)
+	ui.screen._tiles["clear"].pressed.emit()
+	await process_frame
+	ui._top_overlay().confirmed.emit()
+	await _settle()
+	_ok(HistoryStore.records.is_empty(), "%s: clearing empties the records" % where)
+	_ok(_has_label(ui.screen, "No game won on"), "%s: the Leaderboard is empty after clearing" % where)
+	_ok(ui.screen._tiles["clear"].disabled, "%s: nothing left to clear" % where)
+
+
+## Made-up records over every difficulty, dragon and outcome, as a long history.
+func _sample_records(count: int) -> Array:
+	var out := []
+	var diffs: Array = Game.DIFFICULTY.keys()
+	var dragons: Array = db.dragon_ids()
+	var outcomes := ["won", "lost", "abandoned"]
+	var stages := ["region_1", "region_2", "region_3", "region_4", "final_journey"]
+	for i in count:
+		var outcome: String = outcomes[i % 3] if i % 5 != 0 else "won"
+		var dragon: String = dragons[i % dragons.size()]
+		out.append({"v": 1, "id": i + 1, "outcome": outcome, "difficulty": "normal" if i % 4 == 0 else diffs[i % diffs.size()],
+			"dragon": dragon, "dragon_name": db.dragon(dragon).name, "cavalier": i % 7 == 0, "glass_cannon": i % 11 == 0,
+			"stage": "final_enemy" if outcome == "won" else ("final_journey" if outcome == "lost" else stages[i % 5]),
+			"score": 20 + (i * 7) % 23 if outcome == "won" else 0, "active_ms": 300000 + i * 61000,
+			"started_at": 1790000000 + i * 3600, "ended_at": 1790000000 + i * 3600 + 1800, "seed": i})
+	# A game from an older version, on a difficulty and against a dragon since removed.
+	out.append({"v": 1, "id": count + 1, "outcome": "won", "difficulty": "legendary", "dragon": "oldwyrm",
+		"dragon_name": "Old Wyrm", "cavalier": false, "glass_cannon": false, "stage": "final_enemy", "score": 31,
+		"active_ms": 900000, "started_at": 1780000000, "ended_at": 1780001000, "seed": 0})
+	out.append({"v": 1, "id": count + 2, "outcome": "lost", "difficulty": "normal", "dragon": "oldwyrm",
+		"dragon_name": "Old Wyrm", "cavalier": false, "glass_cannon": false, "stage": "final_journey", "score": 0,
+		"active_ms": 700000, "started_at": 1780002000, "ended_at": 1780003000, "seed": 0})
+	return out
+
+
+func _has_label(node: Node, prefix: String) -> bool:
+	return node.find_children("*", "Label", true, false).any(func(l): return l.is_visible_in_tree() and l.text.begins_with(prefix))
 
 
 ## The rulebook from the title screen: every page in order, each one whole on the

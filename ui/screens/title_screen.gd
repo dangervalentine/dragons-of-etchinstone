@@ -96,6 +96,10 @@ func _build() -> void:
 	learn.custom_minimum_size.x = 260
 	learn.pressed.connect(func(): intent.emit({"type": "rulebook"}))
 	bottom.add_child(learn)
+	var records := UI.button("Records", "normal", "trophy")
+	records.custom_minimum_size.x = 220
+	records.pressed.connect(func(): intent.emit({"type": "records", "from": "title"}))
+	bottom.add_child(records)
 	bottom.add_child(UI.spacer())
 	var next := UI.button("Continue", "primary")
 	next.custom_minimum_size.x = 240

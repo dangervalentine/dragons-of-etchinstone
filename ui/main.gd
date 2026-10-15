@@ -16,9 +16,13 @@ const Settings = preload("res://ui/model/settings.gd")
 const Undo = preload("res://ui/model/upgrade_undo.gd")
 const Art = preload("res://ui/model/art.gd")
 const Haptics = preload("res://ui/fx/haptics.gd")
+const PlayClock = preload("res://ui/model/play_clock.gd")
+const PlayHistory = preload("res://ui/model/play_history.gd")
+const HistoryStore = preload("res://ui/model/history_store.gd")
 const PlayScreen = preload("res://ui/screens/play_screen.gd")
 const TitleScreen = preload("res://ui/screens/title_screen.gd")
 const RulesScreen = preload("res://ui/screens/rules_screen.gd")
+const RecordsScreen = preload("res://ui/screens/records_screen.gd")
 const EndingScreen = preload("res://ui/screens/ending_screen.gd")
 const Animator = preload("res://ui/fx/animator.gd")
 const FlightLayer = preload("res://ui/fx/flight_layer.gd")
@@ -57,11 +61,23 @@ var _undo: Array = []
 var safe_override := Rect2()
 ## The device's safe area when the layout was last made, to notice it moving.
 var _device_safe := Rect2i()
+## Active play time of the game in progress.
+var clock = PlayClock.new()
+var _started_at := 0
+## Whether the game in progress has been recorded; a game is recorded once.
+var _recorded := false
+var _focused := true
+## The screen Records was opened from: "title" or "ending".
+var _records_from := "title"
+## The record the last game left, and where it placed.
+var _last_record := {}
+var _placing := {}
 
 
 func _ready() -> void:
 	theme = UI.build_theme()
 	Settings.load_all()
+	HistoryStore.load_all()
 	menu = Settings.last_options.duplicate()
 	# Options remembered from an older version may name a dragon or difficulty that is gone.
 	if not db.dragon_ids().has(menu.get("dragon")):
@@ -82,7 +98,9 @@ func _ready() -> void:
 		layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(layer)
 	# Cards under an overlay hold still, so only what can be seen is animated.
-	_overlays.child_entered_tree.connect(func(_n): _fields_live.call_deferred())
+	_overlays.child_entered_tree.connect(func(_n):
+		_fields_live.call_deferred()
+		_save_marker.call_deferred())
 	_overlays.child_exiting_tree.connect(func(_n): _fields_live.call_deferred())
 	animator.flight = _flight
 	animator.show_banner = _banner
@@ -237,6 +255,15 @@ func _show_rules() -> void:
 	_switch(r)
 
 
+## Records opens on the difficulty last chosen. The game, if one has just ended,
+## is kept so its ending can be shown again on the way back.
+func _show_records() -> void:
+	var r := RecordsScreen.new()
+	r.setup(db, menu.difficulty)
+	r.intent.connect(dispatch)
+	_switch(r)
+
+
 func _show_ending() -> void:
 	var e := EndingScreen.new()
 	e.intent.connect(dispatch)
@@ -253,7 +280,16 @@ func start_game(opts: Dictionary) -> void:
 	if not with_seed.has("seed"):
 		with_seed["seed"] = randi()
 	var empty := {"phase": "setup", "region": 1, "deck": [], "hand": [], "discard": [], "trash": [], "levels": {}, "offer": []}
+	# A game still in progress is left for the new one.
+	if game != null and game.phase != "won" and game.phase != "lost":
+		_record("abandoned")
 	game = Game.new(db, with_seed)
+	clock.reset()
+	_started_at = int(Time.get_unix_time_from_system())
+	_recorded = false
+	_last_record = {}
+	_placing = {}
+	_save_marker()
 	_lost_at = ""
 	_undo.clear()
 	draft.reset(1)
@@ -278,7 +314,8 @@ func _refresh(animate := true, show := true) -> void:
 	if game == null:
 		return
 	var previous = vs.get("preview") if not vs.is_empty() else null
-	vs = ViewState.build(game, draft, db, {"previous_preview": previous, "lost_at": _lost_at, "undo": _undo.size()})
+	var placing: Array = PlayHistory.placing_lines(_placing, _last_record) if not _placing.is_empty() else []
+	vs = ViewState.build(game, draft, db, {"previous_preview": previous, "lost_at": _lost_at, "undo": _undo.size(), "placing": placing})
 	if show and play != null and screen == play and not animator.is_playing():
 		play.render(vs, animate)
 		_tint_backdrop(vs)
@@ -304,6 +341,23 @@ func dispatch(intent: Dictionary) -> void:
 		"setup_dragon":
 			menu = intent.options.duplicate()
 			_show_title()
+		"records":
+			_records_from = intent.get("from", "title")
+			_show_records()
+		"records_clear":
+			var c := ConfirmDialog.new()
+			_overlays.add_child(c)
+			c.setup("Clear every recorded game? This cannot be undone.", "Clear records", "Keep them")
+			c.confirmed.connect(func():
+				HistoryStore.clear_all()
+				_close_overlays()
+				if screen != null and screen.get_script() == RecordsScreen:
+					screen.refresh())
+		"records_back":
+			if _records_from == "ending" and game != null:
+				_show_ending()
+			else:
+				_show_title()
 		"settings":
 			_open_menu(false)
 		"menu":
@@ -322,6 +376,7 @@ func dispatch(intent: Dictionary) -> void:
 			_overlays.add_child(c)
 			c.setup("Leave this game? It cannot be resumed.", "Leave game", "Keep playing")
 			c.confirmed.connect(func():
+				_record("abandoned")
 				_close_overlays()
 				_show_title())
 		"help":
@@ -464,6 +519,10 @@ func _act(action: Dictionary, call: Callable) -> void:
 	if err != "":
 		_refuse(err, action.get("id", ""))
 		return
+	if game.phase == "won" or game.phase == "lost":
+		_record(game.phase)
+	else:
+		_save_marker()
 	var after := ViewState.snapshot(game)
 	if game.phase != "upgrade":
 		_undo.clear()
@@ -569,6 +628,41 @@ func _top_overlay() -> Control:
 	return null
 
 
+# ---------------------------------------------------------------- play records
+
+func _process(_delta: float) -> void:
+	clock.tick(Time.get_ticks_msec(), _clock_active())
+
+
+## Whether the game counts as being played: in front, focused, and not under the
+## menu, rulebook, glossary or a dialog. Looking at a card and the game's own
+## banners are part of playing.
+func _clock_active() -> bool:
+	if game == null or game.phase == "won" or game.phase == "lost" or screen != play or not _focused:
+		return false
+	var top := _top_overlay()
+	return top == null or top.get_script() == InspectOverlay or top.get_script() == SizeNotice
+
+
+## Keep the game in progress, so it is recorded even if the app does not live to
+## see it end.
+func _save_marker() -> void:
+	if game == null or _recorded or game.phase == "won" or game.phase == "lost":
+		return
+	HistoryStore.save_marker(PlayHistory.marker_for(game, clock.elapsed_ms, _started_at, int(Time.get_unix_time_from_system())))
+
+
+## Record the game in progress as won, lost or abandoned; once only.
+func _record(outcome: String) -> void:
+	if game == null or _recorded:
+		return
+	_recorded = true
+	var now := int(Time.get_unix_time_from_system())
+	_last_record = HistoryStore.append(PlayHistory.record_for(game, outcome, clock.elapsed_ms, _started_at, now))
+	HistoryStore.clear_marker()
+	_placing = PlayHistory.placing(HistoryStore.records, _last_record)
+
+
 # ---------------------------------------------------------------- keyboard and skipping
 
 func _input(event: InputEvent) -> void:
@@ -589,7 +683,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if key == KEY_ESCAPE:
 		if top != null:
 			top.close()
-		elif screen != null and screen.get_script() == RulesScreen:
+		elif screen != null and (screen.get_script() == RulesScreen or screen.get_script() == RecordsScreen):
 			screen.back()
 		elif play != null and screen == play and draft.mode != "none":
 			dispatch({"type": "action", "id": "cancel"})
@@ -636,13 +730,20 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_PAUSED or what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+		_focused = false
+		_save_marker()
 		if animator != null:
 			animator.skip()
+	elif what == NOTIFICATION_APPLICATION_RESUMED or what == NOTIFICATION_APPLICATION_FOCUS_IN:
+		_focused = true
+	elif what == NOTIFICATION_WM_CLOSE_REQUEST:
+		_record("abandoned")
 	elif what == NOTIFICATION_WM_GO_BACK_REQUEST:
 		var top := _top_overlay()
 		if top != null:
 			top.close()
-		elif screen != null and screen.get_script() == RulesScreen:
+		elif screen != null and (screen.get_script() == RulesScreen or screen.get_script() == RecordsScreen):
 			screen.back()
 		else:
+			_record("abandoned")
 			get_tree().quit()

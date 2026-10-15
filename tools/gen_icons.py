@@ -130,6 +130,11 @@ ICONS = {
     # outer points, and a separate band beneath.
     "crown": poly("10,38 6.5,15 3,6 8,12.5 14,17 20.5,9 19.5,7 24,1.5 28.5,7 27.5,9 34,17 40,12.5 45,6 41.5,15 38,38")
              + '<rect x="8" y="41" width="32" height="4"/>',
+    # Records: a cup with two handles on a short stem, a foot and a plinth.
+    "trophy": path("M12 3 H36 V13 C36 21.5 31 26.5 24 27.5 C17 26.5 12 21.5 12 13 Z")
+              + path("M12 6 H6 Q3.5 6 3.5 9 C3.5 15.5 7.5 19.5 12 20 V16 C9.5 15.5 7.5 13 7.5 10 H12 Z")
+              + path("M36 6 H42 Q44.5 6 44.5 9 C44.5 15.5 40.5 19.5 36 20 V16 C38.5 15.5 40.5 13 40.5 10 H36 Z")
+              + path("M21.5 27.5 H26.5 V35 H21.5 Z M15 35 H33 V39 H15 Z M11 41 H37 V45 H11 Z"),
     # Encounters
     # A skull with cheekbones and a row of teeth, as printed.
     "enemy": path("M24 3 C35 3 43 10 43 20 C43 25.5 41 28.5 38 30.5 L37 37 L35 44 L30.5 44 L30.5 38.5 L28.5 38.5"

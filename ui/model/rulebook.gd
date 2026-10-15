@@ -290,6 +290,7 @@ const SECTIONS := [
 			{"p": "You can play simply to win, or keep score as well."},
 			{"p": "A loss scores 0. A win scores the total of the Levels of every card that was not Trashed, counted after you Soak the dragon's last attack."},
 			{"p": "So a high score means keeping your cards strong to the very end: Upgrade whenever you can, and choose carefully what you Downgrade."},
+			{"p": "Every game you play is kept in Records, on the first screen: your best wins on each difficulty, which you can narrow to one dragon, and every attempt with how far it got."},
 		]},
 	]},
 	{"id": "ethers", "title": "The Four Ethers", "pages": [
