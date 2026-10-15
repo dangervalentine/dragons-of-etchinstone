@@ -31,8 +31,14 @@ token per role per set and the Boost-to toggle at the end.
 - Taps keep today's meaning: on an empty token, select that slot; on a filled one,
   take the card back.
 - After a battle the rail shows the recap in the same tokens: role icon, a struck
-  "discarded" mark, and the Reserve token in gold if kept. The card name appears
-  only in the tooltip and inspect view.
+  "discarded" mark, and the Reserve token in gold if kept.
+  - The played cards are still in the Hand during the recap (Penalty and Upgrade
+    phases), but today they lose their role ribbons there. So the recap would be
+    the only role-to-card link, which a tooltip can't carry on a phone.
+  - Fix: while `vs.played` is set, Hand cards that were played wear a **"played as"
+    ribbon** (role icon, muted), the same ribbon `card_view.gd` draws while building.
+  - A tap on a recap token opens that card's inspect view (`inspect {id}`).
+  - The name stays out of the token, and the link stays visible (FR-002, FR-020).
 
 **Measured today** (solver run over the matrix, 2026-10-15):
 
@@ -92,6 +98,12 @@ taking width from the left column, which is already at its 400 minimum.
   `preview_h = clamp(needed, PREVIEW_MIN, body_h × 0.5)`, and the Encounter gets the
   rest: a larger creature, and more of the stone-and-rift look where the light
   comes from.
+- **Stable within an Encounter.** The needed height is that of the panel's *fullest*
+  composition for the current Encounter kind and phase, not the current state. For
+  example, an Enemy preview is sized for both comparisons plus the verdict even while
+  "Still needed" shows. The Encounter frame then doesn't resize as cards are placed;
+  it changes only between phases (challenge → Soak → Upgrade) and Encounters, which
+  are already visible transitions.
 - The solver stays pure. `needed_height` is an input, like `hand_count`.
 
 **Rationale**:
@@ -215,7 +227,7 @@ no snap (edge case).
   24 alive, tinted to the Ether, and drifts up and out. `CPUParticles2D` rather than
   `GPUParticles2D` because the Compatibility renderer and web are the weak targets.
 - **Active zone**: the zone named by `vs.input_region` (extended in D9 to name
-  slots/rail, preview, hand or commit) has its `StoneStyle.glow` tweened to 1 and
+  preview, hand or commit) has its `StoneStyle.glow` tweened to 1 and
   the others to 0 over `T.BASE`. It breathes slowly (±15%) while waiting.
 - **Budget**: ≤ 1 ms GPU for the backdrop, seams and motes at 1280 × 720, measured
   by the extended `tools/field_bench.gd` against 005's PASS thresholds. If it fails,
@@ -251,9 +263,12 @@ the animator emits maps to a response with both forms (FR-015, FR-016).
 ## D9. Which zone is "active"
 
 **Decision**: `view_state._input_region` already returns `hand` or `commit`. Extend
-it to return `rail` while the player must choose *which role* (a slot selected by
-tap, or Boost-to pending), and `preview` in Soak and Upgrade when the decision is
-read off the meter or purse. It stays a pure function of game, draft and view state,
+it to return `preview` in Soak and Upgrade, where the decision is read off the meter
+or purse. Do **not** add a `rail` zone. The player's input is always a Hand card or
+the commit control, and the rail is only where an optional choice lives: picking a
+role out of order, or the Boost-to toggle, which defaults to Attack
+(`turn_draft.gd`), so it is never "pending". The rail's next token already carries
+the focus rim. It stays a pure function of game, draft and view state,
 and is tested in `test_view_state.gd`.
 
 ## D10. Woodcut ornament and lettering
@@ -300,9 +315,15 @@ content, not instead of it.
 - **SC-001**: the role display's area as a share of the content rect. It is compared
   with a baseline recorded from the current build before stage 1 and written to
   `specs/006-etched-stone-polish/baseline.md`.
-- **SC-002**: for each zone, the empty fraction: zone area minus the union of its
-  visible children's rects, over zone area. It fails if any zone is over 1/3 empty.
+- **SC-002**: for each zone, the empty fraction: panel area minus the union of its
+  visible children's rects, over panel area. It fails if any zone is over 1/3 empty.
+  - **A zone is the panel drawn on screen**, not the solver's region. The Hand zone
+    is `_hand_panel`'s rect (the cards' bounds plus margins), not `regions.hand`.
+    The Hand region is deliberately taller than its cards (D2), and the stone
+    between panels is background.
+  - **It is judged at the minimum sizes** (`phone-16x9`, `phone-small`), where SC-002
+    applies. Larger windows add stone around the panels by design.
 
 It runs headless and is not part of `tools/test.sh`, because the baseline comparison
 is a one-time judgement. The SC-002 check *is* added to `ui_check.gd` as a
-non-regression.
+non-regression, at the two minimum sizes only.

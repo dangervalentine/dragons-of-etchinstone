@@ -10,7 +10,7 @@ A place on a screen with one job, drawn as a well cut into the stone.
 
 | Field | Type | Notes |
 |---|---|---|
-| `key` | String | Play screen: `header`, `encounter`, `preview`, `rail`, `hand`, `actions`, `commit`. Other screens: `slab` (an overlay or screen body), `lintel` (title or banner band), `tile` (a choice) |
+| `key` | String | Play screen: `header`, `encounter`, `preview`, `rail`, `hand` (measured as the panel around the cards), `actions`, `commit`. Other screens: `slab` (an overlay or screen body), `lintel` (title or banner band), `tile` (a choice) |
 | `rect` | Rect2 | From `layout_solver.gd` (play screen) or the screen's own layout |
 | `style` | String | `well` (zone), `plinth` (button), `slab` (overlay), `inset` (chip), `lintel` (band). Selects the `StoneStyle` depth and bevel |
 | `depth` | float 0–1 | How deeply it reads as cut. `hand` and `encounter` are deepest, `header` shallowest. Active adds depth |
@@ -19,7 +19,7 @@ A place on a screen with one job, drawn as a well cut into the stone.
 
 **Rules**
 - On the play screen, exactly one zone has `glow = 1` at rest: the one named by
-  `vs.input_region` (D9).
+  `vs.input_region` (D9), which is one of `hand`, `preview` or `commit`; never `rail`.
 - A zone's text must keep contrast against its brightest fill plus maximum glow
   (D5; `test_stone_contrast.gd`).
 - Zone rects are passed to the backdrop (≤ 8) so the rift seams fade beneath them.
@@ -38,7 +38,7 @@ in `test_role_rail.gd`.
 | `card_id` | String or null | Placed or played card |
 | `contribution` | Array | What to draw: Spell `[basic, enhanced, element]`, Element `[element, initiative]`, Boost `[boost]`. Values come from the card's current Level, as in `slot_row._contribution` today |
 | `ether` | String or null | Tint for a filled token |
-| `tap` | Dictionary or null | The intent a tap sends: `select_slot {set, role}` when empty, `take_back {id}` when filled, null in the recap |
+| `tap` | Dictionary or null | The intent a tap sends: `select_slot {set, role}` when empty, `take_back {id}` when filled, `inspect {id}` in the recap when the token has a card, else null |
 | `tooltip` | String | Role and set, plus the card's name when filled |
 
 **Boost-to toggle**: `{set, target: "attack" | "initiative", tap: toggle_boost_to}`.
@@ -47,7 +47,9 @@ It is present when `sets[set].show_boost_to` is set.
 **State transitions** (per token, while building):
 `empty → next` (selected or next in order) → `filled` (card placed) → `empty` (take
 back). After commit, the rail switches to the recap: `played` or `discarded` per
-role, and `kept` or `discarded` for the Reserve.
+role, and `kept` or `discarded` for the Reserve. While the recap shows, each played
+card in the Hand carries `played_role` (`[set, role]`), drawn as a muted "played as"
+ribbon, so the role-to-card link stays visible without a name in the token.
 
 **Rules**
 - Never shows a card's name as visible text (FR-002); the name appears only in the

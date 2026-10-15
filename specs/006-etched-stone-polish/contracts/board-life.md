@@ -26,7 +26,6 @@ Ambient motion and the board's response to each action. Data shapes:
 | `vs.input_region` | Lit zone |
 |---|---|
 | `hand` | Hand well |
-| `rail` | Role rail (a role choice or Boost-to pending) |
 | `preview` | Preview, Soak meter or XP purse (the decision is read there) |
 | `commit` | The primary action's plinth (with today's `actions.set_ready`) |
 

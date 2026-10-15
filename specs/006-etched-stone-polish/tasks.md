@@ -67,7 +67,9 @@ against them. Do this on the unmodified code (commit `cdae3d2`).
 - [ ] T002 Create `tools/space_audit.gd`, an `extends SceneTree` tool modelled on `tools/shot.gd`.
   - **Drive**: load `res://scenes/main.tscn` at the `phone-16x9` matrix size (1280 × 720) and drive the same seeded states as `shot.gd`: challenge empty, one placed, all assigned, soak, upgrade, final journey, final enemy.
   - **Role display share**: the global rect of the role display (today the play screen's `slots` region node; after US1 the `rail`) as a share of `plan.content` area.
-  - **Per-zone empty fraction** for every play-screen region: `1 − area(union of visible descendant Controls' global rects ∩ region rect) / area(region rect)`. Approximate the union with a 16-unit occupancy grid.
+  - **Per-zone empty fraction** for every play-screen zone: `1 − area(union of visible descendant Controls' global rects ∩ zone rect) / area(zone rect)`. Approximate the union with a 16-unit occupancy grid.
+    - **A zone is the panel drawn on screen**, not the solver region. For the Hand, use `_hand_panel`'s rect (the cards' bounds plus margins), not `regions.hand`. Stone between panels is background and is not counted (spec SC-002, research D12).
+    - Judge `MAX_EMPTY` at `phone-16x9` and `phone-small` only.
   - **Output**: one line per state and zone, plus `MAX_EMPTY` per state.
   - **Flags**: with `-- --baseline <file>` it writes JSON; with `-- --compare <file>` it prints the rail-against-band ratio and FAILs if any zone's empty fraction exceeds 1/3 or the one-set ratio exceeds 0.5.
 - [ ] T003 Run `godot --headless --path . -s tools/space_audit.gd -- --baseline specs/006-etched-stone-polish/baseline.json` on unchanged code.
@@ -116,8 +118,8 @@ steps 1–8 pass; nothing else looks different.
   - (c) Element contribution is `[element, initiative]`; Boost is `[boost]`.
   - (d) "Never shows a card's name as visible text": the token dict has no `name` key, and only `tooltip` contains the card name (`"Spell 1: <name>"`; `"Spell 1"` when empty).
   - (e) Final Battle (`final_enemy`, two sets): 6 tokens with `set` 0 and 1.
-  - (f) after a battle (`vs.played` set, `vs.sets` empty): `played` tokens for each role, plus a `reserve` token whose state is `kept` when `played.reserve_kept`, else `discarded`; every recap `tap == null`.
-  - (g) intent parity: for each of these states, the set of non-null `tap` intents equals the set of intents the current `ui/widgets/slot_row.gd` buttons would emit (enumerate them by hand from `slot_row._slot`).
+  - (f) after a battle (`vs.played` set, `vs.sets` empty): `played` tokens for each role, plus a `reserve` token whose state is `kept` when `played.reserve_kept`, else `discarded`; a recap token with a card has `tap == {"type": "inspect", "id": <id>}`, and one without a card (Reserve "None") has `tap == null`. The Hand card ids in `played.roles` each carry `vs.cards[id].played_role == [set, role]`.
+  - (g) intent parity: for each building state, the set of non-null `tap` intents equals the set of intents the current `ui/widgets/slot_row.gd` buttons would emit (enumerate them by hand from `slot_row._slot`). The recap's `inspect` taps are new; they are not covered by parity.
 - [ ] T007 [P] [US1] Update `tests/test_layout_solver.gd`:
   - In `ORDER` and every assertion, rename the `slots` region to `rail`.
   - Replace `test …spare height goes to the slots` (line 118) with `test_rail_is_one_tap_target_tall()`: for every matrix size, with `sets` 1 and 2, `regions.rail.size.y == T.TAP_MIN`; with 0 sets it is `0.0`.
@@ -137,10 +139,13 @@ steps 1–8 pass; nothing else looks different.
 - [ ] T009 [US1] In `ui/model/view_state.gd`, add `static func rail_tokens(vs: Dictionary) -> Array` per data-model.md § RoleToken (fields `set`, `role`, `state`, `card_id`, `contribution`, `ether`, `tap`, `tooltip`, plus a toggle entry `{"role": "boost_to", "set", "target": "attack"|"initiative", "tap": {"type": "toggle_boost_to", "set": n}}` when `sets[n].show_boost_to`).
   - Call it from `build()` as `vs["rail"] = rail_tokens(vs)`.
   - Reuse the role and contribution logic from `ui/widgets/slot_row.gd` (`_contribution`, `_render_played`), moved here as data.
+  - Recap tokens with a card get `tap = {"type": "inspect", "id": id}` (data-model.md § RoleToken).
+  - While `vs.played` is set, give each Hand card that was played `played_role = [set, role]`. Do this in `build()`'s per-card loop, where `vs.cards[id]` is built, reading `played.roles`.
 
   Make T006 pass.
 - [ ] T010 [P] [US1] Add `func needed_height() -> float` to `ui/widgets/preview_panel.gd`, `ui/widgets/soak_meter.gd` and `ui/widgets/xp_purse.gd`.
-  - Return the content's minimum height for the state last rendered: `get_combined_minimum_size().y` of the content container, plus the panel's content margins.
+  - Return the height of the panel's **fullest composition for the current Encounter kind and phase**, not the state last rendered (research D2: stable within an Encounter). For example, an Enemy challenge preview is sized for both comparisons plus the verdict even while "Still needed" shows, and the Final Battle for all tiers plus the verdict.
+  - Compute it by measuring the fullest layout once per `[encounter kind, phase]` and caching it: `get_combined_minimum_size().y` of the content container plus the panel's content margins.
   - Tighten `preview_panel.gd`'s composition so its rows stack from the top with `T.S` gaps and the verdict sits directly under them, not pinned to the bottom of an oversized panel.
 - [ ] T011 [US1] Create `ui/widgets/role_rail.gd` (`extends HBoxContainer`, centred, separation `T.S`), replacing `ui/widgets/slot_row.gd`. It has `signal intent(data)` and `func render(vs)`, which draws one `Button` per entry of `vs.rail`.
   - **Size**: `custom_minimum_size = Vector2(T.RAIL_TOKEN_W if one set else T.TAP_MIN, T.TAP_MIN)`.
@@ -154,15 +159,16 @@ steps 1–8 pass; nothing else looks different.
   - **Boost-to toggle**: drawn as today (`UI.button` with the target icon, and the word in one-set mode), emitting `toggle_boost_to`.
   - **Rects**: add `func token_rect(set: int, role: String) -> Rect2` returning the token's global rect.
   - **Style**: no card name anywhere. Doc comments in the file's style.
+  - **"Played as" ribbon**: in `ui/widgets/card_view.gd`, when `model.played_role` is set (recap only), draw the existing role ribbon (`ROLE_NAMES` / `ROLE_ICONS`, set number with two sets) in `T.INK_MUTED` instead of the building colours, so the recap links role to card without names (contracts/role-rail.md).
 - [ ] T012 [US1] In `ui/screens/play_screen.gd`:
   - Rename the `slots` region to `rail`, and replace `slots`, `SlotRow` and `_render_slots()` with a single `RoleRail` instance filled into `_regions.rail` (`rail.render(vs)`; connect `intent`).
-  - In `_replan()`, pass `preview_needed` from whichever of `preview`, `soak_meter` or `xp_purse` is visible (`needed_height()`), and replan when it changes: extend the `for` key to `[count, sets, roundi(preview_needed)]`.
+  - In `_replan()`, pass `preview_needed` from whichever of `preview`, `soak_meter` or `xp_purse` is visible (`needed_height()`), and replan when it changes: extend the `for` key to `[count, sets, roundi(preview_needed)]`. Because T010 measures the fullest composition, this changes only between phases or Encounters, never between card placements.
   - Update `apply_layout()`'s region loop.
 - [ ] T013 [US1] In `ui/main.gd` (around line 158, the `Solver.slot_rows(vs)` call), pass the visible preview widget's `needed_height()` through to `Solver.solve()` the same way. Update any other `"slots"` region references found by `grep -rn '"slots"\|regions.slots' ui tools tests`.
 - [ ] T014 [US1] Delete `ui/widgets/slot_row.gd` and `ui/widgets/slot_row.gd.uid` once nothing references them (`grep -rn slot_row ui tools tests`).
-- [ ] T015 [US1] Add a non-regression check to `tools/ui_check.gd` using the same empty-fraction maths as `tools/space_audit.gd` (T002). For every play state it already drives, FAIL when any play-screen region's empty fraction is over 1/3 at that matrix size. Move the shared maths into a small `static func empty_fraction(region: Rect2, root: Control) -> float` in `ui/model/layout_solver.gd` and call it from both tools.
+- [ ] T015 [US1] Add a non-regression check to `tools/ui_check.gd` using the same empty-fraction maths as `tools/space_audit.gd` (T002). For every play state it already drives at `phone-16x9` and `phone-small` only (the minimum sizes SC-002 names), FAIL when any play-screen zone's empty fraction is over 1/3. Measure zones as drawn panels: for the Hand, `_hand_panel`'s rect, not `regions.hand` (see T002). Move the shared maths into a small `static func empty_fraction(zone: Rect2, root: Control) -> float` in `ui/model/layout_solver.gd` and call it from both tools.
 - [ ] T016 [US1] Run `./tools/test.sh` (all green) and `godot --headless --path . -s tools/space_audit.gd -- --compare specs/006-etched-stone-polish/baseline.json` (PASS). Then take `godot --path . -s tools/shot.gd -- build/006-us1 phone-16x9 desktop` and compare by eye with `build/006-before`: only the rail and the left split differ (FR-022).
-- [ ] T017 [US1] Walk quickstart §2 by-hand steps 1–8 on the desktop build and on the Android emulator (`install-on-emulators` skill). Fix any defect found. Commit "Role rail and a content-driven left column".
+- [ ] T017 [US1] Walk quickstart §2 by-hand steps 1–8 (including 6b) on the desktop build and on the Android emulator (`install-on-emulators` skill). Fix any defect found. Commit "Role rail and a content-driven left column".
 
 **Checkpoint**: US1 is complete and shippable on its own.
 
@@ -268,7 +274,7 @@ first look), and `test_stone_contrast` is green.
   - Run `./tools/test.sh` (green, including `test_stone_contrast` and `ui_check` at every matrix size).
   - Run `godot --path . -s tools/shot.gd -- build/006-us2 phone-16x9 desktop`.
   - Run `godot --path . -s tools/design_shots.gd -- build/006-us2/design` (its `_ethers()` pass gives one Encounter per Ether).
-  - Tune the shader behaviours until quickstart §3 step 1 (name the Ether with cards covered) works for the developer on all four. Commit "Stone and rift light on the play screen".
+  - Tune the shader behaviours until, with the cards **and the Encounter frame** covered, the developer can name the Ether on all four. The real SC-004 check uses another viewer, in T039. Commit "Stone and rift light on the play screen".
 
 **Checkpoint**: The play screen is in stone; the other screens are unchanged.
 
@@ -288,8 +294,8 @@ first look), and `test_stone_contrast` is green.
   - (b) For every step kind the animator handles (`play_cards`, `tally`, `verdict`, `gain_xp`, `damage`, `pay_time`, `poison_pending`, `knock_out`, `downgrade`, `upgrade`, `trash`, `discard`, `gather_shuffle`, `stage_banner`, `draw`, `ending`), `BoardResponse.for_step(kind, values, encounter_kind)` returns either an event in `TABLE` or `""`. It is `""` only for kinds listed in `BoardResponse.QUIET_STEPS`, and `play_cards` against an Enemy returns `hit_enemy`.
   - (c) `verdict` with outcome `complete`/`narrow` gives `encounter_won`, and `loss` gives `encounter_lost`.
 - [ ] T032 [P] [US3] Extend `tests/test_view_state.gd` for the active zone (research D9):
-  - `input_region` is `"rail"` when a Boost card is placed against an Enemy and `boost_to` has not been chosen. If no such pending state exists in `turn_draft.gd`, assert `"rail"` only when `draft.mode == "none"` and the player has tapped an empty token, so `active_slot` differs from the default next slot.
-  - It is `"preview"` in the Soak phase.
+  - It is `"preview"` in the Soak and Upgrade phases.
+  - It is never `"rail"`: walk a seeded game through building, Soak, Upgrade and the Final Battle and assert `input_region in ["hand", "preview", "commit"]` at every step (research D9).
   - It is unchanged otherwise. The existing `hand`/`commit` cases still pass.
 
 ### Implementation for User Story 3
@@ -324,7 +330,7 @@ first look), and `test_stone_contrast` is green.
     - `divert`, `regroup`.
   - **Rail feedback**: for `place` and `take_back`, also flare or fall the matching rail token via `role_rail.token_rect()` and a short `UI.flash`, or set its style colour under reduced motion.
 - [ ] T038 [US3] Extend `tools/field_bench.gd`: add the stone backdrop (with `stone_amount = 1`, a seam colour, `motion = 1`) behind the 11 faces, and a live `rift_layer` emitting motes. Run it and require PASS (average ≤ 16.7 ms, p99 ≤ 33 ms). If it fails, apply research D7's fallbacks in order (motes to 12, then Ether behaviours to the plain shimmer) and re-run. Record the numbers under "Results" in `quickstart.md`.
-- [ ] T039 [US3] Run `./tools/test.sh` (green). Walk quickstart §3 steps 3–5 on desktop. Then run step 6 (stutter) on the web build and the Android emulator via the `install-on-emulators` skill. Fix defects. Commit "Board life: motes, seam shimmer, active zone and responses".
+- [ ] T039 [US3] Run `./tools/test.sh` (green). With someone other than the developer, run quickstart §3 step 1 (SC-004: cards and Encounter frame covered, 3 of 4 named) and step 2 (SC-005: 5-second first look). Record both under "Results" in `quickstart.md`. Walk quickstart §3 steps 3–5 on desktop. Then run step 6 (stutter) on the web build and the Android emulator via the `install-on-emulators` skill. Fix defects. Commit "Board life: motes, seam shimmer, active zone and responses".
 
 **Checkpoint**: Stage 2 is complete on the play screen.
 

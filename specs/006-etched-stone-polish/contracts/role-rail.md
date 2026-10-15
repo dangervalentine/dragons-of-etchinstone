@@ -23,9 +23,14 @@ Replaces `ui/widgets/slot_row.gd` and the slots region. Data shape:
 | `empty` | Role icon, muted; set pip with two sets | `select_slot` |
 | `next` | Role icon and rim in `T.FOCUS`; set pip | `select_slot` (already selected; no-op) |
 | `filled` | Role icon plus contribution numerals, tinted by the card's Ether. **No card name.** | `take_back` |
-| `played` | Role icon plus a struck mark | none |
-| `kept` (Reserve) | Reserve icon in `T.GOLD` | none |
-| `discarded` | Role or Reserve icon, muted, struck | none |
+| `played` | Role icon plus a struck mark | `inspect {id}` |
+| `kept` (Reserve) | Reserve icon in `T.GOLD` | `inspect {id}` |
+| `discarded` | Role or Reserve icon, muted, struck | `inspect {id}` if there is a card, else none |
+
+During the recap, each played card in the Hand wears a muted **"played as" ribbon**
+(its role icon, plus the set number with two sets), drawn by `card_view.gd` like the
+building ribbon. With that ribbon, the name-less recap still links role to card on
+touch screens (FR-020).
 
 Contribution, by role (from the card's current Level):
 - Spell: `basic` / `enhanced`, the enhanced value in its Ether's ink, plus the Ether

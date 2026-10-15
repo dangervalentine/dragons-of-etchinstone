@@ -296,11 +296,13 @@ screen.
 - **SC-001**: During Action Set building at the minimum window size, the screen area
   used to show role assignments falls by at least half compared with today's slot
   band.
-- **SC-002**: In every state of the standard screenshot set, no zone is more than
-  about a third empty, judged on the minimum window size.
+- **SC-002**: In every state of the standard screenshot set, no zone is more than a
+  third empty, judged on the minimum window sizes. A zone is the panel drawn on
+  screen (for the Hand, the panel around its cards). The stone between panels is
+  background, not empty zone.
 - **SC-003**: In a side-by-side before/after of each screen and overlay in the
   standard screenshot set, the owner prefers the after on every one.
-- **SC-004**: Shown a still of the board with the cards covered, a viewer
+- **SC-004**: Shown a still of the board with the cards and the Encounter frame covered, a viewer
   names the Encounter's Ether correctly in at least 3 of 4 Ethers.
 - **SC-005**: A first-time viewer shown the play screen for 5 seconds names the
   Encounter, the predicted result and the Play control (as in feature 005).

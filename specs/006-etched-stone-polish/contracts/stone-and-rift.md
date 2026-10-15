@@ -54,7 +54,8 @@ luminances for stone floors, not flat fills.
 | Shadow | shadow lit | Dim, with faint pinpricks along the seams |
 | None | `SEAM_NEUTRAL` | Plain slow shimmer |
 
-**Acceptance**: with the cards covered, a viewer names the Ether in at least 3 of 4
+**Acceptance**: with the cards and the Encounter frame covered, so the
+Ether-tinted creature does not give it away, a viewer names the Ether in at least 3 of 4
 (SC-004).
 
 ## Ornament and lettering (D10)

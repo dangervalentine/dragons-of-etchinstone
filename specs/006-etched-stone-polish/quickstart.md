@@ -46,7 +46,10 @@ godot --headless --path . -s tools/space_audit.gd
 5. Place a Boost card against an Enemy. The toggle shows Attack or Initiative, and
    tapping it switches.
 6. Play the set. The rail shows the recap: played roles struck, and the Reserve gold
-   if it is kept.
+   if it is kept. Each played card in the Hand wears its "played as" ribbon, and
+   tapping a recap token opens that card's inspect view.
+6b. Place cards one by one. The Encounter frame does not resize between placements
+   (preview sized per Encounter, research D2).
 7. Reach the Final Battle. Six tokens with set pips plus the toggles sit in one row,
    and the two-row Hand cards are no smaller than before (the rail frees only 8
    units here, so any growth is slight).
@@ -61,8 +64,9 @@ godot --path . -s tools/shot.gd -- build/006-after phone-16x9 desktop
 
 **By hand**
 1. **Ether mood (SC-004).** Take screenshots of one Encounter per Ether and cover
-   the cards and the Encounter's Ether icon. Ask someone to name the Ether: at
-   least 3 of 4 correct.
+   the cards and the whole Encounter frame (the creature is tinted in its Ether).
+   Ask someone other than the developer to name the Ether: at least 3 of 4
+   correct.
 2. **First look (SC-005).** Show the play screen for 5 seconds to someone new. They
    name the Encounter, the predicted result and the Play control.
 3. **Idle (SC-006).** Watch the idle play screen for 10 s. Name at least two ambient
