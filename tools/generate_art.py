@@ -24,14 +24,14 @@ so it runs weak by default; --style-strength and --style-type tune it.
 
 Run:
   python3 tools/generate_art.py list
-  python3 tools/generate_art.py prompt tortoise
-  python3 tools/generate_art.py generate tortoise vulture [--seed 7] [--count 4]
-  python3 tools/generate_art.py restyle tortoise vulture [--denoise 0.85 0.9 0.95] [--count 4]
-  python3 tools/generate_art.py start vulture
-  python3 tools/generate_art.py generate harpy --style build/art/prime/rodving.png --q8
+  python3 tools/generate_art.py prompt panda-fighter
+  python3 tools/generate_art.py generate panda-fighter crane-monk [--seed 7] [--count 4]
+  python3 tools/generate_art.py restyle panda-fighter crane-monk [--denoise 0.85 0.9 0.95] [--count 4]
+  python3 tools/generate_art.py start crane-monk
+  python3 tools/generate_art.py generate panda-fighter --style build/art/prime/rodving.png --q8
   python3 tools/generate_art.py generate all --server http://other-pc:8188 --q8
-  python3 tools/generate_art.py body tortoise --image build/art/tortoise-7.png \\
-      --mask build/art/tortoise-mask.png [--fill "the front of the shell, solid"]
+  python3 tools/generate_art.py body grimroch --image build/art/prime/grimroch.png \\
+      --mask build/art/grimroch-mask.png [--fill "the throat, solid"]
 """
 import argparse
 import json
@@ -107,7 +107,7 @@ def read_doc():
     moving = quoted_after(text, "For **images with a moving part**")
     body = quoted_after(text, "3. **Make the body layer by inpainting**")
     subjects = {}
-    for row in re.findall(r"^\| ([a-z-]+) \| (.+?) \| (.+?) \| (.+?) \|$", text, re.M):
+    for row in re.findall(r"^\|\s*([a-z][a-z-]*)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*$", text, re.M):
         name, title, subject, part = row
         if name == "File":
             continue
@@ -310,7 +310,7 @@ def main():
     global SERVER, models
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     p.add_argument("command", choices=["list", "prompt", "generate", "restyle", "start", "body"])
-    p.add_argument("names", nargs="*", help="file names from the doc's tables, e.g. tortoise, "
+    p.add_argument("names", nargs="*", help="file names from the doc's tables, e.g. panda-fighter, "
                    "or all")
     p.add_argument("--seed", type=int, help="the first seed; random if left out")
     p.add_argument("--count", type=int, default=1, help="how many seeds to try, one after another")

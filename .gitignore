@@ -20,3 +20,6 @@ reference/
 
 # Python bytecode
 __pycache__/
+
+# Local secrets (Hugging Face token etc.); never committed
+.env

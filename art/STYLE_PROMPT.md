@@ -172,67 +172,85 @@ right, clear of the wings and body. Drawn from the dragon cards' artwork.
 | rodving | Rodving, The Last Breath · fire | A lean, fierce fire dragon seen side-on facing right, standing upright on two hind legs, with huge bat wings spread wide and raised behind it and flames licking along their edges. A long S-curved neck lifts its horned, wedge-shaped head high at the upper right, its jaws closed with a curl of smoke from the nostrils, and a very long whip-like tail barbed with spines curls along the bottom of the frame. | Lower jaw · hinge 22° open, pivot at the back of the jaw · the throat, solid. |
 | vuurhast | Vuurhast, Death and Darkness · lightning | A long serpentine eastern lightning dragon seen side-on facing right, rearing upright on two short clawed hind legs, its long snake-like body ribbed with belly plates and coiled in loops beneath it, and no wings. Its back, neck and tail are smooth and covered only in fine scales, with no spines, fins or spikes anywhere along them, and lightning runs along its body as cut-out veins. Its long head rises on a curving neck at the upper right, with two horns shaped exactly like jagged zigzag lightning bolts standing up from its skull, long whiskers trailing from its snout, and closed jaws. | Lower jaw · hinge 22° open, pivot at the back of the jaw · the throat, solid. |
 
-### Region 1: Jade Mountains
+### Journey scenes, Region 1: Jade Mountains
 
 | File | Name · Ether | Subject | Moving part · motion · fill behind it |
 |---|---|---|---|
-| harpy | Crag Harpy · lightning | A crag harpy seen side-on: a hag-faced creature with a feathered torso, wild storm-blown hair, its near wing raised high and tattered, eagle talons for legs, and sparks of lightning crackling from its claws; the far wing is folded behind. | Near wing · hinge 35° downstroke, pivot at the shoulder · the shoulder and back, solid. |
-| salamander | Ember Salamander · fire | A long salamander seen side-on, its skin cracked into glowing ember plates, a crest of flickering flame along its spine, a tail curling into a flame tip, and its mouth closed. | Lower jaw · hinge 20° open, pivot at the back of the jaw · the throat, solid. |
-| ice-golem | Ice Golem · water | A hulking golem built from jagged ice shards and frozen boulders, with a cavernous chest around a cut-out frost-rune core, a beard of icicles and fists like blocks of glacier. | — |
-| troll | Mountain Troll · shadow | A hunched mountain troll seen side-on with moss and stone grown into its hide, a tusked underbite, deep-set eyes, and its near arm hanging with a club of rock. | Near arm and club · hinge 25° upward, pivot at the shoulder · the shoulder and flank, solid. |
 | peaks | High Peaks · lightning *(journey)* | Three jagged jade mountain peaks like broken fangs, a storm cloud snagged on the tallest, and a forked lightning bolt splitting the sky down to one peak. | Lightning bolt · flicker, pivot at the cloud · the sky is empty behind it, so nothing to fill: the body layer is the image without the bolt. |
 | waterfall | The Falls · water *(journey)* | A waterfall pouring from the open jaws of a giant dragon face carved into a cliff, with mist billowing at its foot. | — |
 | mountain-road | Mountain Road · fire *(journey)* | A switchback road climbing a steep mountain past burning beacon braziers, with a skull-carved waystone at the bend. | — |
 | cave-entrance | Dark Cave · shadow *(journey)* | A cave mouth shaped like a monster's open maw with stalactite fangs, and two eye cut-outs glinting in the darkness inside. | Eyes · blink, pivot between the eyes · the darkness inside the cave, solid. Here the part is the solid area around the eyes, with the eye holes cut in it, so a blink squashes the holes shut. |
 
-### Region 2: Living Marshes
+### Journey scenes, Region 2: Living Marshes
 
 | File | Name · Ether | Subject | Moving part · motion · fill behind it |
 |---|---|---|---|
-| lizardman | Marsh Lizardman · shadow | A marsh lizardman warrior with a frilled crest and armour of bone and reed, drawing a longbow with a shadow-fletched arrow. | — |
-| eel | Thunder Eel · lightning | A long thunder eel in an S-curve, with a ridged fin along its back, a gaping mouth of needle teeth and lightning running down its body as cut-out veins. | — |
-| toad-teeth | Bog Toad · fire | A bloated bog toad the size of a cart, seen side-on, its warty back studded with smouldering vents and its wide closed mouth lined with jagged teeth. | Lower jaw · hinge 25° open, pivot at the corner of the mouth · the throat and the inside of the mouth, solid. |
-| spectre | Marsh Spectre · water | A drowned spectre in a hooded shroud of tattered mist, frost-rimed skeletal hands reaching forward, a hollow face with two eye cut-outs, its body trailing away into nothing. | — |
 | swamp | Sunken Mire · fire *(journey)* | A sunken mire of dead, twisted trees and bubbling pools, with will-o'-wisp flames hovering above the water and a half-sunk skull. | — |
 | river | Black River · water *(journey)* | A black river winding between dead reeds, the ridged back of a serpent breaking the surface beside a ruined bridge pillar. | — |
 | willow-tree | Weeping Willows · lightning *(journey)* | A weeping willow with a gnarled, mournful face in its trunk, drooping branches hanging like long hair, and a lightning-scorched split down its centre. | — |
 | cliff-crossing | Cliff Path · shadow *(journey)* | A narrow ledge path across a sheer cliff above an abyss, with giant faces carved into the rock and stones crumbling away into the dark. | — |
 
-### Region 3: Burning Basin
+### Journey scenes, Region 3: Burning Basin
 
 | File | Name · Ether | Subject | Moving part · motion · fill behind it |
 |---|---|---|---|
-| rock-golem | Obsidian Golem · shadow | A golem of jagged, glassy obsidian slabs with fracture lines as cut-outs, a hollow skull face with a dark core, and shoulders crowned with shards. | — |
-| tortoise | Steam Tortoise · water | A colossal ancient tortoise seen side-on, whose shell is a small volcano: a smooth rocky cone with a crater at its peak, from which three thick plumes of steam billow upward, and two or three wide cracks cut across it. Its legs are heavy pillars of cooled lava, and a beaked, fanged, skull-like head with a narrow, slanted eye pushes out on a long neck. | Head and neck · slide 40 units back into the shell, pivot at the shell opening · the front of the shell, solid, with a dark opening where the neck emerges. |
-| scorpion | Sand Scorpion · fire | A giant sand scorpion seen side-on, with armour plates like burnt bronze, pincers raised, and its tail arched high overhead with a dripping venom stinger. | Tail · hinge 20° forward strike, pivot at the base of the tail · the rear of the body, solid. |
-| vulture | Storm Vulture · lightning | A storm vulture seen side-on whose near wing, raised high, is a torn storm cloud, a jagged bolt of lightning forms its tail, and a bare hooked skull with a narrow, slanted eye sits on a long, naked, serpent-like neck; it stands on long talons, and the far wing is folded behind. | Near wing · hinge 35° downstroke, pivot at the shoulder · the shoulder and back, solid. |
 | volcano | Ash Slopes · water *(journey)* | A steep volcano under a fall of ash, a boiling crater lake at its summit sending up columns of steam, and scree of skulls on its slopes. | — |
 | desert | Glass Desert · lightning *(journey)* | A desert of fused glass dunes with lightning-struck spires of fulgurite and the bleached ribcage of a giant beast half buried in the sand. | — |
 | lava | Lava Fields · fire *(journey)* | Fields of cracked lava crust with molten rivers as cut-out channels and a tall fiery geyser bursting from a vent at the centre. | Geyser · surge 30% taller, pivot at the vent · the vent's rim and the crust, solid; the sky behind is empty. |
 | underground-cave | Deep Caverns · shadow *(journey)* | A deep cavern of stalactites and stalagmites arranged like a ribcage, clusters of glowing crystals, and a narrow path vanishing into darkness. | — |
 
-### Region 4: Forest of Gath
+### Journey scenes, Region 4: Forest of Gath
 
 | File | Name · Ether | Subject | Moving part · motion · fill behind it |
 |---|---|---|---|
-| angular-spider | Shadow Spider · shadow | A giant spider hanging from a single thread, with too many eyes, armoured jointed legs like black blades, a skull pattern cut into its abdomen and dripping fangs. | — |
-| goblin-head | Goblin Archer · fire | The head and shoulders of a hooded goblin archer with long notched ears, a jagged grin and warpaint, drawing a flaming arrow back to its cheek. | — |
-| wolf-head | Thunder Wolf · lightning | The head of a dire wolf seen side-on, with a frost-rimed mane bristling into lightning bolts, cut-out eyes, and closed jaws baring their fangs. | Lower jaw · hinge 22° open, pivot at the back of the jaw · the throat and the mane beneath it, solid. |
-| evil-tree | Rotwood Treant · water | A rotting treant with a gaping hollow mouth, branches for clawed arms, roots like tentacles, and fungus and moss dripping from its limbs. | — |
 | rope-bridge | Rope Bridge · water *(journey)* | A sagging rope bridge over a misty gorge, with frayed ropes, missing planks and a torrent rushing below. | — |
 | forest-entrance | Forest Gate · shadow *(journey)* | The edge of a dark forest where two ancient trees arch together into a gate with clawed branches, and several pairs of eyes peer out of the darkness between them. | Eyes · blink, pivot at the centre of the eyes · the darkness between the trees, solid. As with the Dark Cave, the part is the solid area around the eyes, with the eye holes cut in it. |
 | burning-forest | Burning Wood · fire *(journey)* | A forest ablaze: charred trunks wrapped in rising tongues of flame and sparks drifting upward. | — |
 | stone-path | Old Stone Stair · lightning *(journey)* | An old stone stair climbing steeply between toppled statues, its steps carved with runes, up to a lightning-struck archway at the top. | — |
 
-### Card-inspired Encounters (trial)
+### Card-inspired Encounters
 
-Trials that take the idea of an enemy from the official cards, not its design.
+Each takes the idea of an enemy from the official cards, not its design. Every line
+keeps to the house rules: side-on facing right, big smooth shapes (hair, fur, beards and
+cloth as one solid mass with a clean edge), no texture words such as tattered, jagged,
+warty or bristling, and at most one or two large sharp features. The panda, crane and
+gnome lines are the ones their approved images were made from.
+
+#### Region 1: Jade Mountains
 
 | File | Name · Ether | Subject | Moving part · motion · fill behind it |
 |---|---|---|---|
-| panda-fighter | Kung Fu Red Panda · lightning | A fierce red panda kung fu master seen strictly side-on facing right, its head in profile with the snout pointing right, crouched low like a predator in a wide fighting stance with both feet planted on the bottom margin. Its long wolfish muzzle is pulled back in a snarl, baring long fangs, its ears are laid flat back against the skull, and a heavy brow juts over a narrow, slanted, hollow white eye with no pupil. It wears a loose wrap-front jacket tied at the waist with a sash and wide trousers, the cloth in a few smooth sweeping folds. One clawed paw is thrust forward at the right and the other is drawn back beside its chest. Its fur is sleek, every edge a smooth clean curve, and behind it a long, thick tail curves up as one smooth tapering shape with a clean outline, ringed by three wide white bands cut across it. | — |
-| crane-monk | Crane Monk · water | A tall crane warrior monk seen side-on facing right, striding forward on two long thin legs with its feet on the bottom margin, holding a long straight sword angled forward and down. Its body is wrapped in a long robe of smooth cloth tied with a sash, the hem one clean curved edge sweeping back behind it. One wing spreads back from its shoulder as a single smooth, solid shape whose edge is four or five broad, rounded feather tips. Its feathers lie flat and sleek. A long S-curved neck lifts its slender head at the upper right, with a long, straight spear-like beak and a narrow, slanted, hollow white eye with no pupil under a heavy brow. | — |
-| axe-gnome | Axe Gnome · shadow | A small hunched, menacing gnome seen side-on facing right, leaping forward with a short hand-axe gripped out in front of it. It wears a very tall pointed hat that curls back and ends in a small round bell. It has a huge hooked nose, a narrow, slanted, hollow white eye with no pupil under a heavy scowling brow, and its hair and long beard are one smooth solid wedge of black sweeping back behind its head, with a single clean, unbroken edge. Its short legs are bent mid-leap, its pointed boots just above the bottom margin. | — |
+| panda-fighter | Shaolin Panda · lightning | A fierce red panda kung fu master seen strictly side-on facing right, its head in profile with the snout pointing right, crouched low like a predator in a wide fighting stance with both feet planted on the bottom margin. Its long wolfish muzzle is pulled back in a snarl, baring long fangs, its ears are laid flat back against the skull, and a heavy brow juts over a narrow, slanted, hollow white eye with no pupil. It wears a loose wrap-front jacket tied at the waist with a sash and wide trousers, the cloth in a few smooth sweeping folds. One clawed paw is thrust forward at the right and the other is drawn back beside its chest. Its fur is sleek, every edge a smooth clean curve, and behind it a long, thick tail curves up as one solid, smooth, tapering shape with a clean outline. | — |
+| monkey-brawler | Frenzied Ape · fire | A wiry, long-armed ape brawler seen side-on facing right, leaping forward with both fists raised high over its head, its mouth open in a fanged shriek. A sleeveless robe hangs from one shoulder, tied with a long sash whose ends stream behind it as two smooth ribbons. Its fur is one sleek solid mass with a clean outline, and a long thin tail curls up behind it. | — |
+| crane-monk | Crane Monk · water | A tall crane warrior monk seen side-on facing right, striding forward on two long thin legs with its feet on the bottom margin, holding a long straight sword angled forward and down. Its body is wrapped in a long robe of smooth cloth tied with a sash, the hem one clean curved edge sweeping back behind it. Its back is one smooth, unbroken curve of plain cloth from shoulder to hem. A long S-curved neck lifts its slender head at the upper right, with a long, straight spear-like beak and a narrow, slanted, hollow white eye with no pupil under a heavy brow. | — |
+| lion-archer | Lionel Archer · shadow | A broad-shouldered lion warrior seen side-on facing right, drawing a tall longbow with an arrow nocked and aimed forward, its arm pulled back to its cheek. Its mane is one heavy solid mass swept back from the face with a smooth scalloped edge, and a short beard juts from its jaw. It wears a sleeveless tunic belted at the waist and a quiver of arrows on its back. | — |
+
+#### Region 2: Living Marshes
+
+| File | Name · Ether | Subject | Moving part · motion · fill behind it |
+|---|---|---|---|
+| axe-gnome | Rapid Gnome · shadow | A small hunched, menacing gnome seen side-on facing right, leaping forward with a short hand-axe gripped out in front of it. It wears a very tall pointed hat that curls back and ends in a small round bell. It has a huge hooked nose, a narrow, slanted, hollow white eye with no pupil under a heavy scowling brow, and its hair and long beard are one smooth solid wedge of black sweeping back behind its head, with a single clean, unbroken edge. Its short legs are bent mid-leap, its pointed boots just above the bottom margin. | — |
+| club-ogre | Bog Ogre · lightning | A hulking pot-bellied ogre seen side-on facing right, a huge club made from a tree branch with a stone lashed to its end resting over one shoulder. Long drooping moss hangs from its jaw as one smooth solid beard, its brow is heavy, and its arms are thick and long, ending in big fists. It wears a simple loincloth, and its back is broad and rounded. | — |
+| horned-goblin | Goblin Raider · fire | A lean goblin raider seen side-on facing right, charging forward in a crouch with a long curved blade raised behind it. It wears a round helmet with two great curving horns, and armour plates on its shoulders and forearms with smooth edges. Its long pointed ears sweep back and its grin is full of sharp teeth. | — |
+| marsh-treant | Swamp Treant · water | A tall, stooped tree creature seen side-on facing right, striding forward on two thick root-like legs, its long arms hanging low and ending in a few gnarled branch fingers. Its body is a twisted trunk of smooth bark with a few deep grooves running down it, its head a knot of wood with a hollow eye and a gaping mouth hole. A few bare branches rise from its shoulders as smooth, tapering forks. | — |
+
+#### Region 3: Burning Basin
+
+| File | Name · Ether | Subject | Moving part · motion · fill behind it |
+|---|---|---|---|
+| naga | Naga Goro · shadow | A serpent-bodied naga seen side-on facing right, its long snake body coiled on the ground and rising into a lean upper torso with four long arms, each ending in a clawed hand reaching forward. Its snake head has a hood swept back behind it and a forked tongue flicking out. A row of broad, rounded plates runs down the back of its body. | — |
+| twin-ogre | Twin Ogre · water | A massive two-headed ogre seen side-on facing right, both heads side by side on thick necks with heavy jaws and tusks. It holds a huge spiked club raised over its shoulder in one fist. Its body is a broad barrel shape with a heavy belly, wearing a wide leather belt and a loincloth, and it stands on two short, thick legs. | — |
+| twin-ghoul | Conjoined Ghoul · fire | A shambling two-headed ghoul seen side-on facing right, its two hunched heads joined at the shoulders, lurching forward with its long arms hanging low and its hands clawed. Its body is gaunt and stooped, wrapped at the waist in a long ragged cloth that falls as one smooth shape. A deep scar runs down its chest as a single white cut. | — |
+| boar-shaman | Wereboar · lightning | A stocky boar-headed warrior shaman seen side-on facing right, charging forward with a long spear held low in both hands, the spearhead a flame shape. Two curved tusks jut up from its snout and its ears sweep back. It wears heavy shoulder armour and a belted tunic, and a short cape hangs behind it in one smooth piece. | — |
+
+#### Region 4: Forest of Gath
+
+| File | Name · Ether | Subject | Moving part · motion · fill behind it |
+|---|---|---|---|
+| hedge-wizard | Hedge Wizard · shadow | A hunched old wizard seen side-on facing right, leaning forward on a tall crooked staff whose top curls into a hook. He wears a wide-brimmed pointed hat with a drooping tip and a long coat. His hair and beard flow back from under the brim as one smooth solid mass. One hand reaches forward with long fingers spread, as if casting. | — |
+| goblin-hexer | Goblin Hexer · fire | A goblin witch-doctor seen side-on facing right, hurling a spell forward from one outstretched hand, a bolt of energy leaving its fingers as a single curling white cut-out. It wears a long hooded robe that sweeps back behind it in one smooth shape, a necklace of large curved tusks on its chest, and it grips a short bone staff in the other hand. Long pointed ears jut out from under the hood. | — |
+| antler-horror | Antlered Horror · lightning | A gaunt, long-limbed horror seen side-on facing right, loping forward on all fours like a hunting beast. Its head is a bare stag's skull with a long open jaw full of teeth and a hollow eye socket. Two great branching antlers rise from the skull. A heavy shaggy mantle covers its shoulders as one smooth solid hump, and its thin limbs end in long claws. | — |
+| gath-brute | Brute of Gath · water | A colossal hunchbacked brute seen side-on facing right, so wide it fills the frame, its tiny head low at the front of an enormous rounded back and shoulders. Three or four large curved horns rise from its back in a row. Its thick arms hang to the ground, ending in heavy fists. Thick stitched scars cross its hide as a few white cut lines. | — |
 
 ### The Final Journey
 
@@ -268,7 +286,7 @@ With the repo cloned and `setup_comfyui.ps1 -Q8` run once:
 1. Start ComfyUI and leave it running in its own window:
    `cd $HOME\ComfyUI; .venv\Scripts\python.exe main.py`
 2. In a second window, from the repo:
-   `$HOME\ComfyUI\.venv\Scripts\python.exe tools\generate_art.py restyle tortoise vulture --denoise 0.85 0.9 0.95 --count 2 --q8`
+   `$HOME\ComfyUI\.venv\Scripts\python.exe tools\generate_art.py restyle panda-fighter crane-monk --denoise 0.85 0.9 0.95 --count 2 --q8`
 3. Review and pick in `build\art\`, then commit the chosen SVGs (below). The PNGs
    stay out of git, so copy any worth keeping to the other computer by hand.
 
@@ -278,7 +296,7 @@ missing.
 ## Converting an image
 
 ```sh
-python3 tools/vectorize_art.py build/art/troll-restyle70-3.png art/creatures/troll.svg
+python3 tools/vectorize_art.py build/art/panda-fighter-restyle50-7300.png art/creatures/panda-fighter.svg
 ```
 
 Add `--mask mask.png` to keep only the part of the image under the mask's white area.
