@@ -4,6 +4,8 @@ extends Control
 ## so the Encounter and the cards below it come first.
 
 const T = preload("res://ui/theme/tokens.gd")
+const HelpTip = preload("res://ui/widgets/help_tip.gd")
+const HelpButton = preload("res://ui/widgets/help_button.gd")
 const UI = preload("res://ui/theme/theme.gd")
 
 signal intent(data: Dictionary)
@@ -36,13 +38,11 @@ func _init() -> void:
 	_progress.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_row.add_child(_progress)
 	for pile in PILES:
-		var b := Button.new()
+		var b := HelpButton.new()
 		b.flat = true
 		b.custom_minimum_size = Vector2(80, 48)
 		b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		b.tooltip_text = PILE_NAMES[pile]
-		b.mouse_default_cursor_shape = Control.CURSOR_HELP
-		b.set_meta("help_target", true)
+		HelpTip.mark(b, pile)
 		for state in ["normal", "pressed", "focus", "disabled"]:
 			b.add_theme_stylebox_override(state, StyleBoxEmpty.new())
 		b.add_theme_stylebox_override("hover", UI.box(Color(1, 1, 1, 0.07), Color.TRANSPARENT, 0, T.RADIUS_S, 0))

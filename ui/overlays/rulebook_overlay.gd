@@ -6,6 +6,8 @@ extends "res://ui/overlays/overlay.gd"
 ## page is written to fit the screen whole.
 
 const Rulebook = preload("res://ui/model/rulebook.gd")
+const HelpTip = preload("res://ui/widgets/help_tip.gd")
+const HelpButton = preload("res://ui/widgets/help_button.gd")
 const Glossary = preload("res://ui/model/glossary.gd")
 const RulebookFigure = preload("res://ui/widgets/rulebook_figure.gd")
 
@@ -262,6 +264,7 @@ func _terms(ids: Array) -> Control:
 	for id in ids:
 		var e: Dictionary = Glossary.entry(id)
 		var chip := UI.button(e.name, "quiet", e.icon if e.icon != "" else "help")
+		chip.set_script(HelpButton)
 		chip.custom_minimum_size = Vector2(CHIP_H, CHIP_H)
 		chip.autowrap_mode = TextServer.AUTOWRAP_OFF
 		# A fixed-size icon counts toward the chip's width; an expanding one would be squeezed out.
@@ -269,7 +272,7 @@ func _terms(ids: Array) -> Control:
 		chip.add_theme_font_size_override("font_size", CHIP_TEXT)
 		chip.add_theme_constant_override("icon_max_width", CHIP_ICON)
 		chip.set_meta("term", id)
-		chip.set_meta("help_target", true)
+		HelpTip.mark(chip, id)
 		chip.pressed.connect(func(): intent.emit({"type": "help", "id": id, "source": chip}))
 		flow.add_child(chip)
 	col.add_child(flow)

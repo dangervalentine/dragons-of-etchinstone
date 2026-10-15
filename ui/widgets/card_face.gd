@@ -169,6 +169,26 @@ func region_rect(key: String) -> Rect2:
 	return _geo()[key]
 
 
+## Where the small Ether sigils sit: beside the name, on the enhanced plate's corner
+## and, when the Armor has an Ether, on the shield's corner.
+func sigil_rects() -> Array:
+	var g := _geo()
+	var out := []
+	var pip: float = g.band * 0.3
+	out.append(_square(Vector2(g.name.position.x + pip * 0.5, g.band / 2.0), pip))
+	var r: Rect2 = g.enhanced
+	out.append(_square(Vector2(r.end.x - r.size.y * 0.06, r.end.y - r.size.y * 0.06), r.size.y * 0.42))
+	if not model.is_empty() and model.stats.armor.element != null:
+		var a: Rect2 = g.armor
+		var shield := Rect2(a.position, Vector2(a.size.y, a.size.y))
+		out.append(_square(Vector2(shield.end.x - shield.size.x * 0.12, shield.end.y - shield.size.y * 0.1), shield.size.y * 0.42))
+	return out
+
+
+static func _square(centre: Vector2, d: float) -> Rect2:
+	return Rect2(centre - Vector2(d, d) / 2.0, Vector2(d, d))
+
+
 ## The size of the main stat numerals on this card.
 func numeral_size() -> float:
 	return minf(_geo().row * 0.88, T.NUMERAL[1] * 1.15)
@@ -224,6 +244,8 @@ func _draw_ink() -> void:
 	var e = model.element
 	var num := numeral_size()
 
+	_strip_glows.clear()
+	_rings.clear()
 	_draw_strip(g, lv)
 	_draw_tears(g)
 	_draw_sigil(g, e)
@@ -231,19 +253,19 @@ func _draw_ink() -> void:
 
 	# Initiative, on its pennant.
 	var r: Rect2 = g.initiative
-	_ring("initiative", r)
+	_ring("initiative", _pennant(r))
 	var ink := _ink_for("initiative", T.INK)
 	_raised(_pennant(r), _fill_for("initiative", T.BG_BAND), "initiative")
 	_number(Rect2(r.position.x, r.position.y - r.size.y * 0.07, r.size.x, r.size.y), str(lv.initiative), num * 0.8, ink)
 
 	# The basic action, the arrow down to the enhanced action, and the enhanced action.
 	r = g.basic
-	_ring("basic", r)
+	_ring("basic", _twin_octagon(r))
 	_raised(_twin_octagon(r), _fill_for("basic", T.BG_BAND), "basic")
 	_action(r, lv.basic, _ink_for("basic", T.INK), num)
 	r = g.enhanced
 	var enh = lv.enhanced.element
-	_ring("enhanced", r)
+	_ring("enhanced", _twin_octagon(r))
 	var enh_fill := T.ether_shade(enh, "plate")
 	var enh_ink := T.ether_shade(enh, "plate_ink")
 	if dimmed:
@@ -256,7 +278,7 @@ func _draw_ink() -> void:
 
 	# Boost.
 	r = g.boost
-	_ring("boost", r)
+	_ring("boost", _notched(r))
 	_raised(_notched(r), _fill_for("boost", T.BG_BAND), "boost")
 	_number(r, "+%d" % lv.boost, num, _ink_for("boost", T.INK))
 
@@ -264,7 +286,7 @@ func _draw_ink() -> void:
 	r = g.armor
 	var armored: bool = lv.armor.element != null
 	var shield := Rect2(r.position, Vector2(r.size.y, r.size.y))
-	_ring("armor", Rect2(r.position, Vector2(r.size.y * (1.15 if armored else 1.0), r.size.y)))
+	_ring("armor", _shield(shield))
 	var shield_fill := T.ether_shade(lv.armor.element, "plate") if armored and not dimmed else T.BG_BAND
 	_raised(_shield(shield), _fill_for("armor", shield_fill), "armor")
 	_number(Rect2(shield.position.x, shield.position.y - shield.size.y * 0.06, shield.size.x, shield.size.y),
@@ -276,6 +298,10 @@ func _draw_ink() -> void:
 			shield.size.y * 0.62, T.ether_shade(_focus.get("damage_element", ""), "lit"), _focus_t)
 
 	_draw_top_band(g, e)
+	# The strip's glows go over the torn edge and the band, which would hide their top.
+	for sg in _strip_glows:
+		_glow_rim(sg[0], sg[1])
+	_draw_rings()
 	# The frame again, over the field's square corners, and its faint Ether rim.
 	_ink.draw_style_box(_frame_box(false), Rect2(Vector2.ZERO, size))
 	var rim := StyleBoxFlat.new()
@@ -293,7 +319,7 @@ func _draw_top_band(g: Dictionary, e) -> void:
 	var band: float = g.band
 	_ink.draw_line(Vector2(g.b + 2, 1.5), Vector2(size.x - g.b - 2, 1.5), Color(1, 1, 1, 0.08), 1.0)
 	var c: Rect2 = g.level
-	_ring("level", c)
+	_ring("level", _rect_pts(c.grow(1), c.size.y * 0.2))
 	_glow_rim(_rect_pts(c.grow(1), c.size.y * 0.2), _lift("level"))
 	_icon("crown", c, _ink_for("level", T.INK) if not dimmed else T.INK_MUTED)
 	_number(Rect2(c.position + Vector2(0, c.size.y * 0.06), c.size), str(model.level), c.size.y * 0.5, T.BG_BASE)
@@ -310,6 +336,20 @@ func _draw_top_band(g: Dictionary, e) -> void:
 	var text_x: float = n.position.x + pip + g.pad * 0.1
 	_name(Rect2(text_x, n.position.y, n.end.x - text_x, n.size.y), model.name.to_upper(),
 		_ink_for("name", T.INK) if not dimmed else T.INK_MUTED)
+
+
+## Where the Hardship icon sits on the Key Card strip: after the Encounter icon
+## and its number.
+func hardship_rect() -> Rect2:
+	if model.is_empty() or model.stats.hardship == null:
+		return Rect2()
+	var g := _geo()
+	var strip: float = g.strip
+	var si := roundf(strip * 0.72)
+	var fs := int(strip * 0.8)
+	var x: float = g.b + strip * 0.45 + g.pad * 0.2 + si + 2
+	x += UI.font("display_bold").get_string_size(str(model.stats.encounter.index), HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + g.pad * 0.5
+	return Rect2(x, g.band + (strip - si) / 2.0, si, si)
 
 
 ## The bronze Key Card strip: the Encounter this card asks for, its Hardship, and
@@ -331,15 +371,15 @@ func _draw_strip(g: Dictionary, lv: Dictionary) -> void:
 	var key: Dictionary = lv.encounter
 	var kr: Rect2 = g.key
 	if changed.has("encounter") or changed.has("hardship"):
-		_ring("encounter" if changed.has("encounter") else "hardship", kr.grow(-2))
-	_glow_rim(_rect_pts(kr.grow(-1), strip * 0.3), _lift("key"))
+		_ring("encounter" if changed.has("encounter") else "hardship", _rect_pts(kr.grow(-1), strip * 0.3))
+	_strip_glows.append([_rect_pts(kr.grow(-1), strip * 0.3), _lift("key")])
 	var ink := _ink_for("key", T.INK) if not dimmed else T.INK_MUTED
 	var x: float = b + tab + g.pad * 0.2
 	_icon(key.type, Rect2(x, band + (strip - si) / 2.0, si, si), ink)
 	x += si + 2
 	x += _text(Vector2(x, band), strip, str(key.index), strip * 0.8, ink) + g.pad * 0.5
 	if lv.hardship != null:
-		_icon(lv.hardship, Rect2(x, band + (strip - si) / 2.0, si, si), _ink_for("key", T.BAD) if not dimmed else T.INK_MUTED)
+		_icon(lv.hardship, hardship_rect(), _ink_for("key", T.INK) if not dimmed else T.INK_MUTED)
 
 	# The Upgrade cost, its colour saying whether it can be paid now.
 	var mark: String = _focus.get("mark", "")
@@ -358,10 +398,11 @@ func _draw_strip(g: Dictionary, lv: Dictionary) -> void:
 	var font := UI.font("display_bold")
 	var cost_w := font.get_string_size(cost, HORIZONTAL_ALIGNMENT_LEFT, -1, int(strip * 0.8)).x
 	var cx: float = cr.end.x - g.pad * 0.4 - si
-	var rim_rect := Rect2(cx - cost_w - 6, band + 2, cost_w + si + 9, strip - 4)
-	_ring("upgrade_cost", rim_rect)
+	# Wide enough that the rim's cut corners clear the number.
+	var rim_rect := Rect2(cx - cost_w - 3 - strip * 0.42, band + 2, cost_w + si + 6 + strip * 0.42, strip - 4)
+	_ring("upgrade_cost", _rect_pts(rim_rect, rim_rect.size.y * 0.4))
 	if mark == "" or mark == "affordable":
-		_glow_rim(_rect_pts(rim_rect, rim_rect.size.y * 0.4), _lift("cost"))
+		_strip_glows.append([_rect_pts(rim_rect, rim_rect.size.y * 0.4), _lift("cost")])
 	_icon("upgrade", Rect2(cx, band + (strip - si) / 2.0, si, si), colour)
 	_text(Vector2(cx - cost_w - 3, band), strip, cost, strip * 0.8, colour)
 	# The thin rule running from the cost to the card's edge, as printed.
@@ -454,12 +495,6 @@ func _raised(pts: PackedVector2Array, fill: Color, key: String) -> void:
 	for p in pts:
 		shadow.append(p + Vector2(0, drop))
 	_ink.draw_colored_polygon(shadow, Color(0, 0, 0, 0.4))
-	if lift > 0.0:
-		var closed := pts.duplicate()
-		closed.append(pts[0])
-		var wd := maxf(2.0, size.x * 0.012)
-		_ink.draw_polyline(closed, Color(T.FOCUS, 0.1 * lift), wd * 6.0, true)
-		_ink.draw_polyline(closed, Color(T.FOCUS, 0.22 * lift), wd * 3.0, true)
 	var body := pts
 	if lift > 0.0:
 		body = PackedVector2Array()
@@ -491,16 +526,19 @@ func _glow_rim(pts: PackedVector2Array, amount: float) -> void:
 	_ink.draw_polyline(closed, Color(T.FOCUS, amount), maxf(2.0, size.x * 0.012), true)
 
 
-## A ring behind a figure that would change.
-func _ring(key: String, rect: Rect2) -> void:
-	if not changed.has(key):
-		return
-	var s := StyleBoxFlat.new()
-	s.bg_color = Color(glow, 0.35)
-	s.border_color = glow
-	s.set_border_width_all(maxi(2, int(size.x * 0.016)))
-	s.set_corner_radius_all(int(rect.size.y * 0.3))
-	_ink.draw_style_box(s, rect.grow(maxf(3.0, size.x * 0.018)))
+## Marks a figure that would change. The outline follows the figure's own shape and
+## is drawn once the card is done, so neighbours and the title band never cover it.
+func _ring(key: String, pts: PackedVector2Array) -> void:
+	if changed.has(key):
+		_rings.append(pts)
+
+
+func _draw_rings() -> void:
+	var wd := maxf(2.0, size.x * 0.012)
+	for pts in _rings:
+		var closed: PackedVector2Array = pts.duplicate()
+		closed.append(pts[0])
+		_ink.draw_polyline(closed, glow, wd, true)
 
 
 ## A small round mark with text, fading in with the focus.
@@ -590,6 +628,12 @@ func _down_arrow(g: Dictionary) -> void:
 	closed.append(pts[0])
 	_ink.draw_polyline(closed, Color(T.BG_BASE, 0.9), maxf(2.0, row * 0.06), true)
 	_ink.draw_colored_polygon(pts, STEEL if not dimmed else T.LINE_SOFT)
+
+
+## Glows around parts of the Key Card strip, drawn once the band above is down.
+var _strip_glows := []
+## Outlines of the figures that would change, drawn last.
+var _rings := []
 
 
 ## The Initiative banner as printed: sides curving in between flared top corners

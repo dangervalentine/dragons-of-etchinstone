@@ -3,6 +3,7 @@ extends "res://ui/overlays/overlay.gd"
 ## glossary as pages of short entries.
 
 const Glossary = preload("res://ui/model/glossary.gd")
+const HelpTip = preload("res://ui/widgets/help_tip.gd")
 
 const PER_PAGE := 8
 
@@ -14,20 +15,12 @@ var _panel: Control
 ## One entry, placed beside `anchor` (a global rectangle) and kept inside `content`.
 func show_entry(id: String, anchor: Rect2, content: Rect2) -> void:
 	set_dim(0.25)
+	# The same look as the hover tooltip for this term.
 	var e: Dictionary = Glossary.entry(id)
-	var p := UI.panel(T.BG_RAISED, T.GOLD, 2, T.RADIUS_M, 16)
-	p.custom_minimum_size.x = 440
+	var p := PanelContainer.new()
+	p.add_theme_stylebox_override("panel", UI.tooltip_box())
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var col := UI.vbox(T.S)
-	var head := UI.hbox(T.S)
-	if e.icon != "":
-		head.add_child(UI.icon_rect(e.icon, 40, T.GOLD))
-	head.add_child(UI.label(e.name.to_upper(), ["display_bold", 28], T.INK))
-	col.add_child(head)
-	var body := UI.label(e.text, T.BODY, T.INK, true)
-	body.custom_minimum_size.x = 408
-	col.add_child(body)
-	p.add_child(col)
+	p.add_child(UI.entry_content(e.name, HelpTip.body(id), e.icon))
 	add_child(p)
 	p.reset_size()
 	var pos := Vector2(anchor.end.x + 12, anchor.position.y)

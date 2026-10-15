@@ -4,6 +4,8 @@ extends PanelContainer
 ## rewards and costs. During a multi-step action it shows that step's instruction.
 
 const T = preload("res://ui/theme/tokens.gd")
+const HelpTip = preload("res://ui/widgets/help_tip.gd")
+const HelpButton = preload("res://ui/widgets/help_button.gd")
 const UI = preload("res://ui/theme/theme.gd")
 
 signal intent(data: Dictionary)
@@ -144,10 +146,9 @@ func _outcome_row(p: Dictionary) -> Control:
 
 
 func _pill(text: String, icon_name: String, element: String, colour: Color, help_id: String) -> Control:
-	var b := Button.new()
+	var b := HelpButton.new()
 	b.custom_minimum_size = Vector2(64, 44)
-	b.set_meta("help_target", true)
-	b.mouse_default_cursor_shape = Control.CURSOR_HELP
+	HelpTip.mark(b, help_id)
 	b.add_theme_stylebox_override("normal", UI.box(Color(colour, 0.16), colour, 2, 22, 4))
 	b.add_theme_stylebox_override("hover", UI.box(Color(colour, 0.3), colour, 2, 22, 4))
 	b.add_theme_stylebox_override("pressed", UI.box(Color(colour, 0.4), colour, 2, 22, 4))

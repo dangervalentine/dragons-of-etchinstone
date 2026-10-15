@@ -46,6 +46,10 @@ var setup_offer: Array = [] # cards the player chooses from during setup
 var setup_picks := 0        # how many of them must be chosen
 var setup_level := 2        # the Level the chosen cards are set to
 var carried_damage := 0     # Final Journey time penalty the deck could not pay
+## The Encounter last played, {key, level, encounter}: what the table still shows
+## through Penalty and Upgrade, after a Time Penalty may have discarded its Key Card.
+## Empty once the next Hand is drawn.
+var faced := {}
 var _action := {}
 var _discard_reserve := false
 var _pending_poison := 0
@@ -138,6 +142,7 @@ func play(action: Dictionary) -> String:
 	_discard_reserve = result.get("discard_reserve", false)
 	xp = result.xp
 	damage_element = result.damage_element
+	faced = {"key": key_card(), "level": cards[key_card()].level, "encounter": encounter()}
 	var damage: int = result.damage + _pay_time(result.time_penalty)
 	var poison: int = result.get("poison", 0)
 	if poison > 0:
@@ -244,6 +249,7 @@ func finish() -> String:
 	diverts = 0
 	downgraded = []
 	_action = {}
+	faced = {}
 	if hand.size() + deck.size() < HAND_SIZE + 1:
 		_pending_poison = 0
 		_gather()

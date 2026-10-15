@@ -170,11 +170,12 @@ func _fused_top(state: Dictionary) -> String:
 	return ""
 
 
-## A card's detail opens after the pointer rests on it a moment, over the left column.
+## Tracks the card under the pointer.
 func _on_hover(id: String, on: bool) -> void:
+	# Hovering explains one part of the card at a time (CardView's tooltip) rather
+	# than opening the whole card's detail.
 	if on:
 		_hover_id = id
-		_hover_timer.start()
 	else:
 		_hover_timer.stop()
 		detail.hide_card(id)

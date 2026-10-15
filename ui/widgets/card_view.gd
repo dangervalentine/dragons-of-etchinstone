@@ -4,6 +4,7 @@ extends Control
 ## (role, Reserve, selection, fused, unavailable) and reports taps and holds.
 
 const T = preload("res://ui/theme/tokens.gd")
+const HelpTip = preload("res://ui/widgets/help_tip.gd")
 const UI = preload("res://ui/theme/theme.gd")
 const Haptics = preload("res://ui/fx/haptics.gd")
 const CardFace = preload("res://ui/widgets/card_face.gd")
@@ -24,7 +25,10 @@ var show_set_number := false
 ## Where the card belongs when nothing is moving it.
 var home := Rect2()
 
+const Glossary = preload("res://ui/model/glossary.gd")
 var _face := CardFace.new()
+## The parts a tooltip can explain; the Ether sigils are checked first, as they sit on the plates.
+const PART_ORDER := ["level", "cost", "key", "initiative", "basic", "enhanced", "boost", "armor"]
 var _marks := Control.new()
 var _hold := Timer.new()
 var _showing_alt := false
@@ -58,7 +62,8 @@ func set_model(m: Dictionary) -> void:
 	_face.set_focus(m.get("focus", {}))
 	if _hover:
 		_show_alt(true)
-	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if m.get("eligible", true) else Control.CURSOR_ARROW
+	_cursor = Control.CURSOR_POINTING_HAND if m.get("eligible", true) else Control.CURSOR_ARROW
+	mouse_default_cursor_shape = _cursor
 	_marks.queue_redraw()
 
 
@@ -87,6 +92,9 @@ func _fit() -> void:
 
 
 func _gui_input(event: InputEvent) -> void:
+	# The tooltip is the part under the pointer, or none at all over the background.
+	if event is InputEventMouseMotion:
+		HelpTip.show(self, part_help(event.position), part_icon(event.position), _cursor)
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 			held.emit(id)
@@ -114,6 +122,83 @@ func _on_hold() -> void:
 		UI.pulse_scale(self, 1.0)
 		Haptics.hold()
 		held.emit(id)
+
+
+## Hovering a part of the card explains just that part: what the term means, not
+## its figures, which the card itself shows (and may be previewing at another Level).
+func part_help(at: Vector2) -> String:
+	if model.is_empty():
+		return ""
+	# The face may be previewing another Level, with a Hardship of its own.
+	var h = _face.model.get("stats", {}).get("hardship")
+	if h != null and _face.hardship_rect().grow(3).has_point(at - _face.position):
+		return hardship_help(h)
+	for r in _face.sigil_rects():
+		if r.grow(3).has_point(at - _face.position):
+			return ETHER_HELP
+	for key in PART_ORDER:
+		if _face.region_rect(key).grow(2).has_point(at - _face.position):
+			if key == "basic" or key == "enhanced":
+				return _action_help(key, _face.model.stats[key].type)
+			return PART_HELP.get(key, "")
+	return ""
+
+
+## The cursor away from any explained part: a hand while the card can be tapped.
+var _cursor := Control.CURSOR_POINTING_HAND
+
+
+## The icon heading the tooltip for the part at `at`.
+func part_icon(at: Vector2) -> String:
+	if model.is_empty():
+		return ""
+	var stats: Dictionary = _face.model.get("stats", {})
+	var h = stats.get("hardship")
+	if h != null and _face.hardship_rect().grow(3).has_point(at - _face.position):
+		return h
+	for r in _face.sigil_rects():
+		if r.grow(3).has_point(at - _face.position):
+			return str(_face.model.element)
+	for key in PART_ORDER:
+		if _face.region_rect(key).grow(2).has_point(at - _face.position):
+			if key == "basic" or key == "enhanced":
+				return "move" if stats[key].type == "move" else "attack"
+			return PART_ICONS.get(key, "")
+	return ""
+
+
+const PART_ICONS := {"level": "crown", "cost": "upgrade", "key": "deck", "initiative": "initiative",
+	"boost": "boost", "armor": "armor"}
+
+
+## A Hardship's name and what it does; that it comes from the Key Card goes unsaid,
+## as it sits on the Key Card strip.
+static func hardship_help(id: String) -> String:
+	return HelpTip.text(id)
+
+
+## Names the action this card gives: Attack, Move, or either for a card that allows both.
+static func _action_help(key: String, type: String) -> String:
+	var act: String = {"attack": "Attack", "move": "Move"}.get(type, "Attack or Move")
+	if key == "basic":
+		return "Basic action: the %s this card gives as the Spell." % act
+	return "Enhanced action: a stronger %s, if the Element supplies the Ether on its corner." % act
+
+
+const PART_HELP := {
+	"level": "Level: how strong this card is, from 1 to 4. Upgrading raises it; Downgrading lowers it, and a Level 1 card is Trashed.",
+	"key": "Key Card: while this card is on top of the Deck, this names the Encounter you face next, and any Hardship that comes with it.",
+	"cost": "Upgrade cost: the XP needed to raise this card one Level after an Encounter.",
+	"initiative": "Initiative: used when this card is the Element. If the enemy's Initiative is higher, it strikes first with Early Damage.",
+	"boost": "Boost: when this card is the Boost, this is added to your Attack, Initiative or Move.",
+	"armor": "Armor: the damage this card Soaks when Downgraded, doubled against damage of the Ether marked beside it.",
+}
+const ETHER_HELP := "Ether: Fire, Water, Lightning or Shadow. A Spell's enhanced action needs the Element to supply the Ether on its corner; Armor Soaks double against damage of the Ether beside it; the sigil by the name is the Ether this card supplies as the Element."
+
+
+## The part's explanation wrapped to a narrow, opaque panel rather than one long line.
+func _make_custom_tooltip(for_text: String) -> Object:
+	return HelpTip.tooltip(self, for_text)
 
 
 func _set_hover(on: bool) -> void:
@@ -146,7 +231,7 @@ func _show_alt(on: bool) -> void:
 	_marks.queue_redraw()
 
 
-## State drawn over the face: outline, ribbon, order badge, Ether badge, caption.
+## State drawn over the face: outline, ribbon, Ether badge, caption.
 func _draw_marks() -> void:
 	if model.is_empty():
 		return
@@ -209,13 +294,6 @@ func _draw_marks() -> void:
 		_tag("Stays in Hand", "reserve", T.GOLD, T.BG_BASE)
 	elif model.get("fate", "") == "spent":
 		_tag("Discarded after", "discard", T.BG_RAISED, T.INK_MUTED)
-
-	if model.get("selection_order", -1) >= 0:
-		var d := maxf(34.0, w * 0.2)
-		var c := Vector2(w - d * 0.45, d * 0.45)
-		_marks.draw_circle(c, d / 2.0 + 2, T.BG_BASE)
-		_marks.draw_circle(c, d / 2.0, T.GOLD)
-		_centred(Rect2(c - Vector2(d, d) / 2.0, Vector2(d, d)), str(model.selection_order + 1), d * 0.62, T.BG_BASE, "display_bold")
 
 	var fuse = model.get("fuse")
 	if fuse != null and fuse.part == "top":

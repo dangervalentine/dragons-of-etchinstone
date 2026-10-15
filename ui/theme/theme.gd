@@ -61,7 +61,50 @@ static func build_theme() -> Theme:
 	theme.default_font = font("body")
 	theme.default_font_size = T.BODY[1]
 	theme.set_color("font_color", "Label", T.INK)
+	# Tooltips: an opaque raised panel, so the text never mixes with what is beneath.
+	theme.set_stylebox("panel", "TooltipPanel", tooltip_box())
+	theme.set_color("font_color", "TooltipLabel", T.INK)
+	theme.set_font_size("font_size", "TooltipLabel", T.LABEL[1])
 	return theme
+
+
+static func tooltip_box() -> StyleBoxFlat:
+	var s := box(Color(T.BG_BASE, 0.97), Color(T.GOLD, 0.6), 1, T.RADIUS_S, T.S + 2)
+	s.shadow_color = Color(0, 0, 0, 0.5)
+	s.shadow_size = 8
+	return s
+
+
+## A tooltip in the one explanation look. Text written "Name: what it means" gets
+## the name as a heading, with `icon_name` beside it. Godot sets it in the themed
+## tooltip panel, so this is just the content.
+static func wrapped_tooltip(text: String, width := 340.0, icon_name := "") -> Control:
+	var cut := text.find(": ")
+	if cut > 0 and cut < 32:
+		return entry_content(text.left(cut), text.substr(cut + 2), icon_name, width)
+	var l := label(text, T.LABEL, T.INK, true)
+	l.custom_minimum_size.x = minf(width, font(T.LABEL[0]).get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, T.LABEL[1]).x + 2)
+	return l
+
+
+## An explanation: the term's icon and name over what it means. Shared by every
+## tooltip and the help that opens on a tap, so they always look alike.
+static func entry_content(title: String, body: String, icon_name := "", width := 340.0) -> Control:
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 4)
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", T.S)
+	if icon_name != "":
+		head.add_child(icon_rect(icon_name, 26, T.GOLD))
+	var t := label(title.to_upper(), ["display_bold", 24], T.INK)
+	t.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	head.add_child(t)
+	col.add_child(head)
+	var l := label(body, T.LABEL, T.INK, true)
+	l.custom_minimum_size.x = width
+	col.add_child(l)
+	return col
 
 
 static func label(text: String, type: Array = T.BODY, color: Color = T.INK, wrap := false) -> Label:

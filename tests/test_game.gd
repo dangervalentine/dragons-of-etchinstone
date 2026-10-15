@@ -615,3 +615,12 @@ func test_preview_final_enemy_reports_damage() -> void:
 	eq(p.attack, 34, "attack")
 	eq(p.damage, 24, "damage")
 	eq(g.phase, "final_enemy", "phase")
+
+
+func test_the_faced_encounter_is_kept_until_the_next_hand() -> void:
+	var g = _game(HAND, ["DOE-A08"] + FILLER)
+	g.play(PLAY)
+	eq(g.faced.key, "DOE-A08", "the Key Card played against")
+	eq(g.faced.encounter.kind, "journey", "its Encounter")
+	g.finish()
+	eq(g.faced, {}, "cleared once the next Hand is drawn")

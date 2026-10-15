@@ -239,6 +239,7 @@ func _rung(tier: Dictionary, journey: bool, element: String) -> Control:
 	row.add_child(UI.icon_rect("time" if journey else "hp", 24))
 	row.add_child(UI.label(str(cost), ["display_bold", 28]))
 	p.tooltip_text = DragonStats.rung_text({"need": need, "cost": cost}, journey)
+	p.mouse_default_cursor_shape = Control.CURSOR_HELP
 	p.add_child(row)
 	UI.ignore_mouse(p)
 	_rungs.append(p)

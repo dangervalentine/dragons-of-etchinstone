@@ -8,6 +8,9 @@ const Glossary = preload("res://ui/model/glossary.gd")
 
 signal intent(data: Dictionary)
 
+## The pale grey of the printed hourglass.
+const STEEL := Color("aaa6b8")
+
 var _shown := {}
 
 
@@ -18,13 +21,12 @@ func render(enc: Dictionary) -> void:
 	clear()
 	var enemy: bool = enc.kind == "enemy"
 	var d: Dictionary = enc.data
-	var colour: Color = T.ether(enc.element)
 	set_look(enc.element, "sigil_" + str(enc.element), enc.get("art", ""))
 
 	band.add_child(UI.icon_rect("enemy" if enemy else "journey", 34, T.ether_ink(enc.element)))
-	# Long names step down a size so they fit beside the XP star.
+	# Long names step down a size so they fit the band.
 	var text: String = enc.title.to_upper()
-	var room := (size.x if size.x > 0.0 else 400.0) - 150.0
+	var room := (size.x if size.x > 0.0 else 400.0) - 80.0
 	var fs: int = T.HEADING[1]
 	while fs > T.TEXT_MIN and UI.font(T.HEADING[0]).get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > room:
 		fs -= 1
@@ -33,31 +35,46 @@ func render(enc: Dictionary) -> void:
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	band.add_child(title)
-	band.add_child(_chip({"icon": "xp", "text": str(d.xp), "color": T.GOLD, "ink": T.BG_BASE,
-		"glossary_id": "xp", "min_size": Vector2(64, 50)}))
 
-	var targets := UI.hbox(6)
-	targets.alignment = BoxContainer.ALIGNMENT_BEGIN
+	# As printed: the figures in a column of shaped badges down the left, the art in
+	# a framed panel beside them, XP on the panel's corner and any Hardship, Ability
+	# or Peril on its top edge.
+	var row := UI.hbox(T.M)
+	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_column = UI.vbox(T.XS)
+	_column.alignment = BoxContainer.ALIGNMENT_CENTER
 	if enemy:
-		targets.add_child(_chip({"icon": "hp", "text": str(d.hp), "color": T.HP, "caption": "HP", "glossary_id": "hp"}))
-		targets.add_child(_chip({"icon": "initiative", "text": str(d.initiative), "color": T.BG_BAND,
-			"caption": "Initiative", "glossary_id": "initiative", "min_size": Vector2(88, 72)}))
-		targets.add_child(_chip({"icon": "attack", "text": str(d.attack.value), "color": colour, "ink": T.ether_shade(enc.element, "plate_ink"),
-			"element": d.attack.element, "plate": true, "caption": "Attack", "glossary_id": "attack", "min_size": Vector2(104, 72)}))
+		_column.add_child(_chip({"icon": "hp", "text": str(d.hp), "color": T.HP, "glossary_id": "hp"}))
+		_column.add_child(_chip({"icon": "initiative", "text": str(d.initiative), "color": T.BG_BAND, "glossary_id": "initiative"}))
+		_column.add_child(_chip({"icon": "attack_badge", "text": str(d.attack.value), "color": T.ether(d.attack.element),
+			"ink": T.ether_shade(d.attack.element, "plate_ink"), "element": d.attack.element, "glossary_id": "attack"}))
+		var shields := UI.hbox(T.XS)
 		for a in d.armor:
-			targets.add_child(_chip({"icon": "armor", "text": str(a.value), "color": T.ether(a.element), "ink": T.ether_shade(a.element, "plate_ink"),
-				"element": a.element, "caption": "Armor", "glossary_id": "armor", "min_size": Vector2(78, 72)}))
+			shields.add_child(_chip({"icon": "armor", "text": str(a.value), "color": T.ether(a.element),
+				"ink": T.ether_shade(a.element, "plate_ink"), "element": a.element, "glossary_id": "armor"}))
+		_column.add_child(shields)
 	else:
-		targets.add_child(_chip({"icon": "mp", "text": str(d.mp.value), "color": colour, "ink": T.ether_shade(enc.element, "plate_ink"),
-			"element": d.mp.element, "plate": true, "caption": "MP to cover", "glossary_id": "mp", "min_size": Vector2(130, 72)}))
-		targets.add_child(_chip({"icon": "time", "text": str(d.time_penalty), "color": T.BG_BAND,
-			"plate": true, "caption": "Time Penalty", "glossary_id": "time", "min_size": Vector2(130, 72)}))
-	body.add_child(targets)
-
+		# As printed: a dark mountain in a box of the MP's Ether, and a pale hourglass.
+		_column.add_child(_chip({"icon": "mp_badge", "text": str(d.mp.value), "color": T.BG_BAND, "backing": T.ether(d.mp.element),
+			"element": d.mp.element, "glossary_id": "mp"}))
+		_column.add_child(_chip({"icon": "time_badge", "text": str(d.time_penalty), "color": STEEL, "inset": T.BG_BAND,
+			"glossary_id": "time"}))
+	row.add_child(_column)
+	_art_slot = Control.new()
+	_art_slot.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_art_slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_art_slot.resized.connect(_place_art)
+	_xp = _chip({"icon": "xp", "text": str(d.xp), "color": T.GOLD, "ink": T.BG_BASE, "glossary_id": "xp"})
+	_art_slot.add_child(_xp)
+	_effects.clear()
 	for effect in enc.effects:
-		body.add_child(_effect_row(effect, enc.get("hardship_id", "") == effect))
-	var gap := UI.spacer()
-	body.add_child(gap)
+		var e: Dictionary = Glossary.entry(effect)
+		var disc := _chip({"icon": e.icon, "text": "", "color": T.INK, "glossary_id": effect})
+		_art_slot.add_child(disc)
+		_effects.append(disc)
+	row.add_child(_art_slot)
+	body.add_child(row)
+
 	var key: Dictionary = enc.key_card
 	var caption := UI.label("%s · Key Card %s, Level %d" % [enc.subtitle, key.name, key.level], T.LABEL, Color(T.INK, 0.8))
 	caption.clip_text = true
@@ -65,36 +82,73 @@ func render(enc: Dictionary) -> void:
 	_fit()
 
 
+var _column: VBoxContainer
+var _art_slot: Control
+var _xp: Control
+var _effects := []
+var _art_rect := Rect2()
+
+
+func _init() -> void:
+	super._init()
+	_edge.draw.connect(_draw_art_frame)
+
+
+## Sizes the badges to the face: as large as the column's height allows.
+func _fit() -> void:
+	super._fit()
+	if _column == null or not is_instance_valid(_column):
+		return
+	var rows := _column.get_child_count()
+	var room := body.size.y - 36.0 - T.XS * (rows - 1)
+	var b := clampf(room / maxf(1.0, rows), 52.0, 84.0)
+	for c in _column.get_children():
+		if c is HBoxContainer:
+			for shield in c.get_children():
+				shield.custom_minimum_size = Vector2(b * 0.92, b * 0.92)
+		else:
+			c.custom_minimum_size = Vector2(b, b)
+	_place_art.call_deferred()
+
+
+## The art fills the panel beside the badges; XP and the effect discs sit on its
+## corners and top edge.
+func _place_art() -> void:
+	if _art_slot == null or not is_instance_valid(_art_slot) or _art_slot.size.x <= 0.0:
+		return
+	_art_rect = Rect2(_art_slot.global_position - global_position, _art_slot.size).grow(-2)
+	# Only the art panel carries the Ether pattern; the badges sit on the dark face.
+	_field.position = _art_rect.position
+	_field.size = _art_rect.size
+	_field.material.set_shader_parameter("size", _art_rect.size)
+	if art != "":
+		var a := minf(_art_rect.size.x, _art_rect.size.y) * 0.96
+		_creature.size = Vector2(a, a)
+		_creature.position = Vector2(_art_rect.end.x - a - 4, _art_rect.end.y - a - 2)
+	var x := minf(84.0, _art_rect.size.y * 0.32)
+	_xp.custom_minimum_size = Vector2(x, x)
+	_xp.size = Vector2(x, x)
+	_xp.position = _art_slot.size - Vector2(x * 0.92, x * 0.86)
+	var e := 52.0
+	for i in _effects.size():
+		_effects[i].custom_minimum_size = Vector2(e, e)
+		_effects[i].size = Vector2(e, e)
+		_effects[i].position = Vector2(T.S + i * (e + T.XS), T.S)
+	_edge.queue_redraw()
+
+
+func _draw_art_frame() -> void:
+	if _art_rect.size.x <= 0.0 or _column == null or not is_instance_valid(_column):
+		return
+	var s := StyleBoxFlat.new()
+	s.draw_center = false
+	s.border_color = Color(T.INK, 0.35)
+	s.set_border_width_all(2)
+	s.set_corner_radius_all(3)
+	_edge.draw_style_box(s, _art_rect.grow(1))
+
+
 func _chip(opts: Dictionary) -> Control:
 	var c: Control = StatChip.make(opts)
 	c.help.connect(func(id, source): intent.emit({"type": "help", "id": id, "source": source}))
 	return c
-
-
-## One Hardship, Ability or Peril: its icon, its name and what it does, in a line.
-func _effect_row(id: String, _hardship: bool) -> Control:
-	var e: Dictionary = Glossary.entry(id)
-	var b := Button.new()
-	b.custom_minimum_size.y = 64
-	b.set_meta("help_target", true)
-	b.flat = true
-	b.mouse_default_cursor_shape = Control.CURSOR_HELP
-	b.add_theme_stylebox_override("normal", UI.box(Color(T.BG_BAND, 0.72), Color(T.BAD, 0.7), 1, T.RADIUS_S, 6))
-	b.add_theme_stylebox_override("hover", UI.box(Color(T.BG_BAND, 0.9), T.BAD, 1, T.RADIUS_S, 6))
-	b.add_theme_stylebox_override("pressed", UI.box(T.BG_BAND, T.BAD, 2, T.RADIUS_S, 6))
-	b.add_theme_stylebox_override("focus", UI.box(Color.TRANSPARENT, T.GOLD, 3, T.RADIUS_S, 6))
-	var row := UI.hbox(T.S)
-	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE, 8)
-	row.add_child(UI.icon_rect(e.icon, 36, T.BAD))
-	var text := UI.vbox(0)
-	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	text.alignment = BoxContainer.ALIGNMENT_CENTER
-	text.add_child(UI.label(e.name, ["body_bold", T.LABEL[1] + 2], T.INK))
-	var short := UI.label(e.short, T.LABEL, T.INK_MUTED)
-	short.clip_text = true
-	text.add_child(short)
-	row.add_child(text)
-	UI.ignore_mouse(row)
-	b.add_child(row)
-	b.pressed.connect(func(): intent.emit({"type": "help", "id": id, "source": b}))
-	return b

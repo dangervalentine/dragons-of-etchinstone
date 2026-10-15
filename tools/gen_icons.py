@@ -30,6 +30,17 @@ RING = "M24 2 a22 22 0 1 0 0.01 0 Z M24 6.5 a17.5 17.5 0 1 1 -0.01 0 Z"
 DISC = "M24 2 a22 22 0 1 0 0.01 0 Z"
 
 
+def uv_poly(x0, y0, w, h, uv):
+    """Points given as fractions of a box, matching the card face's own shapes."""
+    return poly(" ".join("%.2f,%.2f" % (x0 + u * w, y0 + v * h) for u, v in uv))
+
+
+BANNER = [(0, 0), (1, 0), (0.955, 0.2), (0.935, 0.4), (0.94, 0.6), (0.96, 0.8), (1, 1), (0.5, 0.82),
+          (0, 1), (0.04, 0.8), (0.06, 0.6), (0.065, 0.4), (0.045, 0.2)]
+SHIELD = [(0.5, 0), (1, 0.2), (0.98, 0.55), (0.92, 0.72), (0.8, 0.85), (0.5, 1), (0.2, 0.85), (0.08, 0.72),
+          (0.02, 0.55), (0, 0.2)]
+
+
 def circle(cx, cy, r):
     return "M%g %g a%g %g 0 1 0 0.01 0 Z" % (cx, cy - r, r, r)
 
@@ -100,11 +111,20 @@ ICONS = {
     "move": path("M10 8 Q10 5 13 4.8 L33 3.2 Q36.5 3 36.5 6.5 L36.5 12.5 Q36.5 15.5 33.5 15.5 L29.5 16.5 L29.5 26"
                  " Q31 29.5 37 30.5 Q44.5 31.8 44.5 38.5 L44.5 41 Q44.5 43.5 42 43.5 L13.5 43.5 Q11.5 43.5 11.5 41.5"
                  " L11.5 17 Q10 16 10 14 Z"),
-    "initiative": poly("7,3 41,3 41,45 24,36 7,45"),
-    "armor": path("M24 2 L43 8 V24 C43 35 35 42 24 46 C13 42 5 35 5 24 V8 Z"),
+    # The printed Initiative banner and Armor shield, as drawn on the card face.
+    "initiative": uv_poly(6, 3, 36, 42, BANNER),
+    "armor": uv_poly(5, 2, 38, 44, SHIELD),
     # A block with a square step cut from each corner, like the printed Boost plate.
     "boost": path("M11 4 H37 V11 H44 V37 H37 V44 H11 V37 H4 V11 H11 Z"),
     "xp": path(burst(24, 24, 23, 14)),
+    # Badge shapes that hold a number, as on the printed Region card: an enemy's
+    # Attack flame, a Journey's MP mountain and its Time Penalty hourglass.
+    "attack_badge": path("M30 3 C29 10 39 16 39 30 C39 39 32 45 24 45 C15 45 9 39 9 31 C9 23 12 18 14 13"
+                         " C16 18 18 20 21 21 C21 13 24 7 30 3 Z"),
+    # The printed MP mountain: a jagged main peak with a notch and a lower right peak.
+    "mp_badge": path("M2 44 L13 24 L16 25.5 L23 6 L27 13 L30.5 9 L39 26 L41.5 25 L46 44 Z"),
+    # The printed hourglass: flat caps over a body drawn in to a waist.
+    "time_badge": path("M5 3 H43 V10 L38 13 Q32 24 38 35 L43 38 V45 H5 V38 L10 35 Q16 24 10 13 L5 10 Z"),
     "upgrade": path(burst(24, 24, 23, 14) + " M24 12 L32.5 21.5 L27.5 21.5 L27.5 33 L20.5 33 L20.5 21.5 L15.5 21.5 Z"),
     # The printed Level crown: wider at the top, a tall tipped centre point, flared
     # outer points, and a separate band beneath.
@@ -244,7 +264,7 @@ SIGILS = {
     "sigil_water": sigil(ICONS["water"]),
     "sigil_lightning": sigil(ICONS["lightning"]),
     "sigil_shadow": sigil(ICONS["shadow"]),
-    "sigil_grimroch": dragon_sigil(ICONS["armor"], _HORNS_WIDE),
+    "sigil_grimroch": dragon_sigil(path("M24 2 L43 8 V24 C43 35 35 42 24 46 C13 42 5 35 5 24 V8 Z"), _HORNS_WIDE),
     "sigil_helsang": dragon_sigil(path("M24 3 C12 3 5 11 5 21 C5 27 8 32 13 34 V43 H35 V34 C40 32 43 27 43 21 C43 11 36 3 24 3 Z"
                                        " M16 17 a5 5 0 1 0 0.01 0 Z M32 17 a5 5 0 1 0 0.01 0 Z M22 30 L24 25 L26 30 Z"), _HORNS_CROWN),
     "sigil_rodving": dragon_sigil(_OLD_FLAME, _HORNS_UP),

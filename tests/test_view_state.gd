@@ -4,6 +4,7 @@ extends "res://tests/base.gd"
 const Game = preload("res://engine/game.gd")
 const Draft = preload("res://ui/model/turn_draft.gd")
 const ViewState = preload("res://ui/model/view_state.gd")
+const Glossary = preload("res://ui/model/glossary.gd")
 
 var db = CardDB.new()
 
@@ -253,3 +254,142 @@ func test_encounter_model_matches_live_encounter() -> void:
 		var key_card := {"id": key, "name": db.mage(key).name, "level": g.cards[key].level, "element": db.mage(key).element}
 		var live = ViewState.build(g, Draft.new(), db).encounter
 		eq(ViewState.encounter_model(db, g.region, enc.kind, enc.index, enc.hardship, key_card), live, "seed %d" % game_seed)
+
+
+func test_the_encounter_just_played_stays_until_the_next_hand() -> void:
+	# Journey 1 (time penalty 2) discards its own Key Card; the face keeps showing it.
+	var g = Game.new(db, {"seed": 1, "dragon": "rodving"})
+	g.hand = ["DOE-A03", "DOE-A13", "DOE-A11", "DOE-A07"]
+	g.deck = ["DOE-A08", "DOE-A05", "DOE-A10", "DOE-A09", "DOE-A12", "DOE-A14", "DOE-A16"]
+	var before: Dictionary = ViewState.build(g, Draft.new(), db).encounter
+	g.play({"spell": "DOE-A03", "element": "DOE-A13", "boost": "DOE-A11"})
+	eq(g.deck[0], "DOE-A10", "the Key Card was paid away")
+	eq(g.phase, "upgrade", "upgrading")
+	var during: Dictionary = ViewState.build(g, Draft.new(), db).encounter
+	eq(during.title, before.title, "same Encounter while upgrading")
+	eq(during.key_card.id, "DOE-A08", "same Key Card while upgrading")
+	g.finish()
+	var after: Dictionary = ViewState.build(g, Draft.new(), db).encounter
+	ok(after.key_card.id != "DOE-A08", "the next Encounter once the new Hand is drawn")
+
+
+func test_setup_cards_preview_the_level_they_would_start_at() -> void:
+	var g = _game(3, "casual")
+	var vs: Dictionary = ViewState.build(g, Draft.new(), db)
+	var id: String = g.setup_offer[0]
+	eq(vs.cards[id].alt.level, g.setup_level, "the chosen Level")
+	eq(vs.cards[id].alt.label, "If chosen", "label")
+
+
+func test_card_parts_explain_themselves_on_hover() -> void:
+	var CardView = load("res://ui/widgets/card_view.gd")
+	var g = _game()
+	var vs: Dictionary = ViewState.build(g, Draft.new(), db)
+	var v = CardView.new()
+	v.size = Vector2(197, 275)
+	v.set_model(vs.cards[g.hand[0]])
+	v._fit()
+	var tip: String = v.part_help(v._face.region_rect("boost").get_center())
+	ok(tip.begins_with("Boost:"), "boost: " + tip)
+	tip = v.part_help(v._face.region_rect("initiative").get_center())
+	ok(tip.begins_with("Initiative:"), "initiative: " + tip)
+	v.free()
+
+
+func test_every_ether_sigil_shares_one_helper_and_the_background_has_none() -> void:
+	var CardView = load("res://ui/widgets/card_view.gd")
+	var g = _game()
+	var vs: Dictionary = ViewState.build(g, Draft.new(), db)
+	var v = CardView.new()
+	v.size = Vector2(197, 275)
+	v.set_model(vs.cards[g.hand[0]])
+	v._fit()
+	for r in v._face.sigil_rects():
+		eq(v.part_help(r.get_center()), CardView.ETHER_HELP, "sigil at %s" % str(r))
+	var field: Rect2 = v._face.region_rect("field")
+	eq(v.part_help(field.end - Vector2(20, 60)), "", "background")
+	v.free()
+
+
+func test_chosen_setup_cards_show_at_their_starting_level() -> void:
+	var g = _game(3, "casual")
+	var d = Draft.new()
+	var id: String = g.setup_offer[0]
+	d.picks.append(id)
+	var c: Dictionary = ViewState.build(g, d, db).cards[id]
+	eq(c.level, g.setup_level, "shown at the chosen Level")
+	eq(c.stats, db.mage_level(id, g.setup_level), "with that Level's figures")
+	eq(c.alt, null, "nothing more to preview")
+	d.picks.erase(id)
+	c = ViewState.build(g, d, db).cards[id]
+	eq(c.level, g.cards[id].level, "back to its own Level once unchosen")
+	eq(c.alt.changed, [], "the preview marks no parts")
+
+
+func test_a_card_hardship_explains_itself() -> void:
+	var CardView = load("res://ui/widgets/card_view.gd")
+	for id in db.mage_ids():
+		for level in range(1, 5):
+			var lv: Dictionary = db.mage_level(id, level)
+			if lv.hardship == null:
+				continue
+			var m: Dictionary = db.mage(id)
+			var v = CardView.new()
+			v.size = Vector2(197, 275)
+			v.set_model({"id": id, "name": m.name, "element": m.element, "level": level, "max_level": 4, "stats": lv})
+			v._fit()
+			var tip: String = v.part_help(v._face.hardship_rect().get_center())
+			ok(tip.begins_with(Glossary.entry(lv.hardship).name + ":"), "hardship: " + tip)
+			v.free()
+			return
+	ok(false, "some card has a Hardship")
+
+
+func test_a_previewed_hardship_explains_itself() -> void:
+	# A card with no Hardship now, previewing a Level that has one.
+	var CardView = load("res://ui/widgets/card_view.gd")
+	for id in db.mage_ids():
+		for level in range(1, 4):
+			var now: Dictionary = db.mage_level(id, level)
+			var then: Dictionary = db.mage_level(id, level + 1)
+			if now.hardship != null or then.hardship == null:
+				continue
+			var m: Dictionary = db.mage(id)
+			var v = CardView.new()
+			v.size = Vector2(197, 275)
+			v.set_model({"id": id, "name": m.name, "element": m.element, "level": level, "max_level": 4, "stats": now,
+				"alt": {"trashed": false, "label": "If chosen", "level": level + 1, "stats": then, "changed": []}})
+			v._fit()
+			v._show_alt(true)
+			var tip: String = v.part_help(v._face.hardship_rect().get_center())
+			ok(tip.begins_with(Glossary.entry(then.hardship).name + ":"), "previewed hardship: " + tip)
+			v.free()
+			return
+	ok(false, "some card gains a Hardship")
+
+
+func test_action_help_names_only_the_actions_a_card_allows() -> void:
+	var CardView = load("res://ui/widgets/card_view.gd")
+	eq(CardView._action_help("basic", "attack"), "Basic action: the Attack this card gives as the Spell.", "attack")
+	eq(CardView._action_help("enhanced", "move"), "Enhanced action: a stronger Move, if the Element supplies the Ether on its corner.", "move")
+	ok(CardView._action_help("basic", "flex").contains("Attack or Move"), "either")
+	ok(not CardView.hardship_help("storm").contains("Key Card"), "no Key Card preamble")
+
+
+func test_card_parts_use_the_help_cursor_and_the_rest_the_hand() -> void:
+	var CardView = load("res://ui/widgets/card_view.gd")
+	var g = _game()
+	var v = CardView.new()
+	v.size = Vector2(197, 275)
+	v.set_model(ViewState.build(g, Draft.new(), db).cards[g.hand[0]])
+	v._fit()
+	var move := InputEventMouseMotion.new()
+	move.position = v._face.region_rect("boost").get_center()
+	v._gui_input(move)
+	eq(v.mouse_default_cursor_shape, Control.CURSOR_HELP, "over a part")
+	ok(v.tooltip_text.begins_with("Boost:"), "its explanation")
+	move.position = v._face.region_rect("field").end - Vector2(20, 60)
+	v._gui_input(move)
+	eq(v.mouse_default_cursor_shape, Control.CURSOR_POINTING_HAND, "over the background")
+	eq(v.tooltip_text, "", "no explanation")
+	v.free()

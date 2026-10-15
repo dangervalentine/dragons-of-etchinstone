@@ -246,6 +246,11 @@ static func _encounter(game, db) -> Variant:
 				"subtitle": game.dragon.title, "element": game.dragon.early_damage.element,
 				"dragon": game.dragon, "carried_damage": game.carried_damage, "effects": [], "scene": Art.FINAL_JOURNEY,
 				"art": Art.dragon(game.dragon.id)}
+	# Until the next Hand is drawn, the table still shows the Encounter just played.
+	if not game.faced.is_empty() and (game.phase == "penalty" or game.phase == "upgrade"):
+		var f: Dictionary = game.faced
+		return encounter_model(db, game.region, f.encounter.kind, f.encounter.index, f.encounter.hardship,
+			{"id": f.key, "name": db.mage(f.key).name, "level": f.level, "element": db.mage(f.key).element})
 	if game.key_card() == null:
 		return null
 	var enc: Dictionary = game.encounter()
@@ -306,6 +311,16 @@ static func _card(game, draft, db, id: String, vs: Dictionary) -> Dictionary:
 	match game.phase:
 		"setup":
 			c.selection_order = draft.picks.find(id)
+			# A chosen card shows at the Level it will start at; hovering an unchosen
+			# one previews that Level. No part outlines: the card's own border is enough.
+			var start: int = game.setup_level
+			var moves: bool = start != c.level and start >= 1 and start <= 4
+			if moves and c.selection_order >= 0:
+				c.level = start
+				c.stats = db.mage_level(id, start)
+			elif moves:
+				c.alt = _alt(game, db, id, start, "If chosen")
+				c.alt.changed = []
 			if c.selection_order >= 0:
 				c.state = "selected"
 			elif draft.picks.size() >= game.setup_picks:
