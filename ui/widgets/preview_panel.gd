@@ -23,7 +23,7 @@ var _kind := ""
 
 
 func _init() -> void:
-	add_theme_stylebox_override("panel", UI.raised_panel_box("rest", Color(0, 0, 0, 0), 12))
+	add_theme_stylebox_override("panel", UI.stone_zone())
 	_box.add_theme_constant_override("separation", 6)
 	add_child(_box)
 
@@ -40,10 +40,7 @@ func render(vs: Dictionary) -> void:
 	_kind = enc.kind if enc != null else ""
 	_key = "%s|%s|%s" % [enc.get("title", "") if enc != null else "", vs.phase, vs.mode]
 	var fatal: bool = p != null and p.fatal and vs.mode == "none"
-	var box := UI.raised_panel_box("rest", T.BAD if fatal else Color(0, 0, 0, 0), 12)
-	if fatal:
-		box.set_border_width_all(3)
-	add_theme_stylebox_override("panel", box)
+	add_theme_stylebox_override("panel", UI.stone_zone(T.BAD if fatal else Color(0, 0, 0, 0), 12, 3.0 if fatal else 2.0))
 	if p == null or vs.mode != "none" or p.status != "ready":
 		_prompt(vs, p, prompt)
 		return
@@ -121,7 +118,10 @@ func _prompt(vs: Dictionary, p, prompt: Dictionary) -> void:
 			flow.add_theme_constant_override("h_separation", 6)
 			flow.add_theme_constant_override("v_separation", 6)
 			for name in p.missing:
-				var pill := UI.panel(T.BG_RAISED, T.GOLD, 1, 18, 4)
+				var pill := UI.stone_panel("inset", 0.4)
+				var inset: StyleBox = pill.get_theme_stylebox("panel")
+				inset.edge = T.GOLD
+				inset.edge_width = 1.0
 				var l := UI.label("  %s  " % name, T.LABEL, T.INK)
 				pill.add_child(l)
 				flow.add_child(pill)

@@ -19,7 +19,7 @@ var _shown_id := ""
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	visible = false
-	add_theme_stylebox_override("panel", UI.box(Color(T.BG_RAISED, 0.98), T.GOLD, 2, T.RADIUS_M, 14))
+	add_theme_stylebox_override("panel", UI.stone_slab(T.GOLD, 14))
 	var row := UI.hbox(14)
 	_face.custom_minimum_size = Vector2(170, 238)
 	_face.motion = false

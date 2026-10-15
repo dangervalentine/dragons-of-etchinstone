@@ -17,7 +17,7 @@ var _tween: Tween
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	visible = false
-	_panel.add_theme_stylebox_override("panel", UI.box(Color(T.BG_RAISED, 0.98), T.GOLD, 2, T.RADIUS_M, 12))
+	_panel.add_theme_stylebox_override("panel", UI.stone_slab(T.GOLD, 12))
 	var col := UI.vbox(T.S)
 	var title := UI.label("The fused card counts as", ["body_bold", T.LABEL[1]], T.INK)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

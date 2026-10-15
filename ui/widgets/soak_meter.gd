@@ -12,7 +12,7 @@ var _total := 0
 
 
 func _init() -> void:
-	add_theme_stylebox_override("panel", UI.raised_panel_box("rest", T.BAD, 12))
+	add_theme_stylebox_override("panel", UI.stone_zone(T.BAD))
 	_box.add_theme_constant_override("separation", 8)
 	add_child(_box)
 	_meter.custom_minimum_size.y = 34

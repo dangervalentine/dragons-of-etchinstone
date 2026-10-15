@@ -23,6 +23,7 @@ const EndingScreen = preload("res://ui/screens/ending_screen.gd")
 const Animator = preload("res://ui/fx/animator.gd")
 const FlightLayer = preload("res://ui/fx/flight_layer.gd")
 const BACKDROP = preload("res://ui/fx/shaders/backdrop.gdshader")
+const RiftLayer = preload("res://ui/fx/rift_layer.gd")
 const InspectOverlay = preload("res://ui/overlays/inspect_overlay.gd")
 const GlossaryPopover = preload("res://ui/overlays/glossary_popover.gd")
 const RulebookOverlay = preload("res://ui/overlays/rulebook_overlay.gd")
@@ -46,6 +47,8 @@ var _screen_host := Control.new()
 var _flight := FlightLayer.new()
 var _overlays := Control.new()
 var _backdrop := ColorRect.new()
+## The rift light in the stone backdrop, and the motes from it.
+var rift := RiftLayer.new()
 var _backdrop_ether := ""
 var _notice: Control = null
 var _notice_dismissed := false
@@ -77,6 +80,8 @@ func _ready() -> void:
 	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(backdrop)
+	add_child(rift)
+	rift.setup(backdrop.material)
 	for layer in [_screen_host, _flight, _overlays]:
 		layer.set_anchors_preset(Control.PRESET_FULL_RECT)
 		layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -199,6 +204,12 @@ func _update_notice() -> void:
 func _switch(to: Control) -> void:
 	var old := screen
 	screen = to
+	# Stage 2 of feature 006: only the play screen is carved stone so far.
+	rift.set_stone(to == play)
+	if to != play:
+		rift.set_ether(null)
+		rift.set_zones([])
+		_backdrop_ether = "-"  # so the next game's Encounter sets the rift again
 	_screen_host.add_child(to)
 	to.set_anchors_preset(Control.PRESET_FULL_RECT)
 	if old != null:
@@ -259,6 +270,9 @@ func start_game(opts: Dictionary) -> void:
 	draft.reset(1)
 	play = PlayScreen.new()
 	play.intent.connect(dispatch)
+	play.board_changed.connect(func(zones, source):
+		rift.set_zones(zones)
+		rift.set_source(source))
 	_switch(play)
 	_refresh(false)
 	if game.phase == "challenge":
@@ -508,6 +522,7 @@ func _tint_backdrop(state: Dictionary) -> void:
 	if ether == _backdrop_ether:
 		return
 	_backdrop_ether = ether
+	rift.set_ether(ether)
 	var m: ShaderMaterial = _backdrop.material
 	var to := 1.0 if ether != "" else 0.0
 	if ether != "":

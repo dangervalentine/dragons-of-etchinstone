@@ -2,6 +2,7 @@ extends RefCounted
 ## Builds fonts, styles and small common controls from the tokens.
 
 const T = preload("res://ui/theme/tokens.gd")
+const StoneStyle = preload("res://ui/theme/stone_style.gd")
 const Haptics = preload("res://ui/fx/haptics.gd")
 
 ## Set from the settings; travel and shake are replaced by fades when true.
@@ -239,6 +240,93 @@ static func style_button(b: Button, kind: String) -> void:
 	for c in ["icon_normal_color", "icon_hover_color", "icon_pressed_color", "icon_focus_color"]:
 		b.add_theme_color_override(c, ink)
 	b.add_theme_color_override("icon_disabled_color", Color(T.INK_MUTED, 0.6))
+
+
+## A place cut into or standing out of the carved stone (feature 006): "well" for
+## a zone, "inset" for a chip, "plinth" for a button, "slab" for an overlay, "lintel"
+## for a band across the screen.
+static func stone_box(kind: String, depth := 0.5) -> StyleBox:
+	return StoneStyle.new(kind, depth)
+
+
+## A zone well on the play screen, edged in a colour that means something (damage
+## owed, XP, a fatal choice), or plain stone when `edge_colour` is clear.
+static func stone_zone(edge_colour := Color(0, 0, 0, 0), margin := 12, edge_width := 2.0) -> StyleBox:
+	var s := StoneStyle.new("well", 0.6)
+	s.edge = edge_colour
+	s.edge_width = edge_width
+	for side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
+		s.set_content_margin(side, margin)
+	return s
+
+
+## A raised slab of stone for a popup, edged in `edge_colour`.
+static func stone_slab(edge_colour := T.GOLD, margin := 14) -> StyleBox:
+	var s := StoneStyle.new("slab", 0.3)
+	s.edge = edge_colour
+	for side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
+		s.set_content_margin(side, margin)
+	return s
+
+
+static func stone_panel(kind: String, depth := 0.5) -> PanelContainer:
+	var p := PanelContainer.new()
+	p.add_theme_stylebox_override("panel", stone_box(kind, depth))
+	return p
+
+
+## A button carved as a plinth of stone. kind as for style_button: the "primary"
+## plinth is gold-leafed, a "warning" one is red, and "active" is lit at the rim.
+static func style_stone_button(b: Button, kind := "normal") -> void:
+	var ink := T.INK
+	var leaf := Color(0, 0, 0, 0)
+	match kind:
+		"primary":
+			leaf = T.GOLD
+			ink = T.BG_BASE
+		"warning":
+			leaf = T.BAD
+			ink = T.BG_BASE
+	var normal := StoneStyle.new("plinth", 0.3 if kind == "quiet" else 0.5)
+	normal.face = leaf
+	if kind == "active":
+		normal.glow = 1.0
+		normal.glow_colour = T.GOLD
+	b.add_theme_stylebox_override("normal", normal)
+	var hover := StoneStyle.new("plinth", 0.2)
+	hover.face = leaf.lightened(0.1) if leaf.a > 0.0 else Color(1, 1, 1, 0.04)
+	hover.glow = normal.glow
+	hover.glow_colour = normal.glow_colour
+	b.add_theme_stylebox_override("hover", hover)
+	var down := StoneStyle.new("plinth", 0.7)
+	down.pressed = true
+	down.face = leaf.darkened(0.15) if leaf.a > 0.0 else Color(0, 0, 0, 0)
+	b.add_theme_stylebox_override("pressed", down)
+	b.add_theme_stylebox_override("hover_pressed", down)
+	var off := StoneStyle.new("plinth", 0.3)
+	off.face = Color(T.BG_BASE, 0.45)
+	b.add_theme_stylebox_override("disabled", off)
+	var focus := box(Color.TRANSPARENT, T.GOLD, 3)
+	focus.set_expand_margin_all(4)
+	b.add_theme_stylebox_override("focus", focus)
+	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_hover_pressed_color"]:
+		b.add_theme_color_override(c, ink)
+	b.add_theme_color_override("font_disabled_color", Color(T.INK_MUTED, 0.6))
+	for c in ["icon_normal_color", "icon_hover_color", "icon_pressed_color", "icon_focus_color"]:
+		b.add_theme_color_override(c, ink)
+	b.add_theme_color_override("icon_disabled_color", Color(T.INK_MUTED, 0.6))
+
+
+## A display heading cut into the stone: a dark edge above the letters and a light
+## one below, so they read as incised.
+static func carved_label(text: String, type: Array = T.HEADING, color: Color = T.INK) -> Label:
+	var l := label(text, type, color)
+	l.add_theme_color_override("font_shadow_color", Color(1, 1, 1, 0.10))
+	l.add_theme_constant_override("shadow_offset_x", 0)
+	l.add_theme_constant_override("shadow_offset_y", 1)
+	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.55))
+	l.add_theme_constant_override("outline_size", 2)
+	return l
 
 
 ## Scale a control down a touch while it is held, and tick the phone on the press,

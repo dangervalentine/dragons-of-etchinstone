@@ -8,6 +8,7 @@ extends HBoxContainer
 
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
+const StoneStyle = preload("res://ui/theme/stone_style.gd")
 
 signal intent(data: Dictionary)
 
@@ -50,21 +51,25 @@ func _token(t: Dictionary, two: bool) -> Button:
 	var filled := state == "filled"
 	var spent := state == "played" or state == "discarded"
 	var kept := state == "kept"
-	# The token being filled next wears the same focus colour as the parts of the
-	# Hand cards it is asking for.
-	var border: Color = T.FOCUS if next else (T.ether(t.ether) if filled else (T.GOLD if kept else T.LINE_SOFT))
-	var bg: Color = T.BG_RAISED if filled or kept else T.BG_SURFACE
-	var normal := UI.box(bg, border, 3 if next else 2, T.RADIUS_M, 4)
+	# A token is a small place cut into the stone. The one being filled next is lit
+	# with the same focus colour as the parts of the Hand cards it is asking for;
+	# a filled one is edged in its card's Ether.
+	var edge: Color = T.ether(t.ether) if filled else (T.GOLD if kept else Color(0, 0, 0, 0))
+	var normal := StoneStyle.new("inset", 0.6)
+	normal.edge = edge
 	if next:
-		normal.shadow_color = Color(T.FOCUS, 0.35)
-		normal.shadow_size = 10
-	else:
-		normal.shadow_color = Color(0, 0, 0, 0.3)
-		normal.shadow_size = 6
-		normal.shadow_offset = Vector2(0, 2)
+		normal.glow = 1.0
+	var hover := StoneStyle.new("inset", 0.4)
+	hover.edge = edge
+	hover.glow = 0.6 if not next else 1.0
+	var down := StoneStyle.new("inset", 0.9)
+	down.edge = edge
+	for style in [normal, hover, down]:
+		for side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
+			style.set_content_margin(side, 4)
 	b.add_theme_stylebox_override("normal", normal)
-	b.add_theme_stylebox_override("hover", UI.box(bg.lightened(0.07), border.lightened(0.2), 3 if next else 2, T.RADIUS_M, 4))
-	b.add_theme_stylebox_override("pressed", UI.box(bg.darkened(0.1), border, 3, T.RADIUS_M, 4))
+	b.add_theme_stylebox_override("hover", hover)
+	b.add_theme_stylebox_override("pressed", down)
 	b.add_theme_stylebox_override("disabled", normal)
 	b.add_theme_stylebox_override("focus", UI.box(Color.TRANSPARENT, T.GOLD, 3, T.RADIUS_M, 4))
 	UI.press_feedback(b)
@@ -99,6 +104,7 @@ func _token(t: Dictionary, two: bool) -> Button:
 func _toggle(t: Dictionary, two: bool) -> Control:
 	var to_attack: bool = t.target == "attack"
 	var b := UI.button("" if two else ("Attack" if to_attack else "Initiative"), "normal", "attack" if to_attack else "initiative")
+	UI.style_stone_button(b)
 	b.custom_minimum_size = Vector2(T.TAP_MIN if two else 150, T.TAP_MIN)
 	b.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	# Sized like the token numerals' captions so "Initiative" fits on one line.

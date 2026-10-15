@@ -19,8 +19,12 @@ const ActionBar = preload("res://ui/widgets/action_bar.gd")
 const EtherPicker = preload("res://ui/widgets/ether_picker.gd")
 const CardDetail = preload("res://ui/widgets/card_detail.gd")
 const Art = preload("res://ui/model/art.gd")
+const StoneStyle = preload("res://ui/theme/stone_style.gd")
 
 signal intent(data: Dictionary)
+## The zones the rift light must stay out from under, and where it comes from, in
+## this screen's coordinates. Sent whenever the layout changes.
+signal board_changed(zones: Array, source: Vector2)
 
 var header := HeaderBar.new()
 var encounter_face := EncounterFace.new()
@@ -35,6 +39,8 @@ var hand := HandTray.new()
 var picker := EtherPicker.new()
 var detail := CardDetail.new()
 var _hand_panel := Panel.new()
+## The deepest place cut into the stone: the Hand's well.
+var _hand_well := StoneStyle.new("well", 0.9)
 var _input_region := ""
 var _hover_id := ""
 var _hover_timer := Timer.new()
@@ -63,8 +69,9 @@ func _init() -> void:
 	_fill(_regions.rail, rail)
 	_fill(_regions.actions, actions)
 	_fill(_regions.header, header)
-	# The Hand sits on its own panel, raised while it is waiting on the player.
+	# The Hand sits in its own well, lit at the rim while it is waiting on the player.
 	_hand_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hand_panel.add_theme_stylebox_override("panel", _hand_well)
 	add_child(_hand_panel)
 	add_child(hand)
 	hand.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -148,6 +155,20 @@ func _place_hand_panel() -> void:
 	var panel := Rect2(cards.position.x - 10.0, top, cards.size.x + 20.0, bottom - top)
 	_hand_panel.position = panel.position
 	_hand_panel.size = panel.size
+	_send_board()
+
+
+## Tell the rift where the zones are and where its light comes from: the Encounter.
+func _send_board() -> void:
+	if plan.is_empty():
+		return
+	var zones := [Rect2(_hand_panel.position, _hand_panel.size)]
+	for key in ["encounter", "preview", "rail", "header"]:
+		var r: Rect2 = plan.regions[key]
+		if r.size.x > 0.0 and r.size.y > 0.0:
+			zones.append(r)
+	zones.append(Rect2(plan.regions.actions.position, plan.regions.commit.end - plan.regions.actions.position))
+	board_changed.emit(zones, plan.regions.encounter.get_center())
 
 
 ## The part of the screen waiting on the player comes forward; the rest steps back.
@@ -156,7 +177,7 @@ func _render_prominence() -> void:
 	if region == _input_region:
 		return
 	_input_region = region
-	_hand_panel.add_theme_stylebox_override("panel", UI.raised_panel_box("active" if region == "hand" else "rest"))
+	_hand_well.glow = 1.0 if region == "hand" else 0.0
 	actions.set_ready(region == "commit")
 
 

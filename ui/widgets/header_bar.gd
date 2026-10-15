@@ -1,12 +1,14 @@
 extends Control
 ## The strip across the top of the play screen: where you are, how much of the deck
-## is left, the three piles with their counts, and the menu button. It stays quiet,
-## so the Encounter and the cards below it come first.
+## is left, the three piles with their counts, and the menu button. It is a shallow
+## lintel of carved stone with the heading cut into it, and it stays quiet, so the
+## Encounter and the cards below it come first.
 
 const T = preload("res://ui/theme/tokens.gd")
 const HelpTip = preload("res://ui/widgets/help_tip.gd")
 const HelpButton = preload("res://ui/widgets/help_button.gd")
 const UI = preload("res://ui/theme/theme.gd")
+const StoneStyle = preload("res://ui/theme/stone_style.gd")
 
 signal intent(data: Dictionary)
 
@@ -21,12 +23,19 @@ var _counts := {}
 var _icons := {}
 var _shown := {"deck": 0, "discard": 0, "trash": 0}
 var _fraction := 1.0
+var _lintel := StoneStyle.new("lintel", 0.15)
 
 
 func _init() -> void:
 	_row.add_theme_constant_override("separation", T.M)
 	add_child(_row)
 	UI.style_label(_heading, T.HEADING, T.INK)
+	# Cut into the stone: a dark edge round the letters, a light one below.
+	_heading.add_theme_color_override("font_shadow_color", Color(1, 1, 1, 0.10))
+	_heading.add_theme_constant_override("shadow_offset_x", 0)
+	_heading.add_theme_constant_override("shadow_offset_y", 1)
+	_heading.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.55))
+	_heading.add_theme_constant_override("outline_size", 2)
 	_heading.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_heading.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_heading.clip_text = true
@@ -77,6 +86,10 @@ func _init() -> void:
 	UI.press_feedback(menu_button)
 	add_child(menu_button)
 	resized.connect(_fit)
+
+
+func _draw() -> void:
+	draw_style_box(_lintel, Rect2(Vector2(-T.S, -4), size + Vector2(2 * T.S, 8)))
 
 
 func render(vs: Dictionary) -> void:

@@ -20,6 +20,7 @@ func _init() -> void:
 	_actions.add_theme_constant_override("separation", T.S)
 	add_child(_actions)
 	primary = UI.button("", "primary")
+	UI.style_stone_button(primary, "primary")
 	primary.pressed.connect(func(): intent.emit({"type": "primary"}))
 	add_child(primary)
 
@@ -37,7 +38,9 @@ func render(vs: Dictionary) -> void:
 		c.queue_free()
 	for a in vs.secondary:
 		var label: String = a.label if a.enabled else a.reason
-		var b := UI.button(label, "active" if a.active else ("quiet" if a.id == "cancel" else "normal"), a.icon)
+		var kind: String = "active" if a.active else ("quiet" if a.id == "cancel" else "normal")
+		var b := UI.button(label, kind, a.icon)
+		UI.style_stone_button(b, kind)
 		b.disabled = not a.enabled
 		b.tooltip_text = a.reason
 		b.autowrap_mode = TextServer.AUTOWRAP_OFF
@@ -52,7 +55,7 @@ func render(vs: Dictionary) -> void:
 	primary.disabled = not p.enabled
 	if p.kind != _kind:
 		_kind = p.kind
-		UI.style_button(primary, p.kind)
+		UI.style_stone_button(primary, p.kind)
 	primary.tooltip_text = p.reason
 	if p.enabled and not _was_enabled and is_inside_tree():
 		UI.flash(primary, T.GOLD)
@@ -64,15 +67,13 @@ func render(vs: Dictionary) -> void:
 ## The primary action glows while it is the thing waiting on the player.
 func set_ready(on: bool) -> void:
 	_ready = on
-	UI.style_button(primary, _kind if _kind != "" else "primary")
+	UI.style_stone_button(primary, _kind if _kind != "" else "primary")
 	if on:
 		_glow()
 
 
 func _glow() -> void:
 	var s = primary.get_theme_stylebox("normal")
-	if s is StyleBoxFlat and s.shadow_size < 14:
-		s = s.duplicate()
-		s.shadow_color = Color(T.FOCUS, 0.45)
-		s.shadow_size = 14
-		primary.add_theme_stylebox_override("normal", s)
+	if s.get("glow") != null and s.glow < 1.0:
+		s.glow = 1.0
+		s.glow_colour = T.FOCUS

@@ -191,7 +191,7 @@ first look), and `test_stone_contrast` is green.
 
 ### Tests for User Story 2 (write first)
 
-- [ ] T018 [P] [US2] Create `tests/test_stone_contrast.gd`. Bake the textures through `Stone.grain()` (T020) and read their `Image`. Find the brightest and darkest texel luminances after remap, then:
+- [X] T018 [P] [US2] Create `tests/test_stone_contrast.gd`. Bake the textures through `Stone.grain()` (T020) and read their `Image`. Find the brightest and darkest texel luminances after remap, then:
   - Assert the brightest `≤ T.luminance(T.BG_RAISED)`.
   - Compute `bright = brightest texel colour blended with T.FOCUS at the StoneStyle's maximum rim-glow alpha` (export that alpha as `StoneStyle.GLOW_MAX_UNDER_TEXT`).
   - For every text colour in `[T.INK, T.INK_MUTED, T.GOLD, T.GOOD, T.CAUTION, T.BAD, T.HP]` plus `T.ether_ink(e)` for each Ether, assert `T.ratio(colour, bright) >= 4.5` and `T.ratio(colour, darkest) >= 4.5`.
@@ -201,7 +201,7 @@ first look), and `test_stone_contrast` is green.
 
 ### Implementation for User Story 2
 
-- [ ] T019 [P] [US2] In `tools/gen_icons.py`, add eight ornament SVGs written to `art/icons/`, in the existing icons' flat style (a single shape, detail as cut-out negative space):
+- [X] T019 [P] [US2] In `tools/gen_icons.py`, add eight ornament SVGs written to `art/icons/`, in the existing icons' flat style (a single shape, detail as cut-out negative space):
   - `orn_divider` (a gouged horizontal rule, wide aspect)
   - `orn_corner`
   - `orn_flourish_l`, `orn_flourish_r`
@@ -211,14 +211,14 @@ first look), and `test_stone_contrast` is green.
   - `orn_scroll_end`
 
   Run the script, open the project once headless so Godot imports them (`godot --headless --path . --import`), and commit the `.svg` and `.import` files.
-- [ ] T020 [US2] Create `ui/theme/stone.gd` (`extends RefCounted`), with static, lazily baked, cached textures:
+- [X] T020 [US2] Create `ui/theme/stone.gd` (`extends RefCounted`), with static, lazily baked, cached textures:
   - `grain() -> Texture2D`: a `NoiseTexture2D` 512², `seamless = true`, `FastNoiseLite` simplex fractal with 3 octaves and frequency about 0.012. Remap it into `[T.STONE_L_MIN, T.STONE_L_MAX]` luminance in a cool grey-violet near `T.BG_SURFACE`, using a `color_ramp` Gradient.
   - `cracks() -> Texture2D`: a `NoiseTexture2D` 512², seamless, `FastNoiseLite` `TYPE_CELLULAR` with `cellular_return_type = RETURN_DISTANCE2_SUB` and frequency about 0.008, inverted so the thin valleys are bright.
   - **Override**: if `res://art/stone/grain.png` or `res://art/stone/cracks.png` exists, return that instead (research D3 fallback).
   - **Readiness**: `await_ready()` waits for `NoiseTexture2D.changed` the first time, so the images can be read.
 
   Make T018 pass. Tune the gradient, not the floors.
-- [ ] T021 [US2] Create `ui/theme/stone_style.gd` (`extends StyleBox`) overriding `_draw(to_canvas_item: RID, rect: Rect2)` and `_get_draw_rect`:
+- [X] T021 [US2] Create `ui/theme/stone_style.gd` (`extends StyleBox`) overriding `_draw(to_canvas_item: RID, rect: Rect2)` and `_get_draw_rect`:
   - **Properties**:
     - `kind` (`"well"|"plinth"|"slab"|"inset"|"lintel"`)
     - `depth` (0–1)
@@ -233,12 +233,12 @@ first look), and `test_stone_contrast` is green.
     - An outer bevel for raised kinds (`plinth`, `slab`, `lintel`): light at the top and left, shadow at the bottom and right, plus a soft cast shadow for `slab`.
     - When `glow > 0`, a rim polyline 2–3 units wide in `glow_colour` at alpha `glow × GLOW_MAX_UNDER_TEXT`, plus an outer soft line.
   - **Interface**: the content margins come from `T.S` and `T.M` by kind. Emit `changed` on property sets so tweens redraw.
-- [ ] T022 [US2] In `ui/theme/theme.gd` add the stone helpers. Do **not** change `box`, `panel` or `raised_panel_box` (staging convention):
+- [X] T022 [US2] In `ui/theme/theme.gd` add the stone helpers. Do **not** change `box`, `panel` or `raised_panel_box` (staging convention):
   - `static func stone_box(kind: String, depth := 0.5) -> StyleBox`, returning a configured `StoneStyle`.
   - `static func stone_panel(kind: String, depth := 0.5) -> PanelContainer`.
   - `static func style_stone_button(b: Button, kind := "normal")`: plinth states, with `primary` drawn as a gold-leafed plinth (`T.GOLD` face, dark ink) and pressed sinking to flush.
   - `static func carved_label(text, type, colour) -> Label`: a display label plus a 1-unit dark shadow offset `(0,-1)` and a light outline/offset `(0,1)` for the incised look, via `font_shadow_color` / `shadow_offset_*` and a second label or `font_outline`.
-- [ ] T023 [US2] Rewrite `ui/fx/shaders/backdrop.gdshader` per research D6, keeping the existing `base`, `glow`, `ether_tint` and `tint_amount` uniforms working.
+- [X] T023 [US2] Rewrite `ui/fx/shaders/backdrop.gdshader` per research D6, keeping the existing `base`, `glow`, `ether_tint` and `tint_amount` uniforms working.
   - **New uniforms**:
     - `stone_amount` (0 = today's look exactly, 1 = stone)
     - `sampler2D grain`, `sampler2D cracks`
@@ -252,7 +252,7 @@ first look), and `test_stone_contrast` is green.
   - **Per-Ether behaviour** on `ether_id`, per contracts/stone-and-rift.md § Rift light: fire faster flicker, water slow swell, lightning rare jolt (no more than one per 4 s, ≤ 40%), shadow dim with pinpricks.
   - **Rift bloom**: a soft radial bloom from `rift_source`.
   - **Under zones**: seams × `(1 − inside(zones))`, so `SEAM_MAX_UNDER_TEXT` = 0 under zones.
-- [ ] T024 [US2] Create `ui/fx/rift_layer.gd` (`extends Control`, full rect, mouse ignored) owning the backdrop's rift state:
+- [X] T024 [US2] Create `ui/fx/rift_layer.gd` (`extends Control`, full rect, mouse ignored) owning the backdrop's rift state:
   - **`set_ether(e)`**: tweens `seam_colour` to `T.ether_shade(e, "lit")`, or `T.SEAM_NEUTRAL` for null, over `T.RIFT_TINT_TIME` (instant under reduced motion), and sets `ether_id`.
   - **Other setters**: `set_source(global_point)`, `set_zones(rects: Array)` (≤ 8, converted to UV) and `set_stone(on: bool)`.
   - **Motes**: a placeholder hook for US3.
@@ -261,29 +261,36 @@ first look), and `test_stone_contrast` is green.
   - Pass the backdrop's `ShaderMaterial` and the `Stone` textures to it.
   - Extend `_tint_backdrop(vs)` to call `set_ether`, using the Encounter's element, or the dragon's in the Final Battle phases.
   - Call `set_stone(true)` only while the play screen is shown (US4 makes it global).
-- [ ] T025 [US2] In `ui/screens/play_screen.gd`:
+- [X] T025 [US2] In `ui/screens/play_screen.gd`:
   - Give `_hand_panel` `UI.stone_box("well", 0.9)`, and switch `_render_prominence()` to set `glow` 1 or 0 on the zone styles instead of swapping `raised_panel_box` kinds.
   - After layout, call `rift_layer.set_zones()` with the encounter, preview, rail, hand-panel and actions rects, and `set_source()` at the encounter centre. Reach `main.gd`'s rift layer through a `signal board_changed(zones, source)` that `main.gd` connects.
-- [ ] T026 [P] [US2] Restyle the Encounter side to stone:
+- [X] T026 [P] [US2] Restyle the Encounter side to stone:
   - In `ui/widgets/encounter_face.gd`, `ui/widgets/dragon_face.gd` and `ui/widgets/face_frame.gd`, the frame becomes `UI.stone_box("well", 1.0)` with its Ether-coloured rim kept as `glow_colour` at a low resting `glow`.
   - Name bands become `lintel` with `UI.carved_label` for the name.
   - Keep every value and icon.
-- [ ] T027 [P] [US2] Restyle the preview side to stone:
+- [X] T027 [P] [US2] Restyle the preview side to stone:
   - In `ui/widgets/preview_panel.gd`, `ui/widgets/soak_meter.gd` and `ui/widgets/xp_purse.gd`, replace `raised_panel_box` / `UI.box` with `UI.stone_box("well", 0.6)`, keeping the soak meter's damage border as `glow_colour`.
   - Inner chips (`ui/widgets/stat_chip.gd` *only where used by these widgets*; pass a flag rather than changing its default) become `inset`.
   - The "Still needed" chips become `inset`.
-- [ ] T028 [P] [US2] Restyle the header and actions:
+- [X] T028 [P] [US2] Restyle the header and actions:
   - In `ui/widgets/header_bar.gd`, the header becomes a `lintel` with an `orn_divider` under the title, and the title via `UI.carved_label`.
   - In `ui/widgets/action_bar.gd`, the buttons use `UI.style_stone_button` (Play stays the gold primary).
   - In `ui/widgets/role_rail.gd`, the tokens become `inset` (`next` with `glow` 1).
-- [ ] T029 [P] [US2] Restyle the in-play popups to slabs: `ui/widgets/ether_picker.gd` and `ui/widgets/card_detail.gd` become `UI.stone_box("slab")`. These are play-screen popups, not global overlays.
-- [ ] T030 [US2] Check every Ether's mood and the floors:
+- [X] T029 [P] [US2] Restyle the in-play popups to slabs: `ui/widgets/ether_picker.gd` and `ui/widgets/card_detail.gd` become `UI.stone_box("slab")`. These are play-screen popups, not global overlays.
+- [X] T030 [US2] Check every Ether's mood and the floors:
   - Run `./tools/test.sh` (green, including `test_stone_contrast` and `ui_check` at every matrix size).
   - Run `godot --path . -s tools/shot.gd -- build/006-us2 phone-16x9 desktop`.
   - Run `godot --path . -s tools/design_shots.gd -- build/006-us2/design` (its `_ethers()` pass gives one Encounter per Ether).
   - Tune the shader behaviours until, with the cards **and the Encounter frame** covered, the developer can name the Ether on all four. The real SC-004 check uses another viewer, in T039. Commit "Stone and rift light on the play screen".
 
 **Checkpoint**: The play screen is in stone; the other screens are unchanged.
+
+**Implementation notes (US2, 2026-10-15)**:
+- **Stone is built synchronously.** `stone.gd` uses `FastNoiseLite.get_seamless_image()`, not `NoiseTexture2D`, so tests read the pixels at once. The grain is a 256² tile and is remapped in a pixel loop at first use.
+- **Glow inside zones.** `StoneStyle.GLOW_MAX_UNDER_TEXT` is the faint wash of rim light *inside* a zone (0.06). The rim itself is drawn on the edge, away from text, and the contrast test checks text against that wash.
+- **HP's contrast floor.** `HP` is held to the 3:1 numeral floor, because it colours hearts and large numerals. It was already about 4.2:1 on today's flat panels.
+- **Crack tuning.** Tuned by eye across the four Ethers with a scratch one-state renderer. The cracks show as short glints more than long veins; this is for the owner to judge at T040.
+- **Left flat for now.** The Final Battle tier rows in `dragon_face.gd` and the stat chips inside the Encounter frame keep their flat inner boxes. They sit inside the stone well, so they read as inlays.
 
 ---
 

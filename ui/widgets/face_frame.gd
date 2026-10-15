@@ -1,13 +1,14 @@
 extends Control
-## The framed, Ether-coloured face shared by Encounters and dragons: a dark title
-## band over a patterned field, edged in the Ether colour. Subclasses fill the band
-## and the field.
+## The framed, Ether-coloured face shared by Encounters and dragons: a title band
+## of carved stone over a patterned field, cut into the board and edged in the
+## Ether colour. Subclasses fill the band and the field.
 
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
 const FIELD_SHADER = preload("res://ui/fx/shaders/ether_field.gdshader")
 const Creature = preload("res://ui/fx/creature.gd")
 const Art = preload("res://ui/model/art.gd")
+const StoneStyle = preload("res://ui/theme/stone_style.gd")
 
 const BAND_H := 56
 const EDGE := 3
@@ -22,6 +23,8 @@ var _field := ColorRect.new()
 var _sigil := TextureRect.new()
 var _creature := Creature.new()
 var _edge := Control.new()
+## The deepest-cut stone on the board, under the band and round the field.
+var _stone := StoneStyle.new("inset", 1.0)
 
 
 func _init() -> void:
@@ -106,26 +109,12 @@ func _fit() -> void:
 
 
 func _draw() -> void:
-	draw_style_box(_frame(true), Rect2(Vector2.ZERO, size))
+	draw_style_box(_stone, Rect2(Vector2.ZERO, size))
 
 
-## The Ether edge, with a faint highlight along the top so the face reads as raised.
+## The Ether edge along the cut outline, over the field's corners.
 func _draw_edge() -> void:
-	_edge.draw_style_box(_frame(false), Rect2(Vector2.ZERO, size))
-	var r := float(T.RADIUS_CARD)
-	_edge.draw_line(Vector2(r, EDGE + 1), Vector2(size.x - r, EDGE + 1), Color(1, 1, 1, 0.12), 1.0)
-
-
-func _frame(filled: bool) -> StyleBoxFlat:
-	var s := StyleBoxFlat.new()
-	s.bg_color = T.BG_BAND
-	s.draw_center = filled
-	s.border_color = T.ether(element) if element != null and element != "" else T.LINE_SOFT
-	s.set_border_width_all(EDGE)
-	s.set_corner_radius_all(T.RADIUS_CARD)
-	s.anti_aliasing_size = 0.6
-	if filled:
-		s.shadow_color = Color(0, 0, 0, 0.45)
-		s.shadow_size = 12
-		s.shadow_offset = Vector2(0, 4)
-	return s
+	var pts := _stone.outline(Rect2(Vector2.ZERO, size), EDGE / 2.0)
+	pts.append(pts[0])
+	var colour: Color = T.ether(element) if element != null and element != "" else T.LINE_SOFT
+	_edge.draw_polyline(pts, colour, EDGE, true)

@@ -29,7 +29,8 @@ func test_every_game_icon_has_an_entry() -> void:
 		if not f.ends_with(".svg"):
 			continue
 		var id := f.get_basename()
-		if id.begins_with("sigil_") or Glossary.NOT_SYMBOLS.has(id):
+		# Sigils and the carved-stone ornaments are decoration, not game symbols.
+		if id.begins_with("sigil_") or id.begins_with("orn_") or Glossary.NOT_SYMBOLS.has(id):
 			continue
 		ok(Glossary.has(id), "entry for icon " + id)
 

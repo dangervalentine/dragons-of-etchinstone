@@ -272,6 +272,53 @@ SIGILS = {
     "sigil_region": path(ring(24, 24, 22, 20.5)) + scaled(ICONS["mp"], 0.6, 0, 1) + TICKS,
 }
 
+
+def _mirror_x(points, width):
+    return [(width - x, y) for x, y in reversed(points)]
+
+
+def _pts(points):
+    return " ".join("%.1f,%.1f" % p for p in points)
+
+
+# Woodcut ornaments for the carved-stone screens (feature 006): flat shapes with
+# detail cut out as negative space, like the creature silhouettes. Each has its own
+# view box: [width, height, body].
+_BLADE = [(2, 8), (30, 5.5), (60, 4.5), (80, 3), (86, 8), (80, 13), (60, 11.5), (30, 10.5)]
+_SEAL_EDGE = []
+for i in range(36):
+    a = math.radians(i * 10)
+    r = 22.5 if i % 2 == 0 else 20.5
+    _SEAL_EDGE.append((24 + r * math.cos(a), 24 + r * math.sin(a)))
+ORNAMENTS = {
+    # A gouged rule: two tapering blades meeting at a cut diamond, a notch in each blade.
+    "orn_divider": [192, 16, poly(_pts(_BLADE)) + poly(_pts(_mirror_x(_BLADE, 192)))
+        + path("M96 0 L106 8 L96 16 L86 8 Z M96 4 L100 8 L96 12 L92 8 Z")
+        + path("M40 6.2 L44 8 L40 9.8 Z M152 6.2 L148 8 L152 9.8 Z")],
+    # A chamfered bracket for a slab's corner, with a diamond cut at the bend.
+    "orn_corner": [48, 48, path("M2 2 H40 L46 8 H14 L8 14 V46 L2 40 Z M12 6 L16 10 L12 14 L8 10 Z")],
+    # A spear-headed flourish either side of a heading.
+    "orn_flourish_l": [64, 24, path("M62 12 L44 5 L38 9 L4 11 Q1 12 4 13 L38 15 L44 19 Z M44 10 L50 12 L44 14 Z")],
+    "orn_flourish_r": [64, 24, path("M2 12 L20 5 L26 9 L60 11 Q63 12 60 13 L26 15 L20 19 Z M20 10 L14 12 L20 14 Z")],
+    # A jagged tear, tall and narrow: where the rift light comes through.
+    "orn_rift": [24, 96, poly("12,0 15,14 11,22 17,34 12,44 18,58 13,68 16,82 12,96 9,84 11,70 6,58 11,46 5,34 10,24 7,12")],
+    # The mages' Tower: a stepped spire with a lit window and a door cut out.
+    "orn_tower": [48, 48, path("M24 1 L29 10 H27 V16 H31 V24 H29 V46 H19 V24 H17 V16 H21 V10 H19 Z"
+        " M22.5 18 H25.5 V22 H22.5 Z M22 34 Q24 30 26 34 V46 H22 Z")],
+    # A wax seal: a scalloped disc with a carved T for the Tower.
+    "orn_seal": [48, 48, path("M" + " L".join("%.1f %.1f" % p for p in _SEAL_EDGE) + " Z"
+        " M15 14 H33 V19 H27 V35 H21 V19 H15 Z")],
+    # A scroll's rolled end: a long bar with a curl at each side.
+    "orn_scroll_end": [192, 24, path("M14 4 H178 A8 8 0 0 1 178 20 H14 A8 8 0 0 1 14 4 Z"
+        " M14 8 A4 4 0 0 0 14 16 H24 V8 Z M178 8 A4 4 0 0 1 178 16 H168 V8 Z M30 11 H162 V13 H30 Z")],
+}
+
+for name, (w, h, body) in ORNAMENTS.items():
+    svg = ('<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d" fill="#ffffff">' % (w * 4, h * 4, w, h)
+           + body + "</svg>\n")
+    with open(os.path.join(OUT, name + ".svg"), "w", newline="\n") as f:
+        f.write(svg)
+
 for name, body in list(ICONS.items()) + list(SIGILS.items()):
     side = 320 if name in SIGILS else 96
     svg = ('<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 48 48" fill="#ffffff">' % (side, side)
@@ -279,4 +326,4 @@ for name, body in list(ICONS.items()) + list(SIGILS.items()):
     # LF on every OS, as .gitattributes asks, so a rerun on Windows changes nothing.
     with open(os.path.join(OUT, name + ".svg"), "w", newline="\n") as f:
         f.write(svg)
-print(len(ICONS) + len(SIGILS), "icons written")
+print(len(ICONS) + len(SIGILS) + len(ORNAMENTS), "icons written")
