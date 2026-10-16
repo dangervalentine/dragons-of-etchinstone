@@ -12,6 +12,12 @@ signal intent(data: Dictionary)
 const STEEL := Color("aaa6b8")
 
 var _shown := {}
+var _enemy := false
+
+## Room left around an enemy's figure when it fills the panel, in its 512 units.
+const ENEMY_PAD := 10.0
+## Each figure's outline in its 512 units, measured once from its art.
+static var _bounds := {}
 
 
 func render(enc: Dictionary) -> void:
@@ -20,6 +26,7 @@ func render(enc: Dictionary) -> void:
 	_shown = enc.duplicate(true)
 	clear()
 	var enemy: bool = enc.kind == "enemy"
+	_enemy = enemy
 	var d: Dictionary = enc.data
 	set_look(enc.element, "sigil_" + str(enc.element), enc.get("art", ""))
 
@@ -111,6 +118,49 @@ func _fit() -> void:
 	_place_art.call_deferred()
 
 
+## The part of an enemy's art that fills a panel of `panel` size: the figure's full
+## width (with a little room) from just above its top down, as far as the panel's
+## shape allows, so its feet run off the bottom. Centred on the figure.
+static func enemy_crop(name: String, panel: Vector2) -> Rect2:
+	var b := figure_bounds(name).grow(ENEMY_PAD)
+	var w := b.size.x
+	var h := w * panel.y / maxf(panel.x, 1.0)
+	# A figure taller than wide keeps the panel's shape by widening, centred.
+	if h > b.size.y:
+		h = b.size.y
+		w = h * panel.x / maxf(panel.y, 1.0)
+	return Rect2(b.get_center().x - w / 2.0, b.position.y, w, h)
+
+
+## Where a figure's art is drawn within its 512-unit square: the box round every
+## pixel that is not see-through. Measured once per art and kept.
+static func figure_bounds(name: String) -> Rect2:
+	if _bounds.has(name):
+		return _bounds[name]
+	var full := Art.FULL
+	var tex: Texture2D = UI.art(name)
+	var img: Image = tex.get_image() if tex != null else null
+	if img == null or img.is_empty():
+		_bounds[name] = full
+		return full
+	if img.is_compressed():
+		img.decompress()
+	var lo := Vector2i(img.get_width(), img.get_height())
+	var hi := Vector2i(-1, -1)
+	for y in range(0, img.get_height(), 2):
+		for x in range(0, img.get_width(), 2):
+			if img.get_pixel(x, y).a > 0.2:
+				lo = Vector2i(mini(lo.x, x), mini(lo.y, y))
+				hi = Vector2i(maxi(hi.x, x), maxi(hi.y, y))
+	if hi.x < 0:
+		_bounds[name] = full
+		return full
+	var k := full.size.x / img.get_width()
+	var r := Rect2(Vector2(lo) * k, Vector2(hi - lo) * k)
+	_bounds[name] = r
+	return r
+
+
 ## The art fills the panel beside the badges; XP and the effect discs sit on its
 ## corners and top edge.
 func _place_art() -> void:
@@ -121,7 +171,13 @@ func _place_art() -> void:
 	_field.position = _art_rect.position
 	_field.size = _art_rect.size
 	_field.material.set_shader_parameter("size", _art_rect.size)
-	if art != "":
+	if art != "" and _enemy:
+		# An enemy fills the panel's width: the art is cropped from the top of the
+		# figure down, as wide as the figure, and its feet run off the bottom.
+		_creature.position = _art_rect.position
+		_creature.size = _art_rect.size
+		_creature.crop = enemy_crop(art, _art_rect.size)
+	elif art != "":
 		var a := minf(_art_rect.size.x, _art_rect.size.y) * 0.96
 		_creature.size = Vector2(a, a)
 		_creature.position = Vector2(_art_rect.end.x - a - 4, _art_rect.end.y - a - 2)
