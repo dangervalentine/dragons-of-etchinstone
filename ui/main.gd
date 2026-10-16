@@ -267,6 +267,7 @@ func start_game(opts: Dictionary) -> void:
 	_undo.clear()
 	draft.reset(1)
 	play = PlayScreen.new()
+	play.flight = _flight
 	play.intent.connect(dispatch)
 	_switch(play)
 	_refresh(false)

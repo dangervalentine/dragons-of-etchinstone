@@ -4,12 +4,12 @@ extends RefCounted
 ## a still one for reduced motion. Pure: a table and a lookup.
 
 ## event -> {target, colour, motion: {kind, duration}, still: {...}}.
-## target: a zone: "hand", "encounter", "header" or "rail_token".
+## target: a zone: "hand", "encounter", "header" or "slot" (a role slot).
 ## colour: "ether" (the card's or the Encounter's), "focus", "gold", "bad" or "neutral".
 const TABLE := {
-	"place": {"target": "rail_token", "colour": "ether", "motion": {"kind": "flare", "duration": 0.25},
+	"place": {"target": "slot", "colour": "ether", "motion": {"kind": "flare", "duration": 0.25},
 		"still": {"tint": "ether", "hold": 0.25}},
-	"take_back": {"target": "rail_token", "colour": "neutral", "motion": {"kind": "dim", "duration": 0.15},
+	"take_back": {"target": "slot", "colour": "neutral", "motion": {"kind": "dim", "duration": 0.15},
 		"still": {"clear": true}},
 	"fuse": {"target": "hand", "colour": "ether", "motion": {"kind": "flare", "duration": 0.35},
 		"still": {"tint": "ether", "hold": 0.25}},

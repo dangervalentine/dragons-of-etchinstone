@@ -49,6 +49,7 @@ static func build(game, draft, db, extra := {}) -> Dictionary:
 		"cards": {},
 		"encounter": _encounter(game, db),
 		"preview": null,
+		"explain": {},
 		"sets": [],
 		"active_slot": draft.active.duplicate(),
 		"soak": null,
@@ -63,6 +64,7 @@ static func build(game, draft, db, extra := {}) -> Dictionary:
 	}
 	if playing:
 		vs.preview = preview(game, draft, extra.get("previous_preview"))
+		vs.explain = explain(game, draft)
 		vs.sets = _sets(game, draft)
 	if SOAK_PHASES.has(phase):
 		var total := 0
@@ -83,7 +85,7 @@ static func build(game, draft, db, extra := {}) -> Dictionary:
 			for role in vs.played.roles:
 				if vs.played.roles[role] == id:
 					vs.cards[id]["played_role"] = [0, role]
-	vs["rail"] = rail_tokens(vs)
+	vs["slots"] = role_slots(vs, game)
 	vs["prompt"] = _prompt(game, draft, vs)
 	vs["secondary"] = _secondary(game, draft, vs)
 	vs["input_region"] = _input_region(game, draft, vs)
@@ -288,60 +290,84 @@ static func encounter_model(db, region: int, kind: String, index: int, hardship,
 		"key_card": key_card}
 
 
-## The role rail: one token per role per Action Set while building, plus a Boost-to
-## toggle for each set that has one; after a battle, the recap of what was played.
-## A token never carries a card's name; only its tooltip does.
-static func rail_tokens(vs: Dictionary) -> Array:
+## The engine's explanation of the draft as it stands: the result and the `terms`
+## behind it, even while a role is empty (`complete` false). Empty when the engine
+## refuses the set outright.
+static func explain(game, draft) -> Dictionary:
+	var action: Dictionary = draft.to_action()
+	var e: Dictionary = game.explain_final(action) if game.phase != "challenge" else game.explain(action)
+	return {} if e.has("error") else e
+
+
+## The role slots: one per role per Action Set while building, each with the number
+## its card gives there (contracts/role-slots.md). After a battle, the same slots
+## recap what was played and whether the Reserve stays. A slot never carries a
+## card's name; only its tooltip does.
+static func role_slots(vs: Dictionary, game = null) -> Array:
 	var out := []
 	if vs.sets.is_empty():
 		var p = vs.played
 		if p == null:
 			return out
+		var terms: Array = game.result.get("terms", []) if game != null else []
 		for role in ["spell", "element", "boost"]:
 			var id = p.roles.get(role)
-			out.append(_token(0, role, "played" if id != null else "discarded", id, [], null,
+			var n = _term_value(terms, ROLE_NAMES[role]) if id != null else null
+			out.append(_slot(0, role, "played" if id != null else "discarded", id, n, "", null, null,
 				{"type": "inspect", "id": id} if id != null else null, _tip(vs, 0, role, id, false)))
 		var r = p.reserve
-		out.append(_token(0, "reserve", "kept" if r != null and p.reserve_kept else "discarded", r, [], null,
+		out.append(_slot(0, "reserve", "kept" if r != null and p.reserve_kept else "discarded", r, null, "", null, null,
 			{"type": "inspect", "id": r} if r != null else null, _tip(vs, 0, "reserve", r, false)))
 		return out
 	var two: bool = vs.sets.size() > 1
+	var enemy: bool = vs.sets[0].show_boost_to
+	var terms: Array = vs.explain.get("terms", [])
 	for i in vs.sets.size():
-		var s: Dictionary = vs.sets[i]
+		var st: Dictionary = vs.sets[i]
 		for role in ["spell", "element", "boost"]:
-			var id = s.roles.get(role)
+			var id = st.roles.get(role)
+			var counts := ""
+			match role:
+				"spell":
+					counts = "attack" if enemy else "move"
+				"element":
+					counts = "initiative"
+				"boost":
+					counts = st.boost_to if enemy else "move"
+			var boost_to = st.boost_to if role == "boost" and enemy else null
+			var toggle = {"type": "toggle_boost_to", "set": i} if boost_to != null else null
 			if id == null:
 				var next: bool = vs.active_slot == [i, role] and vs.mode == "none"
-				out.append(_token(i, role, "next" if next else "empty", null, [], null,
-					{"type": "select_slot", "set": i, "role": role}, _tip(vs, i, role, null, two)))
-			else:
-				var c: Dictionary = vs.cards.get(id, {})
-				out.append(_token(i, role, "filled", id, _contribution(role, c), c.get("element"),
-					{"type": "take_back", "id": id}, _tip(vs, i, role, id, two)))
-		if s.show_boost_to:
-			out.append({"set": i, "role": "boost_to", "state": "toggle", "target": s.boost_to, "card_id": null,
-				"contribution": [], "ether": null, "tap": {"type": "toggle_boost_to", "set": i},
-				"tooltip": "Boost adds to %s. Tap to switch." % ("Attack" if s.boost_to == "attack" else "Initiative")})
+				out.append(_slot(i, role, "next" if next else "empty", null, null, counts, null, boost_to,
+					{"type": "select_slot", "set": i, "role": role}, _tip(vs, i, role, null, two), toggle))
+				continue
+			var c: Dictionary = vs.cards.get(id, {})
+			var n = null
+			match role:
+				"spell":
+					n = _term_value(terms, "Spell %d" % (i + 1) if two else "Spell")
+				"element":
+					n = c.stats.initiative if c.has("stats") else null
+				"boost":
+					n = c.stats.boost if c.has("stats") else null
+			out.append(_slot(i, role, "filled", id, n, counts, c.get("element"), boost_to,
+				{"type": "take_back", "id": id}, _tip(vs, i, role, id, two), toggle))
 	return out
 
 
-static func _token(set_index: int, role: String, state: String, id, contribution: Array, ether, tap, tooltip: String) -> Dictionary:
-	return {"set": set_index, "role": role, "state": state, "card_id": id, "contribution": contribution,
-		"ether": ether, "tap": tap, "tooltip": tooltip}
+static func _slot(set_index: int, role: String, state: String, id, number, counts_to: String, ether, boost_to, tap, tooltip: String, toggle_tap = null) -> Dictionary:
+	return {"set": set_index, "role": role, "state": state, "card_id": id, "number": number,
+		"counts_to": counts_to, "ether": ether, "boost_to": boost_to, "tap": tap,
+		"toggle_tap": toggle_tap, "tooltip": tooltip}
 
 
-## What a card gives in a role: Spell [basic, enhanced, enhanced Ether], Element
-## [Ether, Initiative] or Boost [boost], from its current Level.
-static func _contribution(role: String, c: Dictionary) -> Array:
-	if c.is_empty():
-		return []
-	var lv: Dictionary = c.stats
-	match role:
-		"spell":
-			return [lv.basic.value, lv.enhanced.value, lv.enhanced.element]
-		"element":
-			return [c.element, lv.initiative]
-	return [lv.boost]
+## The value of the first term labelled `label`, or 0 when the engine left it out
+## (a zero contribution).
+static func _term_value(terms: Array, label: String) -> int:
+	for t in terms:
+		if t.label == label:
+			return t.value
+	return 0
 
 
 static func _tip(vs: Dictionary, set_index: int, role: String, id, _two: bool) -> String:

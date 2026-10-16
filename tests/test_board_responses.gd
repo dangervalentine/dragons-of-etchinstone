@@ -21,7 +21,7 @@ func test_every_event_has_a_moving_and_a_still_form() -> void:
 		if not BoardResponse.TABLE.has(e):
 			continue
 		var r: Dictionary = BoardResponse.TABLE[e]
-		ok(["hand", "encounter", "header", "rail_token"].has(r.target), e + " answers at a zone")
+		ok(["hand", "encounter", "header", "slot"].has(r.target), e + " answers at a zone")
 		ok(["ether", "focus", "gold", "bad", "neutral"].has(r.colour), e + " has a colour")
 		ok(KINDS.has(r.motion.kind), e + " moves in a known way")
 		ok(r.motion.duration >= T.FAST and r.motion.duration <= T.REVEAL, e + " is quick, never long")

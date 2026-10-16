@@ -54,6 +54,27 @@ func float_text(text: String, at: Vector2, colour: Color, font_size := 40, durat
 	return tw
 
 
+## A number that travels from one global point to another and is gone when it
+## lands, where the thing it flew to shows it (a card's figure rising to its role
+## slot). Nothing happens under reduced motion: the destination shows it at once.
+func fly_text(text: String, from: Vector2, to: Vector2, colour: Color, font_size := 44, duration := T.MOVE) -> Tween:
+	if UI.reduced_motion:
+		return null
+	var l := UI.label(text, ["display_bold", font_size], colour)
+	l.add_theme_color_override("font_outline_color", T.BG_BASE)
+	l.add_theme_constant_override("outline_size", 8)
+	add_child(l)
+	l.reset_size()
+	l.pivot_offset = l.size / 2.0
+	l.position = from - global_position - l.size / 2.0
+	l.scale = Vector2(1.25, 1.25)
+	var tw := create_tween().set_parallel(true)
+	tw.tween_property(l, "position", to - global_position - l.size / 2.0, duration).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_property(l, "scale", Vector2.ONE, duration).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.chain().tween_callback(l.queue_free)
+	return tw
+
+
 ## A brief tint over everything, such as red when damage lands.
 func tint(colour: Color, duration: float) -> Tween:
 	var r := ColorRect.new()

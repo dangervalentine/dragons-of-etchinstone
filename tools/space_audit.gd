@@ -10,7 +10,6 @@ const Solver = preload("res://ui/model/layout_solver.gd")
 ## The window sizes SC-002 is judged at: the minimum ones.
 const SIZES := ["phone-16x9", "phone-small"]
 const MAX_EMPTY := 1.0 / 3.0
-const MAX_ROLE_RATIO := 0.5
 
 var ui
 var results := {}
@@ -150,8 +149,10 @@ func _measure(size: String, state: String) -> void:
 	print("view %s " % str(play.plan.view) + "%s/%s role %dx%d (%.1f%%) emptiest %s %.0f%% %s" % [size, state, role.size.x, role.size.y, row.role_share * 100.0, worst[0], worst[1] * 100.0, str(zones)])
 
 
-## FAILs when any zone is over a third empty, or the one-set role display is over
-## half the baseline band's area.
+## FAILs when any zone is over a third empty. The role display's share of the
+## baseline band is reported only: revision 1 held it under half, but revision 2
+## (the owner's stage 2 review) replaced the compact rail with full-size role slots
+## that carry the numbers, and the Hand keeps its size instead (SC-004).
 func _compare(base) -> bool:
 	var failed := false
 	for key in results:
@@ -164,9 +165,5 @@ func _compare(base) -> bool:
 			var now: Array = row.role_size
 			var ratio: float = (now[0] * now[1]) / maxf(1.0, b[0] * b[1])
 			print("%s: role display %.0f%% of the baseline band" % [key, ratio * 100.0])
-			if key.ends_with("challenge_empty") or key.ends_with("challenge_one") or key.ends_with("challenge_assigned"):
-				if ratio > MAX_ROLE_RATIO:
-					print("FAIL %s: role display is %.0f%% of the baseline band" % [key, ratio * 100.0])
-					failed = true
 	print("space audit: %s" % ("FAIL" if failed else "PASS"))
 	return failed

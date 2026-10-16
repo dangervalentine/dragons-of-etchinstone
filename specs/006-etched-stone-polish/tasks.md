@@ -192,7 +192,7 @@ placement; actions beside the slots; no button row under the Hand
 
 ### Tests for User Story 1 (write first)
 
-- [ ] T007 [P] [US1] Replace `tests/test_role_rail.gd` with `tests/test_role_slots.gd`
+- [X] T007 [P] [US1] Replace `tests/test_role_rail.gd` with `tests/test_role_slots.gd`
   (delete the old file and its `.uid`). It tests a new `ViewState.role_slots(vs)`
   (renamed from `rail_tokens`, same entry point in `build()` as `vs["slots"]`).
   - (a) **Nothing placed**: three slots, `spell` `next`, others `empty`, each `tap`
@@ -212,7 +212,7 @@ placement; actions beside the slots; no button row under the Hand
     (carried over from `test_role_rail`).
   - (i) **Intent parity**: the non-null taps equal the old intent set (`select_slot`,
     `take_back`, `toggle_boost_to`).
-- [ ] T008 [P] [US1] Update `tests/test_layout_solver.gd` for research R3:
+- [X] T008 [P] [US1] Update `tests/test_layout_solver.gd` for research R3:
   - **Regions**: in `ORDER` and every test, rename the `rail` region to `slots`, and
     turn the rail-height tests into slot band tests. (`actions` and `commit` are
     already in `ORDER`; they move.)
@@ -235,7 +235,7 @@ placement; actions beside the slots; no button row under the Hand
 
 ### Implementation for User Story 1
 
-- [ ] T009 [US1] **Measure `ENCOUNTER_MIN`**. With a scratch script in the session
+- [X] T009 [US1] **Measure `ENCOUNTER_MIN`**. With a scratch script in the session
   scratchpad, not the repo: render `EncounterFace` for an Enemy with an ability, a
   Hardship and full stats, and a Journey with a Peril, at width 400. Shrink the height
   until any child's rect leaves the face. Record the smallest height that fits for
@@ -253,7 +253,7 @@ placement; actions beside the slots; no button row under the Hand
     the Final kinds, measured as above), set `PLAY_IN_COLUMN := true` in
     `ui/model/layout_solver.gd`. Otherwise set it to `false`. Either way, write the
     per-kind heights, `M` and the decision under "Results" in `quickstart.md`.
-- [ ] T010 [US1] In `ui/model/layout_solver.gd` implement research R3:
+- [X] T010 [US1] In `ui/model/layout_solver.gd` implement research R3:
   - **Constants**: `SLOT_BAND_H := 184`, `ACTION_COL_W := 248` (one set) and
     `ACTION_COL_W_FINAL := 100` (two sets), `PLAY_IN_COLUMN` (T009).
   - **Right column**: `slots` = top band, width `right_w - action_w - GAP`; `actions`
@@ -277,7 +277,7 @@ placement; actions beside the slots; no button row under the Hand
       the Hand does not jump.
   - Update the doc comments. Make T008 pass, and add to T008 one case each for the
     Soak and Upgrade steps asserting the same `slots`, `actions` and `commit` rects.
-- [ ] T011 [US1] In `ui/model/view_state.gd`:
+- [X] T011 [US1] In `ui/model/view_state.gd`:
   - In `build()`, while playing, call `game.explain(draft.to_action())` (or
     `explain_final`) and store it as `vs.explain`, next to `vs.preview`.
   - Rename `rail_tokens` → `role_slots`, stored as `vs["slots"]`. Shape it per
@@ -290,12 +290,12 @@ placement; actions beside the slots; no button row under the Hand
   - **The toggle** moves into the Boost slot: no separate `boost_to` token. The slot's
     target icon carries `{"type": "toggle_boost_to", "set": n}` as `toggle_tap`.
   - Make T007 pass.
-- [ ] T012 [P] [US1] In `ui/fx/flight_layer.gd` add
+- [X] T012 [P] [US1] In `ui/fx/flight_layer.gd` add
   `func fly_text(text: String, from: Vector2, to: Vector2, colour: Color, font_size := 44, duration := T.MOVE) -> Tween`.
   It makes a `display_bold` label at `from` (global, centred), tweens its position to
   `to` with `TRANS_CUBIC`/`EASE_OUT` and a slight scale-down, then frees it. It
   returns null and does nothing under `UI.reduced_motion`.
-- [ ] T013 [US1] Rename `ui/widgets/role_rail.gd` → `ui/widgets/role_slots.gd` (`git mv`;
+- [X] T013 [US1] Rename `ui/widgets/role_rail.gd` → `ui/widgets/role_slots.gd` (`git mv`;
   regenerate the `.uid`) and rebuild it per contracts/role-slots.md:
   - **Layout**: an `HBoxContainer` filling the slots region. Each slot is a `Button`
     with `StoneStyle` `plinth` styles (normal / hover / pressed), expanding to share
@@ -315,7 +315,7 @@ placement; actions beside the slots; no button row under the Hand
     `func number_rect(set_index, role) -> Rect2` (the number label's global rect, for
     flights), and keep `flare(card_id, colour, duration)`.
   - No card names.
-- [ ] T014 [US1] In `ui/widgets/action_bar.gd`, lay out the secondary actions in the
+- [X] T014 [US1] In `ui/widgets/action_bar.gd`, lay out the secondary actions in the
   `actions` region:
   - more than two → a `GridContainer` with 2 columns (1 column in the Final Battle),
     each button `T.TAP_MIN` tall, icon above a short label in `T.LABEL`;
@@ -326,7 +326,7 @@ placement; actions beside the slots; no button row under the Hand
     Play is already under the box and fully usable, before T020 exists. Expose
     `primary` so T020 can give it the verdict text.
   - `apply_layout(actions, commit)` keeps its signature.
-- [ ] T015 [US1] In `ui/screens/play_screen.gd`:
+- [X] T015 [US1] In `ui/screens/play_screen.gd`:
   - **Regions**: rename the `rail` region to `slots`, use `RoleSlots`, and add the
     `commit` region to `_regions` when `PLAY_IN_COLUMN`.
   - **Number flight**: on `render(state, animate)` after a placement, compare each
@@ -341,7 +341,7 @@ placement; actions beside the slots; no button row under the Hand
   - **Flight layer access**: reach it through a `var flight: Control` that `main.gd`
     sets, as `animator.flight` is set.
   - Keep `board_changed` removed.
-- [ ] T016 [US1] In `ui/main.gd`:
+- [X] T016 [US1] In `ui/main.gd`:
   - set `play.flight = _flight` when the play screen is created;
   - pass `preview_needed` including the commit height (done in the solver; check the
     call in `_on_resize`);
@@ -349,10 +349,18 @@ placement; actions beside the slots; no button row under the Hand
     `grep -rn '"rail"\|regions.rail\|rail_tokens\|RoleRail' ui tools tests`.
   - `tools/space_audit.gd` and `tools/ui_check.gd`'s `_check_space` measure the
     `slots` region (rename from `rail`).
-- [ ] T017 [US1] Run `./tools/test.sh` (green) and the space audit (PASS). Take
+- [X] T017 [US1] Run `./tools/test.sh` (green) and the space audit (PASS). Take
   `godot --path . -s tools/shot.gd -- build/006-us1r2 phone-16x9 desktop`, look at
   every state, and drive the quickstart §2 steps with a scratch script against the
   real buttons, as the revision 1 walkthrough did. Fix defects.
+
+**Outcome**:
+- **T009 set `PLAY_IN_COLUMN` false**, and the bottom-right fallback would have
+  shrunk the Final Battle's cards. So Play sits in the action column's bottom-right
+  cells (research R3, Outcome). T010 and T014 were built that way.
+- **T020's Play step** therefore only labels Play. The math box keeps its verdict
+  line.
+- **Board responses** already target `slot` (T028's rename, done here; I3).
 
 **Checkpoint**: Commit "Role slots with the engine's numbers; actions beside them".
 

@@ -4,7 +4,14 @@ extends "res://tests/base.gd"
 const Solver = preload("res://ui/model/layout_solver.gd")
 const T = preload("res://ui/theme/tokens.gd")
 
-const ORDER := ["header", "encounter", "preview", "rail", "hand", "actions", "commit"]
+const ORDER := ["header", "encounter", "preview", "slots", "hand", "actions", "commit"]
+## Play sits inside the action column (Solver.PLAY_IN_COLUMN is false): the one pair
+## of regions that nests rather than sitting apart.
+const NESTED := [["actions", "commit"]]
+
+
+func _apart(a: String, b: String) -> bool:
+	return not NESTED.has([a, b]) and not NESTED.has([b, a])
 
 
 func _plan(name: String, hand := 4, sets := 1) -> Dictionary:
@@ -47,6 +54,8 @@ func test_regions_stay_inside_the_safe_area_and_do_not_overlap() -> void:
 				ok(r.size.x > 0 and r.size.y > 0, "%s %s has a size" % [name, key])
 			for i in ORDER.size():
 				for j in range(i + 1, ORDER.size()):
+					if not _apart(ORDER[i], ORDER[j]):
+						continue
 					ok(not plan.regions[ORDER[i]].intersects(plan.regions[ORDER[j]]),
 						"%s: %s and %s do not overlap" % [name, ORDER[i], ORDER[j]])
 
@@ -89,22 +98,30 @@ func test_controls_are_big_enough_to_tap() -> void:
 		var plan := _plan(name, 7, 2)
 		ok(plan.regions.commit.size.y >= T.TAP_MIN and plan.regions.commit.size.x >= T.TAP_MIN, name + " commit")
 		ok(plan.regions.actions.size.y >= T.TAP_MIN, name + " actions")
-		ok(plan.regions.rail.size.y >= T.TAP_MIN, name + " rail")
+		ok(plan.regions.slots.size.y >= T.TAP_MIN, name + " slots")
 
 
-func test_commit_is_in_the_bottom_right_corner() -> void:
+func test_play_is_the_bottom_right_of_the_action_column() -> void:
 	for name in Solver.MATRIX:
-		var plan := _plan(name)
-		eq(plan.regions.commit.end, plan.content.end, name)
+		for sets in [0, 1, 2]:
+			var plan := _plan(name, 7 if sets == 2 else 4, sets)
+			var a: Rect2 = plan.regions.actions
+			var c: Rect2 = plan.regions.commit
+			ok(a.encloses(c), "%s %d sets: Play is inside the action column" % [name, sets])
+			eq(c.end, a.end, "%s %d sets: in its bottom-right corner" % [name, sets])
+			eq(a.end.x, plan.content.end.x, "%s %d sets: the column is at the right edge" % [name, sets])
+			ok(c.size.x >= T.TAP_MIN and c.size.y >= T.TAP_MIN, "%s %d sets: Play is a tap target" % [name, sets])
 
 
 func test_region_order_is_the_same_for_every_step() -> void:
 	var a := _plan("desktop", 4, 1)
 	var b := _plan("desktop", 7, 2)
-	for key in ["header", "encounter", "preview", "actions", "commit"]:
+	for key in ["header", "encounter", "preview"]:
 		eq(a.regions[key], b.regions[key], key + " does not move between steps")
 	for plan in [a, b]:
-		eq(plan.regions.rail.end.y + Solver.GAP, plan.regions.hand.position.y, "the Hand starts just under the rail")
+		eq(plan.regions.slots.end.y + Solver.GAP, plan.regions.hand.position.y, "the Hand starts just under the slots")
+		eq(plan.regions.slots.position.y, plan.regions.encounter.position.y, "the slots are at the top of the body")
+		eq(plan.regions.commit.end, plan.regions.actions.end, "Play keeps its corner of the action column")
 
 
 func test_larger_screens_are_used_not_left_empty() -> void:
@@ -112,14 +129,11 @@ func test_larger_screens_are_used_not_left_empty() -> void:
 		var plan := _plan(name)
 		var used := 0.0
 		for key in ORDER:
-			used += plan.regions[key].get_area()
-		# The rail is only as wide as its tokens on purpose (feature 006); its row
-		# across the column is still the rail's, not empty screen.
-		var rail: Rect2 = plan.regions.rail
-		used += rail.size.y * plan.regions.hand.size.x - rail.get_area()
+			if key != "commit":
+				used += plan.regions[key].get_area()
 		var safe := _safe(name)
 		# Hand cards are bound by width, so on taller screens some height has no use
-		# but margin: the rail and Hand are centred and share it above and below.
+		# but margin under the Hand.
 		ok(used >= safe.get_area() * 0.75, "%s: regions cover %d%% of the safe area" % [name, int(100 * used / safe.get_area())])
 	ok(_plan("tablet").card_size.x >= _plan("phone-16x9").card_size.x, "cards are no smaller on a tablet")
 	var wide := _plan("desktop-ultrawide")
@@ -162,6 +176,8 @@ func test_regions_have_air() -> void:
 			var plan := _plan(name, shape[0], shape[1])
 			for i in ORDER.size():
 				for j in range(i + 1, ORDER.size()):
+					if not _apart(ORDER[i], ORDER[j]):
+						continue
 					var g := _gap(plan.regions[ORDER[i]], plan.regions[ORDER[j]])
 					ok(g >= 12.0, "%s: %s and %s are %.0f apart, at least 12" % [name, ORDER[i], ORDER[j], g])
 
@@ -191,31 +207,64 @@ func test_extra_space_goes_to_content() -> void:
 		ok(plan.regions.encounter.size.y >= base.regions.encounter.size.y, name + ": Encounter no shorter than on a 16:9 phone")
 
 
-func test_an_empty_rail_gives_its_room_to_the_hand() -> void:
+func test_no_sets_give_the_band_to_the_hand() -> void:
 	eq(Solver.slot_rows({"sets": [{}, {}], "played": null}), 2, "a row per Action Set")
 	eq(Solver.slot_rows({"sets": [], "played": {}}), 1, "the recap after a battle")
 	eq(Solver.slot_rows({"sets": [], "played": null}), 0, "nothing to show while Soaking the Final Battle")
 	for name in Solver.MATRIX:
 		var with_row := _plan(name, 8, 1)
 		var without := _plan(name, 8, 0)
-		eq(without.regions.rail.size.y, 0.0, "%s: no rail" % name)
-		eq(without.regions.hand.position.y, without.regions.encounter.position.y, "%s: the Hand starts at the top of the body" % name)
+		eq(without.regions.slots.size.y, 0.0, "%s: no slots" % name)
+		eq(without.regions.actions.size.y, float(T.TAP_MIN), "%s: the actions keep one row" % name)
 		ok(without.card_size.x >= with_row.card_size.x, "%s: cards are no smaller" % name)
 
 
-func test_rail_is_one_tap_target_tall() -> void:
+func test_slot_band_and_action_column() -> void:
 	for name in Solver.MATRIX:
 		for sets in [1, 2]:
-			eq(_plan(name, 4 if sets == 1 else 7, sets).regions.rail.size.y, float(T.TAP_MIN), "%s with %d sets" % [name, sets])
-		eq(_plan(name, 8, 0).regions.rail.size.y, 0.0, name + " with no sets")
+			var plan := _plan(name, 4 if sets == 1 else 7, sets)
+			var slots: Rect2 = plan.regions.slots
+			var actions: Rect2 = plan.regions.actions
+			var what := "%s with %d sets" % [name, sets]
+			ok(slots.size.y >= Solver.SLOT_BAND_H and slots.size.y <= Solver.SLOT_BAND_MAX, what + ": the band's height")
+			if sets == 2:
+				eq(slots.size.y, float(Solver.SLOT_BAND_H), what + ": two sets keep the base band")
+			eq(actions.size.y, slots.size.y, what + ": the actions are as tall as the slots")
+			eq(actions.position.y, slots.position.y, what + ": side by side")
+			eq(actions.position.x - slots.end.x, float(Solver.GAP), what + ": a gap between")
+			eq(slots.position.x, plan.regions.hand.position.x, what + ": the band starts with the Hand")
+			eq(actions.end.x, plan.regions.hand.end.x, what + ": and ends with it")
+			var slot_w: float = (slots.size.x - (3 * sets - 1) * T.S) / (3 * sets)
+			ok(slot_w >= T.TAP_MIN, "%s: each slot %.0f wide, at least %d" % [what, slot_w, T.TAP_MIN])
 
 
-## The slot band at 1280 x 720 with one set, before feature 006: 824 x 153.
-func test_rail_area_is_at_most_half_the_old_band() -> void:
-	var rail: Rect2 = _plan("phone-16x9").regions.rail
-	ok(rail.get_area() <= 0.5 * 824 * 153, "rail is %s, at most half of 824 x 153" % str(rail.size))
-	var two: Rect2 = _plan("phone-16x9", 7, 2).regions.rail
-	ok(two.get_area() < 824 * 96, "with two sets, smaller than the old 824 x 96 band")
+func test_no_button_row_under_the_hand() -> void:
+	for name in Solver.MATRIX:
+		for shape in [[4, 1], [7, 2], [5, 1]]:
+			var plan := _plan(name, shape[0], shape[1])
+			eq(plan.regions.hand.end.y, plan.content.end.y, "%s %s: the Hand reaches the bottom" % [name, str(shape)])
+
+
+func test_the_encounter_keeps_its_height() -> void:
+	for name in Solver.MATRIX:
+		if name == "upright-browser":
+			continue
+		var m: Array = Solver.MATRIX[name]
+		var view: Vector2 = Solver.view_for_window(m[0])
+		# The largest preview the solver allows.
+		var plan := Solver.solve(view, _safe(name), 4, 1, 0.5, 5000.0)
+		ok(plan.regions.encounter.size.y >= T.ENCOUNTER_MIN,
+			"%s: Encounter %.0f tall, at least %d" % [name, plan.regions.encounter.size.y, T.ENCOUNTER_MIN])
+
+
+func test_soak_and_upgrade_keep_the_same_regions() -> void:
+	# Soak and Upgrade show the recap of the set just played: one row of slots, over
+	# the same four-card Hand (cards leave it only when the Encounter ends).
+	for name in Solver.MATRIX:
+		var building := _plan(name, 4, 1)
+		var recap := _plan(name, 4, 1)
+		for key in ["slots", "actions", "commit"]:
+			eq(recap.regions[key], building.regions[key], "%s: %s stays put in Soak and Upgrade" % [name, key])
 
 
 func test_preview_takes_what_it_needs() -> void:
@@ -229,6 +278,7 @@ func test_preview_takes_what_it_needs() -> void:
 	var huge: Dictionary = at.call(5000.0)
 	var body_h: float = huge.regions.preview.end.y - huge.regions.encounter.position.y
 	ok(huge.regions.preview.size.y <= roundf(body_h * 0.5) + 1.0, "and never more than half the column")
+	ok(huge.regions.encounter.size.y >= T.ENCOUNTER_MIN, "nor so much that the Encounter is cut")
 	for needed in [0.0, 10.0, 200.0, 5000.0]:
 		var p: Dictionary = at.call(needed)
 		eq(p.regions.encounter.end.y + Solver.GAP, p.regions.preview.position.y, "the Encounter fills the rest (%d)" % needed)

@@ -6,15 +6,30 @@ extends RefCounted
 const T = preload("res://ui/theme/tokens.gd")
 
 const HEADER_H := 48
-const BOTTOM_H := 96
 const GAP := 12
 const COLUMN_GAP := 24
 const CARD_LIFT := 14          # room above the Hand for a placed card to rise into
 ## The most room left between the top of the Hand region and its cards; anything
 ## more goes below them.
 const HAND_TOP_AIR := 12.0
-## The Boost-to toggle at the end of a one-set role rail, wide enough for "Initiative".
-const RAIL_TOGGLE_W := 150
+## The band of role slots across the top of the right column: two rows of tap
+## targets, so the action column beside it holds a 2-row grid (research R3).
+const SLOT_BAND_H := 2 * T.TAP_MIN + T.S
+## Where a four-card Hand is bound by width and leaves height over, half of it goes to
+## the slot band, up to this, so the slots are larger rather than the board emptier.
+const SLOT_BAND_MAX := 264.0
+## One cell of the action column's grid. Three columns beside one Action Set's
+## slots, two beside the Final Battle's six, which then keep 88 units each.
+const ACTION_CELL_W := 118
+const ACTION_COLS := 3
+const ACTION_COLS_FINAL := 2
+## Where Play goes (T009): at the foot of the math box when the Encounter still fits
+## above the fullest box, else in the action column's bottom row. Measured at
+## 1280 x 720: the Enemy box with Play needs about 336 of the column's 628, leaving
+## the Encounter 280, under ENCOUNTER_MIN; the Final Enemy's wrapped rows need more.
+## The bottom-right corner under the Hand would cost the Final Battle's two rows of
+## cards their baseline size, so Play joins the actions beside the slots.
+const PLAY_IN_COLUMN := false
 const CARD_MAX_W := 250.0
 ## Room between Hand cards side by side; a little less once more than four share a row.
 const CARD_GAP_MIN := 12.0
@@ -70,9 +85,9 @@ static func clear_corners(safe: Rect2, window: Vector2, radii: Array) -> Rect2:
 	return Rect2(inset[0], inset[1], window.x - inset[0] - inset[2], window.y - inset[1] - inset[3])
 
 
-## How many Action Sets the role rail shows for a view state: one per Action Set
-## while building, the recap of the set just played after a battle, or none, when the
-## Hand can have the room.
+## How many Action Sets the role slots show for a view state: one per Action Set
+## while building, the recap of the set just played after a battle, or none, when
+## the Hand can have the room (setup, the Final Battle's Soak).
 static func slot_rows(vs: Dictionary) -> int:
 	if vs.is_empty():
 		return 1
@@ -81,10 +96,20 @@ static func slot_rows(vs: Dictionary) -> int:
 	return 1 if vs.get("played") != null else 0
 
 
+## The width of the action column beside `set_count` Action Sets.
+static func action_width(set_count: int) -> float:
+	var cols := ACTION_COLS_FINAL if set_count > 1 else ACTION_COLS
+	return cols * ACTION_CELL_W + (cols - 1) * T.S
+
+
 ## view: the viewport in design units. safe: the part clear of notches, in design
 ## units. points_per_unit: how large a design unit is on this screen. set_count:
-## Action Sets in the role rail, 0 to give its room to the Hand. preview_needed: the
+## Action Sets in the slot band, 0 to give its room to the Hand. preview_needed: the
 ## height the preview asks for; 0 keeps the fixed split.
+##
+## The right column: the slot band at the top, with the action column beside it
+## (secondary actions in a grid, Play in its bottom row), and the Hand under both,
+## down to the bottom. With no sets the band shrinks to the action column's one row.
 static func solve(view: Vector2, safe: Rect2, hand_count := 4, set_count := 1, points_per_unit := 0.5, preview_needed := 0.0) -> Dictionary:
 	var left := maxf(safe.position.x, T.M)
 	var top := maxf(safe.position.y, T.M)
@@ -106,35 +131,43 @@ static func solve(view: Vector2, safe: Rect2, hand_count := 4, set_count := 1, p
 	# The preview takes what its state asks for, within limits; the Encounter the rest.
 	var preview_h := body_h - roundf(body_h * 0.56) - GAP
 	if preview_needed > 0.0:
-		preview_h = clampf(roundf(preview_needed), T.PREVIEW_MIN, roundf(body_h * 0.5))
+		# Never so tall that the Encounter face drops under its own minimum.
+		var most := minf(roundf(body_h * 0.5), body_h - GAP - T.ENCOUNTER_MIN)
+		preview_h = clampf(roundf(preview_needed), T.PREVIEW_MIN, most)
 	var encounter_h := body_h - preview_h - GAP
 	var right_x := c.position.x + left_w + COLUMN_GAP
 	var right_w := c.end.x - right_x
-	# The role rail: one row of tokens a tap target tall, only as wide as its tokens.
-	var rail_h := 0.0 if set_count == 0 else float(T.TAP_MIN)
-	var rail_w := minf(right_w, (3 * T.RAIL_TOKEN_W + RAIL_TOGGLE_W + 3 * T.S) if set_count == 1 else (8 * T.TAP_MIN + 7 * T.S))
-	var bottom_y := c.end.y - BOTTOM_H
-	var commit_w := clampf(roundf(right_w * 0.3), 220.0, 320.0)
-	# The rail and the Hand sit together, each token just above its card. Where the
-	# cards cannot use all the height (they are bound by width), the pair is centred
-	# in the column so the spare room is shared above and below, not left in one band.
-	var rail_gap: float = GAP if set_count > 0 else 0.0
-	var column_h := bottom_y - GAP - body_y
-	var fit: Dictionary = _fit_cards(Rect2(right_x, 0, right_w, column_h - rail_h - rail_gap), hand_count)
-	var group_h: float = rail_h + rail_gap + CARD_LIFT + fit.rows * fit.size.y + (fit.rows - 1) * GAP + HAND_TOP_AIR
-	var shift: float = roundf(maxf(0.0, column_h - group_h) / 2.0) if set_count > 0 else 0.0
-	var rail_y := body_y + shift
-	var hand_y: float = rail_y + rail_h + rail_gap
+
+	var action_w := action_width(set_count)
+	var band_h: float = SLOT_BAND_H if set_count > 0 else float(T.TAP_MIN)
+	if set_count == 1:
+		# Worked out for the standard four-card Hand, so the band does not move
+		# between building a set and the recap after it.
+		var room := c.end.y - body_y - SLOT_BAND_H - GAP
+		# A Hand bound by height (five or more cards) keeps its height: the band only
+		# takes what both it and the four-card Hand leave over.
+		var spare := INF
+		for n in [4, hand_count]:
+			var fit: Dictionary = _fit_cards(Rect2(0, 0, right_w, room), n)
+			var used: float = CARD_LIFT + fit.rows * fit.size.y + (fit.rows - 1) * GAP + HAND_TOP_AIR
+			spare = minf(spare, room - used)
+		band_h = minf(SLOT_BAND_H + floorf(maxf(0.0, spare) / 2.0), SLOT_BAND_MAX)
+	var actions := Rect2(c.end.x - action_w, body_y, action_w, band_h)
+	# Play: the bottom row's right cells (two beside one set, one beside two).
+	var commit_w: float = ACTION_CELL_W if set_count > 1 else 2 * ACTION_CELL_W + T.S
+	var commit := Rect2(actions.end.x - commit_w, actions.end.y - T.TAP_MIN, commit_w, T.TAP_MIN)
+	var slots := Rect2(right_x, body_y, actions.position.x - GAP - right_x, band_h if set_count > 0 else 0.0)
+	var hand_y := body_y + band_h + GAP
 	var regions := {
 		"header": Rect2(c.position.x, c.position.y, c.size.x, HEADER_H),
 		"encounter": Rect2(c.position.x, body_y, left_w, encounter_h),
 		"preview": Rect2(c.position.x, body_y + encounter_h + GAP, left_w, preview_h),
-		"rail": Rect2(roundf(right_x + (right_w - rail_w) / 2.0), rail_y, rail_w if set_count > 0 else right_w, rail_h),
-		"hand": Rect2(right_x, hand_y, right_w, bottom_y - GAP - hand_y),
-		"actions": Rect2(right_x, bottom_y, right_w - commit_w - GAP, BOTTOM_H),
-		"commit": Rect2(c.end.x - commit_w, bottom_y, commit_w, BOTTOM_H),
+		"slots": slots,
+		"hand": Rect2(right_x, hand_y, right_w, c.end.y - hand_y),
+		"actions": actions,
+		"commit": commit,
 	}
-	fit = _fit_cards(regions.hand, hand_count)
+	var fit: Dictionary = _fit_cards(regions.hand, hand_count)
 	return {
 		"view": view, "content": c, "regions": regions,
 		"card_size": fit.size, "hand_rows": fit.rows,
@@ -145,8 +178,8 @@ static func solve(view: Vector2, safe: Rect2, hand_count := 4, set_count := 1, p
 
 
 ## Where each of `count` cards sits in the Hand region, row by row, centred across
-## and close under the top, so each card sits just below its role token; the height
-## the cards cannot use is left above the actions.
+## and close under the top, just below the role slots; the height the cards cannot
+## use is left at the bottom.
 static func card_rects(hand: Rect2, card: Vector2, count: int, rows: int) -> Array:
 	var out := []
 	if count <= 0:

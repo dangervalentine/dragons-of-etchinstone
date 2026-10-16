@@ -58,9 +58,11 @@ const BRONZE := Color("5a4632")
 const BRONZE_DARK := Color("3a2c1f")
 const BRONZE_LIGHT := Color("a88a63")
 
-# Rail
-## Width of one role token in the role rail when there is a single Action Set.
-const RAIL_TOKEN_W := 132
+# Layout
+## The least height an Encounter face needs at the 400-unit left column: an Enemy
+## with four badge rows at their 52-unit minimum, an Ability or Hardship disc and
+## the Key Card line (measured for feature 006, T009; a Journey needs 202).
+const ENCOUNTER_MIN := 310
 ## The least height the preview takes in the left column; the Encounter gets the rest.
 const PREVIEW_MIN := 150
 

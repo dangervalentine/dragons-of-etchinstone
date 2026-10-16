@@ -1,6 +1,6 @@
 extends StyleBox
 ## A place cut into the carved stone: chamfered corners, a stone floor and a bevel.
-## A well, inset or rail token is cut in: shadow on the upper and left inner edges,
+## A well, inset or role slot toggle is cut in: shadow on the upper and left inner edges,
 ## light on the lower and right. A plinth, slab or lintel stands proud: the other
 ## way round, and a slab casts a shadow. A glowing rim marks the zone that waits on
 ## the player; it is drawn on the edge, and only a faint wash of it reaches inside,

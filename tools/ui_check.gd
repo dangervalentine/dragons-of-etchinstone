@@ -91,7 +91,7 @@ func _open(name: String) -> void:
 
 ## The minimum window sizes, where no play-screen zone may be over a third empty
 ## (feature 006, SC-002). Zones are the panels drawn: the Encounter, the preview,
-## the role rail and the panel round the Hand.
+## the role slots and the panel round the Hand.
 const SPACE_SIZES := ["phone-16x9", "phone-small"]
 const MAX_EMPTY := 1.0 / 3.0
 var space_checks := 0
@@ -115,8 +115,8 @@ func _check_space(where: String) -> void:
 	for panel in [play.preview, play.soak_meter, play.xp_purse]:
 		if panel.visible:
 			zones["preview"] = [panel.get_global_rect(), panel]
-	if play._regions.rail.size.y > 0.0:
-		zones["rail"] = [play._regions.rail.get_global_rect(), play._regions.rail]
+	if play._regions.slots.size.y > 0.0:
+		zones["slots"] = [play._regions.slots.get_global_rect(), play._regions.slots]
 	space_checks += 1
 	for key in zones:
 		var e: float = Solver.empty_fraction(zones[key][0], zones[key][1])

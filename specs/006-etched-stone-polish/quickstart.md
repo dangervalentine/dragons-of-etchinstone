@@ -124,6 +124,28 @@ _Record observer results, bench numbers and the owner's decisions here._
 - **Stutter on web and Android (SC-008)**: not checked yet. No emulator was running,
   and the web build was not opened in a browser.
 
+- **Where Play goes (T009, revision 2)**: `ENCOUNTER_MIN` is 310, measured on an
+  Enemy face with an Ability and a Hardship at 400 wide. A Journey needs 202. With
+  Play inside it, the fullest Enemy math box needs about 336 of the 628-unit column,
+  which leaves the Encounter 280, so the R3 gate fails. The bottom-right fallback
+  would shrink the Final Battle's cards to 107 wide (baseline 137). Play therefore
+  sits in the bottom-right cells of the action column beside the slots (research R3,
+  Outcome). `PLAY_IN_COLUMN` is false.
+- **Space audit after US1 (revision 2)**: PASS. No zone is over a third empty at
+  `phone-16x9` or `phone-small`; the emptiest is the preview, at 25%. The old check
+  that the role display stays under half the old band is now report-only, because
+  the full-size slots replace the compact rail on purpose.
+- **US1 walkthrough (T017, revision 2)**: a scratch script drove quickstart §2 steps
+  1–5 and 7 against the real slot buttons at 1280 × 720. All 18 checks passed:
+  - a number flies in and shows on landing;
+  - the Spell's number goes from 3 to 8 when the matching Element lands, and counts
+    there;
+  - the Boost's switch moves it to Initiative;
+  - tapping a slot takes its card back;
+  - under reduced motion the number shows at once.
+
+  Step 6 (the Final Battle) was checked by screenshot and by the solver tests.
+
 ### Stage 2 sign-off (T040), 2026-10-15
 
 The owner saw the before/after play screens (placing cards, the Final Journey, Soak)

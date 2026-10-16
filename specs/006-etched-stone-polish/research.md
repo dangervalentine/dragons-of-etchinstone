@@ -125,6 +125,21 @@ separate verdict line, which saves 36.
   box keeps the verdict line. The solver keeps this as a branch chosen by
   `ENCOUNTER_MIN`, so either layout passes the same tests.
 
+**Outcome (T009, 2026-10-15)**: the gate failed, and the planned fallback did too.
+- **Measured.** `ENCOUNTER_MIN` is 310: an Enemy with four badge rows at their
+  52-unit minimum. A Journey needs 202. The Enemy box with Play inside needs about
+  336, which leaves the Encounter 280. The Final Enemy's rows wrap at the 400-unit
+  column and need more.
+- **The corner fallback costs cards.** Play in the bottom-right corner under the
+  Hand would take 108 units from the Hand. The Final Battle's two rows of cards
+  would then drop to 107 wide, under their 137 baseline.
+- **Taken instead: Play in the action column.** Play takes the column's bottom-right
+  cells: two cells (244 × 88) beside one set, one cell (118 × 88) beside the Final
+  Battle's two sets. The secondary actions fill the other cells. The Hand keeps the
+  full height under the slots. The math box keeps its verdict line.
+- **Bigger slots.** Where a four-card Hand is bound by width, the slot band takes
+  half the spare height, up to 264.
+
 ## R4. The math box layout
 
 **Decision**: one **equation row** per sum, read left to right.
