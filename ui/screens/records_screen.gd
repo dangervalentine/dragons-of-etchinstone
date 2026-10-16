@@ -290,7 +290,7 @@ func _pager(p: Dictionary) -> Control:
 ## The difficulty as a whole, then each dragon: played, won, rate, best and average.
 func _summary() -> Control:
 	var s := PlayHistory.summary(HistoryStore.records, _difficulty, db.dragon_ids())
-	var panel := UI.panel(T.BG_SURFACE, T.LINE_SOFT, 1, T.RADIUS_M, T.M)
+	var panel := UI.slab(T.LINE_SOFT, T.M)
 	panel.custom_minimum_size.x = SUMMARY_W
 	panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	var col := UI.vbox(T.XS)
