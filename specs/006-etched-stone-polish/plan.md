@@ -1,121 +1,127 @@
-# Implementation Plan: Etched Stone and Ether Rifts
+# Implementation Plan: Raised Stone and the Math in Plain Sight
 
-**Branch**: `006-etched-stone-polish` (work continues on `003-dragon-art`, as for 004 and 005) | **Date**: 2026-10-15 | **Spec**: [spec.md](spec.md)
+**Branch**: `006-etched-stone-polish` (work continues on `003-dragon-art`, as for 004 and 005) | **Date**: 2026-10-15 (revision 2) | **Spec**: [spec.md](spec.md)
 
-**Input**: Feature specification from `/specs/006-etched-stone-polish/spec.md`
+**Input**: Feature specification from `/specs/006-etched-stone-polish/spec.md` (revision 2, after the stage 2 review)
 
 **Note**: This template is filled in by the `/speckit-plan` command; its definition describes the execution workflow.
 
 ## Summary
 
-Three stages, in the spec's order.
+The first stage left raised, chamfered stone boxes on the play screen, a content-sized
+left column, zone responses at the boxes' rims and a space check in `ui_check`. The
+owner then set the glow effects aside and asked for a bigger layout change. This plan
+builds that on what remains.
 
-1. **Space (US1).** The band of large slots above the Hand is replaced by a
-   **role rail**: one row of compact role tokens, one tap target tall. Each token
-   shows the role's icon and, once filled, the card's contribution (not its name).
-   The rail also carries the Boost-to toggle and the after-battle recap. One-set
-   Hand cards are width-bound, so the height the rail frees becomes the Hand's
-   well; the two-row Final Battle Hand's cards gain the little height freed there. The left column's split
-   becomes content-driven: the preview takes the height its state needs, and the
-   Encounter gets the rest.
-2. **Stone and rift (US2, US3), the style frame.**
-   - **Stone surface.** The flat backdrop and rounded panels become carved stone.
-     A stone grain and a cellular crack map are baked once from Godot's built-in
-     noise. A custom `StyleBox` draws every zone as a chamfered, bevelled well cut
-     into that stone.
-   - **Rift light.** The backdrop shader lets Ether light glow through the cracks,
-     tinted by the Encounter's Ether, or neutral when there is none.
-   - **Ornament.** Woodcut ornaments (gouged dividers, corner cuts) are generated
-     as icons.
-   - **Life.** Shimmering seams, a small budget of drifting motes, a lit active
-     zone, and a named board response for every player action. All of it is still
-     under reduced motion.
-3. **Rollout (US4).** Once the owner approves the play screen, the same style and
-   lore framing reach the other screens:
-   - Title: The Tear.
-   - Rules setup: the elders' proclamation.
-   - Ending: an inscribed slab.
-   - Overlays: slabs and scrolls.
-   - Final Battle and the Region banner.
-
-`engine/` and `data/` do not change.
+1. **Role slots (US1).** The compact rail becomes full-size **role slots**: raised
+   boxes above the Hand, each showing the number its card contributes.
+   - Placing a card sends that number, as a flying figure, from the card to its slot.
+   - The secondary actions move into an **action column** beside the slots: a 2 × 2
+     grid of tap targets.
+   - The button row under the Hand goes.
+   - **Play** becomes the foot of the math box and carries the verdict
+     ("Play · Narrow victory"), so the result and the decision sit together. There is
+     a measured fallback to the bottom-right corner (research R3).
+2. **The math box (US2).** It replaces the comparison bars: equation rows such as
+   `8 + 2 − 1 = 9 / 11`, each term labelled with its source, with the consequences
+   below.
+   - **Every term comes from the engine.** The rules functions gain a `terms`
+     breakdown, built from the same intermediate values they already compute, so the
+     terms always add up to the engine's totals.
+   - A new `Game.explain()` resolves an incomplete set, so the box can show the terms
+     placed so far.
+   - Outcomes do not change. A property test checks the sums over every Encounter.
+3. **Raised boxes and flat ground (US3).**
+   - The boxes are finished: stronger edges, flat lines, no glow anywhere on the
+     ground.
+   - The stone grain is replaced by a flat, seamless woodcut-line pattern, generated
+     with ComfyUI on this Mac by a new `pattern` command in `tools/generate_art.py`.
+     It is then tiled, quantised to a few flat tones and fitted to the contrast band
+     by a headless Godot tool, `tools/make_ground.gd`. It ships as
+     `art/stone/grain.png`, which `stone.gd` already prefers when present.
+4. **A board that answers (US4).** Mostly built. Kept as zone-rim responses plus the
+   flying number and counting totals; nothing ambient.
+5. **Every screen (US5).** After the owner approves the play screen: the same boxes
+   and ground on every other screen, with the lore framing from revision 1.
 
 ## Technical Context
 
-**Language/Version**: GDScript, Godot 4.7.2 (standard build)
+**Language/Version**: GDScript, Godot 4.7.2 (standard build); Python 3 for the
+generation driver
 
-**Primary Dependencies**: Godot engine only, using `FastNoiseLite` / `NoiseTexture2D`
-(built in) for stone and crack maps and `CPUParticles2D` for motes. Ornament icons
-come from `tools/gen_icons.py` (Python 3, standard library). No add-ons, no new
-fonts. Bitmap stone textures from the Windows-PC art pipeline are an optional
-fallback only (research D3).
+**Primary Dependencies**:
+- Godot engine only in the game.
+- The ground tile is made offline: ComfyUI + FLUX (already set up at `~/ComfyUI` by
+  `tools/setup_comfyui.sh`), driven by `tools/generate_art.py`.
+- Post-processing runs as a headless Godot tool using `Image`, because PIL is not
+  installed (research R5).
 
-**Storage**: N/A. The existing reduced-motion setting in `ui/model/settings.gd` is
-reused.
+**Storage**: N/A (the reduced-motion setting in `ui/model/settings.gd` is reused)
 
 **Testing**: The headless runner `tools/test.sh` runs `tests/run.gd` and
-`tools/ui_check.gd`.
-- New tests: `tests/test_role_rail.gd`, `tests/test_stone_contrast.gd`,
-  `tests/test_board_responses.gd`.
-- Extended tests: `tests/test_layout_solver.gd` (rail height, content-driven split).
-- New tool `tools/space_audit.gd` measures SC-001 and SC-002.
-- `tools/field_bench.gd` is extended with the backdrop, seams and motes.
-- Before/after screenshots come from `tools/shot.gd` and `tools/design_shots.gd`.
+`tools/ui_check.gd` (real matrix sizes, space check).
+- New tests: `tests/test_terms.gd` (engine breakdown: the terms sum to the totals for
+  every Encounter, Hardship and ability, and outcomes are unchanged) and
+  `tests/test_role_slots.gd` (replaces `test_role_rail.gd`).
+- Extended tests: `tests/test_layout_solver.gd` (slots, action column, Play in the
+  left column) and `tests/test_stone_contrast.gd` (runs on whichever ground ships).
+- Tools: `tools/space_audit.gd` and `tools/field_bench.gd` as before; screenshots
+  from `tools/shot.gd` and `tools/design_shots.gd`.
 
 **Target Platform**: Web (HTML5), Android, iOS; desktop for development. Compatibility
-renderer (`gl_compatibility`), as today.
+renderer.
 
 **Project Type**: Single-project game client (mobile and web), no backend.
 
-**Performance Goals**: `tools/field_bench.gd` PASS (average ≤ 16.7 ms, 99th
-percentile ≤ 33 ms) with 11 living card faces *plus* the stone backdrop, rift seams
-and motes. The added board cost is ≤ 1 ms GPU at 1280 × 720 (research D7). On the
-web build and the Android emulator there must be no visible stutter (SC-008); this
-is judged by eye, not formally gated.
+**Performance Goals**: `tools/field_bench.gd` PASS (average ≤ 16.7 ms, p99 ≤ 33 ms).
+Today it is 2.07 ms. The ground is a static texture; the flying numbers reuse the
+existing flight layer.
 
 **Constraints**:
-- `engine/` and `data/cards.json` are unchanged, with the same outcomes for the same
-  seed and choices (FR-019; checked by `tools/ui_check.gd`).
-- Minimum text is 22 design units and the minimum tap target is 88. Contrast must be
-  ≥ 4.5:1 for text and ≥ 3:1 for large numerals, measured against the *brightest*
-  stone and glow a text area can sit on (FR-017, research D5).
-- Landscape only, one arrangement, 1280 × 720 minimum. The layout matrix in
-  `ui/model/layout_solver.gd` is unchanged.
-- Hand cards are no smaller than today at any matrix size. One-set cards are
-  width-bound and keep their size; two-row Final Battle cards gain the small
-  height freed there (research D2).
-- No publisher artwork or trade dress beyond the existing card faces (FR-021).
-- Reduced motion: no ambient motion; every response has a still form (FR-016).
-- Staging: US1 lands on the current look and is complete on its own (FR-022). The
-  restyle reaches other screens only after the style-frame sign-off (FR-023).
+- **Rules are unchanged** (FR-023). `engine/` may gain *reporting only*: `terms`
+  arrays in result dictionaries and the `explain()` entry points. Every existing
+  result field keeps its value for the same input, which `test_terms.gd` and the
+  existing `test_rules.gd`, `test_game.gd` and `test_playthrough.gd` check.
+- **The math box never computes a total** (FR-010). It lays out the engine's terms.
+- **Floors**: minimum text 22 units, tap target 88, contrast ≥ 4.5:1 for text and
+  ≥ 3:1 for large numerals, against the ground and the box faces.
+- **Layout**: landscape only, 1280 × 720 minimum, layout matrix unchanged. Hand cards
+  no smaller than the baseline at any size. No zone more than a third empty at the
+  minimum sizes.
+- **No ambient effects**: nothing glows, flickers or moves on the ground (FR-016).
+- **Card faces from 005 unchanged** (FR-017).
+- **Generation**: allowed on this Mac. Keep runs small (one tile, a few seeds) and
+  say how long they take (memory: art-generation-location).
 
-**Scale/Scope**: 3 new widgets and modules (`role_rail.gd`, `stone_style.gd`,
-`rift_layer.gd`), 1 rewritten shader (`backdrop.gdshader`), 1 new pure model
-(`ui/model/board_response.gd`), restyle edits to about 20 UI files (every user of
-`UI.box`, `UI.panel` and `raised_panel_box`), about 8 new ornament icons, 3 new
-tests, 1 new tool. About 1,800–2,400 lines changed.
+**Scale/Scope**:
+- **Engine**: a `terms` breakdown in `engine/rules.gd` and `engine/game.gd`, and
+  `explain()`.
+- **UI**: one reworked widget (`role_rail.gd` → `role_slots.gd`), one rebuilt widget
+  (`preview_panel.gd` → math box), an `action_bar.gd` relayout, and solver and
+  play-screen changes.
+- **Tools**: one new tool (`make_ground.gd`) and one extended (`generate_art.py`).
+- **Tests**: two new or replaced files.
+- **Size**: about 1,500–2,000 lines changed.
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-`.specify/memory/constitution.md` is still the unfilled template. It defines no
-principles, so there are no gates to evaluate. **Result: PASS (no gates defined)**,
-before research and again after design.
-
-The plan holds itself to the rules the project already follows (as in 001, 004 and 005):
+`.specify/memory/constitution.md` is still the unfilled template. **Result: PASS (no
+gates defined)**, before research and after design. The plan keeps the project's
+working rules:
 
 | Existing project rule | How the plan keeps it |
 |---|---|
-| The rules engine has no dependency on the interface and is covered by headless tests | Engine untouched; the role rail reads the existing view state; `BoardResponse` is pure and tested headless |
-| Layout is a pure function checked across the matrix | Rail height and the content-driven left split go into `layout_solver.gd` and its tests; `ui_check.gd` runs every matrix size |
-| Legibility floors are tested, not eyeballed | `test_stone_contrast.gd` checks every text colour against the brightest stone and glow it can sit on |
-| Reduced motion is honoured everywhere | Every ambient and response element reads `UI.reduced_motion`; quickstart checks it |
-| Reference material is not part of the repository | Stone, cracks and ornaments are generated; nothing is traced from the publisher |
-| Art generation runs on the Windows PC, never on this Mac | Default stone is procedural. The fallback textures are a hand-off command, not run here |
+| The rules engine has no dependency on the interface and is covered by headless tests | Engine changes are additive reporting only. Outcomes are checked unchanged by the existing engine tests plus `test_terms.gd`. No UI code enters `engine/` |
+| One source of truth for game figures | The math box shows the engine's terms. The terms come from the same expressions that make the totals |
+| Layout is a pure function checked across the matrix | Slots, the action column and Play's place go into `layout_solver.gd` and its tests. `ui_check` runs the real sizes |
+| Legibility floors are tested | The contrast test runs against whichever ground ships (generated or fallback) |
+| Reduced motion is honoured | The flying numbers, counting totals and responses all have still forms |
+| Reference material is not part of the repository | The ground is generated; nothing is traced from the publisher |
+| Art generation: keep runs small, say how long | One tile, a handful of seeds, timed. Larger sweeps are offered for the Windows PC |
 
-**Post-design re-check**: still PASS. The design adds no engine dependency, loosens
-no check and leaves the matrix unchanged.
+**Post-design re-check**: still PASS.
 
 ## Project Structure
 
@@ -123,80 +129,65 @@ no check and leaves the matrix unchanged.
 
 ```text
 specs/006-etched-stone-polish/
-├── plan.md              # This file
-├── research.md          # Phase 0: decisions D1–D12
-├── data-model.md        # Phase 1: Zone, RoleToken, RiftLight, BoardResponse, LoreFrame
-├── quickstart.md        # Phase 1: how to verify each story and success criterion
+├── plan.md              # This file (revision 2)
+├── research.md          # Phase 0: R1–R8 (revision 2), with what was kept from revision 1
+├── data-model.md        # RoleSlot, Term, Sum, Explanation, Zone, Ground
+├── quickstart.md        # Verification by story; results so far kept
+├── baseline.md / baseline.json   # Space baseline (unchanged)
 ├── contracts/
-│   ├── role-rail.md         # US1: what the rail shows and does
-│   ├── stone-and-rift.md    # US2: the visual language (surfaces, wells, light, ornament)
-│   ├── board-life.md        # US3: ambient motion and the response for each action
-│   └── screens-and-lore.md  # US4: each screen's lore framing and what must survive
-├── checklists/
-│   └── requirements.md
-└── tasks.md             # Phase 2 (/speckit-tasks; not created here)
+│   ├── role-slots.md        # US1 (replaces role-rail.md)
+│   ├── math-box.md          # US2: the box and the engine's terms
+│   ├── boxes-and-ground.md  # US3 (replaces stone-and-rift.md)
+│   ├── board-life.md        # US4 (revised: no ambient effects)
+│   └── screens-and-lore.md  # US5 (lightly revised)
+├── checklists/requirements.md
+└── tasks.md             # Phase 2 (/speckit-tasks; to be regenerated)
 ```
 
 ### Source Code (repository root)
 
 ```text
+engine/
+├── rules.gd             # + terms in resolve_enemy / resolve_journey results (reporting only)
+└── game.gd              # + terms in _final_journey / _final_enemy; + explain(), explain_final()
 ui/
-├── theme/
-│   ├── tokens.gd            # + stone, rift and well tokens; ornament sizes
-│   ├── theme.gd             # box/panel/raised_panel_box route to StoneStyle; carved headings
-│   └── stone_style.gd       # NEW: StyleBox drawing a chamfered, bevelled stone well
 ├── model/
-│   ├── layout_solver.gd     # rail height replaces slot band; content-driven left split
-│   ├── view_state.gd        # rail tokens and active zone exposed (read-only shaping)
-│   └── board_response.gd    # NEW: pure map from game events to board responses
+│   ├── view_state.gd    # slot tokens from the engine's terms; math sums for the box
+│   ├── layout_solver.gd # slots + action column; Play in the left column; button row removed
+│   └── board_response.gd
 ├── widgets/
-│   ├── role_rail.gd         # NEW: replaces slot_row.gd
-│   ├── slot_row.gd          # REMOVED after the rail lands
-│   ├── preview_panel.gd     # reports its needed height; tighter composition
-│   ├── hand_tray.gd         # sits in the deeper Hand well (no logic change)
-│   └── header_bar.gd, encounter_face.gd, dragon_face.gd, face_frame.gd,
-│       soak_meter.gd, xp_purse.gd, action_bar.gd, stat_chip.gd, choice_tile.gd,
-│       dragon_stats.gd, card_detail.gd, ether_picker.gd   # restyle only
-├── fx/
-│   ├── shaders/backdrop.gdshader  # REWRITTEN: stone grain + crack seams + rift light
-│   ├── rift_layer.gd        # NEW: motes, seam shimmer timing, tint transitions
-│   └── animator.gd          # calls BoardResponse for board-level reactions
-├── screens/
-│   ├── play_screen.gd       # rail in place of slots; active-zone light
-│   ├── title_screen.gd      # The Tear
-│   ├── rules_screen.gd      # the elders' proclamation
-│   └── ending_screen.gd     # inscribed slab
-├── overlays/                # every overlay as a slab or scroll
-└── main.gd                  # backdrop + rift layer host; tint on every screen
-
-art/icons/                   # + ornament SVGs from tools/gen_icons.py
+│   ├── role_slots.gd    # REWORKED from role_rail.gd: full-size raised slots with numbers
+│   ├── preview_panel.gd # REBUILT as the math box: equation rows, consequences, Play
+│   ├── action_bar.gd    # secondary actions in a 2 × 2 grid beside the slots; Play handed to the box
+│   └── hand_tray.gd     # unchanged logic; more height
+├── fx/flight_layer.gd   # number flight from card to slot (reused API)
+├── theme/stone.gd, stone_style.gd, theme.gd   # stronger raised boxes; flat lines; ground from art/stone/grain.png
+└── screens/play_screen.gd
+art/stone/grain.png      # NEW: generated flat ground tile
 tools/
-├── gen_icons.py             # + woodcut ornaments
-├── space_audit.gd           # NEW: SC-001 / SC-002 measurements
-└── field_bench.gd           # + backdrop, seams and motes in the timed scene
+├── generate_art.py      # + `pattern` command (seamless flat woodcut-line tile)
+├── make_ground.gd       # NEW: seam fix, tone quantise, luminance fit → art/stone/grain.png
+├── space_audit.gd, field_bench.gd, ui_check.gd
 tests/
-├── test_role_rail.gd        # NEW
-├── test_stone_contrast.gd   # NEW
-├── test_board_responses.gd  # NEW
-└── test_layout_solver.gd    # extended
+├── test_terms.gd        # NEW
+├── test_role_slots.gd   # replaces test_role_rail.gd
+└── test_layout_solver.gd, test_stone_contrast.gd   # extended
 ```
 
-**Structure Decision**: The existing single Godot project. Presentation code stays
-under `ui/` in its current split (theme, model, widgets, fx, screens, overlays). The
-new pure logic (`board_response.gd`, rail shaping in `view_state.gd`, layout) lives in
-`ui/model/` so it is tested headless, as in 005.
+**Structure Decision**: The same single Godot project. The engine gains reporting
+only. Presentation stays under `ui/`, and pure shaping stays in `ui/model/`. The ground
+is an asset made by offline tools.
 
 ## Staging and the exit point
 
-| Stage | Stories | Lands on | Gate to continue |
-|---|---|---|---|
-| 1 | US1 | Current look | `tools/test.sh` and `space_audit.gd` pass. Shippable alone. |
-| 2 | US2 + US3 on the play screen only (incl. Final Battle, which shares it) | Stone look on play | Owner compares before/after play screenshots (quickstart §4). **No → stop.** Revert stage 2 commits; stage 1 stays. |
-| 3 | US4 | Stone look everywhere | Owner prefers the after on every screen (SC-003) |
-
-Stage 2 is built from separate commits on top of stage 1, so a rejection reverts
-cleanly. The code carries no runtime flag for the old look.
+| Stage | Stories | Gate to continue |
+|---|---|---|
+| A | US1 + US2 (slots, numbers, math box, Play in the box) on the existing raised boxes | `tools/test.sh` green; `test_terms` proves the sums; owner sees the new layout |
+| B | US3 + US4 (finished boxes, generated flat ground, responses) | Owner prefers the restyled play screen (US3 scenario 4). **No → stop**; stage A stays |
+| C | US5 (every screen) | Owner prefers the after on every screen |
 
 ## Complexity Tracking
 
-No constitution violations, so nothing to justify.
+| Item | Why needed | Simpler alternative rejected because |
+|---|---|---|
+| Additive reporting in `engine/` (the plan for revision 1 forbade engine edits) | FR-010 requires the box to show the engine's own figures; only the engine knows the intermediate values (Armor removed, Night Travel's cut, the Reserve added) | Recomputing the terms in the UI would duplicate the rules and could drift from them, which FR-010 forbids. The change is reporting only and guarded by tests that the outcomes are unchanged |

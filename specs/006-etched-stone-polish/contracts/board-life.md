@@ -1,61 +1,32 @@
-# Contract: Board Life (US3)
+# Contract: A Board That Answers (US4)
 
-Ambient motion and the board's response to each action. Data shapes:
-[data-model.md § RiftLight, BoardResponse](../data-model.md).
+Revised: no ambient effects. The response table is `ui/model/board_response.gd`;
+responses play through `play_screen.flare()`.
 
-## Ambient motion (idle play screen)
+## While idle
 
-| Element | Where | Normal | Reduced motion |
-|---|---|---|---|
-| Seam shimmer | Backdrop seams | Slow per-seam brightness drift in the Ether's behaviour (stone-and-rift.md) | Frozen at the mean |
-| Motes | `rift_layer.gd`, from the rift source | ≤ `MOTES_MAX` alive, 4–7 s lifetime, drifting up and out, Ether-tinted, low alpha | None |
-| Active-zone breath | The zone named by `vs.input_region` | Rim glow at 1, breathing ±15% over about 3 s | Rim glow at 1, still |
-
-**Guarantees**
-- At least two kinds of ambient motion are visible on the idle play screen (FR-013,
-  SC-006): the seam shimmer and the motes.
-- Nothing flashes. Brightness never changes by more than 30% in under 0.25 s, except
-  the lightning jolt (one at most per 4 s, ≤ 40%).
-- During an animator sequence, motes stop emitting and the shimmer drops to half
-  amplitude.
-- While an overlay covers the screen, the ambient motion pauses (as the card fields do
-  today, `set_fields_live`).
-
-## Active zone
-
-| `vs.input_region` | Lit zone |
-|---|---|
-| `hand` | Hand well |
-| `commit` | The primary action's plinth (with today's `actions.set_ready`) |
-
-The light moves with a `T.BASE` cross-fade, or instantly under reduced motion
-(FR-014).
+Nothing moves except the **waiting zone's edge**: the Hand while a card is to be
+chosen, or Play once the set is ready. Its 3-unit focus edge brightens and dims over
+about 3 s. It is still under reduced motion.
 
 ## Responses
 
-| Event | Normal | Still (reduced motion) |
-|---|---|---|
-| `place` | The rail token flares in the card's Ether; the Hand rim brightens briefly | The token is tinted for `T.BASE` |
-| `take_back` | The token's contribution fades and falls 6 units | Instant clear |
-| `fuse` | Seams near the Hand flare in the fused Ether | Hand rim in the Ether for `T.BASE` |
-| `divert`, `regroup` | A cold sweep runs along the header lintel | The header rim is tinted |
-| `play` | Seams surge toward the Encounter frame | Encounter rim in the Ether for `T.BASE` |
-| `hit_enemy` | Encounter frame shudders (reusing `UI.shake`) and dust motes burst | Encounter rim flashes once at reduced alpha |
-| `take_damage`, `soak` | A crack flash crosses the Hand well and the seams redden briefly | Hand rim in `T.BAD` for `T.BASE` |
-| `upgrade` | The upgraded card's rim goes gold, with a short rise of motes | Card rim gold |
-| `encounter_won` | Seams brighten everywhere, then settle; the tint eases toward neutral | Seams held bright for `T.BASE` |
-| `encounter_lost` | Seams dim and redden | Seams held dim for `T.BASE` |
+| Event | Box | Normal | Reduced motion |
+|---|---|---|---|
+| `place` | the slot | number flies in (role-slots.md); edge flashes in the card's Ether | number appears; edge held in the Ether for `T.BASE` |
+| `take_back` | the slot | number fades; edge flashes neutral | cleared at once |
+| `fuse` | Hand | edge flashes in the fused Ether | edge held |
+| `divert`, `regroup` | header | edge flashes neutral | edge held |
+| `play` | Encounter | edge flashes in its Ether | edge held |
+| `hit_enemy` | Encounter | small shake and Ether edge flash | edge held |
+| `take_damage`, `soak` | Hand | edge flashes red | edge held |
+| `upgrade` | Hand | edge flashes gold | edge held |
+| `encounter_won` | Encounter | edge flashes gold | edge held |
+| `encounter_lost` | Encounter | edge dims red | edge held |
+| a total changes | math box | the total counts to its new value | changes at once |
 
-**Guarantees**
+## Guarantees
+
 - Every event has both forms (`tests/test_board_responses.gd`).
-- Responses never delay input. They are decorative and skippable with the animator's
-  existing skip.
-- Responses never move or cover a card the player must read.
-
-## Performance
-
-- `tools/field_bench.gd` adds the backdrop, seams and motes to its 11-face scene. It
-  still needs PASS: average ≤ 16.7 ms, p99 ≤ 33 ms.
-- Fallbacks, in order: motes to 12, then Ether behaviours to the plain shimmer.
-- On the web build and Android emulator: no visible stutter while idle, placing
-  cards or resolving (SC-008), judged by eye.
+- Responses never delay input, and they can be skipped with the animator's skip.
+- No particles, glows or moving patterns anywhere (FR-016, SC-006).

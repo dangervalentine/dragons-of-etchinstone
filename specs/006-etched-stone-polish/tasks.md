@@ -1,478 +1,670 @@
 ---
 
-description: "Task list for Etched Stone and Ether Rifts"
+description: "Task list for Raised Stone and the Math in Plain Sight (revision 2)"
 ---
 
-# Tasks: Etched Stone and Ether Rifts
+# Tasks: Raised Stone and the Math in Plain Sight (revision 2)
 
 **Input**: Design documents from `/specs/006-etched-stone-polish/`
 
 **Prerequisites**: [plan.md](plan.md), [spec.md](spec.md), [research.md](research.md), [data-model.md](data-model.md), [contracts/](contracts/), [quickstart.md](quickstart.md)
 
-**Tests**: Included. The plan names three new headless tests and extends one; they
-are the gates for FR-002–FR-004, FR-015–FR-017 and SC-001. Each is written before
-the code it checks.
+**Tests**: Included. The plan names `test_terms.gd` and `test_role_slots.gd` as the
+gates for FR-002–FR-011 and SC-002, and extends the layout and contrast tests. Each is
+written before the code it checks.
 
-**Organization**: Tasks are grouped by user story. The stories run in this order:
+**Organization**: By user story:
+- US1, slots and numbers (P1)
+- US2, the math box (P2)
+- US3, raised boxes and flat ground (P3)
+- US4, a board that answers (P4)
+- US5, every screen (P5)
 
-1. US1, space (P1)
-2. US2, stone and rift on the play screen (P2)
-3. US3, board life (P3)
-4. **Stage 2 sign-off gate**
-5. US4, every screen (P4)
+Stages (plan.md): A = US1 + US2; B = US3 + US4, ending in the owner's sign-off; C = US5.
+
+## Already done under revision 1 (kept; commits `02004c7`…`2ef4ccb`)
+
+- The space-audit tool and its baseline.
+- The tokens.
+- The content-sized left column.
+- `StoneStyle` raised boxes on the play screen.
+- The board-response table and zone flares.
+- The waiting zone's breathing edge.
+- The rail-and-Hand pairing.
+- The `ui_check` `SubViewport` fix and its space check.
+- The ornament icons.
+- The rift effects, which were built and then removed.
+
+The revision 1 task list is in git history (`git show 2ef4ccb:specs/006-etched-stone-polish/tasks.md`).
 
 ## Format: `[ID] [P?] [Story] Description`
 
 - **[P]**: Can run in parallel (different files, no dependencies on incomplete tasks)
-- **[Story]**: Which user story this task belongs to (US1–US4)
+- **[Story]**: Which user story this task belongs to (US1–US5)
 - Paths are relative to the repository root. Run all tests with `./tools/test.sh`.
 
 ## Conventions every task follows
 
-- `engine/` and `data/cards.json` are never edited (FR-019).
-- GDScript style:
-  - Tabs, and `##` doc comments on every function and file.
-  - Typed locals.
-  - Preload constants named like `const T = preload("res://ui/theme/tokens.gd")`.
-  - Match the surrounding file.
-- Test files extend `"res://tests/base.gd"` and use `eq()` / `ok()`. Every `test_*`
-  method is picked up by `tests/run.gd`. Build games as `tests/test_view_state.gd`
-  does.
-- Floors: minimum text 22 design units (`T.TEXT_MIN`), tap target 88 (`T.TAP_MIN`).
-  Contrast is ≥ 4.5:1 for text and ≥ 3:1 for numerals ≥ 32 units.
-- Anything that animates checks `UI.reduced_motion` and applies the end state at once
-  (or the `still` form from `board_response.gd`) when it is true.
-- **Staging**:
-  - US1 must not change the look (FR-022).
-  - US2 and US3 restyle *only* the play screen, including the Final Battle. Use the
-    new `UI.stone_*` helpers in play-screen widgets only, and never change what
-    `UI.box`, `UI.panel` or `UI.raised_panel_box` return before US4. That keeps a
-    rejected style frame cleanly revertible.
-- Commit at the end of each phase. Stage 2 (US2 + US3) must be separate commits on top
-  of US1.
-- Never run art generation on this Mac. A Windows-PC texture fallback is a hand-off
-  command only.
+- **The engine gains reporting only** (plan Complexity Tracking). Never change a rule
+  or an existing result field's value. `data/cards.json` is never edited.
+- **GDScript style**: tabs, `##` doc comments on every function and file, typed
+  locals, and preload constants like `const T = preload("res://ui/theme/tokens.gd")`.
+  Match the surrounding file.
+- **Tests** extend `"res://tests/base.gd"` and use `eq()` / `ok()`. Build games as
+  `tests/test_view_state.gd` does.
+- **Floors**: minimum text 22 (`T.TEXT_MIN`; term labels may be 18 with
+  `set_meta("small_ok", …)`), tap target 88 (`T.TAP_MIN`), contrast ≥ 4.5:1 for text
+  and ≥ 3:1 for numerals ≥ 32.
+- **Motion**: anything that moves checks `UI.reduced_motion` and applies the end state
+  at once when it is true.
+- **No ambient effects**: nothing glows, flickers or moves on the ground.
+- **Generation**: ComfyUI runs on this Mac are allowed (memory). Keep them to the
+  four-candidate run in T030, and say how long it takes.
+- **Commits**: commit at the end of each phase, with no Claude attribution lines.
 
 ---
 
-## Phase 1: Setup (Baselines before anything changes)
+## Phase 1: Setup
 
-**Purpose**: Record today's look, band size and empty space so later checks compare
-against them. Do this on the unmodified code (commit `cdae3d2`).
-
-- [X] T001 Capture "before" screenshots (build/ is git-ignored; do not commit them):
-  - Run `godot --path . -s tools/shot.gd -- build/006-before`.
-  - Run `godot --path . -s tools/design_shots.gd -- build/006-before/design`.
-  - Confirm `build/006-before/phone-16x9/05_challenge_assigned.png` and `12_final_journey.png` exist.
-- [X] T002 Create `tools/space_audit.gd`, an `extends SceneTree` tool modelled on `tools/shot.gd`.
-  - **Drive**: load `res://scenes/main.tscn` at the `phone-16x9` matrix size (1280 × 720) and drive the same seeded states as `shot.gd`: challenge empty, one placed, all assigned, soak, upgrade, final journey, final enemy.
-  - **Role display share**: the global rect of the role display (today the play screen's `slots` region node; after US1 the `rail`) as a share of `plan.content` area.
-  - **Per-zone empty fraction** for every play-screen zone: `1 − area(union of visible descendant Controls' global rects ∩ zone rect) / area(zone rect)`. Approximate the union with a 16-unit occupancy grid.
-    - **A zone is the panel drawn on screen**, not the solver region. For the Hand, use `_hand_panel`'s rect (the cards' bounds plus margins), not `regions.hand`. Stone between panels is background and is not counted (spec SC-002, research D12).
-    - Judge `MAX_EMPTY` at `phone-16x9` and `phone-small` only.
-  - **Output**: one line per state and zone, plus `MAX_EMPTY` per state.
-  - **Flags**: with `-- --baseline <file>` it writes JSON; with `-- --compare <file>` it prints the rail-against-band ratio and FAILs if any zone's empty fraction exceeds 1/3 or the one-set ratio exceeds 0.5.
-- [X] T003 Run `godot --path . -s tools/space_audit.gd -- --baseline specs/006-etched-stone-polish/baseline.json` on unchanged code.
-  - Write `specs/006-etched-stone-polish/baseline.md` with a short table: per state, the band size and share, and the emptiest zone and its fraction.
-  - Expect the band to be 824 × 153 at one set and 824 × 96 at two (research D1).
-- [X] T004 Run `godot --path . -s tools/field_bench.gd` and record the average and p99 frame times at the bottom of `specs/006-etched-stone-polish/quickstart.md` under "Results", as the pre-feature bench.
+- [X] T001 Commit the revised spec and design documents as they stand
+  (`specs/006-etched-stone-polish/`: spec, plan, research, data-model, contracts,
+  quickstart, checklist, this file). Message: "006 revision 2: slots with numbers, the
+  math box, raised boxes on a flat ground".
+- [ ] T002 Take the revision 1 reference screenshots:
+  `godot --path . -s tools/shot.gd -- build/006-rev1 phone-16x9 desktop`.
+  Confirm `build/006-rev1/phone-16x9/05_challenge_assigned.png` exists. build/ is
+  git-ignored.
 
 ---
 
-## Phase 2: Foundational (Tokens every story reads)
+## Phase 2: Foundational (the engine's terms; blocks US1 and US2)
 
-**Purpose**: New design tokens. These are constants only; nothing visible changes.
+**Purpose**: Every number in the slots and the math box comes from the engine
+(FR-010). This adds the reporting the UI reads.
 
-**⚠️ CRITICAL**: Complete before any user story.
+**⚠️ CRITICAL**: US1 and US2 read `terms`; complete this phase first.
 
-- [X] T005 In `ui/theme/tokens.gd` add, with `##` comments, under new `# Rail`, `# Stone` and `# Rift` headings:
-  - `RAIL_TOKEN_W := 132`
-  - `PREVIEW_MIN := 150`
-  - `STONE_L_MIN := 0.008`, `STONE_L_MAX := 0.022` (relative luminance; the top must not exceed `luminance(BG_RAISED)`)
-  - `CHAMFER_S := 6`, `CHAMFER_M := 12`, `CHAMFER_L := 20`
-  - `BEVEL_LIGHT := Color(1, 1, 1, 0.10)`, `BEVEL_SHADOW := Color(0, 0, 0, 0.45)`
-  - `SEAM_NEUTRAL := Color("8f7fd6")`
-  - `SEAM_MAX_UNDER_TEXT := 0.0`
-  - `RIFT_TINT_TIME := REVEAL`
-  - `MOTES_MAX := 24`
+### Tests (write first; they must fail)
 
-  Run `./tools/test.sh` and confirm it is still green.
+- [ ] T003 Create `tests/test_terms.gd`. For a game built per seed in `range(1, 13)` with
+  each dragon, walk every Region Encounter by forcing the Key Card: set the game's Key
+  Card the way `tests/test_rules.gd` and `tests/test_game.gd` already do; reuse their
+  helpers.
+  - **Sets to try**: for each Encounter, build Action Sets from Hand combinations
+    (every Spell in the Hand, each with every other card as Element, the rest as
+    Boost), both `boost_to` values against Enemies, and one Fused set when the Hand
+    allows.
+  - **Per result of `game.explain(action)`**:
+    - (a) for each `sum` present in `terms`, `Σ value == total`, where the total is:
+      `attack` → `r.attack`, `initiative` → `r.initiative`, `move` → `r.move`,
+      `target` → `r.mp`, `damage` → `r.damage`, `time` → `r.time_penalty`. And the
+      other way: every one of those totals that is present in `r` and non-zero has
+      its sum present in `terms` (`target` only when Steep raised the MP), so a
+      missing sum fails rather than passing vacuously. No term has `value == 0`;
+    - (b) every key of `game.preview(action)` has the same value in
+      `game.explain(action)`, except `terms` and `complete`;
+    - (c) `complete == true`;
+    - (d) for the Fused set, the term whose `card` is the fused Element (or the Spell
+      term, when the fused Ether is what enables the enhanced action) has a `note`
+      containing "fused".
+  - **Incomplete sets**: a set with only a Spell gives `complete == false` and still
+    has a `move` or `attack` sum equal to the Spell term.
+  - **Final Battle**: force `final_journey` and `final_enemy` as `tests/test_view_state.gd`
+    `_to_final` does, and check (a) and (b) against `preview_final` for
+    `explain_final`, over two-set combinations.
+  - **Coverage**: assert, over the whole run, that at least one result each had an
+    Armor term, a Night Travel term, a Steep term, a Reserve term, an Ambush term, a
+    Storm or Hazards term, an Early damage term noted "Ranged" while the player's
+    Initiative was ahead, and a Poison result whose `poison` > 0. That proves the
+    modifiers and abilities were reached. If the seeds miss one, add a forced case:
+    build the encounter dictionary directly and call `Rules.resolve_enemy` /
+    `resolve_journey` with that Hardship or ability.
 
-**Checkpoint**: tokens in place; tests green; nothing on screen changed.
+### Implementation
+
+- [ ] T004 In `engine/rules.gd` `resolve_enemy`, build `var terms := []` from the
+  existing locals and add `"terms": terms` to the result. Each term is
+  `{"sum", "label", "source", "value", "card": null, "note"}`.
+  - **`attack`**:
+    - Spell: `act.value`. Note "enhanced" when `act.enhanced`, and "counts as 1: no
+      action fits" when the basic action does not fit either.
+    - Boost, when not to Initiative: `s.boost`. Under Night Travel, follow it with a
+      Night Travel term of `-(s.boost - _boost(s, hardship))`.
+    - Armor, when `act.enhanced and act.type == "attack"`:
+      `-(pre_armor - attack)`, where `pre_armor` is the value before `maxi(0, …)`.
+  - **`initiative`**: Element `s.initiative`; Boost when to Initiative (with the Night
+    Travel line).
+  - **`damage`**: Early damage `enemy.attack.value`, plus an Ambush term of the same
+    value when doubled; Combat damage. (Against an Enemy, Storm never adds damage:
+    `time_penalty` is non-zero only under Hazards, so no Storm term is emitted here.)
+    - When `early` is forced by **Ranged** (`enemy.ability == "ranged"` and not
+      dodged, while `enemy.initiative <= initiative`), the Early damage term's `note`
+      is "Ranged: strikes first whatever the Initiative" and its `source` is
+      `ability`. When Ranged was dodged by giving up the Reserve, add no term; the
+      Reserve pill says it (T020).
+  - **`time`**: Hazards.
+  - **Emit only non-zero terms**, except the Spell term, which is always present.
+  - Do not change any other line's arithmetic.
+- [ ] T005 In `engine/rules.gd` `resolve_journey`, do the same:
+  - **`move`**: Spell; Boost (with the Night Travel line); Reserve `reserve_boost`,
+    when the enhanced action matches the MP's Ether.
+  - **`target`**: MP `journey.mp.value`, plus Steep `reserve_boost` when the peril is
+    Steep.
+  - **`damage`**: Treacherous 1; Storm.
+  - **`time`**: the time penalty, labelled "Time Penalty".
+- [ ] T006 In `engine/game.gd`:
+  - **Final Battle terms.** Add `terms` to `_final_journey` (`move`: "Spell 1",
+    "Boost 1", "Spell 2", "Boost 2", "Reserve") and to `_final_enemy`:
+    - `attack`: "Spell 1", "Boost 1", "Spell 2", "Boost 2" (Boosts only when to
+      Attack), then **one** Armor term on the combined sum, `-(pre_armor - attack)`,
+      as the engine removes Armor once from the total (`game.gd` `_final_enemy`);
+    - `initiative`: "Element 1", "Element 2", and each Boost sent to Initiative;
+    - `damage`: "Tier attack", "Early damage", "Carried damage", only when a tier is
+      reached.
+  - **`explain(action)`**: identical to `preview(action)` except that the "Assign a
+    Spell, an Element and a Boost." and "An Action Set needs a Spell." errors are
+    skipped. Resolve with whatever roles are filled (`_set_stats` already tolerates
+    nulls), then set `complete` to whether those checks would have passed.
+  - **`explain_final(action)`**: the same for `preview_final`.
+  - **Fuse note.** Fuse lives in `game.gd` (`_set_stats`), which `rules.gd` never
+    sees. In `explain` and `explain_final`, after the rules return, set `card` on the
+    Spell, Element and Boost terms from the set's ids. When the set has a `fuse` whose
+    `top` is the set's Element, append "fused: <Ether>" to the note of the Element's
+    `initiative` term, and to the Spell term's note when the action is enhanced
+    (the fused Ether is what matched). Fuse adds no line of its own
+    (contracts/math-box.md).
+  - Doc comments on each.
+
+  Run `./tools/test.sh`: `test_terms`, `test_rules`, `test_game` and
+  `test_playthrough` must all pass.
+
+**Checkpoint**: Commit "Engine: report the terms behind each result".
 
 ---
 
-## Phase 3: User Story 1 - Space that earns its place (Priority: P1) 🎯 MVP
+## Phase 3: User Story 1 - Numbers that go where they count (Priority: P1) 🎯 MVP
 
-**Goal**: Replace the slot band with the role rail (contracts/role-rail.md), and make
-the left column's split content-driven, on today's look.
+**Goal**: Full-size role slots that carry the engine's numbers, flying in on
+placement; actions beside the slots; no button row under the Hand
+(contracts/role-slots.md).
 
-**Independent Test**: quickstart §2. `space_audit.gd --compare` passes; the by-hand
-steps 1–8 pass; nothing else looks different.
+**Independent Test**: quickstart §2 steps 1–7.
 
-### Tests for User Story 1 (write first; they must fail)
+### Tests for User Story 1 (write first)
 
-- [X] T006 [P] [US1] Create `tests/test_role_rail.gd` against a new pure static function `ViewState.rail_tokens(vs: Dictionary) -> Array` in `ui/model/view_state.gd` (shapes per data-model.md § RoleToken). Use real view states built as `test_view_state.gd` does and assert:
-  - (a) one set, nothing placed: 3 tokens `spell`, `element`, `boost`. The active one has `state == "next"` and the others `"empty"`; each empty `tap == {"type": "select_slot", "set": 0, "role": <role>}`.
-  - (b) after placing a card in Spell: that token `state == "filled"`, `card_id` set, `ether` equal to the card's element, `tap == {"type": "take_back", "id": <id>}`, and `contribution == [basic.value, enhanced.value, enhanced.element]` from the card's current Level.
-  - (c) Element contribution is `[element, initiative]`; Boost is `[boost]`.
-  - (d) "Never shows a card's name as visible text": the token dict has no `name` key, and only `tooltip` contains the card name (`"Spell 1: <name>"`; `"Spell 1"` when empty).
-  - (e) Final Battle (`final_enemy`, two sets): 6 tokens with `set` 0 and 1.
-  - (f) after a battle (`vs.played` set, `vs.sets` empty): `played` tokens for each role, plus a `reserve` token whose state is `kept` when `played.reserve_kept`, else `discarded`; a recap token with a card has `tap == {"type": "inspect", "id": <id>}`, and one without a card (Reserve "None") has `tap == null`. The Hand card ids in `played.roles` each carry `vs.cards[id].played_role == [set, role]`.
-  - (g) intent parity: for each building state, the set of non-null `tap` intents equals the set of intents the current `ui/widgets/slot_row.gd` buttons would emit (enumerate them by hand from `slot_row._slot`). The recap's `inspect` taps are new; they are not covered by parity.
-- [X] T007 [P] [US1] Update `tests/test_layout_solver.gd`:
-  - In `ORDER` and every assertion, rename the `slots` region to `rail`.
-  - Replace `test …spare height goes to the slots` (line 118) with `test_rail_is_one_tap_target_tall()`: for every matrix size, with `sets` 1 and 2, `regions.rail.size.y == T.TAP_MIN`; with 0 sets it is `0.0`.
-  - Add `test_rail_area_is_at_most_half_the_old_band()`: at `phone-16x9` with one set, `regions.rail.size.x * regions.rail.size.y <= 0.5 * 824 * 153`.
-  - Add `test_preview_takes_what_it_needs()`: `solve(..., preview_needed := 200)` gives `regions.preview.size.y == 200` at `phone-16x9`; `preview_needed := 0` gives `PREVIEW_MIN`; a huge value is capped at half the body height. The encounter always fills the rest of the column (`encounter.end.y + GAP == preview.position.y`).
-  - Keep `test_hand_cards_are_no_smaller_than_before` passing unchanged.
+- [ ] T007 [P] [US1] Replace `tests/test_role_rail.gd` with `tests/test_role_slots.gd`
+  (delete the old file and its `.uid`). It tests a new `ViewState.role_slots(vs)`
+  (renamed from `rail_tokens`, same entry point in `build()` as `vs["slots"]`).
+  - (a) **Nothing placed**: three slots, `spell` `next`, others `empty`, each `tap`
+    `select_slot`.
+  - (b) **After a Spell**: Spell `state == "filled"`, `number ==` the Spell term's value
+    from `game.explain(draft.to_action()).terms`, `counts_to` `attack` or `move`, and
+    `tap == {"type": "take_back", "id": id}`.
+  - (c) **The Spell number changes**: choose a Spell whose enhanced Ether is in the
+    Hand on another card. Place that card as the Element and assert the Spell slot's
+    `number` changes to the enhanced value.
+  - (d) **Element**: `number == initiative`, `ether` = the card's Ether.
+  - (e) **Boost**: `number == boost`, and `boost_to` is set against an Enemy and null on
+    a Journey.
+  - (f) **No names**: no slot has a `name` key; only `tooltip` names the card.
+  - (g) **Final Battle**: six slots with `set` 0 and 1.
+  - (h) **Recap**: recap slots with `inspect` taps; Hand cards carry `played_role`
+    (carried over from `test_role_rail`).
+  - (i) **Intent parity**: the non-null taps equal the old intent set (`select_slot`,
+    `take_back`, `toggle_boost_to`).
+- [ ] T008 [P] [US1] Update `tests/test_layout_solver.gd` for research R3:
+  - **Regions**: in `ORDER` and every test, rename the `rail` region to `slots`, and
+    turn the rail-height tests into slot band tests. (`actions` and `commit` are
+    already in `ORDER`; they move.)
+  - `test_slot_band_and_action_column()`: for every matrix size with sets 1 and 2,
+    - `regions.slots.size.y == Solver.SLOT_BAND_H` and
+      `regions.actions.size.y == regions.slots.size.y`;
+    - `actions` is right of `slots` with `GAP` between, and both fit the right column;
+    - each slot is at least `T.TAP_MIN` wide: `regions.slots.size.x / (3 * sets)`.
+  - `test_no_button_row_under_the_hand()`: `regions.hand.end.y == content.end.y`
+    unless the R3 fallback is active.
+  - `test_play_sits_at_the_foot_of_the_math_box()`:
+    `regions.commit.position.y == regions.preview.end.y + GAP`, and
+    `regions.commit.end.y == content.end.y`, in the left column. If
+    `Solver.PLAY_IN_COLUMN` is false (the fallback), assert instead the bottom-right
+    corner.
+  - `test_the_encounter_keeps_its_height()`:
+    `regions.encounter.size.y >= T.ENCOUNTER_MIN` at every non-upright size, with the
+    largest preview the solver allows.
+  - Keep `test_hand_cards_are_no_smaller_than_before` and the coverage test passing.
 
 ### Implementation for User Story 1
 
-- [X] T008 [US1] In `ui/model/layout_solver.gd`:
-  - **Signature**: change `solve()` to `solve(view, safe, hand_count := 4, set_count := 1, points_per_unit := 0.5, preview_needed := 0.0)`.
-  - **Rail**: rename the `slots` region to `rail`. It is `T.TAP_MIN` tall when `set_count > 0`, else 0, with the spare-height top-up deleted. Its width is `minf(right_w, (3 * T.RAIL_TOKEN_W + 150 + 3 * T.S) if set_count == 1 else (8 * T.TAP_MIN + 7 * T.S))`, centred over the right column.
-  - **Preview split**: `preview_h = clampf(preview_needed, T.PREVIEW_MIN, roundf(body_h * 0.5))` when `preview_needed > 0`, else keep today's `body_h - encounter_h - GAP`. `encounter_h = body_h - preview_h - GAP`.
-  - **Docs**: update the doc comments.
+- [ ] T009 [US1] **Measure `ENCOUNTER_MIN`**. With a scratch script in the session
+  scratchpad, not the repo: render `EncounterFace` for an Enemy with an ability, a
+  Hardship and full stats, and a Journey with a Peril, at width 400. Shrink the height
+  until any child's rect leaves the face. Record the smallest height that fits for
+  both as `const ENCOUNTER_MIN := <n>` in `ui/theme/tokens.gd`, with a comment.
+  - **The R3 gate**: compute the math box height for the fullest composition of
+    **every** kind, with equation rows wrapped at the real left-column width at
+    1280 × 720 (term cells about 64 wide, "=", total and target included):
+    - Enemy: 2 rows (research R3's estimate is 308);
+    - Journey with Steep: 1 row plus the target sub-row;
+    - Final Journey: 1 row of 5 terms plus the tier line;
+    - Final Enemy: an Attack row of 5 terms (4 + Armor) and an Initiative row of 4,
+      plus the tier line;
+    each plus 24 margin, 44 consequences, 88 Play and the gaps. Take the **maximum**
+    `M`. If `628 − 12 − M >= ENCOUNTER_MIN` (using the Dragon face's own minimum for
+    the Final kinds, measured as above), set `PLAY_IN_COLUMN := true` in
+    `ui/model/layout_solver.gd`. Otherwise set it to `false`. Either way, write the
+    per-kind heights, `M` and the decision under "Results" in `quickstart.md`.
+- [ ] T010 [US1] In `ui/model/layout_solver.gd` implement research R3:
+  - **Constants**: `SLOT_BAND_H := 184`, `ACTION_COL_W := 248` (one set) and
+    `ACTION_COL_W_FINAL := 100` (two sets), `PLAY_IN_COLUMN` (T009).
+  - **Right column**: `slots` = top band, width `right_w - action_w - GAP`; `actions`
+    = the band's right part. The rail-and-Hand centring is replaced: the slots sit at
+    the top, and the Hand takes from `body_y + SLOT_BAND_H + GAP` to `c.end.y`
+    (`bottom_y` minus the commit row only in the fallback).
+  - **Left column** when `PLAY_IN_COLUMN`: `encounter`, then `preview` (content-sized
+    as today), then `commit` (`T.TAP_MIN` tall) at the bottom. `preview_needed`
+    includes the commit's height so the Encounter keeps the rest.
+  - **Fallback**: `commit` keeps today's bottom-right rect, and the Hand ends above it.
+  - **Every playing step** uses the same regions, not only the challenge:
+    - In Soak and Upgrade, the slot band holds the recap of the set just played (the
+      `slots` region, same height), and the action column holds that step's
+      secondary actions exactly as `view_state._secondary` lists them today (for
+      example Undo Upgrade, Cancel).
+    - The `preview` region holds the Soak meter or the XP purse, sized by their
+      `needed_height()` as today, and `commit` stays under it at the foot of the left
+      column, carrying that step's existing primary, unchanged.
+    - Before the first Encounter and between Regions (no set yet), the slots show
+      three `empty` slots and the actions column is empty but keeps its width, so
+      the Hand does not jump.
+  - Update the doc comments. Make T008 pass, and add to T008 one case each for the
+    Soak and Upgrade steps asserting the same `slots`, `actions` and `commit` rects.
+- [ ] T011 [US1] In `ui/model/view_state.gd`:
+  - In `build()`, while playing, call `game.explain(draft.to_action())` (or
+    `explain_final`) and store it as `vs.explain`, next to `vs.preview`.
+  - Rename `rail_tokens` → `role_slots`, stored as `vs["slots"]`. Shape it per
+    data-model.md § RoleSlot:
+    - `number` for Spell from the `explain.terms` entry with `source == "spell"` (and
+      label "Spell 1"/"Spell 2" per set in the Final Battle);
+    - Element from the card's Initiative; Boost from the card's Boost;
+    - `counts_to` from the Encounter kind and `boost_to`;
+    - `boost_to` only when the set's `show_boost_to`.
+  - **The toggle** moves into the Boost slot: no separate `boost_to` token. The slot's
+    target icon carries `{"type": "toggle_boost_to", "set": n}` as `toggle_tap`.
+  - Make T007 pass.
+- [ ] T012 [P] [US1] In `ui/fx/flight_layer.gd` add
+  `func fly_text(text: String, from: Vector2, to: Vector2, colour: Color, font_size := 44, duration := T.MOVE) -> Tween`.
+  It makes a `display_bold` label at `from` (global, centred), tweens its position to
+  `to` with `TRANS_CUBIC`/`EASE_OUT` and a slight scale-down, then frees it. It
+  returns null and does nothing under `UI.reduced_motion`.
+- [ ] T013 [US1] Rename `ui/widgets/role_rail.gd` → `ui/widgets/role_slots.gd` (`git mv`;
+  regenerate the `.uid`) and rebuild it per contracts/role-slots.md:
+  - **Layout**: an `HBoxContainer` filling the slots region. Each slot is a `Button`
+    with `StoneStyle` `plinth` styles (normal / hover / pressed), expanding to share
+    the width equally, and at least `T.TAP_MIN` square.
+  - **Content**, top to bottom:
+    - the role icon (24) and name in `T.LABEL` (the name only when the slot is ≥ 140
+      wide; otherwise a set pip in the Final Battle);
+    - the number in `["display_bold", 44]` (`+n` for Boost; Ether icon and number for
+      Element);
+    - a row with the `counts_to` icon (24). For the Boost against an Enemy, this is a
+      small `Button` with the target icon whose `pressed` emits `toggle_tap`. It is at
+      least 44 × 44 and marked `help_target`, like the existing small hit areas, so
+      `ui_check` applies its 44 minimum.
+  - **Edges**: the `next` slot has a 3-unit `T.FOCUS` edge, a filled one an edge in
+    its card's Ether, a recap one is muted with the number struck.
+  - **Interface**: `func slot_rect(set_index, role) -> Rect2` (global) and
+    `func number_rect(set_index, role) -> Rect2` (the number label's global rect, for
+    flights), and keep `flare(card_id, colour, duration)`.
+  - No card names.
+- [ ] T014 [US1] In `ui/widgets/action_bar.gd`, lay out the secondary actions in the
+  `actions` region:
+  - more than two → a `GridContainer` with 2 columns (1 column in the Final Battle),
+    each button `T.TAP_MIN` tall, icon above a short label in `T.LABEL`;
+  - two or fewer → stacked full-width rows.
+  - **Primary**: the action bar always places `primary` in the `commit` rect it is
+    given, wherever the solver puts it: at the foot of the left column when
+    `Solver.PLAY_IN_COLUMN`, else the bottom-right corner. So at the US1 checkpoint
+    Play is already under the box and fully usable, before T020 exists. Expose
+    `primary` so T020 can give it the verdict text.
+  - `apply_layout(actions, commit)` keeps its signature.
+- [ ] T015 [US1] In `ui/screens/play_screen.gd`:
+  - **Regions**: rename the `rail` region to `slots`, use `RoleSlots`, and add the
+    `commit` region to `_regions` when `PLAY_IN_COLUMN`.
+  - **Number flight**: on `render(state, animate)` after a placement, compare each
+    slot's `card_id` and `number` with the previous `vs.slots`.
+    - For a newly filled slot, call `flight.fly_text(str(number), <the card view's
+      centre>, rail.number_rect(...).get_center(), T.ether_ink(ether) or T.INK)`, and
+      show the slot's number only when the flight lands (a `T.MOVE` timer); at once
+      under reduced motion.
+    - For a slot whose number changed while still filled, count it from the old value
+      to the new over `T.COUNT` (a `tween_method` on the label's text) and call
+      `flare("rail_token", …)`.
+  - **Flight layer access**: reach it through a `var flight: Control` that `main.gd`
+    sets, as `animator.flight` is set.
+  - Keep `board_changed` removed.
+- [ ] T016 [US1] In `ui/main.gd`:
+  - set `play.flight = _flight` when the play screen is created;
+  - pass `preview_needed` including the commit height (done in the solver; check the
+    call in `_on_resize`);
+  - update the `"slots"` / `"rail"` references found by
+    `grep -rn '"rail"\|regions.rail\|rail_tokens\|RoleRail' ui tools tests`.
+  - `tools/space_audit.gd` and `tools/ui_check.gd`'s `_check_space` measure the
+    `slots` region (rename from `rail`).
+- [ ] T017 [US1] Run `./tools/test.sh` (green) and the space audit (PASS). Take
+  `godot --path . -s tools/shot.gd -- build/006-us1r2 phone-16x9 desktop`, look at
+  every state, and drive the quickstart §2 steps with a scratch script against the
+  real buttons, as the revision 1 walkthrough did. Fix defects.
 
-  Make T007 pass.
-- [X] T009 [US1] In `ui/model/view_state.gd`, add `static func rail_tokens(vs: Dictionary) -> Array` per data-model.md § RoleToken (fields `set`, `role`, `state`, `card_id`, `contribution`, `ether`, `tap`, `tooltip`, plus a toggle entry `{"role": "boost_to", "set", "target": "attack"|"initiative", "tap": {"type": "toggle_boost_to", "set": n}}` when `sets[n].show_boost_to`).
-  - Call it from `build()` as `vs["rail"] = rail_tokens(vs)`.
-  - Reuse the role and contribution logic from `ui/widgets/slot_row.gd` (`_contribution`, `_render_played`), moved here as data.
-  - Recap tokens with a card get `tap = {"type": "inspect", "id": id}` (data-model.md § RoleToken).
-  - While `vs.played` is set, give each Hand card that was played `played_role = [set, role]`. Do this in `build()`'s per-card loop, where `vs.cards[id]` is built, reading `played.roles`.
-
-  Make T006 pass.
-- [X] T010 [P] [US1] Add `func needed_height() -> float` to `ui/widgets/preview_panel.gd`, `ui/widgets/soak_meter.gd` and `ui/widgets/xp_purse.gd`.
-  - Return the height of the panel's **fullest composition for the current Encounter kind and phase**, not the state last rendered (research D2: stable within an Encounter). For example, an Enemy challenge preview is sized for both comparisons plus the verdict even while "Still needed" shows, and the Final Battle for all tiers plus the verdict.
-  - Compute it by measuring the fullest layout once per `[encounter kind, phase]` and caching it: `get_combined_minimum_size().y` of the content container plus the panel's content margins.
-  - Tighten `preview_panel.gd`'s composition so its rows stack from the top with `T.S` gaps and the verdict sits directly under them, not pinned to the bottom of an oversized panel.
-- [X] T011 [US1] Create `ui/widgets/role_rail.gd` (`extends HBoxContainer`, centred, separation `T.S`), replacing `ui/widgets/slot_row.gd`. It has `signal intent(data)` and `func render(vs)`, which draws one `Button` per entry of `vs.rail`.
-  - **Size**: `custom_minimum_size = Vector2(T.RAIL_TOKEN_W if one set else T.TAP_MIN, T.TAP_MIN)`.
-  - **Styling**: today's `UI.box` styling from `slot_row._slot` (focus rim and shadow for `next`, the Ether border for `filled`).
-  - **Content**:
-    - The role icon, 22 units.
-    - The set pip as a small `"1"`/`"2"` label when there are two sets.
-    - The contribution numerals and icons exactly as `slot_row._contribution` draws them (compact form when there are two sets).
-    - For recap states, the role icon plus a struck "discarded" mark (an `orn`-free `Line2D` across the icon is fine), and the Reserve icon in `T.GOLD` when `kept`.
-  - **Tooltip and taps**: `tooltip_text = token.tooltip`. Pressed emits `token.tap` when it is not null.
-  - **Boost-to toggle**: drawn as today (`UI.button` with the target icon, and the word in one-set mode), emitting `toggle_boost_to`.
-  - **Rects**: add `func token_rect(set: int, role: String) -> Rect2` returning the token's global rect.
-  - **Style**: no card name anywhere. Doc comments in the file's style.
-  - **"Played as" ribbon**: in `ui/widgets/card_view.gd`, when `model.played_role` is set (recap only), draw the existing role ribbon (`ROLE_NAMES` / `ROLE_ICONS`, set number with two sets) in `T.INK_MUTED` instead of the building colours, so the recap links role to card without names (contracts/role-rail.md).
-- [X] T012 [US1] In `ui/screens/play_screen.gd`:
-  - Rename the `slots` region to `rail`, and replace `slots`, `SlotRow` and `_render_slots()` with a single `RoleRail` instance filled into `_regions.rail` (`rail.render(vs)`; connect `intent`).
-  - In `_replan()`, pass `preview_needed` from whichever of `preview`, `soak_meter` or `xp_purse` is visible (`needed_height()`), and replan when it changes: extend the `for` key to `[count, sets, roundi(preview_needed)]`. Because T010 measures the fullest composition, this changes only between phases or Encounters, never between card placements.
-  - Update `apply_layout()`'s region loop.
-- [X] T013 [US1] In `ui/main.gd` (around line 158, the `Solver.slot_rows(vs)` call), pass the visible preview widget's `needed_height()` through to `Solver.solve()` the same way. Update any other `"slots"` region references found by `grep -rn '"slots"\|regions.slots' ui tools tests`.
-- [X] T014 [US1] Delete `ui/widgets/slot_row.gd` and `ui/widgets/slot_row.gd.uid` once nothing references them (`grep -rn slot_row ui tools tests`).
-- [X] T015 [US1] Add a non-regression check to `tools/ui_check.gd` using the same empty-fraction maths as `tools/space_audit.gd` (T002). For every play state it already drives at `phone-16x9` and `phone-small` only (the minimum sizes SC-002 names), FAIL when any play-screen zone's empty fraction is over 1/3. Measure zones as drawn panels: for the Hand, `_hand_panel`'s rect, not `regions.hand` (see T002). Move the shared maths into a small `static func empty_fraction(zone: Rect2, root: Control) -> float` in `ui/model/layout_solver.gd` and call it from both tools.
-- [X] T016 [US1] Run `./tools/test.sh` (all green) and `godot --path . -s tools/space_audit.gd -- --compare specs/006-etched-stone-polish/baseline.json` (PASS). Then take `godot --path . -s tools/shot.gd -- build/006-us1 phone-16x9 desktop` and compare by eye with `build/006-before`: only the rail and the left split differ (FR-022).
-- [ ] T017 [US1] Walk quickstart §2 by-hand steps 1–8 (including 6b) on the desktop build and on the Android emulator (`install-on-emulators` skill). Fix any defect found. Commit "Role rail and a content-driven left column".
-
-**Checkpoint**: US1 is complete and shippable on its own.
-
-**Implementation notes (US1, 2026-10-15)**:
-- **The rail and Hand move as a pair.** Cards are width-bound, so on taller views the rail and Hand are centred together in the right column (`layout_solver.gd`, `HAND_TOP_AIR`). This shares the spare height above and below, instead of one empty band under the Hand. `test_larger_screens_are_used_not_left_empty` now allows 75% coverage, with the reason in a comment.
-- **Measuring empty space.** It is the share of a zone's *height*, in 16-unit rows, that nothing crosses (research D12). Spacers, bare panels and layout containers are not content. The baseline was re-recorded with this measure on `02004c7`.
-- **`tools/ui_check.gd` now really runs at each matrix size.** Headless, the root window stays 1280 × 1280, so every "matrix size" had been checked at that one size. The check now hosts the game in a `SubViewport` sized to each view in design units. It runs the SC-002 space check after each settle, at `phone-16x9` and `phone-small`. All checks pass at the real sizes.
-- **The "played as" marker.** It is drawn on the card's top fate tag ("Spell · Discarded after"), because the bottom ribbon is taken by the Soak and Upgrade notes during the recap.
-- **T017.** The walkthrough steps 1–6b were driven against the real rail buttons on desktop by a script, and all passed. The device half is open: no Android emulator was running, only a physical phone over wireless adb, which was not used without asking.
+**Checkpoint**: Commit "Role slots with the engine's numbers; actions beside them".
 
 ---
 
-## Phase 4: User Story 2 - A play screen carved from stone and lit by the rift (Priority: P2)
+## Phase 4: User Story 2 - The math, shown (Priority: P2)
 
-**Goal**: The play screen (including the Final Battle) becomes carved stone with
-rift light (contracts/stone-and-rift.md).
+**Goal**: The box beside the Encounter becomes equation rows built from the engine's
+terms, with the consequences and Play at its foot (contracts/math-box.md).
 
-**Independent Test**: quickstart §3 steps 1–2 (Ether mood with cards covered; 5-second
-first look), and `test_stone_contrast` is green.
+**Independent Test**: quickstart §3 steps 1–5.
 
 ### Tests for User Story 2 (write first)
 
-- [X] T018 [P] [US2] Create `tests/test_stone_contrast.gd`. Bake the textures through `Stone.grain()` (T020) and read their `Image`. Find the brightest and darkest texel luminances after remap, then:
-  - Assert the brightest `≤ T.luminance(T.BG_RAISED)`.
-  - Compute `bright = brightest texel colour blended with T.FOCUS at the StoneStyle's maximum rim-glow alpha` (export that alpha as `StoneStyle.GLOW_MAX_UNDER_TEXT`).
-  - For every text colour in `[T.INK, T.INK_MUTED, T.GOLD, T.GOOD, T.CAUTION, T.BAD, T.HP]` plus `T.ether_ink(e)` for each Ether, assert `T.ratio(colour, bright) >= 4.5` and `T.ratio(colour, darkest) >= 4.5`.
-  - For numerals, use `>= 3.0` on `T.GOLD` and the Ether inks.
-
-  It fails until T020 exists.
+- [ ] T018 [P] [US2] In `tests/test_view_state.gd` add `test_the_math_box_sums_come_from_the_engine()`:
+  - For a placed set against an Enemy, `vs.math.sums` has `attack` and `initiative`.
+    Each sum's `terms` are exactly `vs.explain.terms` filtered by `sum`, in order.
+    `total` equals `vs.explain.attack` / `.initiative`, and `target.value` equals the
+    Enemy's HP or Initiative.
+  - For a Journey, a `move` sum and `target` with its terms.
+  - For an incomplete set, `total == null` and `missing` lists the empty roles.
+  - For the Final Battle, a `tier` is present.
 
 ### Implementation for User Story 2
 
-- [X] T019 [P] [US2] In `tools/gen_icons.py`, add eight ornament SVGs written to `art/icons/`, in the existing icons' flat style (a single shape, detail as cut-out negative space):
-  - `orn_divider` (a gouged horizontal rule, wide aspect)
-  - `orn_corner`
-  - `orn_flourish_l`, `orn_flourish_r`
-  - `orn_rift` (a jagged vertical tear)
-  - `orn_tower`
-  - `orn_seal` (a round wax seal with a carved T)
-  - `orn_scroll_end`
+- [ ] T019 [US2] In `ui/model/view_state.gd` add
+  `static func math(game, draft, explain: Dictionary) -> Dictionary`, called in
+  `build()` as `vs["math"]`. It shapes per data-model.md § Sum:
+  - `sums` in display order (`attack`, `initiative` for Enemies and the Final Enemy;
+    `move` for Journeys and the Final Journey), each `{id, terms, total, target,
+    result, missing, tier}`;
+  - `consequences` reusing today's `preview().costs` / `rewards`;
+  - `verdict` and `fatal` from today's preview.
+  - It does no arithmetic: totals and term values are copied from `explain`. Make T018
+    pass.
+- [ ] T020 [US2] Rebuild `ui/widgets/preview_panel.gd` as the math box, keeping its
+  `needed_height()` contract and its prompt mode for the steps that are not
+  challenges:
+  - **Equation rows**: for each sum, an `HFlowContainer` of term cells. A cell is a
+    `VBoxContainer`: the signed value in `["display_bold", 34]` (green, red or ink by
+    sign and source), over the `label` in `["body_medium", 18]` with `small_ok`.
+    Then a cell "=", then the total in `["display_bold", 40]` coloured by `result`,
+    then "/ target" with its icon (and the Steep terms as a small sub-row).
+  - **Incomplete**: in place of "= total", a muted cell "Still needed: Element,
+    Boost".
+  - **Initiative note**: as today's comparison note ("You strike first" / "Struck
+    first: N early damage").
+  - **Consequences**: today's `_outcome_row()` pills. Add each pill's matching `damage`
+    or `time` terms to its tooltip, as "Early damage 2 + Ambush 2".
+    - **Abilities** are named where they act: the Early damage term's "Ranged" note
+      shows under the Initiative row in place of "You strike first" (so the row never
+      shows the player ahead with no reason for the early hit); the poison pill reads
+      "Poison"; the Reserve-lost pill names its cause, "Freeze" or "Gave up Reserve
+      to dodge Ranged".
+  - **Play**: the action bar's `primary` stays in the `commit` region T014 places it
+    in, directly below the box when `PLAY_IN_COLUMN`. This task only changes its text
+    to `"Play · " + verdict_text`, or the existing reason while incomplete; it keeps
+    its gold, warning and disabled kinds.
+  - **Counting**: `play_tally` and `settle` now count the totals (keep the method
+    names, which the animator calls). A total that changes between renders counts
+    over `T.COUNT`, unless reduced motion is on.
+  - **Sizing**: `needed_height()` reports the fullest composition for the Encounter
+    kind and step: Enemy 2 rows, Journey 1 row with a target sub-row, Final 1 row of
+    5 terms, wrapped at the box width, plus consequences (and Play when it is not
+    placed separately).
+  - Remove the `_Compare` bar class once nothing uses it.
+- [ ] T021 [US2] Run `./tools/test.sh` and the space audit. Take screenshots at
+  `phone-16x9` and `desktop`. Find, with `tools/shot.gd` seeds or a scratch script,
+  one state each:
+  - an Enemy with Armor in the Spell's Ether;
+  - a Night Travel Journey;
+  - a Steep Journey;
+  - the Final Journey and the Final Enemy.
 
-  Run the script, open the project once headless so Godot imports them (`godot --headless --path . --import`), and commit the `.svg` and `.import` files.
-- [X] T020 [US2] Create `ui/theme/stone.gd` (`extends RefCounted`), with static, lazily baked, cached textures:
-  - `grain() -> Texture2D`: a `NoiseTexture2D` 512², `seamless = true`, `FastNoiseLite` simplex fractal with 3 octaves and frequency about 0.012. Remap it into `[T.STONE_L_MIN, T.STONE_L_MAX]` luminance in a cool grey-violet near `T.BG_SURFACE`, using a `color_ramp` Gradient.
-  - `cracks() -> Texture2D`: a `NoiseTexture2D` 512², seamless, `FastNoiseLite` `TYPE_CELLULAR` with `cellular_return_type = RETURN_DISTANCE2_SUB` and frequency about 0.008, inverted so the thin valleys are bright.
-  - **Override**: if `res://art/stone/grain.png` or `res://art/stone/cracks.png` exists, return that instead (research D3 fallback).
-  - **Readiness**: `await_ready()` waits for `NoiseTexture2D.changed` the first time, so the images can be read.
+  Read each box: the terms visibly add up to the total. Fix defects. Record anything
+  the R3 gate decided under "Results" in `quickstart.md`.
 
-  Make T018 pass. Tune the gradient, not the floors.
-- [X] T021 [US2] Create `ui/theme/stone_style.gd` (`extends StyleBox`) overriding `_draw(to_canvas_item: RID, rect: Rect2)` and `_get_draw_rect`:
-  - **Properties**:
-    - `kind` (`"well"|"plinth"|"slab"|"inset"|"lintel"`)
-    - `depth` (0–1)
-    - `glow` (0–1)
-    - `glow_colour` (`Color`, default `T.FOCUS`)
-    - `fill_offset` (`Vector2`, so neighbours do not repeat)
-    - `const GLOW_MAX_UNDER_TEXT := 0.35`
-  - **Drawing**:
-    - A chamfered polygon with corner cut `CHAMFER_S|M|L` by kind, filled with `Stone.grain()` tiled via UVs from `fill_offset`.
-    - Darkened by `depth × 0.35` for wells and insets.
-    - An inner bevel for recessed kinds (`well`, `inset`): a `BEVEL_SHADOW` polyline along the top and left inner edges and a `BEVEL_LIGHT` polyline along the bottom and right.
-    - An outer bevel for raised kinds (`plinth`, `slab`, `lintel`): light at the top and left, shadow at the bottom and right, plus a soft cast shadow for `slab`.
-    - When `glow > 0`, a rim polyline 2–3 units wide in `glow_colour` at alpha `glow × GLOW_MAX_UNDER_TEXT`, plus an outer soft line.
-  - **Interface**: the content margins come from `T.S` and `T.M` by kind. Emit `changed` on property sets so tweens redraw.
-- [X] T022 [US2] In `ui/theme/theme.gd` add the stone helpers. Do **not** change `box`, `panel` or `raised_panel_box` (staging convention):
-  - `static func stone_box(kind: String, depth := 0.5) -> StyleBox`, returning a configured `StoneStyle`.
-  - `static func stone_panel(kind: String, depth := 0.5) -> PanelContainer`.
-  - `static func style_stone_button(b: Button, kind := "normal")`: plinth states, with `primary` drawn as a gold-leafed plinth (`T.GOLD` face, dark ink) and pressed sinking to flush.
-  - `static func carved_label(text, type, colour) -> Label`: a display label plus a 1-unit dark shadow offset `(0,-1)` and a light outline/offset `(0,1)` for the incised look, via `font_shadow_color` / `shadow_offset_*` and a second label or `font_outline`.
-- [X] T023 [US2] Rewrite `ui/fx/shaders/backdrop.gdshader` per research D6, keeping the existing `base`, `glow`, `ether_tint` and `tint_amount` uniforms working.
-  - **New uniforms**:
-    - `stone_amount` (0 = today's look exactly, 1 = stone)
-    - `sampler2D grain`, `sampler2D cracks`
-    - `vec4 seam_colour`
-    - `int ether_id` (−1 neutral)
-    - `float motion`, `float time_scale`
-    - `vec2 rift_source` (UV)
-    - `vec4 zones[8]`, `int zone_count`
-    - `float intensity`
-  - **Composition**: grain plus vignette, then seams `= smoothstep` on the crack map × `seam_colour` × shimmer. The shimmer is two sines on a per-cell hash; it is constant when `motion == 0`.
-  - **Per-Ether behaviour** on `ether_id`, per contracts/stone-and-rift.md § Rift light: fire faster flicker, water slow swell, lightning rare jolt (no more than one per 4 s, ≤ 40%), shadow dim with pinpricks.
-  - **Rift bloom**: a soft radial bloom from `rift_source`.
-  - **Under zones**: seams × `(1 − inside(zones))`, so `SEAM_MAX_UNDER_TEXT` = 0 under zones.
-- [X] T024 [US2] Create `ui/fx/rift_layer.gd` (`extends Control`, full rect, mouse ignored) owning the backdrop's rift state:
-  - **`set_ether(e)`**: tweens `seam_colour` to `T.ether_shade(e, "lit")`, or `T.SEAM_NEUTRAL` for null, over `T.RIFT_TINT_TIME` (instant under reduced motion), and sets `ether_id`.
-  - **Other setters**: `set_source(global_point)`, `set_zones(rects: Array)` (≤ 8, converted to UV) and `set_stone(on: bool)`.
-  - **Motes**: a placeholder hook for US3.
+  **First-time viewer (SC-003)**: save the Hardship state's screenshot (the Night
+  Travel or Armor one) and, with the stage A screenshots, ask the owner to show it to
+  someone who has not seen the box and time how long they take to say what changed
+  the result (quickstart §3 step 3; the target is 10 seconds). Record the answer under
+  "Results"; if no viewer is available yet, record it as pending and ask again at
+  T031.
 
-  In `ui/main.gd`:
-  - Pass the backdrop's `ShaderMaterial` and the `Stone` textures to it.
-  - Extend `_tint_backdrop(vs)` to call `set_ether`, using the Encounter's element, or the dragon's in the Final Battle phases.
-  - Call `set_stone(true)` only while the play screen is shown (US4 makes it global).
-- [X] T025 [US2] In `ui/screens/play_screen.gd`:
-  - Give `_hand_panel` `UI.stone_box("well", 0.9)`, and switch `_render_prominence()` to set `glow` 1 or 0 on the zone styles instead of swapping `raised_panel_box` kinds.
-  - After layout, call `rift_layer.set_zones()` with the encounter, preview, rail, hand-panel and actions rects, and `set_source()` at the encounter centre. Reach `main.gd`'s rift layer through a `signal board_changed(zones, source)` that `main.gd` connects.
-- [X] T026 [P] [US2] Restyle the Encounter side to stone:
-  - In `ui/widgets/encounter_face.gd`, `ui/widgets/dragon_face.gd` and `ui/widgets/face_frame.gd`, the frame becomes `UI.stone_box("well", 1.0)` with its Ether-coloured rim kept as `glow_colour` at a low resting `glow`.
-  - Name bands become `lintel` with `UI.carved_label` for the name.
-  - Keep every value and icon.
-- [X] T027 [P] [US2] Restyle the preview side to stone:
-  - In `ui/widgets/preview_panel.gd`, `ui/widgets/soak_meter.gd` and `ui/widgets/xp_purse.gd`, replace `raised_panel_box` / `UI.box` with `UI.stone_box("well", 0.6)`, keeping the soak meter's damage border as `glow_colour`.
-  - Inner chips (`ui/widgets/stat_chip.gd` *only where used by these widgets*; pass a flag rather than changing its default) become `inset`.
-  - The "Still needed" chips become `inset`.
-- [X] T028 [P] [US2] Restyle the header and actions:
-  - In `ui/widgets/header_bar.gd`, the header becomes a `lintel` with an `orn_divider` under the title, and the title via `UI.carved_label`.
-  - In `ui/widgets/action_bar.gd`, the buttons use `UI.style_stone_button` (Play stays the gold primary).
-  - In `ui/widgets/role_rail.gd`, the tokens become `inset` (`next` with `glow` 1).
-- [X] T029 [P] [US2] Restyle the in-play popups to slabs: `ui/widgets/ether_picker.gd` and `ui/widgets/card_detail.gd` become `UI.stone_box("slab")`. These are play-screen popups, not global overlays.
-- [X] T030 [US2] Check every Ether's mood and the floors:
-  - Run `./tools/test.sh` (green, including `test_stone_contrast` and `ui_check` at every matrix size).
-  - Run `godot --path . -s tools/shot.gd -- build/006-us2 phone-16x9 desktop`.
-  - Run `godot --path . -s tools/design_shots.gd -- build/006-us2/design` (its `_ethers()` pass gives one Encounter per Ether).
-  - Tune the shader behaviours until, with the cards **and the Encounter frame** covered, the developer can name the Ether on all four. The real SC-004 check uses another viewer, in T039. Commit "Stone and rift light on the play screen".
-
-**Checkpoint**: The play screen is in stone; the other screens are unchanged.
-
-**Implementation notes (US2, 2026-10-15)**:
-- **Stone is built synchronously.** `stone.gd` uses `FastNoiseLite.get_seamless_image()`, not `NoiseTexture2D`, so tests read the pixels at once. The grain is a 256² tile and is remapped in a pixel loop at first use.
-- **Glow inside zones.** `StoneStyle.GLOW_MAX_UNDER_TEXT` is the faint wash of rim light *inside* a zone (0.06). The rim itself is drawn on the edge, away from text, and the contrast test checks text against that wash.
-- **HP's contrast floor.** `HP` is held to the 3:1 numeral floor, because it colours hearts and large numerals. It was already about 4.2:1 on today's flat panels.
-- **Crack tuning.** Tuned by eye across the four Ethers with a scratch one-state renderer. The cracks show as short glints more than long veins; this is for the owner to judge at T040.
-- **Left flat for now.** The Final Battle tier rows in `dragon_face.gd` and the stat chips inside the Encounter frame keep their flat inner boxes. They sit inside the stone well, so they read as inlays.
+**Checkpoint**: Commit "The math box: the engine's terms as equations, Play at its
+foot". **Stage A is done.** Send the owner screenshots of the new layout (SendUserFile)
+before stage B. This is a look, not a gate.
 
 ---
 
-## Phase 5: User Story 3 - A board that is alive (Priority: P3)
+## Phase 5: User Story 3 - Strong raised boxes on a flat ground (Priority: P3)
 
-**Goal**: Ambient motion, a lit active zone, and a board response for every action
-(contracts/board-life.md).
+**Goal**: Finished raised boxes with flat edges, and a generated flat ground
+(contracts/boxes-and-ground.md).
 
-**Independent Test**: quickstart §3 steps 3–6.
-
-### Tests for User Story 3 (write first)
-
-- [X] T031 [P] [US3] Create `tests/test_board_responses.gd` against `ui/model/board_response.gd` (T033):
-  - (a) `BoardResponse.TABLE` has exactly the 12 events `place`, `take_back`, `fuse`, `divert`, `regroup`, `play`, `hit_enemy`, `take_damage`, `soak`, `upgrade`, `encounter_won`, `encounter_lost`. Each has `target`, `colour`, `motion.kind` in `["flare","surge","shudder","burst","sweep","dim"]`, `motion.duration` between `T.FAST` and `T.REVEAL`, and a non-empty `still`.
-  - (b) For every step kind the animator handles (`play_cards`, `tally`, `verdict`, `gain_xp`, `damage`, `pay_time`, `poison_pending`, `knock_out`, `downgrade`, `upgrade`, `trash`, `discard`, `gather_shuffle`, `stage_banner`, `draw`, `ending`), `BoardResponse.for_step(kind, values, encounter_kind)` returns either an event in `TABLE` or `""`. It is `""` only for kinds listed in `BoardResponse.QUIET_STEPS`, and `play_cards` against an Enemy returns `hit_enemy`.
-  - (c) `verdict` with outcome `complete`/`narrow` gives `encounter_won`, and `loss` gives `encounter_lost`.
-- [X] T032 [P] [US3] Extend `tests/test_view_state.gd` for the active zone (research D9):
-  - It is `"preview"` in the Soak and Upgrade phases.
-  - It is never `"rail"`: walk a seeded game through building, Soak, Upgrade and the Final Battle and assert `input_region in ["hand", "preview", "commit"]` at every step (research D9).
-  - It is unchanged otherwise. The existing `hand`/`commit` cases still pass.
+**Independent Test**: quickstart §4 steps 1–2 and §5.
 
 ### Implementation for User Story 3
 
-- [X] T033 [US3] Create `ui/model/board_response.gd` (pure, `extends RefCounted`) with `const TABLE`, `const QUIET_STEPS` and `static func for_step(kind, values, encounter_kind) -> String`, filled from contracts/board-life.md § Responses. Make T031 pass.
-- [X] T034 [US3] Extend `_input_region()` in `ui/model/view_state.gd` per T032 and research D9. Make T032 pass, then run `./tools/test.sh`.
-- [X] T035 [US3] In `ui/fx/rift_layer.gd`, add ambient life:
-  - **Motes**: a `CPUParticles2D`, `amount = T.MOTES_MAX`, lifetime 4–7 s, emitting from `rift_source` in a wide upward cone with slight drift, colour from `seam_colour` at alpha about 0.5 fading to 0, size 2–5 units.
-  - **Shimmer**: `motion` and `time_scale` uniform control.
-  - **`set_busy(on)`**: stops emitting and halves the shimmer amplitude during animator sequences.
-  - **`set_live(on)`**: pauses everything under overlays; hook it to `main.gd`'s existing `_fields_live` path.
-  - **Reduced motion**: no motes (`emitting = false`), `motion = 0`.
-  - **Responses**: add `respond(event: String, colour: Color)`, which plays a `BoardResponse.TABLE[event]` entry's seam-level effects:
-    - `surge`: intensity up and back toward the source;
-    - `flare`: a local seam flare at the zone given by `target`;
-    - `dim`: intensity down and colour toward `T.BAD`;
-    - `burst`: a one-shot mote burst at a point;
-    - `sweep`: a seam pulse along the header.
+- [ ] T022 [P] [US3] In `ui/theme/stone_style.gd` (research R6):
+  - **No glow**: replace the glow drawing (the soft wide polyline and the interior
+    wash) with a solid edge line. Width `2.0` at rest, `3.0` when `glow > 0`, in
+    `edge` at rest and `glow_colour` when glowing, with alpha `0.6 + 0.4 * glow` so
+    the waiting zone's breath still reads. `GLOW_MAX_UNDER_TEXT` becomes 0.
+  - **Raised kinds** (`well`, `plinth`, `slab`, `lintel`): a hard drop shadow,
+    offset `(0, 6)` (`(0, 8)` for `slab`), alpha 0.5, no blur; and the face filled
+    flat with `T.BG_RAISED`, no texture.
+  - **`inset`**: a flat `T.BG_SURFACE` face.
+  - Keep chamfers, the bevel lines and `pressed`.
+  - Update `tests/test_stone_contrast.gd` so its "bright" case is `T.BG_RAISED`, the
+    face colour, instead of the grain blended with focus. Keep the ground-extremes
+    checks.
+- [ ] T023 [P] [US3] Reverse the face change from revision 1 in `ui/widgets/face_frame.gd`.
+  The Encounter frame keeps its `StoneStyle`, but `inset` → `well` so it reads as
+  raised like the other zones.
+- [ ] T024 [US3] Add a `pattern` command to `tools/generate_art.py`:
+  - **CLI**: `choices` gains `"pattern"`. `names` are pattern names from a new
+    `PATTERNS` dict: `{"ground": "<prompt>"}`, with the prompt from research R5.
+  - **Run**: `text_to_image(prompt, seed, "etch/pattern-" + name)` writes to
+    `build/art/pattern/<name>-<seed>.png` for `seed .. seed+count`, skipping existing
+    files.
+  - Do not read `art/STYLE_PROMPT.md` for patterns.
+  - **Docs**: update the module docstring's usage block with
+    `python3 tools/generate_art.py pattern ground --count 4`.
+- [ ] T025 [P] [US3] Create `tools/make_ground.gd` (`extends SceneTree`, headless):
+  `godot --headless --path . -s tools/make_ground.gd -- <in.png> [out.png]`.
+  1. **Load** the image and convert it to luminance.
+  2. **Make it seamless**: build an offset copy shifted by half the width and height
+     (wrapping), and cross-fade the original and the offset copy with a weight that
+     is 1 at the tile's centre and 0 at its edges.
+  3. **Quantise** to 3 tones by the 33rd and 66th luminance percentiles.
+  4. **Map** the tones to `Stone.shade(T.STONE_L_MIN)`, the middle of the band, and
+     `Stone.shade(T.STONE_L_MAX)`.
+  5. **Resize** to 512² with `INTERPOLATE_NEAREST`, to keep the lines flat.
+  6. **Save** to `res://art/stone/grain.png` by default.
 
-    Under reduced motion, apply the `still` form: hold the tint for `T.BASE`.
-- [X] T036 [US3] In `ui/screens/play_screen.gd`, the active zone:
-  - Keep a `_zone_styles := {hand, rail, preview, encounter, commit}` map of `StoneStyle`s.
-  - In `_render_prominence()`, tween `glow` to 1 on the zone named by `vs.input_region` and 0 elsewhere over `T.BASE` (instant under reduced motion).
-  - While waiting, run a looping tween breathing the active `glow` between 0.85 and 1.0 over about 3 s, killed on change and absent under reduced motion.
-- [X] T037 [US3] Wire the responses:
-  - **Animator**: in `ui/fx/animator.gd` `_run()`, call `BoardResponse.for_step(st.kind, st.values, <encounter kind>)` and, if non-empty, `rift.respond(event, colour)`. Take `colour` from the card's or Encounter's Ether as the table says, via a `rift` reference set by `main.gd`, as `flight` is.
-  - **Busy state**: call `rift.set_busy(true)` at sequence start and `false` on `finished`.
-  - **Draft events**: in `ui/main.gd` `dispatch()`, after the draft change succeeds, call `rift.respond`:
-    - `place` on a card placed (the `pick`/place path);
-    - `take_back`;
-    - `fuse` when a fuse completes (`fuse_element`);
-    - `divert`, `regroup`.
-  - **Rail feedback**: for `place` and `take_back`, also flare or fall the matching rail token via `role_rail.token_rect()` and a short `UI.flash`, or set its style colour under reduced motion.
-- [X] T038 [US3] Extend `tools/field_bench.gd`: add the stone backdrop (with `stone_amount = 1`, a seam colour, `motion = 1`) behind the 11 faces, and a live `rift_layer` emitting motes. Run it and require PASS (average ≤ 16.7 ms, p99 ≤ 33 ms). If it fails, apply research D7's fallbacks in order (motes to 12, then Ether behaviours to the plain shimmer) and re-run. Record the numbers under "Results" in `quickstart.md`.
-- [ ] T039 [US3] Run `./tools/test.sh` (green). With someone other than the developer, run quickstart §3 step 1 (SC-004: cards and Encounter frame covered, 3 of 4 named) and step 2 (SC-005: 5-second first look). Record both under "Results" in `quickstart.md`. Walk quickstart §3 steps 3–5 on desktop. Then run step 6 (stutter) on the web build and the Android emulator via the `install-on-emulators` skill. Fix defects. Commit "Board life: motes, seam shimmer, active zone and responses".
+  Print the tile's luminance range and PASS when it lies inside
+  `[STONE_L_MIN, STONE_L_MAX]`.
+- [ ] T026 [US3] The ground candidates, in two parts. **Nothing is written to
+  `art/stone/` before part 2** (FR-026: the ground must not change during stage A,
+  and `stone.gd` uses `art/stone/grain.png` as soon as it exists).
+  1. **Generate** (may run in the background during stage A, any time after T024).
+     First check that ComfyUI is up at the `generate_art.py` default server; if not,
+     start it the way `tools/setup_comfyui.sh --serve` documents, in the background.
+     Tell the owner it takes about 16 minutes, then run
+     `python3 tools/generate_art.py pattern ground --count 4`. The images stay in
+     `build/art/pattern/` (git-ignored).
+  2. **Pick** (stage B, after T022 and T023). For each candidate, run
+     `make_ground.gd` with an explicit scratchpad output path, copy it in as
+     `art/stone/grain.png`, take one play-screen screenshot, and remove it again.
+     Send the four screenshots to the owner (SendUserFile) and ask which ground to
+     keep (research R5 step 3). Only then write and commit the chosen
+     `art/stone/grain.png` (and its `.import`).
+- [ ] T027 [US3] Run `./tools/test.sh`, including `test_stone_contrast` on the shipped
+  tile, plus the bench and the space audit. Take
+  `godot --path . -s tools/shot.gd -- build/006-us3r2 phone-16x9 desktop`.
 
-**Checkpoint**: Stage 2 is complete on the play screen.
-
-**Implementation notes (US3, 2026-10-15)**:
-- **Active zone (T032, T034).** It stays `hand` or `commit`; research D9 is revised. In Soak and Upgrade the input is still a Hand card, so lighting the preview would point away from it. The test plays a seeded game to its end and checks this.
-- **Motes.** They rise from the whole stone, not from the Encounter: the rift source sits behind the Encounter panel, where motes would be hidden. The bloom still centres on the Encounter.
-- **Responses.** Zone responses (Hand, Encounter, header, rail token) are played by `play_screen.flare()`; seam and rift responses by `rift_layer.respond()`. `main._respond()` routes each one. The animator calls it for each sequence step through `BoardResponse.for_step()`.
-- **T039.** Tests are green and the desktop runs show no script errors. Still open: the SC-004 and SC-005 viewer checks (they need someone other than the developer) and the stutter check on the web build and Android emulator (no emulator was running).
-
----
-
-## Stage 2 sign-off gate (US2 scenario 5 — exit point)
-
-- [X] T040 Take the stage 2 screenshots with `godot --path . -s tools/shot.gd -- build/006-after phone-16x9 desktop`. Build a side-by-side for the owner of `05_challenge_assigned.png` and `12_final_journey.png` (before from `build/006-before`), and send it with the SendUserFile tool. Ask: *"Which looks more like Dragons of Etchinstone, and more finished?"* Record the answer under "Results" in `quickstart.md`.
-  - **If the owner prefers before**: `git revert` the US2 and US3 commits (T030, T039 and any fixes), keep US1, run `./tools/test.sh`, commit, and **stop**. Skip Phase 6.
-  - **If the owner wants the procedural stone replaced by textures**: hand off a Windows-PC generation command for `art/stone/grain.png` and `art/stone/cracks.png` (seamless 512², the luminance band from T005). Do not run it here. `Stone` picks them up automatically (T020).
-
----
-
-**T040 outcome (2026-10-15)**: the owner redirected rather than approved; see quickstart.md, "Stage 2 sign-off (T040)". The cracks, glow, motes and seam responses were removed and the raised boxes kept. **Phase 6 is on hold until the spec is revised** for the new layout (full slots with rising numbers, actions beside them, a math box, printed card proportions, a flat generated pattern).
-
-## Phase 6: User Story 4 - Every screen in the same world (Priority: P4)
-
-**Goal**: Carry the stone and lore framing to every other screen
-(contracts/screens-and-lore.md). **Only after T040 approves.**
-
-**Independent Test**: quickstart §5. Side-by-side of every screen; every "Must keep"
-item is present; `ui_check` is green.
-
-- [ ] T041 [US4] Make the stone global:
-  - In `ui/main.gd`, call `rift.set_stone(true)` on every screen. Set the rift source and Ether per screen from contracts/screens-and-lore.md: the title takes the selected dragon's Ether at the tiles, and other screens are neutral.
-  - In `ui/theme/theme.gd`, switch `box`, `panel` and `raised_panel_box` to return `StoneStyle`s: `raised_panel_box("active")` is a deep `well` with `glow` 1, `"rest"` a `well` with `glow` 0, and `box` / `panel` are `inset` when radius ≤ `T.RADIUS_S`, else `well`. `style_button` delegates to `style_stone_button`.
-  - Run `./tools/test.sh` and fix any contrast or layout failure.
-- [ ] T042 [P] [US4] Title as **The Tear**, in `ui/screens/title_screen.gd`:
-  - The game title in a `lintel` with `UI.carved_label`.
-  - An `orn_rift` seam behind the dragon tiles as the rift source.
-  - Dragon tiles (`ui/widgets/choice_tile.gd`) as plinths, the selected one lit in its Ether.
-  - Keep the tiles with all stats, Settings, Glossary, How to Play, Continue and the credits text.
-- [ ] T043 [P] [US4] Rules setup as **the elders' proclamation**, in `ui/screens/rules_screen.gd`:
-  - A slab headed by `orn_tower` and a carved "By order of the Tower".
-  - Options as carved lines with `orn_divider` between groups.
-  - `orn_seal` on Continue.
-  - Keep difficulty, every alternate rule, Back and Continue.
-- [ ] T044 [P] [US4] Region banner as a carved **lintel**, in `ui/overlays/stage_banner.gd`. Tween the rift tint to the next Region's first Encounter's Ether beneath it (`rift.set_ether`). Keep the Region number, name and glyph.
-- [ ] T045 [P] [US4] Ending as an **inscribed slab**, in `ui/screens/ending_screen.gd`. Victory carves the verdict and fires `encounter_won` with gold seams; a loss fires `encounter_lost`. Keep the verdict, summary, Play again and To title.
-- [ ] T046 [P] [US4] Rulebook and glossary as **scrolls**, in `ui/overlays/rulebook_overlay.gd`, `ui/widgets/rulebook_figure.gd` and `ui/overlays/glossary_popover.gd`: a slab body with `orn_scroll_end` caps top and bottom (full glossary), and a small slab for the popover. Keep the contents, sections, figures, tables, navigation and every entry.
-- [ ] T047 [P] [US4] The remaining overlays as **slabs**: `ui/overlays/overlay.gd` (base: dim over stone), `ui/overlays/inspect_overlay.gd` (rift source in the card's Ether), `ui/overlays/menu_overlay.gd`, `ui/overlays/confirm_dialog.gd` and `ui/overlays/size_notice.gd`. Keep every option and button.
-- [ ] T048 [US4] Check the Final Battle in the play screen: the dragon's Ether lights the rift (from T024), and the road from 003 reads as carved into the Encounter well in `ui/widgets/dragon_face.gd`. Adjust only styling.
-- [ ] T049 [US4] Run `./tools/test.sh` (green at every matrix size) and `godot --path . -s tools/space_audit.gd -- --compare specs/006-etched-stone-polish/baseline.json` (PASS). Then take the full screenshots:
-  - `godot --path . -s tools/shot.gd -- build/006-after`
-  - `godot --path . -s tools/design_shots.gd -- build/006-after/design`
-
-  Commit "Every screen in stone: the Tear, the proclamation, slabs and scrolls".
-- [ ] T050 [US4] Owner review (SC-003): for each row of contracts/screens-and-lore.md, build a before/after pair from `build/006-before` and `build/006-after`, send them with SendUserFile, and ask which is preferred. Record the answers under "Results" in `quickstart.md`, and rework any screen where the before is preferred.
+**Checkpoint**: Commit "Raised boxes with flat edges on a generated woodcut ground".
 
 ---
 
-## Phase 7: Polish & Cross-Cutting Concerns
+## Phase 6: User Story 4 - A board that answers (Priority: P4)
 
-- [ ] T051 [P] Remove anything the restyle left unused (`grep` for `raised_panel_box`, `RADIUS_CARD`, the old flat backdrop path when `stone_amount` is always 1). Keep `stone_amount` only if T040 needed it; otherwise simplify the shader to the stone path.
-- [ ] T052 [P] Reduced-motion sweep (SC-009): with Menu → Motion → Reduced, open every screen and overlay and confirm nothing moves ambiently and responses are held tints. Fix any widget that still tweens.
-- [ ] T053 Run quickstart.md end to end on the desktop build, the Android emulator, the iOS simulator and the served web build (`install-on-emulators` skill). Record the results at the bottom of `quickstart.md`. Run `./tools/test.sh` a final time and commit.
+**Goal**: Responses as flat edge changes, the flying numbers and counting totals,
+nothing ambient (contracts/board-life.md).
+
+**Independent Test**: quickstart §4 steps 2–5.
+
+- [ ] T028 [P] [US4] In `ui/model/board_response.gd` and `tests/test_board_responses.gd`:
+  - `place` and `take_back` target `slot` (renamed from `rail_token`);
+  - add the `slot` target to the test's allowed zones;
+  - check that no entry uses a kind other than `flare`, `shudder`, `sweep` or `dim`.
+- [ ] T029 [US4] In `ui/screens/play_screen.gd` `flare()`:
+  - rename the `rail_token` target to `slot` (calls `slots.flare`);
+  - make sure every response only changes `glow` and `glow_colour` on a `StoneStyle`,
+    which now draws as a flat edge (T022), or calls `UI.shake` for `shudder`;
+  - delete any leftover code path that draws soft light.
+
+  Run the scratch idle check: render the play screen, wait 10 s, and diff two frames
+  1 s apart over the ground region (outside the boxes). They must be identical.
+- [ ] T030 [US4] Walk quickstart §4 steps 2–4 on desktop. Run step 5 (stutter) on the
+  served web build and, if an Android emulator is running, there via the
+  `install-on-emulators` skill. If none is running, record that in `quickstart.md`.
+  Run `./tools/test.sh`.
+
+**Checkpoint**: Commit "A board that answers with flat edges and moving numbers".
+
+## Stage B sign-off (US3 scenario 4 — exit point)
+
+- [ ] T031 Build before/after pairs for `05_challenge_assigned`, `12_final_journey` and
+  `07_soak` (before from `build/006-before/phone-16x9`, after from a fresh
+  `tools/shot.gd -- build/006-after phone-16x9`), with the scratchpad's `pair.gd` or
+  any stacking script. Send them to the owner (SendUserFile) and ask which looks more
+  like Dragons of Etchinstone, and more finished. Record the answer under "Results" in
+  `quickstart.md`.
+  - **Not preferred**: stop. Leave stages A and B committed unless the owner asks for
+    a revert, and skip Phase 7.
+
+---
+
+## Phase 7: User Story 5 - Every screen in the same world (Priority: P5)
+
+**Goal**: Raised boxes, the flat ground and lore framing on every other screen
+(contracts/screens-and-lore.md). **Only after T031 approves.**
+
+**Independent Test**: quickstart §6.
+
+- [ ] T032 [US5] Make the stone global:
+  - In `ui/main.gd`, call `backdrop_layer.set_stone(true)` on every screen.
+  - In `ui/theme/theme.gd`, route `box`, `panel` and `raised_panel_box` to
+    `StoneStyle`: `raised_panel_box("active")` → `well` with `glow` 1, `"rest"` →
+    `well`, and `box`/`panel` → `inset` when the radius is ≤ `T.RADIUS_S`, else
+    `well`. `style_button` delegates to `style_stone_button`.
+  - Run `./tools/test.sh` and fix contrast or layout failures.
+- [ ] T033 [P] [US5] Title as **The Tear**, in `ui/screens/title_screen.gd`: the title in a
+  `lintel` via `UI.carved_label`, a flat `orn_rift` behind the dragon tiles, and the
+  tiles as plinths. Keep every tile stat, Settings, Glossary, How to Play, Continue
+  and the credits.
+- [ ] T034 [P] [US5] Rules setup as **the elders' proclamation**, in
+  `ui/screens/rules_screen.gd`: a slab headed by `orn_tower` and "By order of the
+  Tower", `orn_divider` between groups, and `orn_seal` on Continue. Keep every option.
+- [ ] T035 [P] [US5] Region banner as a **lintel**, in `ui/overlays/stage_banner.gd`.
+  Keep the number, name and glyph.
+- [ ] T036 [P] [US5] Ending as an **inscribed slab**, in `ui/screens/ending_screen.gd`,
+  firing `encounter_won` or `encounter_lost` on the Encounter edge. Keep the verdict,
+  summary, Play again and To title.
+- [ ] T037 [P] [US5] Rulebook and glossary as **scrolls**, in
+  `ui/overlays/rulebook_overlay.gd` and `ui/overlays/glossary_popover.gd`: a slab with
+  `orn_scroll_end` caps, and a small slab for the popover. Keep all content and
+  navigation.
+- [ ] T038 [P] [US5] Inspect, menu, confirm and the size notice as **slabs**, in
+  `ui/overlays/overlay.gd`, `inspect_overlay.gd`, `menu_overlay.gd`,
+  `confirm_dialog.gd` and `size_notice.gd`. Keep every option and button.
+- [ ] T039 [US5] Run `./tools/test.sh` and the space audit. Take full screenshots
+  (`tools/shot.gd -- build/006-after`, `tools/design_shots.gd -- build/006-after/design`).
+  Send the owner a before/after per row of contracts/screens-and-lore.md, record the
+  answers in `quickstart.md`, and rework any screen where the before is preferred.
+
+**Checkpoint**: Commit "Every screen on raised stone".
+
+---
+
+## Phase 8: Polish & Cross-Cutting Concerns
+
+- [ ] T040 [P] Remove what revision 2 left unused:
+  - `ui/fx/backdrop_layer.gd` comments about the rift;
+  - any `rail` names;
+  - the `_Compare` class if still present;
+  - `orn_*` icons no screen uses;
+  - the `SEAM_NEUTRAL` name, renamed `RESPONSE_NEUTRAL` with its two uses.
+- [ ] T041 [P] Reduced-motion sweep (SC-009): with Menu → Motion → Reduced, open every
+  screen and overlay and place cards. No flight, no counting, no breath; responses
+  are held colours.
+- [ ] T042 Run quickstart.md end to end on the desktop build, the served web build and
+  any running emulator or simulator (`install-on-emulators` skill). Record the results
+  and run `./tools/test.sh` a final time. Commit.
 
 ---
 
 ## Dependencies & Execution Order
 
-### Phase dependencies
-
-- **Setup (1)**: T001–T004 on unchanged code; they come first.
-- **Foundational (2)**: T005 after Setup; it blocks all stories.
-- **US1 (3)**: after T005. Independent of US2–US4.
-- **US2 (4)**: after US1. The stone styles the rail and the content-driven layout,
-  and staging requires US1 to land first (FR-022).
-- **US3 (5)**: after US2. It needs `StoneStyle.glow`, `rift_layer.gd` and the backdrop
-  uniforms.
-- **Gate T040**: after US3.
-- **US4 (6)**: only after T040 approves.
-- **Polish (7)**: after US4, or after T040 if stopped (then only T052 and T053 apply).
+- **Setup (T001–T002)** first.
+- **Foundational (T003–T006)**: the engine's terms. They block US1 (Spell numbers)
+  and US2 (the box).
+- **US1 (T007–T017)** after Foundational.
+- **US2 (T018–T021)** after US1 (T010's `commit` region and T014's primary hand-off).
+- **US3 (T022–T027)** after US2: stage B starts after stage A. T024, T025 and T026
+  part 1 (generation, into `build/`) can start any time after Setup, with
+  generation in the background. T026 part 2 (the owner's pick and the commit of
+  `art/stone/grain.png`) waits for T022 and T023 (FR-026).
+- **US4 (T028–T030)** after US3 (the flat edges from T022).
+- **Gate T031** after US4.
+- **US5 (T032–T039)** only after T031 approves.
+- **Polish (T040–T042)** last.
 
 ### Within stories
 
-- Tests come before implementation: T006 and T007 → T008 and T009; T018 → T020;
-  T031 and T032 → T033 and T034.
-- US1: T008 and T009 → T010 → T011 → T012 and T013 → T014 → T015 → T016 → T017.
-- US2: T019 and T020 → T021 → T022 → T023 → T024 → T025 → T026–T029 → T030.
-- US3: T033 and T034 → T035 → T036 → T037 → T038 → T039.
+- Tests come before implementation: T003 → T004–T006; T007/T008 → T009–T016;
+  T018 → T019–T020.
+- US1: T009 → T010 → T011 → (T012 ∥ T013 ∥ T014) → T015 → T016 → T017.
 
 ### Parallel opportunities
 
-- T006 ∥ T007 (different test files).
-- T010 ∥ T011 once T009 is done (different widgets).
-- T018 ∥ T019 (test against new code ∥ icon generation).
-- T026 ∥ T027 ∥ T028 ∥ T029 (separate widget files) after T022–T025.
-- T031 ∥ T032.
-- T042–T047 (one screen each) after T041.
-- T051 ∥ T052.
+- T007 ∥ T008.
+- T012 ∥ T013 ∥ T014 (different files) once T011 is done.
+- T022 ∥ T023 ∥ T025.
+- T024 → T026 part 1 can run alongside all of stage A, with generation in the
+  background into `build/`; no file under `art/stone/` changes until part 2.
+- T033–T038 (one screen each) after T032.
+- T040 ∥ T041.
 
-## Parallel Example: User Story 2 restyle
+## Parallel Example: User Story 1
 
 ```text
-Task: "T026 [US2] Restyle encounter_face.gd, dragon_face.gd, face_frame.gd to stone wells"
-Task: "T027 [US2] Restyle preview_panel.gd, soak_meter.gd, xp_purse.gd to stone wells"
-Task: "T028 [US2] Restyle header_bar.gd (lintel), action_bar.gd (plinths), role_rail.gd (insets)"
-Task: "T029 [US2] Restyle ether_picker.gd and card_detail.gd to slabs"
+Task: "T012 [US1] FlightLayer.fly_text in ui/fx/flight_layer.gd"
+Task: "T013 [US1] RoleSlots widget in ui/widgets/role_slots.gd"
+Task: "T014 [US1] Action column grid in ui/widgets/action_bar.gd"
 ```
 
 ## Implementation Strategy
 
-### MVP first (User Story 1 only)
+### MVP first
 
-1. Setup (T001–T004) and Foundational (T005).
-2. US1 (T006–T017): the role rail and the content-driven left column, on today's look.
-3. **Stop and validate**: `space_audit --compare` PASS and quickstart §2. This ships
-   on its own and answers the owner's one concrete complaint.
+1. Setup and Foundational (T001–T006): the engine reports its terms, proven to add up.
+2. US1 (T007–T017): slots with the engine's numbers flying in, and the actions beside
+   them.
+3. **Stop and validate** with quickstart §2. This is the layout change the owner asked
+   for by name.
 
 ### Incremental delivery
 
-1. US1 → commit (MVP).
-2. US2 → commit (stone and rift on play).
-3. US3 → commit (life).
-4. **T040 owner gate**. Rejected → revert stage 2, stop. Approved → continue.
-5. US4 → commit (every screen) → T050 owner review.
-6. Polish.
-
-### Notes
-
-- [P] tasks touch different files and have no dependency on incomplete tasks.
-- Commit at the end of each phase. Keep stage 2 in its own commits so T040 can revert
-  it cleanly.
-- Never edit `engine/` or `data/`. Never run art generation on this Mac.
+1. US1, then US2: stage A. Show the owner.
+2. US3 + US4: stage B. The **T031 gate**.
+3. US5: stage C.
+4. Polish.

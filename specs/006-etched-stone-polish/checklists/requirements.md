@@ -43,3 +43,21 @@
   as yes/no checks.
 - "Large unused area" (FR-005) is made concrete by SC-002's "no more than about a
   third empty".
+
+## Revision 2 (2026-10-15, after the stage 2 review)
+
+The checklist was re-run against the revised spec ("Raised Stone and the Math in
+Plain Sight") and all items still pass.
+
+- The only clarification marker (what "printed format" means for the cards) was
+  resolved with the owner: nothing is off, so the requirement was dropped (FR-017
+  now keeps the 005 faces).
+- Two named tools are owner constraints, not implementation choices: ComfyUI (the
+  owner's choice of generator) and "the engine's own figure" (the rule that the math
+  box explains the result and never computes it).
+- SC-002 (terms add up to the engine's totals in 100% of states) and SC-003 (a first-time
+  viewer finds the Hardship's effect within 10 seconds) replace the old role-rail area
+  criterion.
+- The plan, data model, contracts, quickstart and tasks were written for revision 1.
+  They need `/speckit-plan` and `/speckit-tasks` to be re-run before more
+  implementation.

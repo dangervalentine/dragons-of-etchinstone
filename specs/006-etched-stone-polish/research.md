@@ -1,335 +1,225 @@
-# Research: Etched Stone and Ether Rifts
+# Research: Raised Stone and the Math in Plain Sight (revision 2)
 
-All open questions from the assessment and spec are resolved below. Nothing is left
-as NEEDS CLARIFICATION.
+Revision 1 researched carved stone lit by Ether rifts. At the stage 2 review the owner
+kept the raised boxes and set the glowing effects aside (quickstart.md, "Stage 2
+sign-off (T040)"). This file records what carries over and the new decisions. No item
+is left as NEEDS CLARIFICATION.
 
-## D1. What replaces the slot band
+## Carried over from revision 1 (built and kept)
 
-**What the band does today** (`ui/widgets/slot_row.gd`, `layout_solver.gd`):
-- Three large buttons per Action Set, Spell, Element and Boost. Each shows the
-  role name and the placed card's *name* and contribution.
-- A tap on a filled slot takes the card back; a tap on an empty one selects the
-  slot the next card fills.
-- The gold-ringed slot is the one being filled next.
-- A Boost-to toggle (Attack or Initiative) sits at the end.
-- After a battle it becomes a recap of the cards played and the Reserve.
-- Its height is 112 design units (96 per row with two sets) plus up to 80 more taken
-  from spare height. In `05_challenge_assigned.png` it is about a quarter of the
-  right column.
-- The placed card is *also* shown in the Hand: lifted by `CARD_LIFT`, with a role
-  ribbon from `card_view.gd`. The preview panel lists the roles "Still needed".
+| Was | Decision kept | Where it lives |
+|---|---|---|
+| D2 | **Left column split by content.** The preview asks for the height of its fullest look for the current Encounter and step; the Encounter takes the rest. Stable while cards are placed | `layout_solver.gd` (`preview_needed`), `preview_panel.gd` `needed_height()` |
+| D2 | **Rail and Hand centred as a pair** when the cards are width-bound | `layout_solver.gd` |
+| D3 | **Stone grain as a fallback.** Seamless noise, remapped to the luminance band; a bitmap at `art/stone/grain.png` overrides it | `ui/theme/stone.gd` |
+| D4 | **`StoneStyle`.** Chamfered raised and recessed boxes with a bevel, an edge colour and a rim glow | `ui/theme/stone_style.gd` |
+| D5 | **Contrast checked against the brightest and darkest ground** | `tests/test_stone_contrast.gd` |
+| D8 | **The board-response table**, now rim-only | `ui/model/board_response.gd` |
+| D10 | **Woodcut ornaments** | `art/icons/orn_*` |
+| D12 | **Space measured as rows that nothing crosses.** Zones are drawn panels, judged at the minimum sizes | `layout_solver.empty_fraction`, `tools/space_audit.gd`, `tools/ui_check.gd` |
+| — | **`ui_check` hosts the game in a sized `SubViewport`**, so every matrix size is really checked | `tools/ui_check.gd` |
 
-**Decision**: a **role rail**. It is one row, exactly `TAP_MIN` (88) tall, with one
-token per role per set and the Boost-to toggle at the end.
-- Tokens have a fixed width (about 132 units with one set, `TAP_MIN` square with
-  two) and are centred over the Hand, not stretched across it.
-- A token shows the role icon. When filled, it adds the contribution in numerals
-  (for example `3 / 8🔥`, `⚡ 5`, `+2`), tinted by the card's Ether.
-- The card name is dropped: the lifted, ribboned card directly below already says
-  which card it is.
-- The active token wears the focus rim, as today.
-- Taps keep today's meaning: on an empty token, select that slot; on a filled one,
-  take the card back.
-- After a battle the rail shows the recap in the same tokens: role icon, a struck
-  "discarded" mark, and the Reserve token in gold if kept.
-  - The played cards are still in the Hand during the recap (Penalty and Upgrade
-    phases), but today they lose their role ribbons there. So the recap would be
-    the only role-to-card link, which a tooltip can't carry on a phone.
-  - Fix: while `vs.played` is set, Hand cards that were played wear a **"played as"
-    ribbon** (role icon, muted), the same ribbon `card_view.gd` draws while building.
-  - A tap on a recap token opens that card's inspect view (`inspect {id}`).
-  - The name stays out of the token, and the link stays visible (FR-002, FR-020).
+**Dropped**: D6 rift light, D7 ambient motes and shimmer, D9's preview and rail zones,
+and D11's per-screen rift sources.
 
-**Measured today** (solver run over the matrix, 2026-10-15):
+## R1. Where the math comes from
 
-| Window | Sets | Band (w × h) | Card |
-|---|---|---|---|
-| phone-16x9 1280 × 720 | 1 | 824 × 153 | 197 × 275 |
-| phone-16x9 | 2 | 824 × 96 | 137 × 191 (2 rows) |
-| desktop 1280 × 800, tablet 1280 × 960 | 1 | 824 × 192 | 197 × 275 |
-| phone-tall 1558 × 720 | 1 | 917 × 126 | 220 × 308 |
-| desktop-ultrawide | 2 | 1188 × 171 | 161 × 225 |
+**Need**: FR-008 and FR-010. The box shows every term of the result, and its totals
+must be the engine's own. The engine returns only totals today (`Rules.resolve_enemy`,
+`resolve_journey`, `Game._final_journey`, `_final_enemy`). The intermediate values
+the box must show live only inside those functions: Armor removed, the Boost after
+Night Travel, the Reserve's Boost, MP after Steep.
+
+**Decision**: add **reporting-only** `terms` to those result dictionaries, built from
+the same local variables that make the totals. Each term is `{sum, label, source,
+value, card, note}` (data-model.md § Term).
+- Armor: `act.value + boost − armor` is clamped at 0, so the Armor term is
+  `−min(armor, value + boost)` and the terms always add up to the shown total.
+- Night Travel: the Boost term is the card's Boost, followed by a Night Travel term of
+  `−min(boost, initiative)`.
+- Steep: the target is itself a sum, `mp` and then `+reserve_boost`, in the `target`
+  sum.
+- Consequences: Combat damage, Early damage (×2 under Ambush), Storm and the Hazards
+  time each become a term of a `damage` or `time` sum, so the box can explain the
+  costs as well.
+
+`Game.explain(action)` and `explain_final(action)` run the same rules on an
+**incomplete** set. They skip only the "every role filled" check, and the result
+carries `complete: false`. FR-011 needs this: the box shows the terms placed so far.
 
 **Rationale**:
-- With one set at 1280 × 720, the rail is about 4 × 132 + 3 × 8 = 552 × 88 against
-  the band's 824 × 153. That is a 62% cut in area, which meets SC-001 (≥ 50%).
-  Height alone falls 43%; the fixed-width tokens make the rest.
-- Taps, the active slot, the Boost toggle and the recap all keep a home, so
-  FR-003, FR-004 and FR-020 hold.
-- The tokens stay directly above the cards they describe, so the eye moves token
-  → card, short and vertical.
+- One source of truth. The UI cannot drift from the rules, which a UI-side
+  recomputation could.
+- The change is additive. Existing fields keep their values, which the existing
+  engine tests check, plus `test_terms.gd` comparing every field before and after
+  over seeded sets.
 
-**Final Battle**:
-- Six tokens plus up to two toggles, 88 square. At the minimum right-column width
-  (824) that is 6 × 88 + 2 × 88 + 7 gaps × 8 = 760 × 88. It fits in one row.
-- Tokens show the set number as a small pip, as `slot_row` does today.
-- Today's two-set band is already compact (824 × 96), so the cut here is small,
-  about 15% by area. That still meets US1 scenario 6 ("more compactly than today").
-  SC-001 is measured on the one-set state, where the band is largest.
+**Alternatives**:
+- *Recompute terms in `view_state.gd`.* Rejected: it duplicates the rules (FR-010).
+- *A separate `explain` module in the engine that re-derives the terms.* Rejected for
+  the same reason: two code paths to keep in step.
 
-**Alternatives considered**:
-- *Move the roles into the preview panel's empty lower half.* It kills two problems
-  at once, but puts the role display a column away from the cards. With six Final
-  Battle tokens it needs two rows in a 400-wide column, and the Soak and Upgrade
-  states have no roles to show there. Rejected.
-- *Drop the role display entirely and rely on the Hand ribbons.* That loses
-  slot selection (choosing which role the next card fills) and the Boost-to
-  toggle's natural home. Rejected (FR-003, FR-004).
-- *Keep the band, but shorter.* At 88 tall the name *and* contribution do not fit
-  legibly at 22 units; a name-less band is the rail.
+**Test** (`test_terms.gd`):
+- For every Enemy and Journey in the card data, each Hardship and each ability, and a
+  spread of Spell, Element and Boost combinations (both Boost targets, matching and
+  unmatched Ethers, Fuse):
+  - per sum, `Σ terms == total`;
+  - outcome, XP, damage, time and poison are equal to the result without terms.
+- The same holds for both Final Battle steps.
 
-## D2. Where the freed height goes, and the empty preview
+## R2. Role slots: numbers, not names
 
-**Finding**: Hand cards are bound by *width*, not height, at every matrix size except
-the two-row Final Battle Hand. At 1280 × 720 the right column (824) fits four cards
-of 197. So the height the rail frees cannot make one-set Hand cards larger without
-taking width from the left column, which is already at its 400 minimum.
+**Decision**: the compact rail (`role_rail.gd`) becomes `role_slots.gd`. Each slot is a
+raised box at least `TAP_MIN` tall and at least `SLOT_W_MIN` wide, holding:
+- the role icon, small, at the top;
+- the number, large (display bold, about 44 units);
+- the stat it counts toward, as an icon.
+
+**Where the number comes from**:
+- **Spell**: the value of the Spell term from the engine's explanation, so it is the
+  enhanced value once the Element's Ether matches, or 1 when no action fits.
+- **Element**: the card's Ether and Initiative.
+- **Boost**: the card's Boost, with the Attack/Initiative switch built into the slot
+  (tapping the target icon toggles it; FR-005).
+
+The view model stays `ViewState.rail_tokens()`, renamed `role_slots()`. It reads the
+explanation instead of the card's raw stats, so a later placement that changes a
+number (FR-004) shows at once. Recap tokens keep their inspect taps, and the Hand
+keeps its played-as tags.
+
+**Number flight (FR-003)**: `FlightLayer` gains `fly_text(text, from, to, duration,
+colour, size)`. It creates a label at `from`, tweens it to `to` and frees it.
+`play_screen` calls it on placement, from the card to the slot, before the slot shows
+the number. Under reduced motion it does nothing, and the slot shows the number at
+once.
+
+## R3. Where the actions and Play go
+
+**Measured** (layout solver, 1280 × 720):
+- **Action column.** At most four secondary actions show at once (Fuse, Divert, Give
+  up Reserve, Cancel; `view_state._secondary`). A 2 × 2 grid of tap targets beside the
+  slots is `2 × 88 + 8 = 184` tall and about `2 × 120 + 8 = 248` wide. With two or
+  fewer actions, they stack as two full-width rows.
+- **Slots.** The right column is 824 wide. The slots get `824 − 248 − 12 = 564`: three
+  one-set slots of 180, or six Final Battle slots of about 88. The Final Battle shows
+  three actions at most (Fuse, Regroup, Cancel), so the grid there can be one column
+  of icon-over-label buttons 100 wide, giving six slots of about 112. The slot band is
+  184 tall.
+- **Hand.** It gets everything below: 628 − 184 − 12 = 432. The cards (197 × 275,
+  bound by width) fit with room. In the two-row Final Battle Hand the cards are bound
+  by height, and they gain from the button row's removal (96 + 12).
+- **Play.** The spec puts it at the foot of the math box. Left column at 1280 × 720:
+  body 628 = Encounter + 12 + math box. An Enemy's math box with Play inside is about
+  24 margin + 64 Attack row + 64 Initiative row + 44 consequences + 88 Play +
+  4 × 6 gaps = **308**, leaving the Encounter **308**. Today it is 352–360.
+
+**Decision**: Play sits at the foot of the math box and carries the verdict
+("Play · Narrow victory", gold, or red when it would end the game). This replaces the
+separate verdict line, which saves 36.
+- **Gate.** The Encounter face must still fit at the minimum size: `ui_check` already
+  fails on clipped or undersized content, and a solver test asserts
+  `encounter.size.y ≥ ENCOUNTER_MIN`. `ENCOUNTER_MIN` is the face's own minimum: its
+  stat column plus its band, measured once and recorded in `tokens.gd`.
+- **Fallback, if the gate fails.** Play moves to the bottom-right corner of the right
+  column, under the Hand (where the thumb rests on a phone held sideways). The math
+  box keeps the verdict line. The solver keeps this as a branch chosen by
+  `ENCOUNTER_MIN`, so either layout passes the same tests.
+
+## R4. The math box layout
+
+**Decision**: one **equation row** per sum, read left to right.
+- Each term is a number with its source label in small type under it (for example `8`
+  over "Spell", `+2` over "Boost", `−1` over "Armor"), then `=` and the total, then the
+  target ("/ 11 HP").
+- A row that does not fit the column wraps after a term; it uses an `HFlowContainer`
+  of term cells.
+- The total's colour carries the outcome (good, caution or bad, as today).
+- Against an Enemy there is a second row for Initiative and a note: "You strike first",
+  or the Early damage.
+- Under the rows: the consequence pills from today (XP, damage, time, poison,
+  Reserve), whose tap help stays.
+- An incomplete set shows the placed terms and, in place of the total, "Still needed:
+  Element, Boost".
+- The Final Battle Move or Attack row adds the terms of both sets (labels "Spell 1",
+  "Boost 2"), then shows the tier reached and its cost.
+- Counting: a new or changed total counts up over `T.COUNT`, as `play_tally` does
+  today; it is instant under reduced motion.
+
+**Rationale**: an equation is the most literal way to show "the math involved", and
+each term keeps its source in view, which a list of totals does not.
+
+**Alternative**: a vertical ledger, one term per line. It is clearer for long sums but
+twice as tall, which the left column cannot afford with Play inside (R3).
+
+## R5. The flat ground pattern
 
 **Decision**:
-- **Right column.** The freed height (about 66 units at 1280 × 720, about 104 at
-  1280 × 800) becomes the Hand's well: deliberate breathing room above and below
-  the cards, the deepest place cut into the stone, and the room placed cards rise
-  into. This is FR-005's "deliberate breathing room".
-- **Two-row Final Battle Hand.** Its cards are height-bound (137 × 191 at
-  1280 × 720), so they gain the freed height directly. That is only 8 units
-  (band 96 → rail 88), so the growth is slight.
-- **Left column, content-driven.** `preview_panel.gd`, `soak_meter` and `xp_purse`
-  report a `needed_height` for the current state. The solver takes
-  `preview_h = clamp(needed, PREVIEW_MIN, body_h × 0.5)`, and the Encounter gets the
-  rest: a larger creature, and more of the stone-and-rift look where the light
-  comes from.
-- **Stable within an Encounter.** The needed height is that of the panel's *fullest*
-  composition for the current Encounter kind and phase, not the current state. For
-  example, an Enemy preview is sized for both comparisons plus the verdict even while
-  "Still needed" shows. The Encounter frame then doesn't resize as cards are placed;
-  it changes only between phases (challenge → Soak → Upgrade) and Encounters, which
-  are already visible transitions.
-- The solver stays pure. `needed_height` is an input, like `hand_count`.
+1. **Generate.** `tools/generate_art.py pattern ground [--seed N] [--count 4]` runs the
+   existing ComfyUI/FLUX pipeline with a pattern prompt: "a seamless repeating pattern
+   of carved woodcut lines on dark stone, flat, two tones, no shading, no glow, evenly
+   spaced engraved strokes, linocut texture, tileable", at 1024². This runs on this
+   Mac (allowed; about 4 minutes an image at Q4, so `--count 4` takes about 16
+   minutes).
+2. **Post-process.** A headless Godot tool, `tools/make_ground.gd <in.png>`
+   (`Image` is available there; PIL is not):
+   - makes the tile seamless by offsetting half a tile and cross-fading a band across
+     the seams;
+   - quantises to 3 flat tones;
+   - remaps those tones into the `[STONE_L_MIN, STONE_L_MAX]` luminance band in the
+     stone hue;
+   - scales to 512²;
+   - writes `art/stone/grain.png`.
+3. **Pick.** The owner picks one of the four candidates at the US3 review; the chosen
+   tile is committed then. Generation may run during stage A, but the candidates stay
+   in `build/` until the pick, because `stone.gd` uses `art/stone/grain.png` as soon
+   as it exists and FR-026 keeps the ground unchanged through stage A.
 
 **Rationale**:
-- In `05_challenge_assigned` and `20_region_banner` the preview's lower 35–45% is
-  empty while the creature is cramped.
-- A content-driven split removes that space (FR-005, SC-002) without inventing
-  filler.
-- A Hand well with designed margins is the stone look's centrepiece, not dead space.
+- "Flat lines, maybe a consistent pattern generated in comfy" (owner). Generation
+  gives the hand-carved character that noise lacks.
+- Post-processing guarantees the properties the game needs (seamless, flat, inside
+  the contrast band) whatever the model returns. `stone.gd` already loads the override
+  file, so no code changes are needed to use it.
+- The contrast test reads whichever ground ships.
 
 **Alternatives**:
-- *Fixed ratio tuned once (0.62 / 0.38).* Rejected. The states differ too much
-  (one-line "Still needed" against Final Battle tiers against Soak).
-- *Narrow the left column so one-set cards widen.* Rejected. The left column is at
-  its 400 minimum for preview legibility, and gaining 10–15 units of card width is
-  not worth the risk.
+- *Procedural lines in a shader.* Cheaper, but it reads as computer-drawn: the very
+  objection to the cracks.
+- *ComfyUI's seamless-tiling custom nodes.* An extra dependency. The offset-and-blend
+  post-process is simpler and dependable.
 
-## D3. Making stone without art
+## R6. Raised boxes, finished
 
-**Decision**: procedural, baked once at startup.
-- **Stone grain**: a `NoiseTexture2D` (`FastNoiseLite`, simplex fractal, 3
-  octaves, seamless, 512²), remapped into a narrow luminance band around
-  `BG_SURFACE` (D5).
-- **Crack map**: a second `NoiseTexture2D` using cellular noise with
-  `DISTANCE2_SUB` return (F2 − F1). Its thin dark valleys read as branching cracks
-  through stone. Seamless, 512².
-- Both are generated once on a thread at boot. They are shared by every
-  `StoneStyle` and the backdrop, so the per-frame cost is texture lookups only.
+**Decision**: `StoneStyle` keeps its kinds. The changes:
+- **Flat lines, no glow.** Its rim glow becomes a **flat edge colour change**: a solid
+  2–3-unit line in the focus or response colour, with no soft outer line. Glow is the
+  thing set aside.
+- **Stronger raise.** A deeper drop shadow (6–8 units, hard-edged) and a light top
+  bevel.
+- **Faces.** Boxes take a flat face colour: `BG_RAISED` for zones and `BG_SURFACE` for
+  insets. The ground pattern no longer shows through them, so "strong boxes on a
+  patterned ground" reads clearly. The grain stays on the ground only.
 
-**Fallback**: if the owner finds procedural stone cheap-looking at the style frame,
-the same two slots take bitmap textures generated on the Windows PC (ComfyUI;
-`tools/generate_art.py`), handed off as a command per the project's art rule. Nothing
-else changes.
+The play screen's slots, math box, action buttons, Hand well, Encounter frame and
+header all use it.
 
-**Alternatives**:
-- *Full-screen fbm in the backdrop shader every frame.* Too costly on the web build
-  for no visual gain over a baked map.
-- *Shipped bitmaps from the start.* Adds the hand-off before the direction is even
-  approved.
-
-## D4. Zones as places cut into the stone
-
-**Decision**: `ui/theme/stone_style.gd`, a `StyleBox` subclass overriding `_draw`:
-- a chamfered outline (cut corners, not rounded): the woodcut "gouge" corner;
-- a stone fill from the shared grain texture, offset per zone so neighbours do not
-  repeat;
-- an **inner bevel**: a light edge on the bottom and right and a shadow edge on the
-  top and left, so the zone reads as *recessed* (cut in), not raised;
-- an optional **rim glow** (focus or Ether) for the active zone, animated by a
-  single `glow` property that tweens.
-
-It is drop-in: `UI.box`, `UI.panel` and `UI.raised_panel_box` return a `StoneStyle`
-with the matching role ("well" for zones, "plinth" for buttons, "slab" for overlays,
-"inset" for small chips).
-
-**Zone weight (FR-008)**:
-- **Depth**: active zones are cut deeper (stronger bevel, darker floor) and lit at
-  the rim.
-- **Brightness**: resting zones are shallower and quieter.
-- **Floor**: the Hand's well and the Encounter's frame are the two deepest places,
-  and the header is a shallow band.
-
-**Rationale**: one style object covers the 46 call sites in about 20 files with no
-per-widget drawing. Chamfers plus the inner bevel are what read as "cut into stone",
-as opposed to the rounded, shadowed "lifted panel" of today.
-
-**Alternatives**:
-- `StyleBoxTexture` nine-patches: cheap, but they cannot vary bevel depth and glow
-  per state without many textures.
-- A shader per panel: more GPU work and more material instances.
-
-## D5. Contrast on a textured surface
+## R7. Responses without ambient effects
 
 **Decision**:
-- Stone luminance is remapped so its brightest texel is no lighter than
-  `BG_RAISED` (#2b2640), the lightest panel colour today.
-- Seam glow is capped where text can sit. The rift light shows in the *backdrop*
-  between zones and at zone rims, never under a zone's text.
-- `tests/test_stone_contrast.gd` checks every text colour in `tokens.gd`, plus
-  `ether_ink` per Ether, against:
-  - the brightest grain texel plus maximum rim glow, for ≥ 4.5:1 (≥ 3:1 for
-    numerals ≥ 32 units);
-  - the darkest grain texel, for ≥ 4.5:1.
+- **Kept**: the response table and `play_screen.flare()`, now as flat edge-colour
+  changes (R6), plus the waiting zone's slow edge breath (FR-019 allows it).
+- **Added**: the flying number (R2) and the counting totals (R4).
+- **Already gone**: motes, shimmer and the backdrop seam responses.
 
-**Rationale**: today's contrast holds because the panels are uniform. Checking the
-texture's extremes keeps FR-017 testable rather than judged by eye.
+`test_board_responses.gd` stays: the zone-only targets, and a still form for each
+response.
 
-## D6. Rift light
+## R8. Staging
 
-**Decision**: the rewritten `backdrop.gdshader` composes:
-
-1. **Grain**: stone grain at base luminance, with a vignette as today.
-2. **Seams**: crack map → seam mask → `seam_colour × intensity`.
-   - `seam_colour` is the Ether's `lit` shade (`tokens.ether_shade`), or a neutral
-     cold violet.
-   - `intensity` is a slow per-seam shimmer: two sines on the crack map's cell id.
-     It is constant under reduced motion.
-3. **Rift bloom**: a broad, soft glow from one "rift" point per screen (the
-   Encounter frame on the play screen, the dragon tiles on the title). The light
-   seems to come from the thing you face.
-4. **Dark zones**: zone rectangles are passed as a uniform array (≤ 8). Seams fade
-   out under zones, so light never sits behind text.
-
-**Mood per Ether (FR-010)**: the tint, plus one behaviour per Ether.
-- Fire: warmer, faster flicker.
-- Water: slow swell.
-- Lightning: rare brighter jolts.
-- Shadow: dim, with faint pinpricks.
-
-These are written as small branches on `ether_id`, the same vocabulary as
-`ether_card.gdshader` and the 005 clarification (faint and slow, not a visualizer).
-
-**Transitions**: a change of Ether tweens `tint` over `T.REVEAL` (0.4 s). There is
-no snap (edge case).
-
-## D7. Ambient life and its budget
-
-**Decision**:
-- **Seam shimmer**: in the shader, with no node cost.
-- **Motes**: one `CPUParticles2D` in a new `rift_layer.gd` above the backdrop and
-  below screens. It emits from the rift point with a lifetime of 4–7 s and at most
-  24 alive, tinted to the Ether, and drifts up and out. `CPUParticles2D` rather than
-  `GPUParticles2D` because the Compatibility renderer and web are the weak targets.
-- **Active zone**: the zone named by `vs.input_region` (hand or commit; D9) has its `StoneStyle.glow` tweened to 1 and
-  the others to 0 over `T.BASE`. It breathes slowly (±15%) while waiting.
-- **Budget**: ≤ 1 ms GPU for the backdrop, seams and motes at 1280 × 720, measured
-  by the extended `tools/field_bench.gd` against 005's PASS thresholds. If it fails,
-  drop in this order: motes to 12, then Ether behaviours to the plain shimmer.
-- **Reduced motion**: no motes, the shimmer frozen at its mean, glow set instantly
-  and no breathing.
-- **Busy moments**: during an animator sequence, motes pause emission, and the
-  shimmer keeps going at half amplitude so it does not compete (edge case).
-
-## D8. A response for every action
-
-**Decision**: `ui/model/board_response.gd` is a pure table from game and draft events
-to a board response. `animator.gd` and `play_screen.gd` call it, and `rift_layer.gd`
-and the active `StoneStyle` play the result.
-
-| Event | Board response |
-|---|---|
-| Place card | Its rail token flares in the card's Ether; the Hand well's rim brightens briefly |
-| Take back | Token dims to empty with a short fall |
-| Fuse | Seams near the Hand flare in the fused Ether |
-| Divert / Regroup | A cold sweep along the header band |
-| Play | Seams surge toward the Encounter frame (the rift answers) |
-| Damage dealt to enemy | Encounter frame shudders; dust motes burst at it |
-| Damage taken / Soak | A crack flash across the Hand well; brief red in the seams |
-| Upgrade | The upgraded card's well rim glows gold; a short rise of motes |
-| Encounter won | Seams brighten all over, then settle; the rift tint fades toward neutral |
-| Encounter lost / time lost | Seams dim and redden briefly |
-
-Each response has a still form under reduced motion: a held tint or rim for
-`T.BASE`, with no movement. `tests/test_board_responses.gd` checks that every event
-the animator emits maps to a response with both forms (FR-015, FR-016).
-
-## D9. Which zone is "active"
-
-**Decision** (revised during implementation, 2026-10-15): keep
-`view_state._input_region` as it is: `hand` while a card is still to be chosen,
-`commit` once everything is ready. The lit zone follows where the player's input
-goes.
-- **No `preview` zone.** The first draft added one for Soak and Upgrade, but in both
-  the player still taps Hand cards. The meter and purse only show what those taps
-  add up to, so lighting the preview would point away from the input.
-- **No `rail` zone (U1).** The Boost-to toggle defaults to Attack and is never
-  pending.
-- **Tested.** `test_view_state.gd` plays a seeded game to its end and checks the
-  region is only ever `hand` or `commit`.
-
-## D10. Woodcut ornament and lettering
-
-**Decision**:
-- `tools/gen_icons.py` gains about 8 ornament SVGs:
-  - gouged horizontal divider;
-  - corner cut;
-  - heading flourish left and right;
-  - a rift glyph;
-  - a Tower glyph;
-  - a seal for the proclamation;
-  - a scroll end.
-- They are drawn as flat shapes with carved negative space, like the creature
-  silhouettes.
-- Headings stay in Cinzel. Display headings gain a *carved* treatment: a 1-unit dark
-  offset above and a light offset below (an incised look), in `theme.gd`.
-
-**Alternative**: a new display font. Rejected as unnecessary. Cinzel is already
-lapidary (inscriptional) and the spec asks for no new fonts.
-
-## D11. Lore framing per screen
-
-**Decision**:
-
-| Screen | Framing |
-|---|---|
-| Title | The Tear: a tall rift seam behind the dragon tiles, as the bloom source; the game title carved into a lintel |
-| Rules setup | The elders' proclamation: a slab headed with the Tower glyph and "By order of the Tower", the options as carved lines, a seal over Continue |
-| Region banner | A carved lintel across the screen, with the rift tint changing beneath it |
-| Final Battle | The play screen; the dragon's Ether lights the rift |
-| Ending | An inscribed slab: victory carves the verdict and lights the seams gold; a loss dims and cracks them |
-| Rulebook, glossary | Scrolls: slab body with scroll ends, for the book-like reading surfaces |
-| Inspect, menu, confirm, size notice | Slabs |
-
-Every existing choice, value and control stays (FR-020); the framing is around the
-content, not instead of it.
-
-## D12. Measuring space
-
-**Decision**: `tools/space_audit.gd` drives the same seeded states as `shot.gd` at
-`phone-16x9` (1280 × 720) and records:
-
-- **SC-001**: the role display's area as a share of the content rect. It is compared
-  with a baseline recorded from the current build before stage 1 and written to
-  `specs/006-etched-stone-polish/baseline.md`.
-- **SC-002**: for each zone, the empty fraction: the share of the panel's height, in
-  16-unit rows, that nothing drawn crosses. It fails if any zone is over 1/3 empty.
-  It counts rows rather than area because the waste the spec targets is vertical
-  bands (the preview's empty lower half). The room beside a short left-aligned line
-  of text is normal typography, and an area measure counted it as 60% "empty" in the
-  XP purse.
-  - **A zone is the panel drawn on screen**, not the solver's region. The Hand zone
-    is `_hand_panel`'s rect (the cards' bounds plus margins), not `regions.hand`.
-    The Hand region is deliberately taller than its cards (D2), and the stone
-    between panels is background.
-  - **It is judged at the minimum sizes** (`phone-16x9`, `phone-small`), where SC-002
-    applies. Larger windows add stone around the panels by design.
-
-It runs headless and is not part of `tools/test.sh`, because the baseline comparison
-is a one-time judgement. The SC-002 check *is* added to `ui_check.gd` as a
-non-regression, at the two minimum sizes only.
+**Decision**: the order is A (US1 + US2), then B (US3 + US4), then C (US5), as in the
+plan.
+- Stage A works on the current raised boxes, so the owner sees the layout change
+  first.
+- The ComfyUI tile can be generated during stage A in the background (about 16
+  minutes), so it is ready for stage B.
+- The tasks for revision 1's remaining Phase 6 are replaced by stage C.
