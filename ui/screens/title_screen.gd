@@ -67,7 +67,7 @@ func _build() -> void:
 	help.pressed.connect(func(): intent.emit({"type": "glossary"}))
 	tools.add_child(help)
 	left.add_child(tools)
-	left.add_child(UI.label("Fan-made digital version. Game by Joe Klipfel, published by Chip Theory Games. Not affiliated with or endorsed by Chip Theory Games. Encounter art from game-icons.net, CC BY 3.0; dragon art made for this project.", T.LABEL, T.INK_MUTED, true))
+	left.add_child(UI.label("Fan-made digital version. Game by Joe Klipfel, published by Chip Theory Games. Not affiliated with or endorsed by Chip Theory Games. Creature and landscape art made for this project.", T.LABEL, T.INK_MUTED, true))
 	root.add_child(left)
 
 	# Right: the choices.

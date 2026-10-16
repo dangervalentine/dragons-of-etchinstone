@@ -23,3 +23,6 @@ __pycache__/
 
 # Local secrets (Hugging Face token etc.); never committed
 .env
+
+# Illustrator working files for the art touch-ups
+*.ai

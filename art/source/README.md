@@ -1,9 +1,16 @@
 # Approved source images
 
-The approved silhouettes the game art is made from: the four dragons
-and the sixteen card-inspired Encounters, 1024 px, black on white. They are the
-starting point for the hand clean-up in Illustrator and then the dataset for the
+The approved silhouettes the game art is made from: the four dragons, the sixteen
+card-inspired enemies and the seventeen journey scenes, 1024 px, black on white. The
+enemies here are the hand-finished versions; the dragons are still as generated, and the
+journeys are first drafts, taken as generated, to be reworked. Together they are the dataset for the
 `etchsil` style LoRA. The prompts are in `../STYLE_PROMPT.md`.
+
+The table below records where each image started, before the hand finishing.
+
+`touch-up/` holds the hand-finished versions (black on transparent, with their
+Illustrator files); `tools/frame_art.py` puts them on the common canvas as the
+`<name>.png` here, which `tools/vectorize_art.py` turns into the game's SVGs.
 
 `masks/` holds the dragons' lower-jaw masks, white over the jaw, used by
 `tools/draw_throat.py` and `tools/vectorize_art.py --mask` to split each dragon
@@ -38,3 +45,25 @@ restyle denoise.
 | marsh-treant | marsh-treant_00009_, restyle d0.6 of a hand edit of marsh-treant_00006_ |
 | antler-horror | antler-horror_00009_, restyle d0.6 of a hand edit of antler-horror_00003_ |
 | gath-brute | gath-brute_00007_, restyle d0.45 of a hand edit of gath-brute_00004_ |
+
+Journey first drafts, as generated (natural-landscape scene prompts):
+
+| Image | Source |
+|---|---|
+| peaks | peaks_00004_ |
+| waterfall | waterfall_00003_ |
+| mountain-road | mountain-road_00002_ |
+| cave-entrance | cave-entrance_00002_ |
+| swamp | swamp_00005_ |
+| river | river_00003_ |
+| willow-tree | willow-tree_00001_ |
+| cliff-crossing | cliff-crossing_00002_ |
+| volcano | volcano_00003_ |
+| desert | desert_00004_ |
+| lava | lava_00003_ |
+| underground-cave | underground-cave_00001_ |
+| rope-bridge | rope-bridge_00003_ |
+| forest-entrance | forest-entrance_00005_ |
+| burning-forest | burning-forest_00003_ |
+| stone-path | stone-path_00002_ |
+| horizon-road | horizon-road_00002_ |

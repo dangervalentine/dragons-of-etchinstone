@@ -44,10 +44,24 @@ Paste this after every subject line, unchanged.
 > unnatural features rather than added ornament. It belongs to an ancient,
 > dragon-haunted realm.
 
-For **journey scenes**, add this sentence to the style block:
+For **journey scenes**, use this style block in place of the one above. The creature
+block talks about eyes, feet and menace, and FLUX answers it by putting a monster into
+every landscape, so scenes have their own:
 
-> The scene is a self-contained vignette emblem with its edges shaped into the
-> silhouette, not a full-bleed landscape. It feels ominous and ancient.
+> A bold game-icon silhouette of a natural landscape in the style of a heraldic
+> woodcut: one solid shape of pure flat black, isolated on a plain pure-white
+> background, as a self-contained vignette emblem rather than a full-bleed picture.
+> The scene is one landmark built from a few large, simple shapes, resting on a short
+> ground line that ends cleanly at both sides, with clean white all around and above
+> it. The shapes are carved with a few bold white gashes, like strokes cut into a
+> linocut block, that mark ridges, water and paths. The outline is smooth and
+> confident, built from a few large sweeping curves and straight edges. Trees have a
+> few thick, smooth, tapering branches, never a mass of twigs, and there are no small
+> spikes, grass tufts, leaves or fringes along any edge. Large plain areas of solid
+> black. It is a landscape only: there are no animals, creatures, people, faces, eyes
+> or figures anywhere in it. Square composition, the scene centred and filling most
+> of the frame, with an even white margin and every part inside the frame. It reads
+> instantly at thumbnail size and feels wild, ancient and ominous.
 
 For **images with a moving part** (see below), add this sentence, naming the part:
 
@@ -142,8 +156,8 @@ once and they breathe, hover and move as one creature.
 ## Subject lines
 
 Ether is the Encounter's element from `data/cards.json`. Names come from
-`ui/model/art.gd`. Every subject line is followed by the style block (plus the journey
-sentence for journeys, and the moving-part sentence where there's a part).
+`ui/model/art.gd`. Every subject line is followed by the style block (the scene block for journeys), and
+the moving-part sentence where there's a part.
 
 Writing a subject line:
 
@@ -176,37 +190,36 @@ right, clear of the wings and body. Drawn from the dragon cards' artwork.
 
 | File | Name · Ether | Subject | Moving part · motion · fill behind it |
 |---|---|---|---|
-| peaks | High Peaks · lightning *(journey)* | Three jagged jade mountain peaks like broken fangs, a storm cloud snagged on the tallest, and a forked lightning bolt splitting the sky down to one peak. | Lightning bolt · flicker, pivot at the cloud · the sky is empty behind it, so nothing to fill: the body layer is the image without the bolt. |
-| waterfall | The Falls · water *(journey)* | A waterfall pouring from the open jaws of a giant dragon face carved into a cliff, with mist billowing at its foot. | — |
-| mountain-road | Mountain Road · fire *(journey)* | A switchback road climbing a steep mountain past burning beacon braziers, with a skull-carved waystone at the bend. | — |
-| cave-entrance | Dark Cave · shadow *(journey)* | A cave mouth shaped like a monster's open maw with stalactite fangs, and two eye cut-outs glinting in the darkness inside. | Eyes · blink, pivot between the eyes · the darkness inside the cave, solid. Here the part is the solid area around the eyes, with the eye holes cut in it, so a blink squashes the holes shut. |
-
+| peaks | High Peaks · lightning *(journey)* | Tall, narrow karst pillars of rock rising steeply from a bank of mist, sheer-sided and flat-topped, a single twisted pine leaning from the top of the tallest, and a forked lightning bolt striking down to it from the sky. | Lightning bolt · flicker, pivot at the cloud · the sky is empty behind it, so nothing to fill: the body layer is the image without the bolt. |
+| waterfall | The Falls · water *(journey)* | A tall waterfall pouring in one smooth sheet from a gap between two steep karst pillars into a pool, its mist rising at the foot as a few large, smooth, rounded billows. | — |
+| mountain-road | Mountain Road · fire *(journey)* | A steep karst mountain with a switchback road zigzagging up its face as a white cut through the black rock, and a twisted pine leaning out from the bend at the top. | — |
+| cave-entrance | Dark Cave · shadow *(journey)* | A sheer cliff with a tall, dark cave mouth at its foot, the opening a rough arch edged by a white gash, a few heavy stalactites hanging from its lip, and a twisted pine growing on the cliff above. | — |
 ### Journey scenes, Region 2: Living Marshes
 
 | File | Name · Ether | Subject | Moving part · motion · fill behind it |
 |---|---|---|---|
-| swamp | Sunken Mire · fire *(journey)* | A sunken mire of dead, twisted trees and bubbling pools, with will-o'-wisp flames hovering above the water and a half-sunk skull. | — |
-| river | Black River · water *(journey)* | A black river winding between dead reeds, the ridged back of a serpent breaking the surface beside a ruined bridge pillar. | — |
-| willow-tree | Weeping Willows · lightning *(journey)* | A weeping willow with a gnarled, mournful face in its trunk, drooping branches hanging like long hair, and a lightning-scorched split down its centre. | — |
-| cliff-crossing | Cliff Path · shadow *(journey)* | A narrow ledge path across a sheer cliff above an abyss, with giant faces carved into the rock and stones crumbling away into the dark. | — |
+| swamp | Sunken Mire · fire *(journey)* | A sunken mire: two or three twisted swamp trees standing on tall arching stilt roots in still black water, their crowns a few thick bare branches, the water's surface marked by a few long white ripple lines. | — |
+| river | Black River · water *(journey)* | A broad river winding toward the viewer as a white ribbon cut through low black banks of twisted mangrove roots, a gnarled tree leaning over the water. | — |
+| willow-tree | Weeping Willows · lightning *(journey)* | A great weeping willow on the bank of still water, its thick twisted trunk splitting into heavy limbs, its branches hanging in a few long smooth curtains down to the water. | — |
+| cliff-crossing | Cliff Path · shadow *(journey)* | A sheer cliff face above a deep gorge with a narrow ledge path running across it as a white cut along the black rock, and one gnarled tree clinging to the edge. | — |
 
 ### Journey scenes, Region 3: Burning Basin
 
 | File | Name · Ether | Subject | Moving part · motion · fill behind it |
 |---|---|---|---|
-| volcano | Ash Slopes · water *(journey)* | A steep volcano under a fall of ash, a boiling crater lake at its summit sending up columns of steam, and scree of skulls on its slopes. | — |
-| desert | Glass Desert · lightning *(journey)* | A desert of fused glass dunes with lightning-struck spires of fulgurite and the bleached ribcage of a giant beast half buried in the sand. | — |
-| lava | Lava Fields · fire *(journey)* | Fields of cracked lava crust with molten rivers as cut-out channels and a tall fiery geyser bursting from a vent at the centre. | Geyser · surge 30% taller, pivot at the vent · the vent's rim and the crust, solid; the sky behind is empty. |
-| underground-cave | Deep Caverns · shadow *(journey)* | A deep cavern of stalactites and stalagmites arranged like a ribcage, clusters of glowing crystals, and a narrow path vanishing into darkness. | — |
+| volcano | Ash Slopes · water *(journey)* | A steep volcano with a broad, broken crater, a column of smoke rising from it as a few large smooth rounded billows, and its slopes scored with long white gullies. | — |
+| desert | Glass Desert · lightning *(journey)* | A desert canyon of tall rock spires and flat-topped mesas rising over smooth rolling dunes, with one bare dead tree in the foreground. | — |
+| lava | Lava Fields · fire *(journey)* | Fields of cracked lava crust with molten rivers running through it as white cut-out channels, and a tall geyser of fire bursting from a vent at the centre. | Geyser · surge 30% taller, pivot at the vent · the vent's rim and the crust, solid; the sky behind is empty. |
+| underground-cave | Deep Caverns · shadow *(journey)* | A deep cavern seen from inside: a great arch of rock with heavy stalactites hanging from its roof and stalagmites rising from its floor, and a narrow path winding away into the dark. | — |
 
 ### Journey scenes, Region 4: Forest of Gath
 
 | File | Name · Ether | Subject | Moving part · motion · fill behind it |
 |---|---|---|---|
-| rope-bridge | Rope Bridge · water *(journey)* | A sagging rope bridge over a misty gorge, with frayed ropes, missing planks and a torrent rushing below. | — |
-| forest-entrance | Forest Gate · shadow *(journey)* | The edge of a dark forest where two ancient trees arch together into a gate with clawed branches, and several pairs of eyes peer out of the darkness between them. | Eyes · blink, pivot at the centre of the eyes · the darkness between the trees, solid. As with the Dark Cave, the part is the solid area around the eyes, with the eye holes cut in it. |
-| burning-forest | Burning Wood · fire *(journey)* | A forest ablaze: charred trunks wrapped in rising tongues of flame and sparks drifting upward. | — |
-| stone-path | Old Stone Stair · lightning *(journey)* | An old stone stair climbing steeply between toppled statues, its steps carved with runes, up to a lightning-struck archway at the top. | — |
+| rope-bridge | Rope Bridge · water *(journey)* | A sagging rope bridge slung across a deep forest gorge between two great gnarled trees, its planks a row of short white cuts, and a river far below. | — |
+| forest-entrance | Forest Gate · shadow *(journey)* | The edge of a dark forest where two huge gnarled trees lean together and their thick branches meet overhead in an arch, with a bright opening of white light between their trunks. | — |
+| burning-forest | Burning Wood · fire *(journey)* | A burning wood: three charred tree trunks with a few thick bare branches, and tall, smooth tongues of flame rising between them. | — |
+| stone-path | Old Stone Stair · lightning *(journey)* | An old stone stair climbing steeply between gnarled roots and boulders up to a ruined stone archway at the top. | — |
 
 ### Card-inspired Encounters
 
@@ -256,7 +269,7 @@ gnome lines are the ones their approved images were made from.
 
 | File | Name · Ether | Subject | Moving part · motion · fill behind it |
 |---|---|---|---|
-| horizon-road | The Final Journey *(journey)* | A long road running to the horizon between leaning standing stones, with a dragon perched at its far end, its wings folded. | — |
+| horizon-road | The Final Journey *(journey)* | A long straight road running from the viewer to the horizon between two rows of leaning standing stones, toward a far jagged mountain. | — |
 
 ## Generating
 
@@ -304,8 +317,7 @@ A thin ground line under the subject is removed; `--keep-ground` keeps it.
 
 ## Credits
 
-The current images are from game-icons.net under CC BY 3.0, except the four dragons
-(see CREDITS.md, "Made for this project"). When you replace an image,
+Every image was made for this project (see CREDITS.md); the journeys are first drafts. When you replace an image,
 update its row in `art/creatures/CREDITS.md`: name the generator, and if the result was
 made from the original icon (for example by image-to-image), keep the icon's credit
 too. `tests/test_art.gd` checks that every image has a row there.

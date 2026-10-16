@@ -125,9 +125,8 @@ def read_doc():
 
 def prompt_for(doc, name):
     s = doc["subjects"][name]
-    parts = [s["subject"], doc["style"]]
-    if s["journey"]:
-        parts.append(doc["journey"])
+    # Journeys take the scene block in place of the creature one.
+    parts = [s["subject"], doc["journey"] if s["journey"] else doc["style"]]
     if s["part"]:
         parts.append(doc["moving"].replace("[MOVING PART]", s["part"].lower()))
     return " ".join(parts)
