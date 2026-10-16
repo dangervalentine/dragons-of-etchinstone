@@ -8,6 +8,13 @@ const HelpTip = preload("res://ui/widgets/help_tip.gd")
 const UI = preload("res://ui/theme/theme.gd")
 const Haptics = preload("res://ui/fx/haptics.gd")
 const CardFace = preload("res://ui/widgets/card_face.gd")
+const TILT_SHADER = preload("res://ui/fx/shaders/card_tilt.gdshader")
+## Room round the card in its view, as a share of the view, so turned corners fit.
+const TILT_MARGIN := 0.1
+## The most the card turns, in degrees: around its upright axis, and forward or back.
+const TILT_MAX := Vector2(18.0, 13.0)
+## Kept faint: the board is muted, and nothing on it glows.
+const TILT_GLARE := 0.12
 
 const HOLD_SECONDS := 0.35
 const ROLE_ICONS := {"spell": "spell", "element": "element_role", "boost": "boost"}
@@ -27,6 +34,13 @@ var home := Rect2()
 
 const Glossary = preload("res://ui/model/glossary.gd")
 var _face := CardFace.new()
+## The card is drawn into its own view, at the screen's real pixel density, and that
+## view is drawn through the tilt shader (ui/fx/shaders/card_tilt.gdshader), so the
+## whole card turns toward the pointer in fake 3D.
+var _view := SubViewport.new()
+var _box := SubViewportContainer.new()
+var _tilt := Vector2.ZERO
+var _press_at := Vector2.ZERO
 ## The parts a tooltip can explain; the Ether sigils are checked first, as they sit on the plates.
 const PART_ORDER := ["level", "cost", "key", "initiative", "basic", "enhanced", "boost", "armor"]
 var _marks := Control.new()
@@ -40,10 +54,23 @@ var _hover := false
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	focus_mode = Control.FOCUS_NONE
-	add_child(_face)
+	_view.transparent_bg = true
+	_view.disable_3d = true
+	_view.size_2d_override_stretch = true
+	_view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_box.stretch = false
+	_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_box.material = ShaderMaterial.new()
+	_box.material.shader = TILT_SHADER
+	_box.material.set_shader_parameter("tilt_margin", TILT_MARGIN)
+	_box.material.set_shader_parameter("glare", TILT_GLARE)
+	_box.add_child(_view)
+	add_child(_box)
+	_face.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_view.add_child(_face)
 	_marks.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_marks.draw.connect(_draw_marks)
-	add_child(_marks)
+	_view.add_child(_marks)
 	_hold.one_shot = true
 	_hold.wait_time = HOLD_SECONDS
 	_hold.timeout.connect(_on_hold)
@@ -83,12 +110,52 @@ func snap_home() -> void:
 
 
 func _fit() -> void:
-	_face.position = Vector2.ZERO
+	# The view is the card plus a margin all round, drawn at the screen's density so
+	# the text stays sharp; the box sits over the card, reaching past it by the margin.
+	var view := size / (1.0 - 2.0 * TILT_MARGIN)
+	var offset := (view - size) / 2.0
+	var density := _density()
+	# The view first: the box may not be smaller than its view, which starts at 512.
+	_view.size = Vector2i(ceili(view.x * density), ceili(view.y * density))
+	_view.size_2d_override = Vector2i(ceili(view.x), ceili(view.y))
+	_box.update_minimum_size()
+	_box.position = -offset
+	_box.size = view
+	_face.position = offset
 	_face.size = size
-	_marks.position = Vector2.ZERO
+	_marks.position = offset
 	_marks.size = size
 	pivot_offset = size / 2.0
 	_marks.queue_redraw()
+
+
+## Screen pixels per design unit, at least 1.
+func _density() -> float:
+	var vp := get_viewport()
+	if vp == null:
+		return 1.0
+	var px := Vector2(DisplayServer.window_get_size())
+	var units := vp.get_visible_rect().size
+	if units.x <= 0.0 or px.x <= 0.0 or not (vp is Window):
+		return 1.0
+	return maxf(1.0, px.x / units.x)
+
+
+## The card turns toward the pointer while it is over the card (or the finger while
+## it presses), and eases back flat. Held flat in reduced motion.
+func _process(delta: float) -> void:
+	var target := Vector2.ZERO
+	if not UI.reduced_motion and (_hover or _pressing):
+		var at := get_local_mouse_position() if _hover else _press_at
+		var p := at / size - Vector2(0.5, 0.5)
+		if absf(p.x) <= 0.5 and absf(p.y) <= 0.5:
+			target = Vector2(p.x * 2.0 * TILT_MAX.x, -p.y * 2.0 * TILT_MAX.y)
+	var next := _tilt.lerp(target, clampf(delta * 8.0, 0.0, 1.0))
+	if UI.reduced_motion:
+		next = Vector2.ZERO
+	if next.distance_to(_tilt) > 0.01 or (next == Vector2.ZERO and _tilt != Vector2.ZERO):
+		_tilt = next if next.length() > 0.05 else Vector2.ZERO
+		_box.material.set_shader_parameter("tilt_degrees", _tilt)
 
 
 func _gui_input(event: InputEvent) -> void:
@@ -101,6 +168,7 @@ func _gui_input(event: InputEvent) -> void:
 			accept_event()
 		elif event.button_index == MOUSE_BUTTON_LEFT:
 			if event.pressed:
+				_press_at = event.position
 				_pressing = true
 				_held = false
 				_hold.start()
@@ -131,13 +199,13 @@ func part_help(at: Vector2) -> String:
 		return ""
 	# The face may be previewing another Level, with a Hardship of its own.
 	var h = _face.model.get("stats", {}).get("hardship")
-	if h != null and _face.hardship_rect().grow(3).has_point(at - _face.position):
+	if h != null and _face.hardship_rect().grow(3).has_point(at):
 		return hardship_help(h)
 	for r in _face.sigil_rects():
-		if r.grow(3).has_point(at - _face.position):
+		if r.grow(3).has_point(at):
 			return ETHER_HELP
 	for key in PART_ORDER:
-		if _face.region_rect(key).grow(2).has_point(at - _face.position):
+		if _face.region_rect(key).grow(2).has_point(at):
 			if key == "basic" or key == "enhanced":
 				return _action_help(key, _face.model.stats[key].type)
 			return PART_HELP.get(key, "")
@@ -154,13 +222,13 @@ func part_icon(at: Vector2) -> String:
 		return ""
 	var stats: Dictionary = _face.model.get("stats", {})
 	var h = stats.get("hardship")
-	if h != null and _face.hardship_rect().grow(3).has_point(at - _face.position):
+	if h != null and _face.hardship_rect().grow(3).has_point(at):
 		return h
 	for r in _face.sigil_rects():
-		if r.grow(3).has_point(at - _face.position):
+		if r.grow(3).has_point(at):
 			return str(_face.model.element)
 	for key in PART_ORDER:
-		if _face.region_rect(key).grow(2).has_point(at - _face.position):
+		if _face.region_rect(key).grow(2).has_point(at):
 			if key == "basic" or key == "enhanced":
 				return "move" if stats[key].type == "move" else "attack"
 			return PART_ICONS.get(key, "")

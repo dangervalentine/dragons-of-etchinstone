@@ -258,9 +258,17 @@ static func empty_fraction(zone: Rect2, root: Control) -> float:
 
 static func _drawn_rects(root: Control) -> Array:
 	var out := []
+	var own := root.get_viewport()
 	for node in root.find_children("*", "Control", true, false):
 		var c := node as Control
 		if not c.is_visible_in_tree() or c.modulate.a < 0.1 or c.size == Vector2.ZERO:
+			continue
+		# A view of its own (a Mage Card drawn through its tilt) is drawn content;
+		# what is inside it is laid out in that view's coordinates, not the screen's.
+		if c.get_viewport() != own:
+			continue
+		if c is SubViewportContainer:
+			out.append(c.get_global_rect())
 			continue
 		# Layout containers, spacers and bare panels are background, not content; a
 		# panel that draws its own box inside the zone (a chip, a recap) is content.
