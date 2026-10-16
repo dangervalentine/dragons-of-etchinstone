@@ -1,6 +1,6 @@
 extends "res://tests/base.gd"
-## Text on carved stone: every text colour keeps its contrast against the brightest
-## stone with the most rim light a zone can carry, and against the darkest stone.
+## Text on the stone: every text colour keeps its contrast against the boxes' flat
+## faces (where text sits, hovered or not), and against the darkest ground.
 
 const T = preload("res://ui/theme/tokens.gd")
 const Stone = preload("res://ui/theme/stone.gd")
@@ -33,7 +33,9 @@ func test_the_stone_stays_inside_its_luminance_band() -> void:
 
 func test_text_reads_on_every_part_of_the_stone() -> void:
 	var e := _extremes()
-	var bright: Color = e[1].lerp(T.FOCUS, StoneStyle.GLOW_MAX_UNDER_TEXT)
+	# The brightest place text sits: a box's face, under a hover's light wash.
+	var bright: Color = T.BG_RAISED.lerp(Color.WHITE, 0.04)
+	ok(StoneStyle.GLOW_MAX_UNDER_TEXT == 0.0, "no edge colour reaches the face")
 	var inks := TEXT.duplicate()
 	for el in T.ETHER:
 		inks["ether_ink " + el] = T.ether_ink(el)
@@ -42,4 +44,4 @@ func test_text_reads_on_every_part_of_the_stone() -> void:
 		# Gold, HP and the Ether inks colour large numerals and icons, which need 3:1.
 		var need := 3.0 if key in ["GOLD", "HP"] or key.begins_with("ether_ink") else 4.5
 		ok(T.ratio(c, e[0]) >= need, "%s on the darkest stone: %.2f" % [key, T.ratio(c, e[0])])
-		ok(T.ratio(c, bright) >= need, "%s on the brightest lit stone: %.2f, at least %.1f" % [key, T.ratio(c, bright), need])
+		ok(T.ratio(c, bright) >= need, "%s on the brightest face: %.2f, at least %.1f" % [key, T.ratio(c, bright), need])

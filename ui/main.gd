@@ -554,7 +554,7 @@ func _respond(event: String, ether = null, card_id := "") -> void:
 	var colour: Color
 	match r.colour:
 		"ether":
-			colour = T.ether_shade(ether, "lit") if ether != null and ether != "" else T.SEAM_NEUTRAL
+			colour = T.ether_shade(ether, "lit") if ether != null and ether != "" else T.RESPONSE_NEUTRAL
 		"focus":
 			colour = T.FOCUS
 		"gold":
@@ -562,7 +562,7 @@ func _respond(event: String, ether = null, card_id := "") -> void:
 		"bad":
 			colour = T.BAD
 		_:
-			colour = T.SEAM_NEUTRAL
+			colour = T.RESPONSE_NEUTRAL
 	play.flare(r.target, colour, r.motion.kind, r.motion.duration, card_id)
 
 

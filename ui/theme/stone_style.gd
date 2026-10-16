@@ -1,17 +1,16 @@
 extends StyleBox
-## A place cut into the carved stone: chamfered corners, a stone floor and a bevel.
-## A well, inset or role slot toggle is cut in: shadow on the upper and left inner edges,
-## light on the lower and right. A plinth, slab or lintel stands proud: the other
-## way round, and a slab casts a shadow. A glowing rim marks the zone that waits on
-## the player; it is drawn on the edge, and only a faint wash of it reaches inside,
-## where the text is.
+## A block of stone (feature 006, research R6): chamfered corners, a flat face, a
+## bevel and a flat edge line. A well, plinth, slab or lintel stands proud of the
+## ground and casts a hard shadow; an inset (a chip, the Boost switch) is cut in.
+## The zone that waits on the player, or answers an event, changes its edge colour:
+## a flat line, with nothing glowing and nothing reaching inside where the text is.
 
 const T = preload("res://ui/theme/tokens.gd")
 const Stone = preload("res://ui/theme/stone.gd")
 
-## The most of the rim's colour that reaches the floor under the text.
-const GLOW_MAX_UNDER_TEXT := 0.06
-const RECESSED := ["well", "inset"]
+## None of the edge colour reaches the face under the text (it did in revision 1).
+const GLOW_MAX_UNDER_TEXT := 0.0
+const RECESSED := ["inset"]
 
 ## "well", "plinth", "slab", "inset" or "lintel".
 var kind := "well":
@@ -23,7 +22,8 @@ var depth := 0.5:
 	set(v):
 		depth = v
 		emit_changed()
-## The rim light, 0 to 1.
+## How strongly the edge takes `glow_colour`, 0 to 1 (the waiting zone breathes
+## between 0.85 and 1).
 var glow := 0.0:
 	set(v):
 		glow = v
@@ -43,8 +43,6 @@ var face := Color(0, 0, 0, 0):
 	set(v):
 		face = v
 		emit_changed()
-## Where in the grain this zone's floor starts, so neighbours do not repeat.
-var fill_offset := Vector2.ZERO
 ## A plinth pressed in sits flush.
 var pressed := false
 
@@ -57,7 +55,6 @@ func _init(p_kind := "well", p_depth := 0.5) -> void:
 	content_margin_right = m
 	content_margin_top = m
 	content_margin_bottom = m
-	fill_offset = Vector2(randi() % 256, randi() % 256)
 
 
 func chamfer() -> float:
@@ -85,30 +82,19 @@ func _draw(ci: RID, rect: Rect2) -> void:
 	var rs := RenderingServer
 	var recessed: bool = RECESSED.has(kind) or pressed
 	var pts := outline(rect)
-	if kind == "slab":
+	# A raised block casts a hard shadow straight down onto the ground; no blur.
+	if not recessed:
+		var drop := Vector2(0, 8) if kind == "slab" else Vector2(0, 6)
 		var shadow := PackedVector2Array()
 		for p in pts:
-			shadow.append(p + Vector2(0, 8))
-		rs.canvas_item_add_polygon(ci, shadow, PackedColorArray([Color(0, 0, 0, 0.45)]))
-	elif not recessed:
-		var shadow := PackedVector2Array()
-		for p in pts:
-			shadow.append(p + Vector2(0, 3))
-		rs.canvas_item_add_polygon(ci, shadow, PackedColorArray([Color(0, 0, 0, 0.35)]))
-	# The floor: the grain, darker the deeper the cut, lighter for a raised block.
-	var tex: Texture2D = Stone.grain()
-	var side := float(tex.get_width())
-	var uvs := PackedVector2Array()
-	for p in pts:
-		uvs.append((p - rect.position + fill_offset) / side)
-	var k: float = 1.0 - depth * 0.35 if recessed else 1.0 + 0.12 * (1.0 - depth)
-	var tint := Color(k, k, k)
-	rs.canvas_item_set_default_texture_repeat(ci, RenderingServer.CANVAS_ITEM_TEXTURE_REPEAT_ENABLED)
-	rs.canvas_item_add_polygon(ci, pts, PackedColorArray([tint]), uvs, tex.get_rid())
+			shadow.append(p + drop)
+		rs.canvas_item_add_polygon(ci, shadow, PackedColorArray([Color(0, 0, 0, 0.5)]))
+	# The face: flat, so the boxes read as solid against the patterned ground. A
+	# raised block is BG_RAISED, a cut-in chip BG_SURFACE; depth only darkens a cut.
+	var floor_colour: Color = T.BG_SURFACE.darkened(depth * 0.25) if recessed else T.BG_RAISED
+	rs.canvas_item_add_polygon(ci, pts, PackedColorArray([floor_colour]))
 	if face.a > 0.0:
 		rs.canvas_item_add_polygon(ci, pts, PackedColorArray([face]))
-	if glow > 0.0:
-		rs.canvas_item_add_polygon(ci, pts, PackedColorArray([Color(glow_colour, glow * GLOW_MAX_UNDER_TEXT)]))
 	# The bevel: two edges in light and two in shadow, a couple of units inside.
 	var b := outline(rect, 1.5)
 	var strength := 0.6 + depth * 0.8
@@ -120,12 +106,13 @@ func _draw(ci: RID, rect: Rect2) -> void:
 	var w := 2.0 + depth * 2.0
 	rs.canvas_item_add_polyline(ci, upper, PackedColorArray([dark if recessed else lit]), w, true)
 	rs.canvas_item_add_polyline(ci, lower, PackedColorArray([lit if recessed else dark]), w, true)
+	# The edge: a flat line. A zone that waits on the player or answers an event
+	# changes its edge colour (and widens it a little); nothing glows.
 	var closed := pts.duplicate()
 	closed.append(pts[0])
-	if edge.a > 0.0:
+	if glow > 0.0:
+		rs.canvas_item_add_polyline(ci, closed, PackedColorArray([Color(glow_colour, 0.6 + 0.4 * glow)]), 3.0, true)
+	elif edge.a > 0.0:
 		rs.canvas_item_add_polyline(ci, closed, PackedColorArray([edge]), edge_width, true)
 	else:
-		rs.canvas_item_add_polyline(ci, closed, PackedColorArray([Color(0, 0, 0, 0.55)]), 1.0, true)
-	if glow > 0.0:
-		rs.canvas_item_add_polyline(ci, closed, PackedColorArray([Color(glow_colour, 0.25 * glow)]), 8.0, true)
-		rs.canvas_item_add_polyline(ci, closed, PackedColorArray([Color(glow_colour, 0.9 * glow)]), 2.5, true)
+		rs.canvas_item_add_polyline(ci, closed, PackedColorArray([Color(0, 0, 0, 0.6)]), 2.0, true)

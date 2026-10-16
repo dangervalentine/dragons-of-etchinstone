@@ -165,6 +165,17 @@ _Record observer results, bench numbers and the owner's decisions here._
   the Armor and Night Travel screenshots are ready for it. Ask again at the stage B
   sign-off (T031).
 
+- **Stage B so far (revision 2)**:
+  - **Bench:** average 1.90 ms, p99 3.00 ms: PASS. A run during generation gave
+    3.53 ms / p99 18.2 ms, because ComfyUI was using the GPU.
+  - **Idle check (SC-006):** two frames a second apart, after 10 s, are identical over
+    the bare ground.
+  - **Ground candidates:** seeds 6001–6004, about 3½ minutes each on this Mac. Each
+    made a tile inside the luminance band. They are in `build/art/pattern/`, and
+    nothing is in `art/stone/` until the owner picks.
+  - **Not checked:** stutter on Android (no emulator running) and on the served web
+    build.
+
 ### Stage 2 sign-off (T040), 2026-10-15
 
 The owner saw the before/after play screens (placing cards, the Final Journey, Soak)

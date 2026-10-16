@@ -84,7 +84,7 @@ const BEVEL_SHADOW := Color(0, 0, 0, 0.45)
 
 # Responses
 ## The colour of a board response that has no Ether of its own: a cold violet.
-const SEAM_NEUTRAL := Color("8f7fd6")
+const RESPONSE_NEUTRAL := Color("8f7fd6")
 
 # Motion, in seconds
 const INSTANT := 0.08

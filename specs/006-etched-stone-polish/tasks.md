@@ -460,7 +460,7 @@ before stage B. This is a look, not a gate.
 
 ### Implementation for User Story 3
 
-- [ ] T022 [P] [US3] In `ui/theme/stone_style.gd` (research R6):
+- [X] T022 [P] [US3] In `ui/theme/stone_style.gd` (research R6):
   - **No glow**: replace the glow drawing (the soft wide polyline and the interior
     wash) with a solid edge line. Width `2.0` at rest, `3.0` when `glow > 0`, in
     `edge` at rest and `glow_colour` when glowing, with alpha `0.6 + 0.4 * glow` so
@@ -473,7 +473,7 @@ before stage B. This is a look, not a gate.
   - Update `tests/test_stone_contrast.gd` so its "bright" case is `T.BG_RAISED`, the
     face colour, instead of the grain blended with focus. Keep the ground-extremes
     checks.
-- [ ] T023 [P] [US3] Reverse the face change from revision 1 in `ui/widgets/face_frame.gd`.
+- [X] T023 [P] [US3] Reverse the face change from revision 1 in `ui/widgets/face_frame.gd`.
   The Encounter frame keeps its `StoneStyle`, but `inset` → `well` so it reads as
   raised like the other zones.
 - [X] T024 [US3] Add a `pattern` command to `tools/generate_art.py`:
@@ -485,7 +485,7 @@ before stage B. This is a look, not a gate.
   - Do not read `art/STYLE_PROMPT.md` for patterns.
   - **Docs**: update the module docstring's usage block with
     `python3 tools/generate_art.py pattern ground --count 4`.
-- [ ] T025 [P] [US3] Create `tools/make_ground.gd` (`extends SceneTree`, headless):
+- [X] T025 [P] [US3] Create `tools/make_ground.gd` (`extends SceneTree`, headless):
   `godot --headless --path . -s tools/make_ground.gd -- <in.png> [out.png]`.
   1. **Load** the image and convert it to luminance.
   2. **Make it seamless**: build an offset copy shifted by half the width and height
@@ -529,11 +529,11 @@ nothing ambient (contracts/board-life.md).
 
 **Independent Test**: quickstart §4 steps 2–5.
 
-- [ ] T028 [P] [US4] In `ui/model/board_response.gd` and `tests/test_board_responses.gd`:
+- [X] T028 [P] [US4] In `ui/model/board_response.gd` and `tests/test_board_responses.gd`:
   - `place` and `take_back` target `slot` (renamed from `rail_token`);
   - add the `slot` target to the test's allowed zones;
   - check that no entry uses a kind other than `flare`, `shudder`, `sweep` or `dim`.
-- [ ] T029 [US4] In `ui/screens/play_screen.gd` `flare()`:
+- [X] T029 [US4] In `ui/screens/play_screen.gd` `flare()`:
   - rename the `rail_token` target to `slot` (calls `slots.flare`);
   - make sure every response only changes `glow` and `glow_colour` on a `StoneStyle`,
     which now draws as a flat edge (T022), or calls `UI.shake` for `shudder`;

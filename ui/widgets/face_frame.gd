@@ -1,7 +1,6 @@
 extends Control
 ## The framed, Ether-coloured face shared by Encounters and dragons: a title band
-## of carved stone over a patterned field, cut into the board and edged in the
-## Ether colour. Subclasses fill the band and the field.
+## over a patterned field, on a raised block of stone edged in the Ether colour. Subclasses fill the band and the field.
 
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
@@ -23,8 +22,9 @@ var _field := ColorRect.new()
 var _sigil := TextureRect.new()
 var _creature := Creature.new()
 var _edge := Control.new()
-## The deepest-cut stone on the board, under the band and round the field.
-var _stone := StoneStyle.new("inset", 1.0)
+## A raised block of stone, like the board's other zones, under the band and round
+## the field.
+var _stone := StoneStyle.new("well", 0.5)
 
 
 func _init() -> void:

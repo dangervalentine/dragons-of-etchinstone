@@ -1,7 +1,7 @@
 extends RefCounted
-## What the board does when something happens: the zones answer each action at
-## their rims, not only the card involved. Each answer has a moving form and
-## a still one for reduced motion. Pure: a table and a lookup.
+## What the board does when something happens: the zones answer each action with a
+## flat change of their edge colour, not only the card involved. Each answer has a
+## moving form and a still one for reduced motion. Pure: a table and a lookup.
 
 ## event -> {target, colour, motion: {kind, duration}, still: {...}}.
 ## target: a zone: "hand", "encounter", "header" or "slot" (a role slot).
