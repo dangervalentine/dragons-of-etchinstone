@@ -7,7 +7,9 @@ extends Control
 ## current Level is drawn.
 ##
 ## A focus (the parts of the card the current step uses) lifts those parts with a
-## rim and quietens the rest; every figure stays readable either way.
+## rim; the rest of the card keeps its brightness (owner, feature 006: the same
+## brightness whatever the selection, only the part it affects highlighted). For the
+## Ether that part is the pip beside the name, not the whole field.
 
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
@@ -103,25 +105,21 @@ func _lift(key: String) -> float:
 	return lerpf(_has(_focus_from, key), _has(_focus, key), _focus_t)
 
 
-## How strongly a region is quietened (0 to 1).
-func _hush(key: String) -> float:
-	if dimmed:
-		return 0.0
-	return lerpf(_lacks(_focus_from, key), _lacks(_focus, key), _focus_t)
+## How strongly a region is quietened (0 to 1): never, now. The parts a step uses
+## are lifted; the others keep their brightness.
+func _hush(_key: String) -> float:
+	return 0.0
 
 
 static func _has(f: Dictionary, key: String) -> float:
 	return 1.0 if f.get("regions", []).has(key) else 0.0
 
 
-static func _lacks(f: Dictionary, key: String) -> float:
-	var r: Array = f.get("regions", [])
-	return 1.0 if not r.is_empty() and not r.has(key) else 0.0
-
-
+## The field keeps one brightness whatever the step: the Ether's focus shows on the
+## pip beside the name instead.
 func _apply_focus_to_field() -> void:
-	_field.material.set_shader_parameter("focus_dim", _hush("ether"))
-	_field.material.set_shader_parameter("glow", _lift("ether"))
+	_field.material.set_shader_parameter("focus_dim", 0.0)
+	_field.material.set_shader_parameter("glow", 0.0)
 
 
 # ---------------------------------------------------------------- geometry
@@ -329,9 +327,10 @@ func _draw_top_band(g: Dictionary, e) -> void:
 	var n: Rect2 = g.name
 	var pip: float = band * 0.3
 	var pip_c := Vector2(n.position.x + pip * 0.5, band / 2.0)
+	# The Ether in focus (an Element, a Fuse) rings this pip, as the plates are rimmed.
 	var lift := _lift("ether")
 	if lift > 0.0:
-		_ink.draw_circle(pip_c, pip * 0.72, Color(T.FOCUS, 0.3 * lift))
+		_ink.draw_arc(pip_c, pip * 0.78, 0.0, TAU, 32, Color(T.muted(T.FOCUS), lift), maxf(2.0, size.x * 0.012), true)
 	_icon(e, Rect2(pip_c - Vector2(pip, pip) / 2.0, Vector2(pip, pip)), T.ether_shade(e, "lit") if not dimmed else T.INK_MUTED)
 	var text_x: float = n.position.x + pip + g.pad * 0.1
 	_name(Rect2(text_x, n.position.y, n.end.x - text_x, n.size.y), model.name.to_upper(),
@@ -435,11 +434,8 @@ func _draw_sigil(g: Dictionary, e) -> void:
 	var f: Rect2 = g.field
 	var sig := minf(f.size.x * 0.62, f.size.y * 0.7)
 	var rect := Rect2(f.end.x - sig - g.pad * 0.3, f.get_center().y - sig / 2.0, sig, sig)
-	var lift := _lift("ether")
-	var alpha := 0.3 + 0.25 * lift - 0.1 * _hush("ether")
-	_icon("sigil_" + str(e), rect, Color(T.ether_shade(e, "lit") if not dimmed else T.INK_MUTED, alpha))
-	if lift > 0.0:
-		_icon("sigil_" + str(e), rect.grow(sig * 0.03), Color(T.FOCUS, 0.18 * lift))
+	# The same whatever the step: the Ether's focus shows on the pip by the name.
+	_icon("sigil_" + str(e), rect, Color(T.ether_shade(e, "lit") if not dimmed else T.INK_MUTED, 0.3))
 
 
 ## The sword the stat column hangs from: blade, crossguard at the actions, pommel at the Armor.
