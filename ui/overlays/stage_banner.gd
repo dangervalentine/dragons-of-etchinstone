@@ -1,5 +1,8 @@
 extends "res://ui/overlays/overlay.gd"
-## A banner across the screen announcing a new Region or a stage of the Final Battle.
+## A banner across the screen announcing a new Region or a stage of the Final Battle:
+## a lintel of stone, edged in the stage's (muted) colour.
+
+const StoneStyle = preload("res://ui/theme/stone_style.gd")
 
 ## sigil: an icon name, a texture, or "" for none.
 func show_banner(eyebrow: String, title: String, sigil, colour: Color, duration: float) -> void:
@@ -7,7 +10,12 @@ func show_banner(eyebrow: String, title: String, sigil, colour: Color, duration:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_dim(0.45)
 	var band := PanelContainer.new()
-	band.add_theme_stylebox_override("panel", UI.box(Color(T.BG_BAND, 0.96), colour, 0, 0, 18))
+	var lintel := StoneStyle.new("lintel", 0.4)
+	lintel.edge = colour
+	lintel.edge_width = 3.0
+	for side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
+		lintel.set_content_margin(side, 18)
+	band.add_theme_stylebox_override("panel", lintel)
 	band.set_anchors_preset(Control.PRESET_CENTER_LEFT)
 	band.anchor_right = 1.0
 	band.offset_top = -100
@@ -29,7 +37,7 @@ func show_banner(eyebrow: String, title: String, sigil, colour: Color, duration:
 	var line_top := ColorRect.new()
 	var line_bottom := ColorRect.new()
 	for l in [line_top, line_bottom]:
-		l.color = colour
+		l.color = T.muted(colour)
 		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		l.set_anchors_preset(Control.PRESET_CENTER_LEFT)
 		l.anchor_right = 1.0

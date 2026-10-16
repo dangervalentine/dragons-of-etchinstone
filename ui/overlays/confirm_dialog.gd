@@ -5,7 +5,7 @@ signal confirmed
 
 
 func setup(message: String, yes: String, no := "Cancel") -> void:
-	var p := UI.panel(T.BG_RAISED, T.LINE_SOFT, 2, T.RADIUS_M, 24)
+	var p := UI.slab(T.GOLD, 24)
 	p.custom_minimum_size.x = 560
 	p.mouse_filter = Control.MOUSE_FILTER_STOP
 	var col := UI.vbox(T.L)

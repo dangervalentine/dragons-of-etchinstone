@@ -42,6 +42,33 @@ func _initialize() -> void:
 	quit(0 if inside else 1)
 
 
+## One pass of the seam blend, across (`across`) or down.
+static func _wrap_blend(lum: PackedFloat32Array, w: int, h: int, across: bool) -> PackedFloat32Array:
+	var out := PackedFloat32Array()
+	out.resize(w * h)
+	for y in h:
+		for x in w:
+			var t := (2.0 * x / (w - 1) - 1.0) if across else (2.0 * y / (h - 1) - 1.0)
+			var k := 1.0 - absf(t)
+			var sx := (x + w / 2) % w if across else x
+			var sy := y if across else (y + h / 2) % h
+			out[y * w + x] = lum[y * w + x] * k + lum[sy * w + sx] * (1.0 - k)
+	return out
+
+
+## A heavy blur of a seamless square image that wraps at its edges: tiled 3 x 3,
+## shrunk to a few texels and grown back, then the middle tile cut out.
+static func _broad(img: Image) -> Image:
+	var n := img.get_width()
+	var big := Image.create(n * 3, n * 3, false, img.get_format())
+	for ty in 3:
+		for tx in 3:
+			big.blit_rect(img, Rect2i(0, 0, n, n), Vector2i(tx * n, ty * n))
+	big.resize(24, 24, Image.INTERPOLATE_BILINEAR)
+	big.resize(n * 3, n * 3, Image.INTERPOLATE_CUBIC)
+	return big.get_region(Rect2i(n, n, n, n))
+
+
 ## The whole recipe: luminance, seamless, scaled, three tones in the stone's colours.
 static func make(src: Image) -> Image:
 	var img := src.duplicate() as Image
@@ -54,24 +81,26 @@ static func make(src: Image) -> Image:
 	for y in h:
 		for x in w:
 			lum[y * w + x] = T.luminance(img.get_pixel(x, y))
-	# Seamless: blend the image with a copy shifted by half a tile each way. The
-	# shifted copy wraps cleanly at the tile's edges, so it takes over there; the
-	# original keeps the middle.
+	# Seamless, one direction at a time: blend the image with a copy shifted by half
+	# a tile across, weighted toward the copy at the left and right edges (where the
+	# copy wraps cleanly) and toward the original down the middle (where the copy
+	# has its seam); then the same down the tile.
+	lum = _wrap_blend(lum, w, h, true)
+	lum = _wrap_blend(lum, w, h, false)
 	var blend := Image.create(w, h, false, Image.FORMAT_RGBA8)
 	for y in h:
-		var wy := 1.0 - absf(2.0 * y / (h - 1) - 1.0)
 		for x in w:
-			var wx := 1.0 - absf(2.0 * x / (w - 1) - 1.0)
-			var k := minf(wx, wy)
-			var shifted := lum[((y + h / 2) % h) * w + (x + w / 2) % w]
-			var v := lum[y * w + x] * k + shifted * (1.0 - k)
+			var v := lum[y * w + x]
 			blend.set_pixel(x, y, Color(v, v, v))
 	blend.resize(SIZE, SIZE, Image.INTERPOLATE_BILINEAR)
+	# Take out the broad shading (a model's lit corner, a vignette): what is left is
+	# the lines, even across the tile, so no grid shows where tiles meet.
+	var broad := _broad(blend)
 	# Three flat tones, split at the 33rd and 66th percentiles.
 	var values := PackedFloat32Array()
 	for y in SIZE:
 		for x in SIZE:
-			values.append(blend.get_pixel(x, y).r)
+			values.append(blend.get_pixel(x, y).r - broad.get_pixel(x, y).r)
 	var sorted := values.duplicate()
 	sorted.sort()
 	var cut1: float = sorted[int(sorted.size() * 0.33)]

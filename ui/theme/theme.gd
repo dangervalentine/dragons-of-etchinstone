@@ -195,7 +195,8 @@ static func button(text: String, kind := "normal", icon_name := "") -> Button:
 		b.icon = icon(icon_name)
 		b.expand_icon = true
 		b.add_theme_constant_override("icon_max_width", 34)
-	style_button(b, kind)
+	# Feature 006: every button is a plinth of stone.
+	style_stone_button(b, kind)
 	press_feedback(b)
 	return b
 
@@ -269,6 +270,14 @@ static func stone_slab(edge_colour := T.GOLD, margin := 14) -> StyleBox:
 	return s
 
 
+## A PanelContainer drawn as a raised slab (menus, dialogs, the rulebook): the frame
+## every overlay shares from feature 006 on.
+static func slab(edge_colour := T.GOLD, margin := 14) -> PanelContainer:
+	var p := PanelContainer.new()
+	p.add_theme_stylebox_override("panel", stone_slab(edge_colour, margin))
+	return p
+
+
 static func stone_panel(kind: String, depth := 0.5) -> PanelContainer:
 	var p := PanelContainer.new()
 	p.add_theme_stylebox_override("panel", stone_box(kind, depth))
@@ -306,7 +315,7 @@ static func style_stone_button(b: Button, kind := "normal") -> void:
 	var off := StoneStyle.new("plinth", 0.3)
 	off.face = Color(T.BG_BASE, 0.45)
 	b.add_theme_stylebox_override("disabled", off)
-	var focus := box(Color.TRANSPARENT, T.GOLD, 3)
+	var focus := box(Color.TRANSPARENT, T.muted(T.GOLD), 3)
 	focus.set_expand_margin_all(4)
 	b.add_theme_stylebox_override("focus", focus)
 	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_hover_pressed_color"]:

@@ -45,7 +45,12 @@ func render(vs: Dictionary) -> void:
 	sigil.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	left.add_child(sigil)
 	var head := ("%s is defeated" % e.dragon) if e.won else "You have perished"
-	left.add_child(UI.label(head.to_upper(), ["display_bold", 54], colour, true))
+	# The verdict, inscribed in a slab of stone (feature 006).
+	var slab := UI.slab(colour, 16)
+	var verdict := UI.carved_label(head.to_upper(), ["display_bold", 50], colour)
+	verdict.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	slab.add_child(verdict)
+	left.add_child(slab)
 	if e.won:
 		left.add_child(UI.label("The hunt is over. Your cards carry the marks of every Region.", T.BODY, T.INK, true))
 	else:
@@ -65,7 +70,7 @@ func render(vs: Dictionary) -> void:
 	score_row.add_child(cap)
 	right.add_child(score_row)
 	if e.won:
-		var table := UI.panel(T.BG_SURFACE, T.LINE_SOFT, 1, T.RADIUS_M, 14)
+		var table := UI.slab(T.LINE_SOFT, 14)
 		var rows := UI.vbox(6)
 		for r in e.rows:
 			var line := UI.hbox(T.S)

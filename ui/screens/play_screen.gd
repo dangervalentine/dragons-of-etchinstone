@@ -271,7 +271,10 @@ func flare(target: String, colour: Color, kind: String, duration: float, card_id
 			node = header
 	if style == null:
 		return
-	var was_colour: Color = style.glow_colour
+	# Back to the zone's own resting colour, not whatever an overlapping answer left.
+	if not style.has_meta("rest_colour"):
+		style.set_meta("rest_colour", style.glow_colour)
+	var was_colour: Color = style.get_meta("rest_colour")
 	var was: float = style.glow
 	style.glow_colour = colour
 	if UI.reduced_motion:

@@ -4,6 +4,7 @@ extends Button
 
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
+const StoneStyle = preload("res://ui/theme/stone_style.gd")
 
 var selected := false: set = set_selected
 var accent: Color = T.GOLD
@@ -54,13 +55,26 @@ static func make(title: String, desc: String, emblem := "", colour: Color = T.GO
 
 func set_selected(on: bool) -> void:
 	selected = on
-	var bg: Color = T.BG_RAISED if on else T.BG_SURFACE
-	var border: Color = accent if on else T.LINE_SOFT
-	var w := 3 if on else 1
-	add_theme_stylebox_override("normal", UI.box(bg, border, w))
-	add_theme_stylebox_override("hover", UI.box(bg.lightened(0.06), accent, w + (0 if on else 1)))
-	add_theme_stylebox_override("pressed", UI.box(bg.darkened(0.1), accent, 3))
-	var focus := UI.box(Color.TRANSPARENT, T.GOLD, 3)
+	# A raised plinth of stone; the chosen one is edged in its (muted) accent and
+	# stands a little prouder.
+	var normal := StoneStyle.new("plinth", 0.35 if on else 0.6)
+	normal.edge = accent if on else Color(0, 0, 0, 0)
+	normal.edge_width = 3.0
+	var hover := StoneStyle.new("plinth", 0.25)
+	hover.edge = accent
+	hover.edge_width = 3.0 if on else 2.0
+	hover.face = Color(1, 1, 1, 0.04)
+	var down := StoneStyle.new("plinth", 0.7)
+	down.pressed = true
+	down.edge = accent
+	for st in [normal, hover, down]:
+		for side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
+			st.set_content_margin(side, T.S)
+	add_theme_stylebox_override("normal", normal)
+	add_theme_stylebox_override("hover", hover)
+	add_theme_stylebox_override("pressed", down)
+	add_theme_stylebox_override("hover_pressed", down)
+	var focus := UI.box(Color.TRANSPARENT, T.muted(T.GOLD), 3)
 	focus.set_expand_margin_all(4)
 	add_theme_stylebox_override("focus", focus)
 	if _title != null:

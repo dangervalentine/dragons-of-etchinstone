@@ -206,8 +206,8 @@ func _update_notice() -> void:
 func _switch(to: Control) -> void:
 	var old := screen
 	screen = to
-	# Stage 2 of feature 006: only the play screen stands on stone so far.
-	backdrop_layer.set_stone(to == play)
+	# Feature 006: every screen stands on the same ground.
+	backdrop_layer.set_stone(true)
 	_screen_host.add_child(to)
 	to.set_anchors_preset(Control.PRESET_FULL_RECT)
 	if old != null:

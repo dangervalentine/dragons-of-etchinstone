@@ -574,30 +574,30 @@ nothing ambient (contracts/board-life.md).
 
 **Independent Test**: quickstart §6.
 
-- [ ] T032 [US5] Make the stone global:
+- [X] T032 [US5] Make the stone global:
   - In `ui/main.gd`, call `backdrop_layer.set_stone(true)` on every screen.
   - In `ui/theme/theme.gd`, route `box`, `panel` and `raised_panel_box` to
     `StoneStyle`: `raised_panel_box("active")` → `well` with `glow` 1, `"rest"` →
     `well`, and `box`/`panel` → `inset` when the radius is ≤ `T.RADIUS_S`, else
     `well`. `style_button` delegates to `style_stone_button`.
   - Run `./tools/test.sh` and fix contrast or layout failures.
-- [ ] T033 [P] [US5] Title as **The Tear**, in `ui/screens/title_screen.gd`: the title in a
+- [X] T033 [P] [US5] Title as **The Tear**, in `ui/screens/title_screen.gd`: the title in a
   `lintel` via `UI.carved_label`, a flat `orn_rift` behind the dragon tiles, and the
   tiles as plinths. Keep every tile stat, Settings, Glossary, How to Play, Continue
   and the credits.
-- [ ] T034 [P] [US5] Rules setup as **the elders' proclamation**, in
+- [X] T034 [P] [US5] Rules setup as **the elders' proclamation**, in
   `ui/screens/rules_screen.gd`: a slab headed by `orn_tower` and "By order of the
   Tower", `orn_divider` between groups, and `orn_seal` on Continue. Keep every option.
-- [ ] T035 [P] [US5] Region banner as a **lintel**, in `ui/overlays/stage_banner.gd`.
+- [X] T035 [P] [US5] Region banner as a **lintel**, in `ui/overlays/stage_banner.gd`.
   Keep the number, name and glyph.
-- [ ] T036 [P] [US5] Ending as an **inscribed slab**, in `ui/screens/ending_screen.gd`,
+- [X] T036 [P] [US5] Ending as an **inscribed slab**, in `ui/screens/ending_screen.gd`,
   firing `encounter_won` or `encounter_lost` on the Encounter edge. Keep the verdict,
   summary, Play again and To title.
-- [ ] T037 [P] [US5] Rulebook and glossary as **scrolls**, in
+- [X] T037 [P] [US5] Rulebook and glossary as **scrolls**, in
   `ui/overlays/rulebook_overlay.gd` and `ui/overlays/glossary_popover.gd`: a slab with
   `orn_scroll_end` caps, and a small slab for the popover. Keep all content and
   navigation.
-- [ ] T038 [P] [US5] Inspect, menu, confirm and the size notice as **slabs**, in
+- [X] T038 [P] [US5] Inspect, menu, confirm and the size notice as **slabs**, in
   `ui/overlays/overlay.gd`, `inspect_overlay.gd`, `menu_overlay.gd`,
   `confirm_dialog.gd` and `size_notice.gd`. Keep every option and button.
 - [ ] T039 [US5] Run `./tools/test.sh` and the space audit. Take full screenshots

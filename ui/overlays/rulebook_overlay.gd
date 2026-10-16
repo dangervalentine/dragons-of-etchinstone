@@ -130,14 +130,28 @@ func fits() -> bool:
 
 # ---------------------------------------------------------------- frame
 
+var _caps := []
+
+
 func _build(content: Rect2) -> void:
 	_content = content
 	if _panel != null:
 		remove_child(_panel)
 		_panel.queue_free()
-	_panel = UI.panel(T.BG_SURFACE, T.LINE_SOFT, 1, T.RADIUS_M, PAD)
+	_panel = UI.slab(T.GOLD, PAD)
 	_panel.position = content.position
 	_panel.size = content.size
+	# A scroll: woodcut caps across the slab's top and bottom edges, drawn flat.
+	for c in _caps:
+		c.queue_free()
+	_caps = []
+	for top in [true, false]:
+		var cap := UI.icon_rect("orn_scroll_end", 10, T.muted(T.GOLD))
+		cap.custom_minimum_size = Vector2.ZERO
+		cap.size = Vector2(content.size.x * 0.4, 22)
+		cap.position = Vector2(content.position.x + content.size.x * 0.3, (content.position.y - 11) if top else (content.end.y - 11))
+		cap.flip_v = not top
+		_caps.append(cap)
 	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	var inner := content.size.x - PAD * 2 - COLUMN_GAP
 	_text_w = floorf(inner * 0.6)
@@ -184,6 +198,8 @@ func _build(content: Rect2) -> void:
 
 	_panel.add_child(col)
 	add_child(_panel)
+	for cap in _caps:
+		add_child(cap)
 
 
 ## A position that exists, falling back to the first page.

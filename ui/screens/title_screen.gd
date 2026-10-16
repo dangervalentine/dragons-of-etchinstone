@@ -1,6 +1,8 @@
 extends Control
 ## The title screen and first setup step: choose a dragon, then continue to the
-## difficulty and alternate rules.
+## difficulty and alternate rules. Framed as The Tear (feature 006): the game's name
+## cut into a lintel of stone, and a flat woodcut tear behind the dragons that came
+## out of it.
 
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
@@ -8,6 +10,7 @@ const ChoiceTile = preload("res://ui/widgets/choice_tile.gd")
 const Art = preload("res://ui/model/art.gd")
 const Creature = preload("res://ui/fx/creature.gd")
 const DragonStats = preload("res://ui/widgets/dragon_stats.gd")
+const StoneStyle = preload("res://ui/theme/stone_style.gd")
 
 signal intent(data: Dictionary)
 
@@ -38,6 +41,12 @@ func _build() -> void:
 	_layout = Control.new()
 	add_child(_layout)
 	apply_layout(_content)
+	# The Tear: drawn flat and faint behind the dragons, never lit or moving.
+	var tear := UI.icon_rect("orn_rift", 10, Color(T.muted(T.GOLD), 0.12))
+	tear.set_anchors_and_offsets_preset(Control.PRESET_RIGHT_WIDE)
+	tear.anchor_left = 0.36
+	tear.custom_minimum_size = Vector2.ZERO
+	_layout.add_child(tear)
 	var root := UI.hbox(T.XL)
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_layout.add_child(root)
@@ -54,7 +63,16 @@ func _build() -> void:
 	crest.setup(Art.dragon(options.dragon), T.ether(ether).lightened(0.15), ether)
 	crest.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	left.add_child(crest)
-	left.add_child(UI.label("DRAGONS OF\nETCHINSTONE", ["display_bold", 54], T.GOLD))
+	var lintel := PanelContainer.new()
+	var stone := StoneStyle.new("lintel", 0.4)
+	stone.edge = T.GOLD
+	for side in [SIDE_LEFT, SIDE_RIGHT]:
+		stone.set_content_margin(side, T.M)
+	for side in [SIDE_TOP, SIDE_BOTTOM]:
+		stone.set_content_margin(side, T.S)
+	lintel.add_theme_stylebox_override("panel", stone)
+	lintel.add_child(UI.carved_label("DRAGONS OF\nETCHINSTONE", ["display_bold", 50], T.GOLD))
+	left.add_child(lintel)
 	left.add_child(UI.label("A solo card game of four Regions and one dragon.", T.BODY, T.INK, true))
 	left.add_child(UI.spacer())
 	var tools := UI.hbox(T.S)

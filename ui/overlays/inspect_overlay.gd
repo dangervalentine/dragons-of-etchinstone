@@ -58,9 +58,9 @@ func setup(db, model: Dictionary, content: Rect2) -> void:
 func _framed(face: Control, current: bool) -> Control:
 	var p := PanelContainer.new()
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var s := UI.box(Color.TRANSPARENT, T.FOCUS if current else Color.TRANSPARENT, 3, T.RADIUS_CARD + 4, 4)
+	var s := UI.box(Color.TRANSPARENT, T.muted(T.FOCUS) if current else Color.TRANSPARENT, 3, T.RADIUS_CARD + 4, 4)
 	if current:
-		s.shadow_color = Color(T.FOCUS, 0.25)
+		s.shadow_color = Color(0, 0, 0, 0.35)
 		s.shadow_size = 14
 	p.add_theme_stylebox_override("panel", s)
 	p.add_child(face)

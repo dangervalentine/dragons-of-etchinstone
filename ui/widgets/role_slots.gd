@@ -58,16 +58,21 @@ func flare(card_id: String, colour: Color, duration: float) -> void:
 		if style.get("glow") == null:
 			continue
 		var was: float = style.glow
+		if not style.has_meta("rest_colour"):
+			style.set_meta("rest_colour", style.glow_colour)
+		var rest: Color = style.get_meta("rest_colour")
 		style.glow_colour = colour
 		if UI.reduced_motion:
 			style.glow = 1.0
 			b.get_tree().create_timer(T.BASE).timeout.connect(func():
 				if is_instance_valid(b):
-					style.glow = was)
+					style.glow = was
+					style.glow_colour = rest)
 			return
 		var tw := b.create_tween()
 		tw.tween_property(style, "glow", 1.0, duration * 0.3)
 		tw.tween_property(style, "glow", was, duration * 1.4)
+		tw.tween_callback(func(): style.glow_colour = rest)
 
 
 ## Global rectangle of a slot, for effects that aim at it.

@@ -17,7 +17,7 @@ var _ground_tiles := {}
 
 
 func setup(in_game: bool) -> void:
-	var p := UI.panel(T.BG_SURFACE, T.LINE_SOFT, 2, T.RADIUS_M, 24)
+	var p := UI.slab(T.GOLD, 24)
 	p.custom_minimum_size.x = 720
 	p.mouse_filter = Control.MOUSE_FILTER_STOP
 	var col := UI.vbox(T.M)

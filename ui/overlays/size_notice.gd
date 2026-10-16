@@ -9,7 +9,7 @@ signal dismissed
 
 
 func _init() -> void:
-	add_theme_stylebox_override("panel", UI.box(Color(T.BG_RAISED, 0.97), T.GOLD, 2, T.RADIUS_M, 16))
+	add_theme_stylebox_override("panel", UI.stone_slab(T.GOLD, 16))
 	var row := UI.hbox(T.M)
 	row.add_child(UI.icon_rect("regroup", 48, T.GOLD))
 	var touch := DisplayServer.is_touchscreen_available()

@@ -70,9 +70,18 @@ func _build() -> void:
 	left.add_child(UI.spacer())
 	root.add_child(left)
 
-	# Right: the choices.
+	# Right: the choices, as the elders' proclamation on a slab of stone.
+	var slab := UI.slab(T.GOLD, 14)
+	slab.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var right := UI.vbox(T.S)
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slab.add_child(right)
+	var decree := UI.hbox(T.S)
+	decree.add_child(UI.icon_rect("orn_tower", 34, T.muted(T.GOLD)))
+	var by_order := UI.carved_label("BY ORDER OF THE TOWER", ["display", 24], T.GOLD)
+	by_order.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	decree.add_child(by_order)
+	right.add_child(decree)
 	right.add_child(_heading("Difficulty"))
 	var diffs := GridContainer.new()
 	diffs.columns = 3
@@ -85,6 +94,10 @@ func _build() -> void:
 		diffs.add_child(tile)
 		_tiles["difficulty:" + entry[0]] = tile
 	right.add_child(diffs)
+	var divider := UI.icon_rect("orn_divider", 24, T.muted(T.GOLD))
+	divider.size_flags_horizontal = Control.SIZE_FILL
+	divider.custom_minimum_size = Vector2(0, 16)
+	right.add_child(divider)
 	right.add_child(_heading("Alternate rules"))
 	var rules := UI.hbox(T.S)
 	rules.custom_minimum_size.y = T.TAP_MIN
@@ -104,12 +117,12 @@ func _build() -> void:
 	back_button.pressed.connect(back)
 	bottom.add_child(back_button)
 	bottom.add_child(UI.spacer())
-	var start := UI.button("Set out", "primary")
+	var start := UI.button("Set out", "primary", "orn_seal")
 	start.custom_minimum_size.x = 240
 	start.pressed.connect(func(): intent.emit({"type": "start", "options": options.duplicate()}))
 	bottom.add_child(start)
 	right.add_child(bottom)
-	root.add_child(right)
+	root.add_child(slab)
 	_refresh()
 	start.grab_focus.call_deferred()
 

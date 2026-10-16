@@ -47,7 +47,7 @@ func _show_page() -> void:
 		_panel.queue_free()
 	var all: Array = Glossary.all()
 	var pages := ceili(all.size() / float(PER_PAGE))
-	var p := UI.panel(T.BG_SURFACE, T.LINE_SOFT, 1, T.RADIUS_M, 20)
+	var p := UI.slab(T.LINE_SOFT, 20)
 	p.position = _content.position
 	p.size = _content.size
 	_panel = p
