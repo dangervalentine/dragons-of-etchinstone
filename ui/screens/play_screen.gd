@@ -181,7 +181,8 @@ func _answer_slots(before: Array, animate: bool) -> void:
 			slots.flare(s.card_id, T.GOLD, T.BASE)
 
 
-func _fly_after_layout(label: Label, text: String, from: Vector2, colour: Color, set_index: int, role: String) -> void:
+func _fly_after_layout(label, text: String, from: Vector2, colour: Color, set_index: int, role: String) -> void:
+	# The slots may have been redrawn (and this label freed) before the frame came.
 	if not is_instance_valid(label):
 		return
 	var to := slots.number_rect(set_index, role).get_center()

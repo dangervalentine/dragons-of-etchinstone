@@ -33,7 +33,7 @@ var _frame := Control.new()
 var _picture := _layer()
 var _particles: CPUParticles2D
 var _still := false
-static var _dot: Texture2D
+
 
 
 func _init() -> void:
@@ -117,8 +117,8 @@ func _fit() -> void:
 		_particles.position = size / 2.0
 		_particles.emission_rect_extents = size * Vector2(0.34, 0.3)
 		var k := size.y / 300.0
-		# The dot is 32 pixels; these make specks of about 6 to 17 units at full size.
-		var small := 0.3 if element == "lightning" else 0.2
+		# The shapes are 64 pixels; these make them about 8 to 22 units at full size.
+		var small := 0.18 if element == "lightning" else 0.13
 		_particles.scale_amount_min = small * k
 		_particles.scale_amount_max = small * 2.6 * k
 		_particles.initial_velocity_min = _speed_range(element).x * k
@@ -136,26 +136,31 @@ static func _speed_range(ether: String) -> Vector2:
 	return Vector2(6, 16)
 
 
-## A soft round dot for every particle.
-static func _round_dot() -> Texture2D:
-	if _dot == null:
-		var g := GradientTexture2D.new()
-		g.width = 32
-		g.height = 32
-		g.fill = GradientTexture2D.FILL_RADIAL
-		g.fill_from = Vector2(0.5, 0.5)
-		g.fill_to = Vector2(1.0, 0.5)
-		var grad := Gradient.new()
-		grad.set_color(0, Color(1, 1, 1, 1))
-		grad.set_color(1, Color(1, 1, 1, 0))
-		g.gradient = grad
-		_dot = g
-	return _dot
+## Each Ether's particle as a flat woodcut shape (feature 006): a tongue of flame,
+## a drop of water, a forked spark, a curl of smoke. White, so the colour ramp tints
+## it. 64 pixels square; drawn once and shared.
+const SHAPES := {
+	"fire": '<path d="M32 3C41 17 53 27 50 43C48 56 39 61 32 61C25 61 15 56 14 43C13 33 21 28 24 17C26 26 29 29 32 31C34 22 30 13 32 3Z"/>',
+	"water": '<path d="M32 5C41 22 51 32 51 44C51 55 42 61 32 61C22 61 13 55 13 44C13 32 23 22 32 5Z"/>',
+	"lightning": '<path d="M39 2L17 35H30L23 62L49 24H36Z"/>',
+	"shadow": '<path d="M12 56C10 34 46 42 41 22C38 11 24 13 27 23" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round"/>',
+}
+static var _shapes := {}
+
+
+static func _shape(ether: String) -> Texture2D:
+	var key: String = ether if SHAPES.has(ether) else "shadow"
+	if not _shapes.has(key):
+		var svg := '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="#fff">%s</svg>' % SHAPES[key]
+		var img := Image.new()
+		img.load_svg_from_string(svg, 1.0)
+		_shapes[key] = ImageTexture.create_from_image(img)
+	return _shapes[key]
 
 
 func _make_particles(ether: String) -> CPUParticles2D:
 	var p := CPUParticles2D.new()
-	p.texture = _round_dot()
+	p.texture = _shape(ether)
 	p.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
 	p.local_coords = true
 	var c: Color = T.ether(ether).lightened(0.25)
@@ -192,6 +197,8 @@ func _make_particles(ether: String) -> CPUParticles2D:
 			p.spread = 180.0
 			p.damping_min = 120.0
 			p.damping_max = 200.0
+			p.angle_min = -35.0
+			p.angle_max = 35.0
 			ramp.set_color(0, Color(1, 1, 0.85, 1.0))
 			ramp.add_point(0.12, Color(c, 0.9))
 			ramp.add_point(0.22, Color(c, 0.0))
@@ -203,6 +210,10 @@ func _make_particles(ether: String) -> CPUParticles2D:
 			p.direction = Vector2(0.3, -1)
 			p.spread = 60.0
 			p.gravity = Vector2(0, -2)
+			p.angle_min = -180.0
+			p.angle_max = 180.0
+			p.angular_velocity_min = -20.0
+			p.angular_velocity_max = 20.0
 			var dark: Color = T.ether("shadow").darkened(0.15)
 			ramp.set_color(0, Color(dark, 0.0))
 			ramp.add_point(0.3, Color(dark, 0.75))

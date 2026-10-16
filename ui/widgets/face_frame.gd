@@ -60,6 +60,8 @@ func set_look(ether, sigil_name: String, art_name := "", crop := Art.FULL) -> vo
 	art = art_name
 	var tint: Color = T.ether(ether) if ether != null and ether != "" else T.LINE_SOFT.lightened(0.2)
 	_field.material.set_shader_parameter("tint", tint)
+	_field.material.set_shader_parameter("ether", T.ETHER_ID.get(ether, -1) if ether != null else -1)
+	_field.material.set_shader_parameter("motion", 0.0 if UI.reduced_motion else 1.0)
 	_creature.visible = art_name != ""
 	_sigil.visible = art_name == ""
 	if art_name != "":
