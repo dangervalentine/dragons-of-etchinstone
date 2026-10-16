@@ -14,8 +14,14 @@ const STEEL := Color("aaa6b8")
 var _shown := {}
 var _enemy := false
 
-## Room left around an enemy's figure when it fills the panel, in its 512 units.
-const ENEMY_PAD := 10.0
+## How much of an enemy's height shows: its top, with its feet below the frame.
+const ENEMY_SHOWN := 0.74
+## The least width shown, as a share of the figure's: room for its arms and weapon.
+const ENEMY_ROOM := 1.12
+## Room above the figure's top, as a share of its width.
+const ENEMY_HEADROOM := 0.08
+## The art panel's last size, to crop for before the panel is laid out.
+var _panel := Vector2(300, 250)
 ## Each figure's outline in its 512 units, measured once from its art.
 static var _bounds := {}
 
@@ -28,7 +34,10 @@ func render(enc: Dictionary) -> void:
 	var enemy: bool = enc.kind == "enemy"
 	_enemy = enemy
 	var d: Dictionary = enc.data
-	set_look(enc.element, "sigil_" + str(enc.element), enc.get("art", ""))
+	# An enemy keeps its cropped look from the first frame, whatever redraws it.
+	var art_name: String = enc.get("art", "")
+	set_look(enc.element, "sigil_" + str(enc.element), art_name,
+		enemy_crop(art_name, _panel) if enemy and art_name != "" else Art.FULL)
 
 	band.add_child(UI.icon_rect("enemy" if enemy else "journey", 34, T.ether_ink(enc.element)))
 	# Long names step down a size so they fit the band.
@@ -115,21 +124,27 @@ func _fit() -> void:
 				shield.custom_minimum_size = Vector2(b * 0.92, b * 0.92)
 		else:
 			c.custom_minimum_size = Vector2(b, b)
+	# Straight away, so the art never shows a frame at the frame's own square
+	# size; and again once the row has sorted.
+	_place_art()
 	_place_art.call_deferred()
 
 
-## The part of an enemy's art that fills a panel of `panel` size: the figure's full
-## width (with a little room) from just above its top down, as far as the panel's
-## shape allows, so its feet run off the bottom. Centred on the figure.
+## The part of an enemy's art shown in a panel of `panel` size: from just above the
+## figure's top down to about three-quarters of its height, so it stands large with
+## its feet below the frame, and room left at its sides. Centred on the figure.
 static func enemy_crop(name: String, panel: Vector2) -> Rect2:
-	var b := figure_bounds(name).grow(ENEMY_PAD)
-	var w := b.size.x
-	var h := w * panel.y / maxf(panel.x, 1.0)
-	# A figure taller than wide keeps the panel's shape by widening, centred.
-	if h > b.size.y:
-		h = b.size.y
-		w = h * panel.x / maxf(panel.y, 1.0)
-	return Rect2(b.get_center().x - w / 2.0, b.position.y, w, h)
+	var b := figure_bounds(name)
+	var ratio := panel.x / maxf(panel.y, 1.0)
+	var head := b.size.x * ENEMY_HEADROOM
+	# The top of the figure down to about three-quarters of its height...
+	var h := b.size.y * ENEMY_SHOWN + head
+	var w := h * ratio
+	# ...unless that would cut its sides: then wide enough for it with a little room.
+	if w < b.size.x * ENEMY_ROOM:
+		w = b.size.x * ENEMY_ROOM
+		h = w / ratio
+	return Rect2(b.get_center().x - w / 2.0, b.position.y - head, w, h)
 
 
 ## Where a figure's art is drawn within its 512-unit square: the box round every
@@ -172,11 +187,12 @@ func _place_art() -> void:
 	_field.size = _art_rect.size
 	_field.material.set_shader_parameter("size", _art_rect.size)
 	if art != "" and _enemy:
-		# An enemy fills the panel's width: the art is cropped from the top of the
-		# figure down, as wide as the figure, and its feet run off the bottom.
+		# An enemy fills the panel, cropped from the top of the figure down (see
+		# enemy_crop), so it stands large with its feet below the frame.
 		_creature.position = _art_rect.position
 		_creature.size = _art_rect.size
-		_creature.crop = enemy_crop(art, _art_rect.size)
+		_panel = _art_rect.size
+		_creature.crop = enemy_crop(art, _panel)
 	elif art != "":
 		var a := minf(_art_rect.size.x, _art_rect.size.y) * 0.96
 		_creature.size = Vector2(a, a)
