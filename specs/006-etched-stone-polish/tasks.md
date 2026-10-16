@@ -514,7 +514,7 @@ before stage B. This is a look, not a gate.
      Send the four screenshots to the owner (SendUserFile) and ask which ground to
      keep (research R5 step 3). Only then write and commit the chosen
      `art/stone/grain.png` (and its `.import`).
-- [ ] T027 [US3] Run `./tools/test.sh`, including `test_stone_contrast` on the shipped
+- [X] T027 [US3] Run `./tools/test.sh`, including `test_stone_contrast` on the shipped
   tile, plus the bench and the space audit. Take
   `godot --path . -s tools/shot.gd -- build/006-us3r2 phone-16x9 desktop`.
 
