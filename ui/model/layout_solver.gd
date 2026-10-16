@@ -111,9 +111,10 @@ static func action_width(set_count: int) -> float:
 ## height the face on show needs (T.ENCOUNTER_MIN, or T.DRAGON_MIN in the Final
 ## Battle); the preview never takes that from it.
 ##
-## The right column: the slot band at the top, with the action column beside it
-## (secondary actions in its top row, Play in its bottom row, both full width), and the Hand under both,
-## down to the bottom. With no sets the band shrinks to the action column's one row.
+## The right column: the Hand at the top, and under it the slot band with the action
+## column beside it (secondary actions in its top row, Play in its bottom row, both
+## full width), at the foot of the column. With no sets the band shrinks to the
+## action column's one row.
 static func solve(view: Vector2, safe: Rect2, hand_count := 4, set_count := 1, points_per_unit := 0.5, preview_needed := 0.0, encounter_min: int = T.ENCOUNTER_MIN) -> Dictionary:
 	var left := maxf(safe.position.x, T.M)
 	var top := maxf(safe.position.y, T.M)
@@ -156,19 +157,20 @@ static func solve(view: Vector2, safe: Rect2, hand_count := 4, set_count := 1, p
 			var used: float = CARD_LIFT + fit.rows * fit.size.y + (fit.rows - 1) * GAP + HAND_TOP_AIR
 			spare = minf(spare, room - used)
 		band_h = minf(SLOT_BAND_H + floorf(maxf(0.0, spare) / 2.0), SLOT_BAND_MAX)
-	var actions := Rect2(c.end.x - action_w, body_y, action_w, band_h)
+	# The band sits at the foot of the right column, under the Hand (owner, stage C).
+	var band_y := c.end.y - band_h
+	var actions := Rect2(c.end.x - action_w, band_y, action_w, band_h)
 	# One column: the secondary actions in a row across the top half, Play across the
 	# bottom half, both the column's full width. With no sets Play has it all.
 	var commit_h: float = band_h if set_count == 0 else floorf((band_h - T.S) / 2.0)
 	var commit := Rect2(actions.position.x, actions.end.y - commit_h, action_w, commit_h)
-	var slots := Rect2(right_x, body_y, actions.position.x - GAP - right_x, band_h if set_count > 0 else 0.0)
-	var hand_y := body_y + band_h + GAP
+	var slots := Rect2(right_x, band_y, actions.position.x - GAP - right_x, band_h if set_count > 0 else 0.0)
 	var regions := {
 		"header": Rect2(c.position.x, c.position.y, c.size.x, HEADER_H),
 		"encounter": Rect2(c.position.x, body_y, left_w, encounter_h),
 		"preview": Rect2(c.position.x, body_y + encounter_h + GAP, left_w, preview_h),
 		"slots": slots,
-		"hand": Rect2(right_x, hand_y, right_w, c.end.y - hand_y),
+		"hand": Rect2(right_x, body_y, right_w, band_y - GAP - body_y),
 		"actions": actions,
 		"commit": commit,
 	}

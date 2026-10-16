@@ -176,6 +176,25 @@ _Record observer results, bench numbers and the owner's decisions here._
   - **Not checked:** stutter on Android (no emulator running) and on the served web
     build.
 
+### Stage C (T032–T039, revision 2), 2026-10-15
+
+- **Every screen restyled.** It stands on the chosen ground:
+  - the title as The Tear (a lintel, and a faint flat tear behind the dragons);
+  - rules setup as the elders' proclamation (a slab, "By order of the Tower", a
+    divider, a seal on Set out);
+  - the Region banner as a lintel, the ending verdict inscribed in a slab;
+  - the rulebook as a scroll (a slab with scroll-end caps);
+  - the glossary, inspect, menu, confirm and size notice as slabs;
+  - every button as a stone plinth.
+- **Ground tiles fixed.** The first tiles showed a grid where the seam blend crossed
+  the tile's centre lines. The blend is now done in two passes, across and then down,
+  and the broad shading is taken out before the three tones.
+- **Owner, while reviewing:**
+  - the play screen's Hand moves to the top of the right column, and the slots,
+    actions and Play go beneath it;
+  - the size of Play and the slot columns gets a later pass ("we will revisit the
+    layout of the touch targets on this page later").
+
 ### Stage B sign-off (T031, revision 2), 2026-10-15
 
 The owner saw before/after pairs (a placed set, the Final Journey, Soak) and the menu.

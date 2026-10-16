@@ -120,8 +120,8 @@ func test_region_order_is_the_same_for_every_step() -> void:
 	for key in ["header", "encounter", "preview"]:
 		eq(a.regions[key], b.regions[key], key + " does not move between steps")
 	for plan in [a, b]:
-		eq(plan.regions.slots.end.y + Solver.GAP, plan.regions.hand.position.y, "the Hand starts just under the slots")
-		eq(plan.regions.slots.position.y, plan.regions.encounter.position.y, "the slots are at the top of the body")
+		eq(plan.regions.hand.end.y + Solver.GAP, plan.regions.slots.position.y, "the slots start just under the Hand")
+		eq(plan.regions.hand.position.y, plan.regions.encounter.position.y, "the Hand is at the top of the body")
 		eq(plan.regions.commit.end, plan.regions.actions.end, "Play keeps its corner of the action column")
 
 
@@ -239,11 +239,12 @@ func test_slot_band_and_action_column() -> void:
 			ok(slot_w >= T.TAP_MIN, "%s: each slot %.0f wide, at least %d" % [what, slot_w, T.TAP_MIN])
 
 
-func test_no_button_row_under_the_hand() -> void:
+func test_the_band_is_at_the_foot_with_nothing_under_it() -> void:
 	for name in Solver.MATRIX:
-		for shape in [[4, 1], [7, 2], [5, 1]]:
+		for shape in [[4, 1], [7, 2], [5, 1], [8, 0]]:
 			var plan := _plan(name, shape[0], shape[1])
-			eq(plan.regions.hand.end.y, plan.content.end.y, "%s %s: the Hand reaches the bottom" % [name, str(shape)])
+			eq(plan.regions.actions.end.y, plan.content.end.y, "%s %s: the action column reaches the bottom" % [name, str(shape)])
+			eq(plan.regions.hand.end.y + Solver.GAP, plan.regions.actions.position.y, "%s %s: right under the Hand" % [name, str(shape)])
 
 
 func test_the_encounter_keeps_its_height() -> void:
