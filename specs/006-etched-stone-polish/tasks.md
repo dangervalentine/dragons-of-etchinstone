@@ -70,7 +70,7 @@ The revision 1 task list is in git history (`git show 2ef4ccb:specs/006-etched-s
   (`specs/006-etched-stone-polish/`: spec, plan, research, data-model, contracts,
   quickstart, checklist, this file). Message: "006 revision 2: slots with numbers, the
   math box, raised boxes on a flat ground".
-- [ ] T002 Take the revision 1 reference screenshots:
+- [X] T002 Take the revision 1 reference screenshots:
   `godot --path . -s tools/shot.gd -- build/006-rev1 phone-16x9 desktop`.
   Confirm `build/006-rev1/phone-16x9/05_challenge_assigned.png` exists. build/ is
   git-ignored.
@@ -86,7 +86,7 @@ The revision 1 task list is in git history (`git show 2ef4ccb:specs/006-etched-s
 
 ### Tests (write first; they must fail)
 
-- [ ] T003 Create `tests/test_terms.gd`. For a game built per seed in `range(1, 13)` with
+- [X] T003 Create `tests/test_terms.gd`. For a game built per seed in `range(1, 13)` with
   each dragon, walk every Region Encounter by forcing the Key Card: set the game's Key
   Card the way `tests/test_rules.gd` and `tests/test_game.gd` already do; reuse their
   helpers.
@@ -122,7 +122,7 @@ The revision 1 task list is in git history (`git show 2ef4ccb:specs/006-etched-s
 
 ### Implementation
 
-- [ ] T004 In `engine/rules.gd` `resolve_enemy`, build `var terms := []` from the
+- [X] T004 In `engine/rules.gd` `resolve_enemy`, build `var terms := []` from the
   existing locals and add `"terms": terms` to the result. Each term is
   `{"sum", "label", "source", "value", "card": null, "note"}`.
   - **`attack`**:
@@ -145,14 +145,14 @@ The revision 1 task list is in git history (`git show 2ef4ccb:specs/006-etched-s
   - **`time`**: Hazards.
   - **Emit only non-zero terms**, except the Spell term, which is always present.
   - Do not change any other line's arithmetic.
-- [ ] T005 In `engine/rules.gd` `resolve_journey`, do the same:
+- [X] T005 In `engine/rules.gd` `resolve_journey`, do the same:
   - **`move`**: Spell; Boost (with the Night Travel line); Reserve `reserve_boost`,
     when the enhanced action matches the MP's Ether.
   - **`target`**: MP `journey.mp.value`, plus Steep `reserve_boost` when the peril is
     Steep.
   - **`damage`**: Treacherous 1; Storm.
   - **`time`**: the time penalty, labelled "Time Penalty".
-- [ ] T006 In `engine/game.gd`:
+- [X] T006 In `engine/game.gd`:
   - **Final Battle terms.** Add `terms` to `_final_journey` (`move`: "Spell 1",
     "Boost 1", "Spell 2", "Boost 2", "Reserve") and to `_final_enemy`:
     - `attack`: "Spell 1", "Boost 1", "Spell 2", "Boost 2" (Boosts only when to

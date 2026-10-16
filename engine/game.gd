@@ -159,12 +159,31 @@ func play(action: Dictionary) -> String:
 ## What play(action) would resolve to, without doing it. A refused action
 ## comes back as {"error": message}.
 func preview(action: Dictionary) -> Dictionary:
+	return _resolve(action, true)
+
+
+## preview(action) for a set still being built: the same result and `terms`, plus
+## `complete`, which is false while a Role the set needs is empty. Then the outcome
+## and its consequences are not yet meaningful; only the terms so far are.
+func explain(action: Dictionary) -> Dictionary:
+	var r := _resolve(action, false)
+	if r.has("error"):
+		return r
+	r["complete"] = not preview(action).has("error")
+	_note_cards(r.terms, [action], action.get("fuse"))
+	return r
+
+
+## preview or explain: with `strict` false, an incomplete set is resolved as it stands.
+func _resolve(action: Dictionary, strict: bool) -> Dictionary:
 	if phase != "challenge":
 		return {"error": "There is no Encounter to play."}
 	var err := _check_fuse(action.get("fuse"), [action])
 	if err == "":
 		err = _check_set(action)
-	if err == "" and not action.has("spell"):
+	if err == "An Action Set needs a Spell." and not strict:
+		err = ""
+	if err == "" and not action.has("spell") and strict:
 		err = "An Action Set needs a Spell."
 	if err != "":
 		return {"error": err}
@@ -172,7 +191,7 @@ func preview(action: Dictionary) -> Dictionary:
 	if fuse != null and hand.size() < HAND_SIZE:
 		return {"error": "You need a full Hand to Fuse."}
 	var free := hand.size() - (1 if fuse != null else 0)
-	if free >= ROLES.size() and _roles(action).size() < ROLES.size():
+	if strict and free >= ROLES.size() and _roles(action).size() < ROLES.size():
 		return {"error": "Assign a Spell, an Element and a Boost."}
 
 	var reserve = _reserve([action], fuse)
@@ -184,6 +203,25 @@ func preview(action: Dictionary) -> Dictionary:
 	if enc.kind == "enemy":
 		return Rules.resolve_enemy(enc.data, enc.hardship, s)
 	return Rules.resolve_journey(enc.data, enc.hardship, s)
+
+
+## Reporting only: set `card` on the Spell, Element and Boost terms from the sets'
+## ids (labels "Spell 1", "Boost 2"… in the Final Battle), and note a fused Element.
+func _note_cards(terms: Array, sets: Array, fuse) -> void:
+	var labels := {"Spell": "spell", "Element": "element", "Boost": "boost"}
+	for t in terms:
+		var parts: PackedStringArray = t.label.split(" ")
+		if not labels.has(parts[0]):
+			continue
+		var i := int(parts[1]) - 1 if parts.size() > 1 else 0
+		if i < 0 or i >= sets.size():
+			continue
+		t.card = sets[i].get(labels[parts[0]])
+		if fuse == null or sets[i].get("element") != fuse.top:
+			continue
+		var fused := "fused: " + str(fuse.element).capitalize()
+		if parts[0] == "Element" or (parts[0] == "Spell" and t.note.begins_with("enhanced")):
+			t.note = fused if t.note == "" else t.note + "; " + fused
 
 
 ## Downgrade the given Hand cards, in order, to Soak the damage due.
@@ -315,6 +353,20 @@ func play_final(action: Dictionary) -> String:
 
 ## What play_final(action) would resolve to, without doing it.
 func preview_final(action: Dictionary) -> Dictionary:
+	return _resolve_final(action, true)
+
+
+## preview_final(action) for sets still being built, with `complete` (see explain()).
+func explain_final(action: Dictionary) -> Dictionary:
+	var r := _resolve_final(action, false)
+	if r.has("error"):
+		return r
+	r["complete"] = not preview_final(action).has("error")
+	_note_cards(r.terms, action.get("sets", []), action.get("fuse"))
+	return r
+
+
+func _resolve_final(action: Dictionary, strict: bool) -> Dictionary:
 	if phase != "final_journey" and phase != "final_enemy":
 		return {"error": "This is not the Final Battle."}
 	var sets: Array = action.get("sets", [])
@@ -327,12 +379,14 @@ func preview_final(action: Dictionary) -> Dictionary:
 	for s in sets:
 		if err == "":
 			err = _check_set(s, used)
+			if err == "An Action Set needs a Spell." and not strict:
+				err = ""
 		used.append_array(_roles(s).values())
 		role_count += _roles(s).size()
 	if err != "":
 		return {"error": err}
 	var free := hand.size() - (1 if fuse != null else 0)
-	if role_count < mini(2 * ROLES.size(), free):
+	if strict and role_count < mini(2 * ROLES.size(), free):
 		return {"error": "Assign a Spell, an Element and a Boost in both Action Sets."}
 	var stats := sets.map(func(s): return _set_stats(s, fuse))
 	if phase == "final_journey":
@@ -355,22 +409,30 @@ func _final_journey(sets: Array, stats: Array, fuse) -> Dictionary:
 	var tiers: Array = dragon.mp_tiers
 	var move := 0
 	var matched := false
-	for s in stats:
+	var terms := []
+	for i in stats.size():
+		var s: Dictionary = stats[i]
 		var act := Rules.action(s.spell, s.element, ["move"])
 		move += act.value + s.boost
 		matched = matched or (act.enhanced and act.element == tiers[0].mp.element)
+		_final_spell_term(terms, "move", i, s, act)
+		Rules._term(terms, "move", "Boost %d" % (i + 1), "boost", s.boost, null)
 	var reserve = _reserve(sets, fuse)
 	if matched and reserve != null:
 		move += level_data(reserve).boost
+		Rules._term(terms, "move", "Reserve", "reserve", level_data(reserve).boost, reserve,
+			"enhanced Ether matches the MP")
 	var tier := _tier(move, tiers.map(func(t): return t.mp.value))
-	return {"move": move, "tier": tier,
-		"time_penalty": tiers[tier].time_penalty if tier >= 0 else 0}
+	var time_penalty: int = tiers[tier].time_penalty if tier >= 0 else 0
+	Rules._term(terms, "time", "Tier time", "dragon", time_penalty, null)
+	return {"move": move, "tier": tier, "time_penalty": time_penalty, "terms": terms}
 
 
 func _final_enemy(sets: Array, stats: Array) -> Dictionary:
 	var attack := 0
 	var initiative := 0
 	var elements := []
+	var terms := []
 	for i in stats.size():
 		var s: Dictionary = stats[i]
 		var to_initiative: bool = sets[i].get("boost_to", "attack") == "initiative"
@@ -379,20 +441,38 @@ func _final_enemy(sets: Array, stats: Array) -> Dictionary:
 		initiative += s.initiative + (s.boost if to_initiative else 0)
 		if act.enhanced:
 			elements.append(act.element)
+		_final_spell_term(terms, "attack", i, s, act)
+		Rules._term(terms, "initiative" if to_initiative else "attack", "Boost %d" % (i + 1), "boost", s.boost, null)
+		Rules._term(terms, "initiative", "Element %d" % (i + 1), "element", s.initiative, null)
+	var pre_armor := attack
 	attack = maxi(0, attack - Rules._armor(dragon.armor, elements))
+	Rules._term(terms, "attack", "Armor", "armor", attack - pre_armor, null)
 	var tiers: Array = dragon.hp_tiers
 	var tier := _tier(attack, tiers.map(func(t): return t.hp))
 	var early: bool = initiative < dragon.initiative
 	var out := {"attack": attack, "initiative": initiative, "tier": tier, "early": early,
-		"damage": 0, "survivable": false}
+		"damage": 0, "survivable": false, "terms": terms}
 	if tier < 0:
 		return out
 	out.damage = tiers[tier].attack.value + (dragon.early_damage.value if early else 0) + carried_damage
+	Rules._term(terms, "damage", "Tier attack", "dragon", tiers[tier].attack.value, null)
+	if early:
+		Rules._term(terms, "damage", "Early damage", "dragon", dragon.early_damage.value, null)
+	Rules._term(terms, "damage", "Carried damage", "dragon", carried_damage, null,
+		"Final Journey time the deck could not pay")
 	var capacity := 0
 	for id in hand:
 		capacity += Rules.soak_value(level_data(id), dragon.early_damage.element, options.get("glass_cannon", false))
 	out.survivable = capacity >= out.damage
 	return out
+
+
+## The Final Battle Spell line for set `i`, labelled "Spell 1" or "Spell 2".
+func _final_spell_term(terms: Array, sum: String, i: int, s: Dictionary, act: Dictionary) -> void:
+	var before := terms.size()
+	Rules._spell_term(terms, sum, s, act)
+	if terms.size() > before:
+		terms[before].label = "Spell %d" % (i + 1)
 
 
 ## Index of the highest tier reached, or -1.
