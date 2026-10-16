@@ -21,7 +21,7 @@ void fragment() {
 	vec2 p = UV * size / 20.0;
 	float px = 1.0 / 20.0;
 	int tone = ether < 0 ? 0 : ether_tone(ether, p, UV, TIME * motion, px);
-	float k = tone == 0 ? 0.30 : (tone == 1 ? 0.40 : 0.52);
+	float k = tone == 0 ? 0.28 : (tone == 1 ? 0.42 : 0.58);
 	vec3 rgb = tint.rgb * k;
 	float grey = dot(rgb, vec3(0.299, 0.587, 0.114));
 	COLOR = vec4(mix(rgb, vec3(grey), dim), COLOR.a);
