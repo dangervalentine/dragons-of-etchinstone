@@ -523,7 +523,7 @@ func _glow_rim(pts: PackedVector2Array, amount: float) -> void:
 		return
 	var closed := pts.duplicate()
 	closed.append(pts[0])
-	_ink.draw_polyline(closed, Color(T.FOCUS, amount), maxf(2.0, size.x * 0.012), true)
+	_ink.draw_polyline(closed, Color(T.muted(T.FOCUS), amount), maxf(2.0, size.x * 0.012), true)
 
 
 ## Marks a figure that would change. The outline follows the figure's own shape and

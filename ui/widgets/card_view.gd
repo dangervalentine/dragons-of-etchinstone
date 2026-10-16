@@ -240,7 +240,7 @@ func _draw_marks() -> void:
 	var state: String = model.get("state", "available")
 	var outline := Color.TRANSPARENT
 	if state == "assigned" or state == "selected":
-		outline = T.GOLD
+		outline = T.muted(T.GOLD)
 	elif _hover and model.get("eligible", true):
 		outline = T.INK
 	if outline.a > 0.0:
@@ -253,11 +253,11 @@ func _draw_marks() -> void:
 		_marks.draw_style_box(s, Rect2(Vector2.ZERO, size))
 	var boosting: bool = model.get("reserve_boosts", false)
 	if state == "reserve":
-		_dashed_outline(T.GOLD if boosting else T.INK_MUTED)
+		_dashed_outline(T.muted(T.GOLD) if boosting else T.INK_MUTED)
 
 	var ribbon := ""
 	var ribbon_icon := ""
-	var ribbon_bg := T.GOLD
+	var ribbon_bg := T.GOLD_FACE
 	var ribbon_ink := T.BG_BASE
 	if state == "assigned":
 		var role: Array = model.role

@@ -51,6 +51,13 @@ const ETHER_ID := {"fire": 0, "water": 1, "lightning": 2, "shadow": 3}
 const DISABLED_ALPHA := 0.45
 ## The rim and glow on whatever matters in the current step, on cards and slots alike.
 const FOCUS := Color("ffe08a")
+## How far an accent drawn as an edge or a face (a selected card's border, a slot's
+## Ether edge, Play's gold) steps toward the boxes' face colour, so it sits with the
+## muted ground rather than shouting over it (owner, stage B review). Text and
+## numerals keep their full colours.
+const ACCENT_MUTE := 0.4
+## Play's gold face, muted: BG_BASE text on it keeps well over 4.5:1.
+const GOLD_FACE := Color("c9ad62")
 ## The near-black of a Mage Card's frame and bands.
 const CARD_FRAME := Color("0d0b10")
 ## The Key Card strip under the name.
@@ -129,6 +136,12 @@ static func ether_shade(element, role: String) -> Color:
 			var plate := ether_shade(element, "plate")
 			return INK if ratio(INK, plate) >= ratio(BG_BASE, plate) else BG_BASE
 	return base
+
+
+## An accent colour as an edge or a fill: desaturated and stepped toward BG_RAISED.
+static func muted(c: Color) -> Color:
+	var grey := Color(c.get_luminance(), c.get_luminance(), c.get_luminance(), c.a)
+	return c.lerp(grey, 0.25).lerp(Color(BG_RAISED, c.a), ACCENT_MUTE)
 
 
 ## An Ether as text or an icon on the dark panels: its lit shade, which keeps 3:1.

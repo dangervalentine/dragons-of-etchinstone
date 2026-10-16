@@ -556,7 +556,7 @@ nothing ambient (contracts/board-life.md).
 
 ## Stage B sign-off (US3 scenario 4 — exit point)
 
-- [ ] T031 Build before/after pairs for `05_challenge_assigned`, `12_final_journey` and
+- [X] T031 Build before/after pairs for `05_challenge_assigned`, `12_final_journey` and
   `07_soak` (before from `build/006-before/phone-16x9`, after from a fresh
   `tools/shot.gd -- build/006-after phone-16x9`), with the scratchpad's `pair.gd` or
   any stacking script. Send them to the owner (SendUserFile) and ask which looks more

@@ -176,6 +176,23 @@ _Record observer results, bench numbers and the owner's decisions here._
   - **Not checked:** stutter on Android (no emulator running) and on the served web
     build.
 
+### Stage B sign-off (T031, revision 2), 2026-10-15
+
+The owner saw before/after pairs (a placed set, the Final Journey, Soak) and the menu.
+**Approved: "yes, i like the look"**, so stage C goes ahead. Changes asked for along
+the way:
+- **Grounds.** Keep all four, chosen in the menu (research R5, Outcome).
+- **Action column.** One column, with Play the same width as the action row.
+  Cancel shares that row.
+- **Accents.** Borders and selection colours were too bold for the muted ground.
+  Now muted (`T.muted`, `T.ACCENT_MUTE` 0.4, `T.GOLD_FACE` for Play):
+  - the selected card borders and the focus rims on the cards;
+  - the slot and Encounter edges, and the waiting zone's edge;
+  - the pill borders;
+  - Play's face.
+
+  Text and numerals keep their full colours.
+
 ### Stage 2 sign-off (T040), 2026-10-15
 
 The owner saw the before/after play screens (placing cards, the Final Journey, Soak)

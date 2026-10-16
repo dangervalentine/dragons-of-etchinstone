@@ -117,5 +117,5 @@ func _draw() -> void:
 func _draw_edge() -> void:
 	var pts := _stone.outline(Rect2(Vector2.ZERO, size), EDGE / 2.0)
 	pts.append(pts[0])
-	var colour: Color = T.ether(element) if element != null and element != "" else T.LINE_SOFT
+	var colour: Color = T.muted(T.ether(element)) if element != null and element != "" else T.LINE_SOFT
 	_edge.draw_polyline(pts, colour, EDGE, true)

@@ -282,10 +282,10 @@ static func style_stone_button(b: Button, kind := "normal") -> void:
 	var leaf := Color(0, 0, 0, 0)
 	match kind:
 		"primary":
-			leaf = T.GOLD
+			leaf = T.GOLD_FACE
 			ink = T.BG_BASE
 		"warning":
-			leaf = T.BAD
+			leaf = T.BAD.lerp(T.BG_RAISED, 0.2)
 			ink = T.BG_BASE
 	var normal := StoneStyle.new("plinth", 0.3 if kind == "quiet" else 0.5)
 	normal.face = leaf

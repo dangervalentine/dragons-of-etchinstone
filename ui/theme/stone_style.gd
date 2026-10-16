@@ -110,9 +110,10 @@ func _draw(ci: RID, rect: Rect2) -> void:
 	# changes its edge colour (and widens it a little); nothing glows.
 	var closed := pts.duplicate()
 	closed.append(pts[0])
+	# Edges are drawn muted (T.muted), so they sit with the ground.
 	if glow > 0.0:
-		rs.canvas_item_add_polyline(ci, closed, PackedColorArray([Color(glow_colour, 0.6 + 0.4 * glow)]), 3.0, true)
+		rs.canvas_item_add_polyline(ci, closed, PackedColorArray([Color(T.muted(glow_colour), 0.6 + 0.4 * glow)]), 3.0, true)
 	elif edge.a > 0.0:
-		rs.canvas_item_add_polyline(ci, closed, PackedColorArray([edge]), edge_width, true)
+		rs.canvas_item_add_polyline(ci, closed, PackedColorArray([T.muted(edge)]), edge_width, true)
 	else:
 		rs.canvas_item_add_polyline(ci, closed, PackedColorArray([Color(0, 0, 0, 0.6)]), 2.0, true)

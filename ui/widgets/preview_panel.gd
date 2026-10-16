@@ -354,9 +354,10 @@ func _pill(text: String, icon_name: String, element: String, colour: Color, help
 	var b := HelpButton.new()
 	b.custom_minimum_size = Vector2(64, 44)
 	HelpTip.mark(b, help_id)
-	b.add_theme_stylebox_override("normal", UI.box(Color(colour, 0.16), colour, 2, 22, 4))
-	b.add_theme_stylebox_override("hover", UI.box(Color(colour, 0.3), colour, 2, 22, 4))
-	b.add_theme_stylebox_override("pressed", UI.box(Color(colour, 0.4), colour, 2, 22, 4))
+	var edge := T.muted(colour)
+	b.add_theme_stylebox_override("normal", UI.box(Color(colour, 0.12), edge, 2, 22, 4))
+	b.add_theme_stylebox_override("hover", UI.box(Color(colour, 0.24), edge, 2, 22, 4))
+	b.add_theme_stylebox_override("pressed", UI.box(Color(colour, 0.32), edge, 2, 22, 4))
 	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 	var row := UI.hbox(4)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
