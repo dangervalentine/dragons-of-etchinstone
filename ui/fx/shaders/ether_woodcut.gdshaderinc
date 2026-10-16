@@ -42,19 +42,28 @@ float wc_seg(vec2 p, vec2 a, vec2 b) {
 // t: seconds (0 to hold still). Returns 0, 1 or 2.
 int ether_tone(int ether, vec2 p, vec2 uv, float t, float px) {
 	if (ether == 0) {
-		// Fire. Each tongue's height wavers with noise that climbs, so the flames lick.
+		// Fire. Each tongue is a triangle wave raised to a power under 1: full, rounded
+		// sides, a sharp tip and a narrow gap between tongues. Its height swells and
+		// drops with noise that climbs, and the row sways, so the flames lick.
 		float rise = t * 0.9;
-		float h1 = 0.42 + 0.30 * wc_fbm(vec2(p.x * 0.55, rise * 0.6)) + 0.10 * sin(p.x * 1.9 + t * 2.3);
-		float h2 = h1 - 0.16 - 0.06 * wc_noise(vec2(p.x * 0.9 + 3.0, rise));
+		float bend = (wc_fbm(vec2(p.x * 0.3, rise * 0.4)) - 0.5) * 2.0;
+		float tip1 = pow(1.0 - abs(fract(p.x * 0.24 + bend * 0.3) - 0.5) * 2.0, 0.55);
+		float lick1 = 0.55 + 0.45 * wc_fbm(vec2(floor(p.x * 0.24 + bend * 0.3) * 3.7, rise * 0.7));
+		float h1 = 0.18 + 0.62 * tip1 * lick1;
+		// The inner flame: its own narrower, quicker tongues, always inside the outer.
+		float tip2 = pow(1.0 - abs(fract(p.x * 0.41 + bend * 0.45 + 0.35) - 0.5) * 2.0, 0.6);
+		float lick2 = 0.5 + 0.5 * wc_fbm(vec2(floor(p.x * 0.41 + bend * 0.45 + 0.35) * 5.1, rise * 1.1 + 4.0));
+		float h2 = min(0.08 + 0.48 * tip2 * lick2, h1 - 0.06);
 		float y = 1.0 - uv.y;
-		// The outer flame, the inner flame, and carved strokes rising through both.
-		float wobble = (wc_fbm(vec2(p.x * 0.8, p.y * 0.5 - rise)) - 0.5) * 0.9;
-		float strokes = wc_cut(fract(p.x * 0.55 + wobble * (0.3 + y)) - 0.5, 0.09, px * 0.55);
+		// A thin carved line along the inner flame's edge, as on a woodcut flame.
+		if (abs(y - h2) < 0.012) {
+			return 0;
+		}
 		if (y < h2) {
-			return strokes > 0.5 ? 1 : 2;
+			return 2;
 		}
 		if (y < h1) {
-			return strokes > 0.5 ? 0 : 1;
+			return 1;
 		}
 		// Sparks of flame breaking off above the tongues.
 		vec2 cell = floor(vec2(p.x * 0.8, p.y * 0.8 - rise * 1.4));
