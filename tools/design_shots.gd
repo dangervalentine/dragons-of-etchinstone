@@ -4,12 +4,16 @@ extends SceneTree
 
 const WINDOW := Vector2i(2142, 960)
 
+const HistoryStore = preload("res://ui/model/history_store.gd")
+
 var out := "."
 var ui
 var n := 0
 
 
 func _initialize() -> void:
+	# Games played here are recorded in their own folder, never the player's records.
+	HistoryStore.use_empty("user://tool_history/")
 	var args := OS.get_cmdline_user_args()
 	if args.size() > 0:
 		out = args[0]
@@ -24,6 +28,7 @@ func _run() -> void:
 	ui = load("res://scenes/main.tscn").instantiate()
 	root.add_child(ui)
 	await _game()
+	await _records()
 	await _ethers()
 	quit()
 
@@ -59,6 +64,46 @@ func _ethers() -> void:
 	img.convert(Image.FORMAT_L8)
 	img.save_png("%s/ethers_grey.png" % out)
 	print("ethers %s" % img.get_size())
+
+
+## The Records screen over a fixed sample history: the Normal leaderboard, all
+## dragons and one, and the History with its summary.
+func _records() -> void:
+	HistoryStore.records = []
+	var dragons := ["rodving", "helsang", "grimroch", "vuurhast"]
+	var diffs := ["normal", "normal", "hard", "easy", "casual", "normal", "impossible"]
+	var stages := ["region_1", "region_2", "region_3", "region_4", "final_journey"]
+	for i in 34:
+		var outcome: String = ["won", "lost", "won", "abandoned", "won"][i % 5]
+		var dragon: String = dragons[(i * 3) % 4]
+		HistoryStore.append({"v": 1, "outcome": outcome, "difficulty": diffs[i % diffs.size()], "dragon": dragon,
+			"dragon_name": dragon.capitalize(), "cavalier": i % 9 == 4, "glass_cannon": i % 13 == 6,
+			"stage": "final_enemy" if outcome == "won" else ("final_journey" if outcome == "lost" else stages[i % 5]),
+			"score": 18 + (i * 11) % 21 if outcome == "won" else 0, "active_ms": 640000 + (i * 97000) % 1500000,
+			"started_at": 1789000000 + i * 86000, "ended_at": 1789000000 + i * 86000 + 1500, "seed": i})
+	ui.menu.difficulty = "normal"
+	ui.dispatch({"type": "records", "from": "title"})
+	await _shot("records_leaderboard")
+	ui.screen._tiles["dragon:helsang"].pressed.emit()
+	await _shot("records_leaderboard_helsang")
+	ui.screen._tiles["difficulty:dont_even_try"].pressed.emit()
+	await _shot("records_leaderboard_empty")
+	ui.screen._tiles["difficulty:normal"].pressed.emit()
+	ui.screen._tiles["tab:history"].pressed.emit()
+	await _shot("records_history")
+	ui.screen.back()
+	await _shot("title_records_button")
+	# A win that places second overall and best against its dragon.
+	ui.start_game({"seed": 8, "dragon": "vuurhast", "difficulty": "normal", "cavalier": false, "glass_cannon": false})
+	for i in 5:
+		await process_frame
+	ui.animator.skip()
+	ui.game.phase = "won"
+	ui._record("won")
+	ui._refresh(false, false)
+	ui._show_ending()
+	await create_timer(1.5).timeout
+	await _shot("ending_placing")
 
 
 func _shot(name: String, skip := true) -> void:

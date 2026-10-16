@@ -84,6 +84,18 @@ func render(vs: Dictionary) -> void:
 		right.add_child(table)
 	else:
 		right.add_child(UI.label("A lost hunt scores nothing.", T.BODY, T.INK_MUTED))
+	# Where the win placed on the leaderboard, then the way to it.
+	for i in e.get("placing", []).size():
+		var line := UI.hbox(T.S)
+		var mark := UI.icon_rect("crown", 32, T.GOLD)
+		if i > 0:
+			mark.modulate.a = 0.0
+		line.add_child(mark)
+		line.add_child(UI.label(e.placing[i], ["body_bold", T.BODY[1]], T.GOLD))
+		right.add_child(line)
+	var board := UI.button("Leaderboard", "quiet", "trophy")
+	board.pressed.connect(func(): intent.emit({"type": "records", "from": "ending"}))
+	right.add_child(board)
 	right.add_child(UI.spacer())
 	var buttons := UI.hbox(T.S)
 	var change := UI.button("Change options", "quiet")

@@ -56,7 +56,7 @@ static func build(game, draft, db, extra := {}) -> Dictionary:
 		"soak": null,
 		"xp": game.xp,
 		"recap": _recap(game),
-		"ending": _ending(game, extra.get("lost_at", "")),
+		"ending": _ending(game, extra.get("lost_at", ""), extra.get("placing", [])),
 		"message": extra.get("message", ""),
 		"fuse_elements": draft.mode == "fuse_element",
 		"fuse_pick": draft.fuse_pick.duplicate(),
@@ -689,7 +689,8 @@ static func _recap(game) -> Dictionary:
 		"knocked_out": r.get("knocked_out", false)}
 
 
-static func _ending(game, lost_at: String) -> Variant:
+## `placing`: what the leaderboard says of this game, line by line (from PlayHistory).
+static func _ending(game, lost_at: String, placing: Array = []) -> Variant:
 	if game.phase == "won":
 		var by_level := {}
 		for id in game.cards:
@@ -702,7 +703,7 @@ static func _ending(game, lost_at: String) -> Variant:
 			if by_level.has(lv):
 				rows.append({"level": lv, "count": by_level[lv], "points": lv * by_level[lv]})
 				total += lv * by_level[lv]
-		return {"won": true, "dragon": game.dragon.name, "score": total, "rows": rows, "trashed": game.trash.size()}
+		return {"won": true, "dragon": game.dragon.name, "score": total, "rows": rows, "trashed": game.trash.size(), "placing": placing}
 	if game.phase == "lost":
 		var r: Dictionary = game.result
 		var why := ""
@@ -712,5 +713,5 @@ static func _ending(game, lost_at: String) -> Variant:
 			why = "Your Attack of %d did not reach the first tier of %d." % [r.get("attack", 0), game.dragon.hp_tiers[0].hp]
 		else:
 			why = "%s dealt %d damage, more than your Hand could Soak." % [game.dragon.name, r.get("damage", 0)]
-		return {"won": false, "dragon": game.dragon.name, "score": 0, "where": lost_at, "why": why}
+		return {"won": false, "dragon": game.dragon.name, "score": 0, "where": lost_at, "why": why, "placing": []}
 	return null

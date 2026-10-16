@@ -37,7 +37,7 @@ func test_every_encounter_has_its_own_name() -> void:
 
 
 func test_every_moving_part_has_its_body_and_part() -> void:
-	eq(Art.part("tortoise"), {}, "art without a moving part is all one piece")
+	eq(Art.part("naga"), {}, "art without a moving part is all one piece")
 	for name in Art.PARTS:
 		var rig: Dictionary = Art.PARTS[name]
 		ok(Art.MOTION.has(name), name + " is a silhouette in use")
@@ -55,7 +55,7 @@ func test_every_dragon_has_a_head_region_inside_its_art() -> void:
 		ok(r != Art.FULL, name + " has a head region")
 		ok(r.position.x >= 0 and r.position.y >= 0 and r.end.x <= 512 and r.end.y <= 512, name + " head is inside the art")
 		eq(r.size.x, r.size.y, name + " head region is square")
-	eq(Art.head("tortoise"), Art.FULL, "art without a head region is shown whole")
+	eq(Art.head("naga"), Art.FULL, "art without a head region is shown whole")
 
 
 func test_art_crop_cuts_the_head_region_out_of_the_full_art() -> void:

@@ -1,13 +1,13 @@
 extends RefCounted
-## Which silhouette from art/creatures/ shows each Encounter and dragon. The card
-## data gives Encounters no names, so each was chosen to fit its Region, its Ether
-## and its Ability. Sources and authors are listed in art/creatures/CREDITS.md.
+## Which silhouette from art/creatures/ shows each Encounter and dragon, all made for
+## this project (art/STYLE_PROMPT.md, art/creatures/CREDITS.md); the enemies follow
+## the creatures on the official cards.
 
 const ENEMIES := {
-	1: ["harpy", "salamander", "ice-golem", "troll"],
-	2: ["lizardman", "eel", "toad-teeth", "spectre"],
-	3: ["rock-golem", "tortoise", "scorpion", "vulture"],
-	4: ["angular-spider", "goblin-head", "wolf-head", "evil-tree"],
+	1: ["panda-fighter", "monkey-brawler", "crane-monk", "lion-archer"],
+	2: ["axe-gnome", "club-ogre", "horned-goblin", "marsh-treant"],
+	3: ["naga", "twin-ogre", "twin-ghoul", "boar-shaman"],
+	4: ["hedge-wizard", "goblin-hexer", "antler-horror", "gath-brute"],
 }
 const JOURNEYS := {
 	1: ["peaks", "waterfall", "mountain-road", "cave-entrance"],
@@ -20,10 +20,10 @@ const FINAL_JOURNEY := "horizon-road"
 ## Names for the Encounters, which the cards only number. These are this
 ## project's own, chosen to match the pictures; they are not from the game.
 const ENEMY_NAMES := {
-	1: ["Crag Harpy", "Ember Salamander", "Ice Golem", "Mountain Troll"],
-	2: ["Marsh Lizardman", "Thunder Eel", "Bog Toad", "Marsh Spectre"],
-	3: ["Obsidian Golem", "Steam Tortoise", "Sand Scorpion", "Storm Vulture"],
-	4: ["Shadow Spider", "Goblin Archer", "Thunder Wolf", "Rotwood Treant"],
+	1: ["Shaolin Panda", "Frenzied Ape", "Crane Monk", "Lionel Archer"],
+	2: ["Rapid Gnome", "Bog Ogre", "Goblin Raider", "Swamp Treant"],
+	3: ["Naga Goro", "Twin Ogre", "Conjoined Ghoul", "Wereboar"],
+	4: ["Hedge Wizard", "Goblin Hexer", "Antlered Horror", "Brute of Gath"],
 }
 const JOURNEY_NAMES := {
 	1: ["High Peaks", "The Falls", "Mountain Road", "Dark Cave"],
@@ -55,25 +55,25 @@ const MOTION := {
 	# Dragons
 	"grimroch": "breathe", "helsang": "breathe", "rodving": "breathe", "vuurhast": "sway",
 	# Region 1
-	"harpy": "hover", "salamander": "breathe", "ice-golem": "breathe", "troll": "breathe",
+	"panda-fighter": "breathe", "monkey-brawler": "breathe", "crane-monk": "breathe", "lion-archer": "breathe",
 	"peaks": "glow", "waterfall": "flow", "mountain-road": "glow", "cave-entrance": "glow",
 	# Region 2
-	"lizardman": "breathe", "eel": "wave", "toad-teeth": "breathe", "spectre": "wave",
+	"axe-gnome": "breathe", "club-ogre": "breathe", "horned-goblin": "breathe", "marsh-treant": "sway",
 	"swamp": "flow", "river": "flow", "willow-tree": "sway", "cliff-crossing": "glow",
 	# Region 3
-	"rock-golem": "breathe", "tortoise": "breathe", "scorpion": "sway", "vulture": "hover",
+	"naga": "sway", "twin-ogre": "breathe", "twin-ghoul": "sway", "boar-shaman": "breathe",
 	"volcano": "shimmer", "desert": "shimmer", "lava": "shimmer", "underground-cave": "glow",
 	# Region 4
-	"angular-spider": "hover", "goblin-head": "breathe", "wolf-head": "breathe", "evil-tree": "sway",
+	"hedge-wizard": "breathe", "goblin-hexer": "breathe", "antler-horror": "sway", "gath-brute": "breathe",
 	"rope-bridge": "hover", "forest-entrance": "sway", "burning-forest": "shimmer", "stone-path": "glow",
 	# The Final Journey
 	"horizon-road": "glow",
 }
 ## Slow, heavy things move slower; small, quick ones faster.
 const SPEED := {
-	"troll": 0.7, "rock-golem": 0.6, "ice-golem": 0.65, "tortoise": 0.55, "toad-teeth": 0.8,
-	"grimroch": 0.6, "evil-tree": 0.7, "harpy": 1.3, "vulture": 1.1, "angular-spider": 0.9,
-	"eel": 1.2, "spectre": 0.8, "rope-bridge": 0.6,
+	"grimroch": 0.6, "club-ogre": 0.7, "twin-ogre": 0.65, "gath-brute": 0.55,
+	"marsh-treant": 0.7, "monkey-brawler": 0.8, "twin-ghoul": 0.8, "hedge-wizard": 0.85,
+	"axe-gnome": 1.3, "horned-goblin": 1.2, "goblin-hexer": 1.1, "rope-bridge": 0.6,
 }
 ## Silhouettes cut into a body (<name>-base.svg) and a part that moves on its own
 ## (<name>-part.svg), drawn together; <name>.svg stays whole for small uses. pivot is

@@ -59,7 +59,7 @@ func test_a_moving_part_is_drawn_in_the_same_pass_as_the_body() -> void:
 	eq(m.get_shader_parameter("pivot"), Art.part("grimroch").pivot / 512.0, "turning about its hinge")
 	ok(is_equal_approx(m.get_shader_parameter("tint").a, 0.55), "the tint's alpha goes to the one pass that draws both")
 	eq(c._frame.get_child_count(), 1, "one picture, no second layer")
-	c.setup("tortoise", tint)
+	c.setup("naga", tint)
 	ok(not m.get_shader_parameter("has_part"), "art in one piece has no part")
 	eq(m.get_shader_parameter("part_tex"), null, "and no part texture")
 	c.free()

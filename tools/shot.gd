@@ -6,11 +6,15 @@ extends SceneTree
 const Solver = preload("res://ui/model/layout_solver.gd")
 const Rulebook = preload("res://ui/model/rulebook.gd")
 
+const HistoryStore = preload("res://ui/model/history_store.gd")
+
 var out := "."
 var ui
 
 
 func _initialize() -> void:
+	# Games played here are recorded in their own folder, never the player's records.
+	HistoryStore.use_empty("user://tool_history/")
 	var args := OS.get_cmdline_user_args()
 	if args.size() > 0:
 		out = args[0]
