@@ -67,6 +67,12 @@ func _press(intent: Dictionary) -> void:
 func _game(dir: String) -> void:
 	await _shot(dir + "/01_title")
 	await _rulebook(dir)
+	ui.screen._play()
+	await _shot(dir + "/01e_dragons_none")
+	ui.screen._choose("vuurhast")
+	await _shot(dir + "/01e_dragons")
+	_press({"type": "setup_rules", "options": ui.screen.options})
+	await _shot(dir + "/01f_rules")
 	ui.start_game({"seed": 3, "dragon": "rodving", "difficulty": "casual", "cavalier": false, "glass_cannon": false})
 	for id in ui.game.setup_offer.slice(0, 3):
 		_press({"type": "card", "id": id})

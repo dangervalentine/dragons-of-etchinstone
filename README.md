@@ -17,10 +17,12 @@ Battle:
   journey Peril
 - Fusing, Diverting, Regrouping, Knock Out, poison, and scoring
 - The six difficulty levels and both alternate rules (Cavalier, Glass Cannon)
+- A landing page (How to Play, Records, Play), then the choice of dragon, one
+  dragon's figures at a time, then the difficulty and alternate rules
 - A landscape interface for phones, tablets and desktop browsers, played by touch,
   mouse or keyboard
 - How to Play: the rules in this project's own words, written for the digital game,
-  readable from the title screen, the in-game menu or the H key without disturbing a
+  readable from the landing page, the in-game menu or the H key without disturbing a
   game in progress, with labelled example cards and links into the Glossary
 
 The play screen keeps everything for a turn in view: the Encounter, your Action
@@ -98,6 +100,7 @@ usual way. Set your own team ID and bundle identifier in the export presets.
 | Path | What it holds |
 |---|---|
 | `data/cards.json` | Every card's numbers, keyed by the printed card codes |
+| `data/flavor.json` | The landing page's subtitle and each dragon's flavour line, written for this project; edit by hand |
 | `engine/card_db.gd` | Read-only access to the card data |
 | `engine/rules.gd` | Encounter maths, as pure functions |
 | `engine/game.gd` | One game's state and flow, driven by a small set of actions |

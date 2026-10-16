@@ -15,8 +15,9 @@ var _row: Control
 var base_height := -1.0
 
 
-## `extra`, if given, sits under the emblem and text across the whole tile.
-static func make(title: String, desc: String, emblem := "", colour: Color = T.GOLD, emblem_colour = null, emblem_side := 56.0, extra: Control = null) -> Button:
+## `emblem` is an icon's name or a texture. `extra`, if given, sits under the
+## emblem and text across the whole tile.
+static func make(title: String, desc: String, emblem: Variant = "", colour: Color = T.GOLD, emblem_colour = null, emblem_side := 56.0, extra: Control = null) -> Button:
 	var b = load("res://ui/widgets/choice_tile.gd").new()
 	b.accent = colour
 	b.custom_minimum_size = Vector2(T.TAP_MIN, T.TAP_MIN)
@@ -24,8 +25,11 @@ static func make(title: String, desc: String, emblem := "", colour: Color = T.GO
 	b.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	b.focus_mode = Control.FOCUS_ALL
 	var row := UI.hbox(10)
-	if emblem != "":
-		row.add_child(UI.icon_rect(emblem, emblem_side, emblem_colour if emblem_colour != null else colour))
+	var tint: Color = emblem_colour if emblem_colour != null else colour
+	if emblem is Texture2D:
+		row.add_child(UI.texture_rect(emblem, emblem_side, tint))
+	elif emblem != "":
+		row.add_child(UI.icon_rect(emblem, emblem_side, tint))
 	var col := UI.vbox(0)
 	col.alignment = BoxContainer.ALIGNMENT_CENTER
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL

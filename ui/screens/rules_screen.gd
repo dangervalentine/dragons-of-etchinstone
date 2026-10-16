@@ -1,13 +1,11 @@
 extends Control
-## The second setup step: the chosen dragon, a difficulty and any alternate rules,
-## each saying what it changes, then set out or go back to the dragons.
+## The second setup step: a difficulty and any alternate rules, each saying what
+## it changes, then set out or go back to the dragons.
 
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
 const ChoiceTile = preload("res://ui/widgets/choice_tile.gd")
 const Game = preload("res://engine/game.gd")
-const Art = preload("res://ui/model/art.gd")
-const Creature = preload("res://ui/fx/creature.gd")
 
 signal intent(data: Dictionary)
 
@@ -48,31 +46,13 @@ func _build() -> void:
 	_layout = Control.new()
 	add_child(_layout)
 	apply_layout(_content)
-	var root := UI.hbox(T.XL)
+	var root := UI.vbox(T.S)
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_layout.add_child(root)
 
-	# Left: the dragon being hunted.
-	var d: Dictionary = db.dragon(options.dragon)
-	var ether: String = d.early_damage.element
-	var left := UI.vbox(T.M)
-	left.custom_minimum_size.x = 380
-	left.size_flags_stretch_ratio = 0.6
-	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var crest := Creature.new()
-	crest.custom_minimum_size = Vector2(170, 170)
-	crest.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	crest.setup(Art.dragon(options.dragon), T.ether(ether).lightened(0.15), ether)
-	left.add_child(crest)
-	left.add_child(UI.label(d.name.to_upper(), ["display_bold", 54], T.GOLD))
-	left.add_child(UI.label(d.title, T.BODY, T.INK, true))
-	left.add_child(UI.label("Initiative %d · early damage %d" % [d.initiative, d.early_damage.value], T.LABEL, T.INK_MUTED, true))
-	left.add_child(UI.spacer())
-	root.add_child(left)
-
-	# Right: the choices, as the elders' proclamation on a slab of stone.
+	# The choices, as the elders' proclamation on a slab of stone across the screen.
 	var slab := UI.slab(T.GOLD, 14)
-	slab.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slab.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	var right := UI.vbox(T.S)
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	slab.add_child(right)
@@ -110,9 +90,11 @@ func _build() -> void:
 	rules.add_child(glass)
 	_tiles["glass_cannon"] = glass
 	right.add_child(rules)
+	root.add_child(slab)
+	# Back and Set out where the dragon screen keeps Back and Continue.
 	var bottom := UI.hbox(T.S)
 	bottom.custom_minimum_size.y = T.TAP_MIN
-	var back_button := UI.button("Back", "quiet")
+	var back_button := UI.button("Back", "normal")
 	back_button.custom_minimum_size.x = 200
 	back_button.pressed.connect(back)
 	bottom.add_child(back_button)
@@ -121,8 +103,7 @@ func _build() -> void:
 	start.custom_minimum_size.x = 240
 	start.pressed.connect(func(): intent.emit({"type": "start", "options": options.duplicate()}))
 	bottom.add_child(start)
-	right.add_child(bottom)
-	root.add_child(slab)
+	root.add_child(bottom)
 	_refresh()
 	start.grab_focus.call_deferred()
 

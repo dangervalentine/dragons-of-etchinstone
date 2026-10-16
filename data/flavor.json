@@ -1,0 +1,9 @@
+{
+  "subtitle": "Cross the four Regions of Vale, hunt the dragon, and earn the name of Ether Mage.",
+  "dragons": {
+    "grimroch": "Its scales are stone and the water behind them deep; it turns spells aside and is seldom slower than you.",
+    "helsang": "It surges back from every wound, Shadow carrying it from the hunt to the kill and back without warning.",
+    "rodving": "Slow to rise and thin of hide, but its fire is the last breath most mages ever draw.",
+    "vuurhast": "It comes out of the dark on the storm, already moving, gone before the thunder."
+  }
+}

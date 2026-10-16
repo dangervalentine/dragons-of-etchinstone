@@ -22,6 +22,7 @@ const HistoryStore = preload("res://ui/model/history_store.gd")
 const PlayScreen = preload("res://ui/screens/play_screen.gd")
 const TitleScreen = preload("res://ui/screens/title_screen.gd")
 const RulesScreen = preload("res://ui/screens/rules_screen.gd")
+const DragonScreen = preload("res://ui/screens/dragon_screen.gd")
 const RecordsScreen = preload("res://ui/screens/records_screen.gd")
 const EndingScreen = preload("res://ui/screens/ending_screen.gd")
 const Animator = preload("res://ui/fx/animator.gd")
@@ -254,6 +255,16 @@ func _show_title() -> void:
 	_switch(t)
 
 
+func _show_dragons() -> void:
+	game = null
+	vs = {}
+	play = null
+	var d := DragonScreen.new()
+	d.setup(db, menu)
+	d.intent.connect(dispatch)
+	_switch(d)
+
+
 func _show_rules() -> void:
 	game = null
 	vs = {}
@@ -344,13 +355,15 @@ func dispatch(intent: Dictionary) -> void:
 		"play_again":
 			start_game(menu)
 		"to_title":
+			if intent.has("options"):
+				menu = intent.options.duplicate()
 			_show_title()
 		"setup_rules":
 			menu = intent.options.duplicate()
 			_show_rules()
 		"setup_dragon":
 			menu = intent.options.duplicate()
-			_show_title()
+			_show_dragons()
 		"records":
 			_records_from = intent.get("from", "title")
 			_show_records()
@@ -725,7 +738,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if key == KEY_ESCAPE:
 		if top != null:
 			top.close()
-		elif screen != null and (screen.get_script() == RulesScreen or screen.get_script() == RecordsScreen):
+		elif screen != null and (screen.get_script() in [RulesScreen, RecordsScreen, DragonScreen]):
 			screen.back()
 		elif play != null and screen == play and draft.mode != "none":
 			dispatch({"type": "action", "id": "cancel"})
@@ -784,7 +797,7 @@ func _notification(what: int) -> void:
 		var top := _top_overlay()
 		if top != null:
 			top.close()
-		elif screen != null and (screen.get_script() == RulesScreen or screen.get_script() == RecordsScreen):
+		elif screen != null and (screen.get_script() in [RulesScreen, RecordsScreen, DragonScreen]):
 			screen.back()
 		else:
 			_record("abandoned")

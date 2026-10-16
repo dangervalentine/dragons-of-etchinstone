@@ -13,6 +13,7 @@ const CardView = preload("res://ui/widgets/card_view.gd")
 const StatChip = preload("res://ui/widgets/stat_chip.gd")
 const TitleScreen = preload("res://ui/screens/title_screen.gd")
 const RulesScreen = preload("res://ui/screens/rules_screen.gd")
+const DragonScreen = preload("res://ui/screens/dragon_screen.gd")
 const Settings = preload("res://ui/model/settings.gd")
 const RulebookOverlay = preload("res://ui/overlays/rulebook_overlay.gd")
 const GlossaryPopover = preload("res://ui/overlays/glossary_popover.gd")
@@ -295,12 +296,14 @@ func _play(where: String, game_seed: int, difficulty: String, animated: bool) ->
 			_ok(not _has_label(ui.screen, "New best") and not _has_label(ui.screen, "Best against"), "%s: a loss does not place" % where)
 
 
-## The two setup screens, then each overlay over a game in progress, one at a time.
+## The landing page and the two setup screens, then each overlay over a game in
+## progress, one at a time.
 func _screens_and_overlays(where: String) -> void:
 	await _settle()
 	_inspect_screen("%s title" % where)
-	_ok(ui.screen.get_script() == TitleScreen, "%s: launch shows the dragon screen" % where)
-	_ok(not ui.screen._tiles.keys().any(func(k): return not k.begins_with("dragon:")), "%s: the dragon screen offers only dragons" % where)
+	_ok(ui.screen.get_script() == TitleScreen, "%s: launch shows the landing page" % where)
+	_ok(ui.screen._tiles.is_empty(), "%s: the landing page offers no choices" % where)
+	_ok(not _has_label(ui.screen, "Journey") and not _has_label(ui.screen, "Battle"), "%s: the landing page shows no dragon's figures" % where)
 	ui.dispatch({"type": "settings"})
 	await _settle()
 	_inspect_screen("%s settings" % where)
@@ -616,7 +619,8 @@ func _key(code: int) -> InputEventKey:
 ## Through setup: on to the rules, back to the dragons and on again keeping every
 ## choice, then set out with them.
 func _setup_steps(where: String) -> void:
-	ui.dispatch({"type": "setup_rules", "options": ui.menu})
+	await _dragon_walk(where)
+	ui.dispatch({"type": "setup_rules", "options": ui.screen.options})
 	await _settle()
 	_inspect_screen("%s rules" % where)
 	_ok(ui.screen.get_script() == RulesScreen, "%s: continue shows the rules screen" % where)
@@ -633,7 +637,7 @@ func _setup_steps(where: String) -> void:
 	var kept: Dictionary = ui.screen.options.duplicate()
 	ui.screen.back()
 	await _settle()
-	_ok(ui.screen.get_script() == TitleScreen, "%s: back shows the dragon screen" % where)
+	_ok(ui.screen.get_script() == DragonScreen and ui.screen.options.dragon == kept.dragon, "%s: back shows the dragon screen, dragon kept" % where)
 	var other: String = ui.db.dragon_ids().filter(func(id): return id != kept.dragon)[0]
 	ui.screen._choose(other)
 	ui.dispatch({"type": "setup_rules", "options": ui.screen.options})
@@ -646,7 +650,7 @@ func _setup_steps(where: String) -> void:
 	esc.pressed = true
 	ui._unhandled_key_input(esc)
 	await _settle()
-	_ok(ui.screen.get_script() == TitleScreen, "%s: escape on the rules screen goes back" % where)
+	_ok(ui.screen.get_script() == DragonScreen, "%s: escape on the rules screen goes back" % where)
 	ui.dispatch({"type": "setup_rules", "options": ui.screen.options})
 	await _settle()
 	var chosen: Dictionary = ui.screen.options.duplicate()
@@ -657,6 +661,75 @@ func _setup_steps(where: String) -> void:
 		_ok(Settings.last_options[key] == chosen[key], "%s: set out remembers %s" % [where, key])
 	ui.dispatch({"type": "to_title"})
 	await _settle()
+
+
+## Play from the landing page: four dragons in Ether order, none chosen and
+## Continue waiting; then the figures of the chosen one only, each explaining
+## itself, following each choice; Back and Escape return to the landing page, and
+## Play again starts with none chosen.
+func _dragon_walk(where: String) -> void:
+	await _play_from_landing(where)
+	_inspect_screen("%s dragons, none chosen" % where)
+	_ok(ui.screen.get_script() == DragonScreen, "%s: Play shows the dragon screen" % where)
+	var keys: Array = ui.screen._tiles.keys()
+	_ok(keys.size() == 4 and keys.all(func(k): return k.begins_with("dragon:")), "%s: the dragon screen offers four dragons" % where)
+	var ethers: Array = ui.screen.ordered_ids().map(func(id): return ui.db.dragon(id).early_damage.element)
+	_ok(ethers == ["fire", "lightning", "water", "shadow"], "%s: the dragons run Fire, Lightning, Water, Shadow, %s" % [where, str(ethers)])
+	_ok(_shows_none(), "%s: no dragon is chosen at first, Continue waits" % where)
+	_ok(ui.get_viewport().gui_get_focus_owner() == null, "%s: no dragon card looks chosen at first" % where)
+	for id in ui.screen.ordered_ids():
+		ui.screen._choose(id)
+		await process_frame
+		_inspect_screen("%s dragons %s" % [where, id])
+		_ok(_shows_only(id), "%s: only %s's figures are shown" % [where, id])
+		_ok(_explains(ui.screen.stats), "%s: %s's figures explain themselves" % [where, id])
+	var other: String = ui.db.dragon_ids()[1]
+	ui.screen._choose(other)
+	ui.screen.back()
+	await _settle()
+	_ok(ui.screen.get_script() == TitleScreen, "%s: Back on the dragon screen shows the landing page" % where)
+	await _play_from_landing(where)
+	_ok(ui.screen.get_script() == DragonScreen and _shows_none(), "%s: Play again starts with no dragon chosen" % where)
+	ui.screen._choose(other)
+	ui._unhandled_key_input(_key(KEY_ESCAPE))
+	await _settle()
+	_ok(ui.screen.get_script() == TitleScreen, "%s: escape on the dragon screen goes back" % where)
+	await _play_from_landing(where)
+	ui.screen._choose(other)
+	await process_frame
+
+
+## Presses Play on the landing page, if it is showing.
+func _play_from_landing(_where: String) -> void:
+	if ui.screen.get_script() == TitleScreen:
+		ui.screen._play()
+		await _settle()
+
+
+## The dragon screen before a choice: nothing marked, no figures, Continue off.
+func _shows_none() -> bool:
+	var s = ui.screen
+	return s.options.dragon == "" and s._tiles.values().all(func(t): return not t.selected) \
+		and s.stats == null and s._next.disabled
+
+
+## Every part of the figures that says what it is: the Initiative, Early Damage
+## and Ether, each Armor, both ladders and each tier.
+func _explains(stats: Control) -> bool:
+	if stats == null:
+		return false
+	var tips: Array = stats.find_children("*", "Control", true, false).filter(func(c): return c.tooltip_text != "" and c.mouse_filter == Control.MOUSE_FILTER_STOP)
+	var text := "\n".join(tips.map(func(c): return c.tooltip_text))
+	return ["Initiative", "Early Damage", "The dragon's Ether", "Armor", "The Final Journey", "The Final Enemy", "Final Journey tier", "Final Enemy tier"].all(func(k): return text.contains(k))
+
+
+## The dragon screen marks `id` alone and shows its figures and no other's.
+func _shows_only(id: String) -> bool:
+	var s = ui.screen
+	var marked: Array = s._tiles.keys().filter(func(k): return s._tiles[k].selected)
+	var figures: Array = s.find_children("*", "Label", true, false).filter(func(l): return l.is_visible_in_tree() and l.text == "Journey")
+	return marked == ["dragon:" + id] and is_instance_valid(s.stats) and s.stats.is_inside_tree() \
+		and figures.size() == 1 and s._name.text == ui.db.dragon(id).name.to_upper() and not s._next.disabled
 
 
 ## Animated runs press again while a sequence is still playing, as a quick player would.
