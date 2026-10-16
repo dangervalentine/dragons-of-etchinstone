@@ -62,6 +62,11 @@ func _cells(count: int) -> Array:
 
 func _place() -> void:
 	var buttons := _actions.get_children()
+	# Alone in the column (Soak, setup), Play takes all of it.
+	var alone := buttons.is_empty() and _area.size != Vector2.ZERO
+	var r := _area if alone else _commit
+	primary.position = r.position - global_position
+	primary.size = r.size
 	var cells := _cells(buttons.size())
 	for i in buttons.size():
 		var b: Control = buttons[i]
