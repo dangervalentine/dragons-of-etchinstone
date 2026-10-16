@@ -59,10 +59,13 @@ const BRONZE_DARK := Color("3a2c1f")
 const BRONZE_LIGHT := Color("a88a63")
 
 # Layout
-## The least height an Encounter face needs at the 400-unit left column: an Enemy
-## with four badge rows at their 52-unit minimum, an Ability or Hardship disc and
-## the Key Card line (measured for feature 006, T009; a Journey needs 202).
-const ENCOUNTER_MIN := 310
+## The least height a face needs at the 400-unit left column, with its content 4
+## units clear of the edge (measured for feature 006, T009): a Region Enemy with four
+## badge rows at their 52-unit minimum and the Key Card line (a Journey needs 206);
+## the dragon's face with its tiers (332 on the Final Journey, 384 for Grimroch's
+## Final Enemy).
+const ENCOUNTER_MIN := 316
+const DRAGON_MIN := 384
 ## The least height the preview takes in the left column; the Encounter gets the rest.
 const PREVIEW_MIN := 150
 

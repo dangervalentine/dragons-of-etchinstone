@@ -441,3 +441,60 @@ func test_the_active_zone_is_the_hand_or_the_commit_control() -> void:
 				break
 	ok(g.phase == "won" or g.phase == "lost", "the game ran to its end (%s after %d steps)" % [g.phase, guard])
 	ok(seen.has("hand") and seen.has("commit"), "both seen over a game")
+
+
+func _sum(vs: Dictionary, id: String) -> Dictionary:
+	for s in vs.math.sums:
+		if s.id == id:
+			return s
+	return {}
+
+
+func test_the_math_box_sums_come_from_the_engine() -> void:
+	# An Enemy and a Journey: the first seeds that deal each.
+	var seen := {}
+	for game_seed in range(1, 40):
+		var g = _game(game_seed)
+		var kind: String = g.encounter().kind
+		if seen.has(kind):
+			continue
+		seen[kind] = true
+		var vs: Dictionary = ViewState.build(g, _filled(g), db)
+		var e: Dictionary = vs.explain
+		var ids: Array = vs.math.sums.map(func(s): return s.id)
+		eq(ids, ["attack", "initiative"] if kind == "enemy" else ["move"], kind + ": the sums in order")
+		for s in vs.math.sums:
+			eq(s.terms, e.terms.filter(func(t): return t.sum == s.id), "%s %s: the engine's terms, in order" % [kind, s.id])
+			eq(s.total, e[s.id], "%s %s: the engine's total" % [kind, s.id])
+		var enc: Dictionary = g.encounter().data
+		if kind == "enemy":
+			eq(_sum(vs, "attack").target.value, enc.hp, "Attack is set against the HP")
+			eq(_sum(vs, "initiative").target.value, enc.initiative, "Initiative against the Enemy's")
+		else:
+			var t: Dictionary = _sum(vs, "move").target
+			eq(t.value, e.mp, "Move is set against the MP")
+			var own: Array = e.terms.filter(func(x): return x.sum == "target")
+			eq(t.terms, own if own.size() > 1 else [], "the target's own terms only when Steep makes it a sum")
+	ok(seen.has("enemy") and seen.has("journey"), "both kinds were checked")
+
+	# An incomplete set: no total, and the roles still needed.
+	var g = _game()
+	var d = Draft.new()
+	d.tap(g.hand[0])
+	var vs: Dictionary = ViewState.build(g, d, db)
+	var first: Dictionary = vs.math.sums[0]
+	eq(first.total, null, "no total while a role is empty")
+	eq(first.missing, ["Element", "Boost"], "the roles still needed")
+	ok(first.terms.size() >= 1, "the Spell's term is shown")
+	eq(first.result, "", "no verdict yet")
+
+	# The Final Battle: the tier reached.
+	_to_final(g)
+	var fd = Draft.new()
+	fd.reset(2)
+	for id in g.hand.slice(0, 6):
+		fd.tap(id)
+	vs = ViewState.build(g, fd, db)
+	var move: Dictionary = _sum(vs, "move")
+	eq(move.total, vs.explain.move, "the Final Journey's Move is the engine's")
+	ok(move.tier != null and move.tier.index == vs.explain.tier, "the tier reached is shown")

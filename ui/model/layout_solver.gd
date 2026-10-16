@@ -26,7 +26,7 @@ const ACTION_COLS_FINAL := 2
 ## Where Play goes (T009): at the foot of the math box when the Encounter still fits
 ## above the fullest box, else in the action column's bottom row. Measured at
 ## 1280 x 720: the Enemy box with Play needs about 336 of the column's 628, leaving
-## the Encounter 280, under ENCOUNTER_MIN; the Final Enemy's wrapped rows need more.
+## the Encounter 280, under ENCOUNTER_MIN; the Final Battle has less room still.
 ## The bottom-right corner under the Hand would cost the Final Battle's two rows of
 ## cards their baseline size, so Play joins the actions beside the slots.
 const PLAY_IN_COLUMN := false
@@ -105,12 +105,14 @@ static func action_width(set_count: int) -> float:
 ## view: the viewport in design units. safe: the part clear of notches, in design
 ## units. points_per_unit: how large a design unit is on this screen. set_count:
 ## Action Sets in the slot band, 0 to give its room to the Hand. preview_needed: the
-## height the preview asks for; 0 keeps the fixed split.
+## height the preview asks for; 0 keeps the fixed split. encounter_min: the least
+## height the face on show needs (T.ENCOUNTER_MIN, or T.DRAGON_MIN in the Final
+## Battle); the preview never takes that from it.
 ##
 ## The right column: the slot band at the top, with the action column beside it
 ## (secondary actions in a grid, Play in its bottom row), and the Hand under both,
 ## down to the bottom. With no sets the band shrinks to the action column's one row.
-static func solve(view: Vector2, safe: Rect2, hand_count := 4, set_count := 1, points_per_unit := 0.5, preview_needed := 0.0) -> Dictionary:
+static func solve(view: Vector2, safe: Rect2, hand_count := 4, set_count := 1, points_per_unit := 0.5, preview_needed := 0.0, encounter_min: int = T.ENCOUNTER_MIN) -> Dictionary:
 	var left := maxf(safe.position.x, T.M)
 	var top := maxf(safe.position.y, T.M)
 	var right := minf(safe.end.x, view.x - T.M)
@@ -132,7 +134,7 @@ static func solve(view: Vector2, safe: Rect2, hand_count := 4, set_count := 1, p
 	var preview_h := body_h - roundf(body_h * 0.56) - GAP
 	if preview_needed > 0.0:
 		# Never so tall that the Encounter face drops under its own minimum.
-		var most := minf(roundf(body_h * 0.5), body_h - GAP - T.ENCOUNTER_MIN)
+		var most := minf(roundf(body_h * 0.5), body_h - GAP - encounter_min)
 		preview_h = clampf(roundf(preview_needed), T.PREVIEW_MIN, most)
 	var encounter_h := body_h - preview_h - GAP
 	var right_x := c.position.x + left_w + COLUMN_GAP

@@ -251,10 +251,12 @@ func test_the_encounter_keeps_its_height() -> void:
 			continue
 		var m: Array = Solver.MATRIX[name]
 		var view: Vector2 = Solver.view_for_window(m[0])
-		# The largest preview the solver allows.
-		var plan := Solver.solve(view, _safe(name), 4, 1, 0.5, 5000.0)
-		ok(plan.regions.encounter.size.y >= T.ENCOUNTER_MIN,
-			"%s: Encounter %.0f tall, at least %d" % [name, plan.regions.encounter.size.y, T.ENCOUNTER_MIN])
+		# The largest preview the solver allows, beside an Encounter and the dragon.
+		for least in [T.ENCOUNTER_MIN, T.DRAGON_MIN]:
+			var plan := Solver.solve(view, _safe(name), 4, 1, 0.5, 5000.0, least)
+			ok(plan.regions.encounter.size.y >= least,
+				"%s: face %.0f tall, at least %d" % [name, plan.regions.encounter.size.y, least])
+			ok(plan.regions.preview.size.y >= T.PREVIEW_MIN, "%s: the box keeps its floor" % name)
 
 
 func test_soak_and_upgrade_keep_the_same_regions() -> void:

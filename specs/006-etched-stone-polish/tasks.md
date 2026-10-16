@@ -375,7 +375,7 @@ terms, with the consequences and Play at its foot (contracts/math-box.md).
 
 ### Tests for User Story 2 (write first)
 
-- [ ] T018 [P] [US2] In `tests/test_view_state.gd` add `test_the_math_box_sums_come_from_the_engine()`:
+- [X] T018 [P] [US2] In `tests/test_view_state.gd` add `test_the_math_box_sums_come_from_the_engine()`:
   - For a placed set against an Enemy, `vs.math.sums` has `attack` and `initiative`.
     Each sum's `terms` are exactly `vs.explain.terms` filtered by `sum`, in order.
     `total` equals `vs.explain.attack` / `.initiative`, and `target.value` equals the
@@ -386,7 +386,7 @@ terms, with the consequences and Play at its foot (contracts/math-box.md).
 
 ### Implementation for User Story 2
 
-- [ ] T019 [US2] In `ui/model/view_state.gd` add
+- [X] T019 [US2] In `ui/model/view_state.gd` add
   `static func math(game, draft, explain: Dictionary) -> Dictionary`, called in
   `build()` as `vs["math"]`. It shapes per data-model.md § Sum:
   - `sums` in display order (`attack`, `initiative` for Enemies and the Final Enemy;
@@ -396,7 +396,7 @@ terms, with the consequences and Play at its foot (contracts/math-box.md).
   - `verdict` and `fatal` from today's preview.
   - It does no arithmetic: totals and term values are copied from `explain`. Make T018
     pass.
-- [ ] T020 [US2] Rebuild `ui/widgets/preview_panel.gd` as the math box, keeping its
+- [X] T020 [US2] Rebuild `ui/widgets/preview_panel.gd` as the math box, keeping its
   `needed_height()` contract and its prompt mode for the steps that are not
   challenges:
   - **Equation rows**: for each sum, an `HFlowContainer` of term cells. A cell is a
@@ -427,7 +427,7 @@ terms, with the consequences and Play at its foot (contracts/math-box.md).
     5 terms, wrapped at the box width, plus consequences (and Play when it is not
     placed separately).
   - Remove the `_Compare` bar class once nothing uses it.
-- [ ] T021 [US2] Run `./tools/test.sh` and the space audit. Take screenshots at
+- [X] T021 [US2] Run `./tools/test.sh` and the space audit. Take screenshots at
   `phone-16x9` and `desktop`. Find, with `tools/shot.gd` seeds or a scratch script,
   one state each:
   - an Enemy with Armor in the Spell's Ether;
@@ -476,7 +476,7 @@ before stage B. This is a look, not a gate.
 - [ ] T023 [P] [US3] Reverse the face change from revision 1 in `ui/widgets/face_frame.gd`.
   The Encounter frame keeps its `StoneStyle`, but `inset` → `well` so it reads as
   raised like the other zones.
-- [ ] T024 [US3] Add a `pattern` command to `tools/generate_art.py`:
+- [X] T024 [US3] Add a `pattern` command to `tools/generate_art.py`:
   - **CLI**: `choices` gains `"pattern"`. `names` are pattern names from a new
     `PATTERNS` dict: `{"ground": "<prompt>"}`, with the prompt from research R5.
   - **Run**: `text_to_image(prompt, seed, "etch/pattern-" + name)` writes to

@@ -146,6 +146,25 @@ _Record observer results, bench numbers and the owner's decisions here._
 
   Step 6 (the Final Battle) was checked by screenshot and by the solver tests.
 
+- **The math box (T021, revision 2)**: a scratch script found each state through the
+  engine and shot it at 1280 × 720. In each one the terms add up to the total shown:
+  - Armor: `10 + 2 − 1 = 11 / 7 HP`, the Armor line in red;
+  - Night Travel: `6 + 2 − 1 = 7`, named "Night Travel";
+  - Steep: the target line `MP 9 + Steep 5 = 14`;
+  - an Ambush, shown in the damage pill's terms;
+  - the Final Journey and the Final Enemy, adding both sets.
+- **Final Battle room**: the dragon's face needs 332 to 384 units (Grimroch's Final
+  Enemy), so its box gets as little as 232. For that reason:
+  - the Final Battle rows are smaller and stop at the total, since the face lists the
+    tiers;
+  - the separate defeat line gives way to the red edge, verdict and Play.
+
+  A check over every dragon, both steps and several two-set Hands found nothing
+  overflowing.
+- **First-time viewer (SC-003)**: pending. It needs someone who has not seen the box;
+  the Armor and Night Travel screenshots are ready for it. Ask again at the stage B
+  sign-off (T031).
+
 ### Stage 2 sign-off (T040), 2026-10-15
 
 The owner saw the before/after play screens (placing cards, the Final Journey, Soak)

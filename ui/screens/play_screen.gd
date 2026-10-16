@@ -200,7 +200,7 @@ func _count(label: Label, from: int, to: int, signed: bool) -> void:
 		if is_instance_valid(label):
 			label.text = ("+%d" % roundi(v)) if signed else str(roundi(v))
 	show.call(from)
-	create_tween().tween_method(show, float(from), float(to), T.COUNT)
+	label.create_tween().tween_method(show, float(from), float(to), T.COUNT)
 
 
 ## The Hand's panel: round the cards themselves, with room for a placed card to rise.
@@ -375,11 +375,13 @@ func _replan(p: Dictionary, state: Dictionary) -> Dictionary:
 	# The preview asks for the height its fullest look needs this Encounter, so this
 	# changes between steps and Encounters, not as cards are placed.
 	var needed := roundi(_preview_widget().needed_height(p.regions.preview.size.x))
-	if p.get("for", []) == [count, sets, needed]:
+	var enc = state.get("encounter")
+	var least: int = T.DRAGON_MIN if enc != null and enc.kind.begins_with("final") else T.ENCOUNTER_MIN
+	if p.get("for", []) == [count, sets, needed, least]:
 		return p
-	var q: Dictionary = Solver.solve(p.view, p.safe, count, sets, p.points_per_unit, needed)
+	var q: Dictionary = Solver.solve(p.view, p.safe, count, sets, p.points_per_unit, needed, least)
 	q["safe"] = p.safe
-	q["for"] = [count, sets, needed]
+	q["for"] = [count, sets, needed, least]
 	if q.regions != p.regions:
 		plan = q
 		_place_regions(q)

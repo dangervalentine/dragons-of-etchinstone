@@ -32,6 +32,11 @@ Run:
   python3 tools/generate_art.py generate all --server http://other-pc:8188 --q8
   python3 tools/generate_art.py body grimroch --image build/art/prime/grimroch.png \\
       --mask build/art/grimroch-mask.png [--fill "the throat, solid"]
+  python3 tools/generate_art.py pattern ground --count 4
+
+pattern draws a flat, repeating ground pattern from the PATTERNS prompts below, not
+from the doc, into build/art/pattern/. tools/make_ground.gd then makes it seamless,
+flattens it to three tones and fits it to the game's stone (feature 006).
 """
 import argparse
 import json
@@ -48,6 +53,13 @@ ROOT = os.path.join(os.path.dirname(__file__), "..")
 DOC = os.path.join(ROOT, "art", "STYLE_PROMPT.md")
 OUT = os.path.join(ROOT, "build", "art")
 STARTS = os.path.join(OUT, "starts")
+PATTERN_OUT = os.path.join(OUT, "pattern")
+# Ground patterns for the play screen (feature 006, research R5): flat lines, no glow.
+PATTERNS = {
+    "ground": "a seamless repeating pattern of carved woodcut lines on dark stone, flat, "
+              "two tones, no shading, no glow, evenly spaced engraved strokes, linocut "
+              "texture, tileable",
+}
 ART = os.path.join(ROOT, "art", "creatures")
 SERVER = "http://127.0.0.1:8188"
 
@@ -309,7 +321,7 @@ def start_for(name):
 def main():
     global SERVER, models
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    p.add_argument("command", choices=["list", "prompt", "generate", "restyle", "start", "body"])
+    p.add_argument("command", choices=["list", "prompt", "generate", "restyle", "start", "body", "pattern"])
     p.add_argument("names", nargs="*", help="file names from the doc's tables, e.g. panda-fighter, "
                    "or all")
     p.add_argument("--seed", type=int, help="the first seed; random if left out")
@@ -331,6 +343,21 @@ def main():
     a = p.parse_args()
     SERVER = a.server.rstrip("/")
     models = MODELS["q8" if a.q8 else "q4"]
+    if a.command == "pattern":
+        names = a.names or list(PATTERNS)
+        for name in names:
+            if name not in PATTERNS:
+                sys.exit("%s isn't a pattern; there are: %s" % (name, ", ".join(PATTERNS)))
+        os.makedirs(PATTERN_OUT, exist_ok=True)
+        seed = a.seed if a.seed is not None else random.randrange(1 << 32)
+        for name in names:
+            for s in range(seed, seed + a.count):
+                dest = os.path.join(PATTERN_OUT, "%s-%d.png" % (name, s))
+                if os.path.exists(dest):
+                    print("have", os.path.relpath(dest, ROOT))
+                    continue
+                run(text_to_image(PATTERNS[name], s, "etch/pattern-" + name), dest)
+        return
     doc = read_doc()
     if a.command == "list":
         for name, s in doc["subjects"].items():

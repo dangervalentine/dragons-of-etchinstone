@@ -50,6 +50,7 @@ static func build(game, draft, db, extra := {}) -> Dictionary:
 		"encounter": _encounter(game, db),
 		"preview": null,
 		"explain": {},
+		"math": {},
 		"sets": [],
 		"active_slot": draft.active.duplicate(),
 		"soak": null,
@@ -65,6 +66,7 @@ static func build(game, draft, db, extra := {}) -> Dictionary:
 	if playing:
 		vs.preview = preview(game, draft, extra.get("previous_preview"))
 		vs.explain = explain(game, draft)
+		vs.math = math(game, vs.preview, vs.explain)
 		vs.sets = _sets(game, draft)
 	if SOAK_PHASES.has(phase):
 		var total := 0
@@ -297,6 +299,58 @@ static func explain(game, draft) -> Dictionary:
 	var action: Dictionary = draft.to_action()
 	var e: Dictionary = game.explain_final(action) if game.phase != "challenge" else game.explain(action)
 	return {} if e.has("error") else e
+
+
+## The math box (contracts/math-box.md): the result as sums of the engine's terms,
+## each set against its target. No arithmetic here: totals and term values are
+## copied from `explain`, outcomes from the preview. Empty when the engine refuses
+## the set outright (the preview then says why).
+static func math(game, pv: Dictionary, e: Dictionary) -> Dictionary:
+	if e.is_empty():
+		return {}
+	var complete: bool = e.get("complete", false) and pv.status == "ready"
+	var terms: Array = e.terms
+	var by_sum := func(id: String) -> Array:
+		return terms.filter(func(t): return t.sum == id)
+	var out := {"complete": complete, "sums": [], "missing": pv.missing,
+		"damage_terms": by_sum.call("damage"), "time_terms": by_sum.call("time")}
+	var labels := {"attack": "Attack", "initiative": "Initiative", "move": "Move"}
+	var ids: Array = ["move"] if e.has("move") else ["attack", "initiative"]
+	for i in ids.size():
+		var id: String = ids[i]
+		var cmp: Dictionary = pv.comparisons[i] if complete and i < pv.comparisons.size() else {}
+		var s := {"id": id, "label": labels[id], "icon": id, "terms": by_sum.call(id),
+			"total": e[id] if complete else null, "target": _math_target(game, e, id, cmp, by_sum.call("target")),
+			"result": cmp.get("result", ""), "note": "", "missing": [] if complete else pv.missing,
+			"tier": null}
+		if id == "initiative" and complete:
+			s.note = cmp.get("note", "")
+			# Ranged strikes first whatever the Initiative: say so, not "You strike first".
+			for t in out.damage_terms:
+				if t.note.begins_with("Ranged"):
+					s.note = "%s · %d early damage" % [t.note, t.value]
+		if game.phase != "challenge" and id != "initiative" and complete:
+			s.tier = {"index": e.tier, "text": pv.verdict_text}
+		out.sums.append(s)
+	return out
+
+
+## What a sum is set against: an Enemy's HP or Initiative, a Journey's MP (with its
+## own terms when a Steep peril raises it), or the next tier in the Final Battle.
+static func _math_target(game, e: Dictionary, id: String, cmp: Dictionary, target_terms: Array) -> Dictionary:
+	if not cmp.is_empty():
+		return {"value": cmp.target, "icon": cmp.target_icon,
+			"terms": target_terms if id == "move" and target_terms.size() > 1 else []}
+	# Incomplete: the target is known even though the total is not.
+	var enc: Dictionary = game.encounter() if game.phase == "challenge" else {}
+	match id:
+		"attack":
+			return {"value": enc.data.hp if not enc.is_empty() else game.dragon.hp_tiers[0].hp, "icon": "hp", "terms": []}
+		"initiative":
+			return {"value": enc.data.initiative if not enc.is_empty() else game.dragon.initiative, "icon": "initiative", "terms": []}
+	if enc.is_empty():
+		return {"value": game.dragon.mp_tiers[0].mp.value, "icon": "mp", "terms": []}
+	return {"value": e.mp, "icon": "mp", "terms": target_terms if target_terms.size() > 1 else []}
 
 
 ## The role slots: one per role per Action Set while building, each with the number
