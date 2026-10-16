@@ -499,7 +499,7 @@ before stage B. This is a look, not a gate.
 
   Print the tile's luminance range and PASS when it lies inside
   `[STONE_L_MIN, STONE_L_MAX]`.
-- [ ] T026 [US3] The ground candidates, in two parts. **Nothing is written to
+- [X] T026 [US3] The ground candidates, in two parts. **Nothing is written to
   `art/stone/` before part 2** (FR-026: the ground must not change during stage A,
   and `stone.gd` uses `art/stone/grain.png` as soon as it exists).
   1. **Generate** (may run in the background during stage A, any time after T024).
@@ -517,6 +517,12 @@ before stage B. This is a look, not a gate.
 - [ ] T027 [US3] Run `./tools/test.sh`, including `test_stone_contrast` on the shipped
   tile, plus the bench and the space audit. Take
   `godot --path . -s tools/shot.gd -- build/006-us3r2 phone-16x9 desktop`.
+
+**Outcome (owner, 2026-10-15)**:
+- **The ground.** The owner kept all four grounds, chosen under Ground in the menu
+  (research R5, Outcome).
+- **The action column.** It is a single column: secondary actions in a row with Play
+  under it at the same width. Cancel takes the place of the action under way.
 
 **Checkpoint**: Commit "Raised boxes with flat edges on a generated woodcut ground".
 

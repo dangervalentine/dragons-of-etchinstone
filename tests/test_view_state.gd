@@ -91,6 +91,7 @@ func test_cancel_is_offered_in_every_mode() -> void:
 		d.begin_mode(m)
 		var ids: Array = ViewState.build(g, d, db).secondary.map(func(a): return a.id)
 		ok(ids.has("cancel"), "cancel during " + m)
+		ok(not ids.has("divert" if m == "divert" else "fuse"), "in place of the action that started " + m)
 		ok(not ViewState.build(g, d, db).prompt.primary.enabled, "cannot play during " + m)
 		d.cancel_mode()
 	var ids: Array = ViewState.build(g, d, db).secondary.map(func(a): return a.id)

@@ -18,8 +18,10 @@ const SLOT_BAND_H := 2 * T.TAP_MIN + T.S
 ## Where a four-card Hand is bound by width and leaves height over, half of it goes to
 ## the slot band, up to this, so the slots are larger rather than the board emptier.
 const SLOT_BAND_MAX := 264.0
-## One cell of the action column's grid. Three columns beside one Action Set's
-## slots, two beside the Final Battle's six, which then keep 88 units each.
+## The action column is as wide as this many cells: three beside one Action Set's
+## slots, two beside the Final Battle's six, which then keep 88 units each. The
+## secondary actions share its top row (a step under way turns its action into
+## Cancel, so there are never more than fit) and Play its bottom one.
 const ACTION_CELL_W := 118
 const ACTION_COLS := 3
 const ACTION_COLS_FINAL := 2
@@ -110,7 +112,7 @@ static func action_width(set_count: int) -> float:
 ## Battle); the preview never takes that from it.
 ##
 ## The right column: the slot band at the top, with the action column beside it
-## (secondary actions in a grid, Play in its bottom row), and the Hand under both,
+## (secondary actions in its top row, Play in its bottom row, both full width), and the Hand under both,
 ## down to the bottom. With no sets the band shrinks to the action column's one row.
 static func solve(view: Vector2, safe: Rect2, hand_count := 4, set_count := 1, points_per_unit := 0.5, preview_needed := 0.0, encounter_min: int = T.ENCOUNTER_MIN) -> Dictionary:
 	var left := maxf(safe.position.x, T.M)
@@ -155,9 +157,10 @@ static func solve(view: Vector2, safe: Rect2, hand_count := 4, set_count := 1, p
 			spare = minf(spare, room - used)
 		band_h = minf(SLOT_BAND_H + floorf(maxf(0.0, spare) / 2.0), SLOT_BAND_MAX)
 	var actions := Rect2(c.end.x - action_w, body_y, action_w, band_h)
-	# Play: the bottom row's right cells (two beside one set, one beside two).
-	var commit_w: float = ACTION_CELL_W if set_count > 1 else 2 * ACTION_CELL_W + T.S
-	var commit := Rect2(actions.end.x - commit_w, actions.end.y - T.TAP_MIN, commit_w, T.TAP_MIN)
+	# One column: the secondary actions in a row across the top half, Play across the
+	# bottom half, both the column's full width. With no sets Play has it all.
+	var commit_h: float = band_h if set_count == 0 else floorf((band_h - T.S) / 2.0)
+	var commit := Rect2(actions.position.x, actions.end.y - commit_h, action_w, commit_h)
 	var slots := Rect2(right_x, body_y, actions.position.x - GAP - right_x, band_h if set_count > 0 else 0.0)
 	var hand_y := body_y + band_h + GAP
 	var regions := {

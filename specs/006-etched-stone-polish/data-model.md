@@ -81,7 +81,7 @@ or answers an event.
 
 | Field | Type | Notes |
 |---|---|---|
-| `file` | String | `res://art/stone/grain.png`, the generated tile; the noise grain is the fallback |
+| `file` | String | `res://art/stone/ground-<n>.png`, n = `Settings.ground` (1–4, chosen in the menu); the noise grain is the fallback |
 | `size` | int | 512 (tile) |
 | `tones` | int | 3 flat tones |
 | `luminance` | range | Inside `[STONE_L_MIN, STONE_L_MAX]` |

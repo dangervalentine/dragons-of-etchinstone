@@ -316,6 +316,8 @@ func dispatch(intent: Dictionary) -> void:
 			_show_title()
 		"settings":
 			_open_menu(false)
+		"ground":
+			backdrop_layer.refresh_ground()
 		"menu":
 			_open_menu(true)
 		"glossary":

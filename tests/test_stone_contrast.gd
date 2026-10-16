@@ -5,13 +5,35 @@ extends "res://tests/base.gd"
 const T = preload("res://ui/theme/tokens.gd")
 const Stone = preload("res://ui/theme/stone.gd")
 const StoneStyle = preload("res://ui/theme/stone_style.gd")
+const Settings = preload("res://ui/model/settings.gd")
 
 const TEXT := {"INK": T.INK, "INK_MUTED": T.INK_MUTED, "GOLD": T.GOLD, "GOOD": T.GOOD,
 	"CAUTION": T.CAUTION, "BAD": T.BAD, "HP": T.HP}
 
 
+## Every ground a player can choose, and the noise fallback.
+func _images() -> Array:
+	var out := [Stone.noise_image()]
+	for n in range(1, Settings.GROUNDS + 1):
+		ok(ResourceLoader.exists(Stone.ground_file(n)), "ground %d ships" % n)
+		if ResourceLoader.exists(Stone.ground_file(n)):
+			out.append((load(Stone.ground_file(n)) as Texture2D).get_image())
+	return out
+
+
 func _extremes() -> Array:
-	var img: Image = Stone.grain_image()
+	var lo := Color.WHITE
+	var hi := Color.BLACK
+	for img in _images():
+		var e := _extremes_of(img)
+		if T.luminance(e[0]) < T.luminance(lo):
+			lo = e[0]
+		if T.luminance(e[1]) > T.luminance(hi):
+			hi = e[1]
+	return [lo, hi]
+
+
+func _extremes_of(img: Image) -> Array:
 	var lo := Color.WHITE
 	var hi := Color.BLACK
 	for y in range(0, img.get_height(), 2):

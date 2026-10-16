@@ -101,14 +101,15 @@ func test_controls_are_big_enough_to_tap() -> void:
 		ok(plan.regions.slots.size.y >= T.TAP_MIN, name + " slots")
 
 
-func test_play_is_the_bottom_right_of_the_action_column() -> void:
+func test_play_is_the_foot_of_the_action_column() -> void:
 	for name in Solver.MATRIX:
 		for sets in [0, 1, 2]:
 			var plan := _plan(name, 7 if sets == 2 else 4, sets)
 			var a: Rect2 = plan.regions.actions
 			var c: Rect2 = plan.regions.commit
 			ok(a.encloses(c), "%s %d sets: Play is inside the action column" % [name, sets])
-			eq(c.end, a.end, "%s %d sets: in its bottom-right corner" % [name, sets])
+			eq(c.end, a.end, "%s %d sets: at its foot" % [name, sets])
+			eq(c.size.x, a.size.x, "%s %d sets: as wide as the column" % [name, sets])
 			eq(a.end.x, plan.content.end.x, "%s %d sets: the column is at the right edge" % [name, sets])
 			ok(c.size.x >= T.TAP_MIN and c.size.y >= T.TAP_MIN, "%s %d sets: Play is a tap target" % [name, sets])
 

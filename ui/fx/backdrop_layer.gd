@@ -24,6 +24,12 @@ func setup(m: ShaderMaterial) -> void:
 	resized.connect(func(): m.set_shader_parameter("view_size", size))
 
 
+## Show the ground chosen in the menu.
+func refresh_ground() -> void:
+	if material_ref != null:
+		material_ref.set_shader_parameter("grain", Stone.grain())
+
+
 ## Stone (true) or the old flat background (false).
 func set_stone(on: bool) -> void:
 	if material_ref == null:

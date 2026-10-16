@@ -3,15 +3,15 @@ extends SceneTree
 ## research R5): seamless, three flat tones, fitted to the stone's luminance band so
 ## text keeps its contrast, 512 units square.
 ##   godot --headless --path . -s tools/make_ground.gd -- <in.png> [out.png]
-## The output defaults to art/stone/grain.png, which ui/theme/stone.gd prefers to
-## its noise grain. Prints the tile's luminance range, and PASS when it lies inside
-## [STONE_L_MIN, STONE_L_MAX].
+## The output defaults to art/stone/ground-1.png; the game ships ground-1 to
+## ground-4, one per pattern the menu offers (ui/theme/stone.gd). Prints the tile's
+## luminance range, and PASS when it lies inside [STONE_L_MIN, STONE_L_MAX].
 
 const T = preload("res://ui/theme/tokens.gd")
 const Stone = preload("res://ui/theme/stone.gd")
 
 const SIZE := 512
-const OUT := "res://art/stone/grain.png"
+const OUT := "res://art/stone/ground-1.png"
 
 
 func _initialize() -> void:

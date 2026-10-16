@@ -1,31 +1,53 @@
 extends RefCounted
-## The stone every screen stands on: a grain made from noise once, the first time
-## it is asked for, and shared. A bitmap at art/stone/grain.png, if present, is
-## used instead.
+## The ground every screen stands on: one of the generated woodcut patterns in
+## art/stone/ (feature 006), chosen in the menu, or, when that file is missing, a
+## grain made from noise. Loaded once and shared until the choice changes.
 
 const T = preload("res://ui/theme/tokens.gd")
+const Settings = preload("res://ui/model/settings.gd")
 
 const GRAIN_SIZE := 256
-const GRAIN_FILE := "res://art/stone/grain.png"
 
 static var _grain: Texture2D
 static var _grain_image: Image
+static var _ground := 0
+
+
+## The tile for ground `n` (1 to Settings.GROUNDS).
+static func ground_file(n: int) -> String:
+	return "res://art/stone/ground-%d.png" % n
+
+
+## Forget the loaded ground, so the next grain() reads the current choice.
+static func reset() -> void:
+	_grain = null
+	_grain_image = null
 
 
 ## Seamless stone grain in colour, its luminance kept between STONE_L_MIN and
 ## STONE_L_MAX so text keeps its contrast anywhere on it.
 static func grain() -> Texture2D:
+	if _ground != Settings.ground:
+		reset()
 	if _grain == null:
 		_grain = ImageTexture.create_from_image(grain_image())
 	return _grain
 
 
 static func grain_image() -> Image:
+	if _ground != Settings.ground:
+		reset()
 	if _grain_image != null:
 		return _grain_image
-	if ResourceLoader.exists(GRAIN_FILE):
-		_grain_image = (load(GRAIN_FILE) as Texture2D).get_image()
+	_ground = Settings.ground
+	if ResourceLoader.exists(ground_file(_ground)):
+		_grain_image = (load(ground_file(_ground)) as Texture2D).get_image()
 		return _grain_image
+	return noise_image()
+
+
+## The fallback grain, made from noise: no file needed.
+static func noise_image() -> Image:
 	var noise := FastNoiseLite.new()
 	noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 	noise.seed = 7

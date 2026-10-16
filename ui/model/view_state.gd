@@ -663,8 +663,20 @@ static func _secondary(game, draft, vs: Dictionary) -> Array:
 					"active": draft.mode == "regroup", "reason": "" if not game._regrouped else "Already used"})
 	if game.phase == "upgrade" and vs.undo > 0:
 		out.append({"id": "undo", "label": "Undo Upgrade", "icon": "undo", "enabled": true, "active": false, "reason": ""})
+	# While a step is under way, the action that started it becomes its Cancel, so
+	# the action column never needs a button more than the actions themselves.
 	if draft.mode != "none":
-		out.append({"id": "cancel", "label": "Cancel", "icon": "close", "enabled": true, "active": false, "reason": ""})
+		var started: String = "fuse" if fusing else draft.mode
+		var cancel := {"id": "cancel", "label": "Cancel", "icon": "close", "enabled": true, "active": true,
+			"reason": "", "tooltip": "Cancel " + started.capitalize()}
+		var at := -1
+		for i in out.size():
+			if out[i].id == started:
+				at = i
+		if at >= 0:
+			out[at] = cancel
+		else:
+			out.append(cancel)
 	return out
 
 

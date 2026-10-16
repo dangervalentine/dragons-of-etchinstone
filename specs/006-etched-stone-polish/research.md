@@ -133,9 +133,11 @@ separate verdict line, which saves 36.
 - **The corner fallback costs cards.** Play in the bottom-right corner under the
   Hand would take 108 units from the Hand. The Final Battle's two rows of cards
   would then drop to 107 wide, under their 137 baseline.
-- **Taken instead: Play in the action column.** Play takes the column's bottom-right
-  cells: two cells (244 × 88) beside one set, one cell (118 × 88) beside the Final
-  Battle's two sets. The secondary actions fill the other cells. The Hand keeps the
+- **Taken instead: Play in the action column.** At the owner's request (2026-10-15)
+  the column is a single column. The secondary actions share its top row, and Play
+  runs the full width of its bottom row. While a step is under way, the action that
+  started it becomes Cancel, so the row never needs more buttons than fit: three
+  beside one set, two beside the Final Battle's six slots. The Hand keeps the
   full height under the slots. The math box keeps its verdict line.
 - **Bigger slots.** Where a four-card Hand is bound by width, the slot band takes
   half the spare height, up to 264.
@@ -185,7 +187,10 @@ twice as tall, which the left column cannot afford with Play inside (R3).
    - scales to 512²;
    - writes `art/stone/grain.png`.
 3. **Pick.** The owner picks one of the four candidates at the US3 review; the chosen
-   tile is committed then. Generation may run during stage A, but the candidates stay
+   tile is committed then. **Outcome (2026-10-15):** the owner kept all four. They
+   ship as `art/stone/ground-1.png` to `ground-4.png`, named Lattice, Ripples,
+   Columns and Rain, and the player chooses one under **Ground** in the menu. The
+   choice is saved in `Settings.ground`. The contrast test checks every tile. Generation may run during stage A, but the candidates stay
    in `build/` until the pick, because `stone.gd` uses `art/stone/grain.png` as soon
    as it exists and FR-026 keeps the ground unchanged through stage A.
 

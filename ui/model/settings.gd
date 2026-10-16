@@ -1,12 +1,17 @@
 extends RefCounted
-## The few things remembered between games: the motion preference and the options
-## of the last game started. Kept in a small file on the device.
+## The few things remembered between games: the motion preference, the ground the
+## board stands on and the options of the last game started. Kept in a small file on
+## the device.
 
 const PATH := "user://settings.cfg"
 const MOTION := ["system", "reduced", "full"]
 const DEFAULT_OPTIONS := {"dragon": "rodving", "difficulty": "normal", "cavalier": false, "glass_cannon": false}
 
+## The ground patterns (feature 006): art/stone/ground-<n>.png, picked in the menu.
+const GROUNDS := 4
+
 static var motion := "system"
+static var ground := 1
 static var last_options := DEFAULT_OPTIONS.duplicate()
 
 
@@ -16,6 +21,8 @@ static func load_all() -> void:
 		return
 	var m = cfg.get_value("display", "motion", "system")
 	motion = m if MOTION.has(m) else "system"
+	var g = cfg.get_value("display", "ground", 1)
+	ground = g if g is int and g >= 1 and g <= GROUNDS else 1
 	var opts = cfg.get_value("game", "last_options", {})
 	if opts is Dictionary:
 		for key in DEFAULT_OPTIONS:
@@ -26,6 +33,7 @@ static func load_all() -> void:
 static func save_all() -> void:
 	var cfg := ConfigFile.new()
 	cfg.set_value("display", "motion", motion)
+	cfg.set_value("display", "ground", ground)
 	cfg.set_value("game", "last_options", last_options)
 	cfg.save(PATH)
 

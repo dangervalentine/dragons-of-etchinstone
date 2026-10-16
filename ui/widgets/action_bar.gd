@@ -1,8 +1,9 @@
 extends Control
 ## The action column beside the role slots (contracts/role-slots.md): the secondary
-## actions (Fuse, Divert, Regroup, Give up Reserve, Undo Upgrade, Cancel) in a grid
-## of tap targets, and the one primary action, Play, in the grid's bottom-right
-## cells, under the right thumb (layout_solver.PLAY_IN_COLUMN is false).
+## actions (Fuse, Divert, Regroup, Give up Reserve, Undo Upgrade, or Cancel in place
+## of the one under way) in a row of tap targets, and the one primary action, Play,
+## across the column under them, under the right thumb
+## (layout_solver.PLAY_IN_COLUMN is false).
 
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
@@ -41,36 +42,22 @@ func apply_layout(actions: Rect2, commit: Rect2) -> void:
 	_place()
 
 
-## The grid's free cells, row by row: every cell of the column that Play does not
-## cover. With no more actions than a row holds, they share the top row instead.
+## Where `count` secondary actions go: side by side across the column above Play,
+## in as many rows as the room above it holds (one, beside the slots).
 func _cells(count: int) -> Array:
-	var cols := maxi(1, roundi((_area.size.x + T.S) / (Solver.ACTION_CELL_W + T.S)))
-	var rows := maxi(1, roundi((_area.size.y + T.S) / (T.TAP_MIN + T.S)))
-	var w := (_area.size.x - (cols - 1) * T.S) / cols
-	var h := (_area.size.y - (rows - 1) * T.S) / rows
-	var free := []
-	for r in rows:
-		var row := []
-		for c in cols:
-			var cell := Rect2(c * (w + T.S), r * (h + T.S), w, h)
-			if not Rect2(_commit.position - _area.position, _commit.size).grow(-1).intersects(cell):
-				row.append(cell)
-		if not row.is_empty():
-			free.append(row)
-	if free.is_empty():
+	var room := _commit.position.y - _area.position.y - T.S
+	if count == 0 or room < T.TAP_MIN:
 		return []
-	var top: Array = free[0]
-	if count <= top.size() and rows > 1:
-		# Fewer actions than the top row holds: they split its width.
-		var each := (_area.size.x - (count - 1) * T.S) / maxf(1.0, count)
-		var out := []
-		for i in count:
-			out.append(Rect2(i * (each + T.S), 0, each, h))
-		return out
-	var flat := []
-	for row in free:
-		flat.append_array(row)
-	return flat
+	var cols := maxi(1, floori((_area.size.x + T.S) / (T.TAP_MIN + T.S)))
+	var rows := ceili(count / float(cols))
+	var h := (room - (rows - 1) * T.S) / rows
+	var out := []
+	for i in count:
+		var r := i / cols
+		var in_row := mini(cols, count - r * cols)
+		var w := (_area.size.x - (in_row - 1) * T.S) / in_row
+		out.append(Rect2((i - r * cols) * (w + T.S), r * (h + T.S), w, h))
+	return out
 
 
 func _place() -> void:
@@ -94,7 +81,7 @@ func render(vs: Dictionary) -> void:
 		var b := UI.button(label, kind, a.icon)
 		UI.style_stone_button(b, kind)
 		b.disabled = not a.enabled
-		b.tooltip_text = a.reason if a.reason != "" else a.label
+		b.tooltip_text = a.reason if a.reason != "" else a.get("tooltip", a.label)
 		# Icon over a short label, so the cells can stay narrow.
 		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		b.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
