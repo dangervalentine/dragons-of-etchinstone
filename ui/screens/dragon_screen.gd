@@ -178,8 +178,8 @@ func _fill_side() -> void:
 	stats = DragonStats.make(d, true)
 	# Held in from the card's edge, clear of the stone's rail.
 	var inset := MarginContainer.new()
-	inset.add_theme_constant_override("margin_left", T.S)
-	inset.add_theme_constant_override("margin_right", T.S)
+	inset.add_theme_constant_override("margin_left", T.M)
+	inset.add_theme_constant_override("margin_right", T.M)
 	inset.add_child(stats)
 	_side.add_child(inset)
 
