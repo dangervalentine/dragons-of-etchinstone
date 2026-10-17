@@ -18,11 +18,17 @@ const PAD := 20
 const COLUMN_GAP := T.XL
 ## Text sizes: body text, and the smaller text of tables and captions.
 const TEXT := T.BODY
-const SMALL := ["body", 24]
+const SMALL := T.LABEL
 ## Terms chips: tall enough to press, set at the smallest readable size.
-const CHIP_H := 48
+const CHIP_H := 44
+## The "Terms on this page" label, on two lines beside the chips.
+const TERMS_LABEL_W := 110
 const CHIP_TEXT := T.TEXT_MIN
 const CHIP_ICON := 26
+## Room either side of the text in a table's cell.
+const CELL_PAD := 8
+## Previous and Next, alike so Contents sits in the middle between them.
+const FOOT_W := 240
 
 var db = null
 var _content := Rect2()
@@ -76,12 +82,13 @@ func show_page(section: int, page_index: int, fade := true) -> void:
 	var first := Rulebook.step(_pos, -1) == _pos
 	var last := Rulebook.step(_pos, 1) == _pos
 	_prev.disabled = first
-	_next.disabled = last
-	_next.text = "End of rulebook" if last else "Next"
+	# On the last page the same button closes the book.
+	_next.disabled = false
+	_next.text = "Close" if last else "Next"
 	if fade and is_inside_tree():
 		_body.modulate.a = 0.0
 		create_tween().tween_property(_body, "modulate:a", 1.0, T.FAST)
-	(_close if last else _next).grab_focus.call_deferred()
+	_next.grab_focus.call_deferred(true)
 
 
 func next() -> void:
@@ -90,6 +97,8 @@ func next() -> void:
 	var to := Rulebook.step(_pos, 1)
 	if to != _pos:
 		show_page(to.section, to.page)
+	else:
+		close()
 
 
 func previous() -> void:
@@ -115,7 +124,7 @@ func toggle_contents() -> void:
 	_body.add_child(_contents_view())
 	_prev.disabled = true
 	_next.disabled = true
-	_contents.grab_focus.call_deferred()
+	_contents.grab_focus.call_deferred(true)
 
 
 ## The page shown, as {section, page}.
@@ -141,25 +150,18 @@ func _build(content: Rect2) -> void:
 	_panel = UI.slab(T.GOLD, PAD)
 	_panel.position = content.position
 	_panel.size = content.size
-	# A scroll: woodcut caps across the slab's top and bottom edges, drawn flat.
 	for c in _caps:
 		c.queue_free()
 	_caps = []
-	for top in [true, false]:
-		var cap := UI.icon_rect("orn_scroll_end", 10, T.muted(T.GOLD))
-		cap.custom_minimum_size = Vector2.ZERO
-		cap.size = Vector2(content.size.x * 0.4, 22)
-		cap.position = Vector2(content.position.x + content.size.x * 0.3, (content.position.y - 11) if top else (content.end.y - 11))
-		cap.flip_v = not top
-		_caps.append(cap)
 	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	var inner := content.size.x - PAD * 2 - COLUMN_GAP
 	_text_w = floorf(inner * 0.6)
 	_aside_w = floorf(inner - _text_w)
-	var col := UI.vbox(T.M)
+	# Heading, page and footer close together, so the page has the most room.
+	var col := UI.vbox(T.S)
 
 	var head := UI.hbox(T.M)
-	head.custom_minimum_size.y = T.TAP_MIN
+	head.custom_minimum_size.y = HEAD_H
 	head.add_child(UI.icon_rect("book", 44, T.GOLD))
 	var names := UI.vbox(0)
 	names.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -170,36 +172,41 @@ func _build(content: Rect2) -> void:
 	_where = UI.label("", T.LABEL, T.INK_MUTED)
 	names.add_child(_where)
 	head.add_child(names)
-	_contents = UI.button("Contents", "quiet", "menu")
-	_contents.custom_minimum_size.x = 250
-	_contents.pressed.connect(toggle_contents)
-	head.add_child(_contents)
-	_close = UI.button("Close", "quiet", "close")
-	_close.custom_minimum_size.x = 180
-	_close.pressed.connect(close)
-	head.add_child(_close)
+	var clear := Control.new()
+	clear.custom_minimum_size.x = close_clearance(PAD)
+	head.add_child(clear)
 	col.add_child(head)
 
 	_body = UI.vbox(0)
 	_body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	col.add_child(_body)
 
+	# Previous and Next at the two ends, Contents midway between them: the ends are
+	# one width, so the middle is the slab's.
 	var foot := UI.hbox(T.S)
 	_prev = UI.button("Previous", "quiet")
-	_prev.custom_minimum_size.x = 220
+	_prev.custom_minimum_size.x = FOOT_W
 	_prev.pressed.connect(previous)
 	foot.add_child(_prev)
 	foot.add_child(UI.spacer())
+	_contents = UI.button("Contents", "quiet", "menu")
+	_contents.custom_minimum_size.x = 250
+	_contents.pressed.connect(toggle_contents)
+	foot.add_child(_contents)
+	foot.add_child(UI.spacer())
 	_next = UI.button("Next", "normal")
-	_next.custom_minimum_size.x = 260
+	_next.custom_minimum_size.x = FOOT_W
 	_next.pressed.connect(next)
 	foot.add_child(_next)
 	col.add_child(foot)
 
 	_panel.add_child(col)
 	add_child(_panel)
-	for cap in _caps:
-		add_child(cap)
+	if _close != null:
+		_close.queue_free()
+	_close = place_close_button(content)
+	# Woodcut caps across the slab's top and bottom edges, as on the glossary.
+	_caps = add_edge_caps(content)
 
 
 ## A position that exists, falling back to the first page.
@@ -224,7 +231,6 @@ func _contents_view() -> Control:
 	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	for i in count:
 		var b := UI.button("%d. %s" % [i + 1, Rulebook.SECTIONS[i].title], "active" if i == _pos.section else "quiet")
-		b.add_theme_font_size_override("font_size", SMALL[1])
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.set_meta("section", i)
 		b.pressed.connect(show_page.bind(i, 0))
@@ -235,80 +241,114 @@ func _contents_view() -> Control:
 # ---------------------------------------------------------------- pages
 
 func _page_view(p: Dictionary) -> Control:
-	var row := UI.hbox(COLUMN_GAP)
+	var page := UI.vbox(T.M)
+	page.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	# The two columns, divided by a rule down the middle of the gap between them.
+	var row := UI.hbox(floori((COLUMN_GAP - 1) / 2.0))
 	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	var text := UI.vbox(T.M)
 	text.custom_minimum_size.x = _text_w
 	for b in p.text:
 		text.add_child(_block(b, _text_w))
 	row.add_child(text)
-	var aside := UI.vbox(T.M)
+	var rule := ColorRect.new()
+	rule.color = Color(T.LINE_SOFT, 0.8)
+	rule.custom_minimum_size.x = 1
+	rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(rule)
+	var aside := UI.vbox(T.S)
 	aside.custom_minimum_size.x = _aside_w
-	var terms_h := _terms_height(p.terms)
+	# The terms sit at the foot of the aside, just above Next; a figure takes the rest.
+	var terms_h := _terms_height(p.terms, _aside_w)
 	for b in p.aside:
 		if b.has("figure"):
-			var room := Vector2(_aside_w, _body_height() - terms_h - (T.M * 2 if terms_h > 0 else 0))
+			var room := Vector2(_aside_w, _body_height() - (terms_h + T.S if terms_h > 0.0 else 0.0))
 			aside.add_child(RulebookFigure.make(b.figure, db, room, func(d): intent.emit(d)))
 		else:
 			aside.add_child(_block(b, _aside_w))
-	if not p.terms.is_empty():
-		aside.add_child(UI.spacer())
-		aside.add_child(_terms(p.terms))
 	# The first page credits the game's makers, in the room its aside leaves.
 	if _pos.section == 0 and _pos.page == 0:
 		aside.add_child(UI.spacer())
 		var credit := UI.label(Rulebook.CREDIT, T.LABEL, T.INK_MUTED, true)
 		credit.custom_minimum_size.x = _aside_w
 		aside.add_child(credit)
+	if not p.terms.is_empty():
+		aside.add_child(_terms(p.terms, _aside_w))
 	row.add_child(aside)
-	return row
+	page.add_child(row)
+	return page
 
 
 ## The height the body has for a page at this size.
 func _body_height() -> float:
-	return _content.size.y - PAD * 2 - T.TAP_MIN * 2 - T.M * 2
+	return _content.size.y - PAD * 2 - HEAD_H - T.TAP_MIN - T.S * 2
 
 
-## The Glossary terms of the page as chips; each opens its entry beside it.
-func _terms(ids: Array) -> Control:
-	var col := UI.vbox(T.S)
-	col.add_child(UI.label("Terms on this page", T.LABEL, T.INK_MUTED))
-	var flow := HFlowContainer.new()
-	flow.add_theme_constant_override("h_separation", T.S)
-	flow.add_theme_constant_override("v_separation", T.S)
-	flow.custom_minimum_size.x = _aside_w
-	for id in ids:
-		var e: Dictionary = Glossary.entry(id)
-		var chip := UI.button(e.name, "quiet", e.icon if e.icon != "" else "help")
-		chip.set_script(HelpButton)
-		chip.custom_minimum_size = Vector2(CHIP_H, CHIP_H)
-		chip.autowrap_mode = TextServer.AUTOWRAP_OFF
-		# A fixed-size icon counts toward the chip's width; an expanding one would be squeezed out.
-		chip.expand_icon = false
-		chip.add_theme_font_size_override("font_size", CHIP_TEXT)
-		chip.add_theme_constant_override("icon_max_width", CHIP_ICON)
-		chip.set_meta("term", id)
-		HelpTip.mark(chip, id)
-		chip.pressed.connect(func(): intent.emit({"type": "help", "id": id, "source": chip}))
-		flow.add_child(chip)
-	col.add_child(flow)
-	return col
-
-
-## How tall the terms chips will be, packed into rows across the aside.
-func _terms_height(ids: Array) -> float:
+## How tall the terms will be in a column `width` wide: rows of chips beside the label.
+func _terms_height(ids: Array, width: float) -> float:
 	if ids.is_empty():
 		return 0.0
 	var font := UI.font(T.BUTTON[0])
+	var room := width - TERMS_LABEL_W - T.S
 	var rows := 1
 	var x := 0.0
 	for id in ids:
 		var w: float = font.get_string_size(Glossary.entry(id).name, HORIZONTAL_ALIGNMENT_LEFT, -1, CHIP_TEXT).x + CHIP_ICON + 4 * T.S + 4
-		if x > 0.0 and x + w > _aside_w:
+		if x > 0.0 and x + w > room:
 			rows += 1
 			x = 0.0
 		x += w + T.S
-	return T.LABEL[1] * 1.4 + T.S + rows * CHIP_H + (rows - 1) * T.S
+	return rows * _chip_h() + (rows - 1) * T.S
+
+
+## A chip's real height, its text and the stone's margins, never less than CHIP_H.
+func _chip_h() -> float:
+	# Measured in the tree, where the stone's margins resolve as they will on the page.
+	var probe := _chip("help")
+	add_child(probe)
+	var h := maxf(CHIP_H, probe.get_combined_minimum_size().y)
+	remove_child(probe)
+	probe.free()
+	return h
+
+
+func _chip(id: String) -> Button:
+	var e: Dictionary = Glossary.entry(id)
+	var chip := UI.button(e.name, "quiet", e.icon if e.icon != "" else "help")
+	chip.custom_minimum_size = Vector2(CHIP_H, CHIP_H)
+	chip.autowrap_mode = TextServer.AUTOWRAP_OFF
+	# A fixed-size icon counts toward the chip's width; an expanding one would be squeezed out.
+	chip.expand_icon = false
+	chip.add_theme_font_size_override("font_size", CHIP_TEXT)
+	chip.add_theme_constant_override("icon_max_width", CHIP_ICON)
+	return chip
+
+
+## The Glossary terms of the page as chips, set to the right with their label
+## beside them; each opens its entry beside it.
+func _terms(ids: Array, width: float) -> Control:
+	# Takes the aside's spare height and sits at its foot, just above Next.
+	var row := UI.hbox(T.S)
+	row.size_flags_vertical = Control.SIZE_EXPAND | Control.SIZE_SHRINK_END
+	var label := UI.label("Terms on this page", T.LABEL, T.INK_MUTED, true)
+	label.custom_minimum_size.x = TERMS_LABEL_W
+	label.size_flags_vertical = Control.SIZE_SHRINK_END
+	row.add_child(label)
+	var flow := HFlowContainer.new()
+	flow.alignment = FlowContainer.ALIGNMENT_END
+	flow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	flow.add_theme_constant_override("h_separation", T.S)
+	flow.add_theme_constant_override("v_separation", T.S)
+	flow.custom_minimum_size.x = width - TERMS_LABEL_W - T.S
+	for id in ids:
+		var chip := _chip(id)
+		chip.set_script(HelpButton)
+		chip.set_meta("term", id)
+		HelpTip.mark(chip, id)
+		chip.pressed.connect(func(): intent.emit({"type": "help", "id": id, "source": chip}))
+		flow.add_child(chip)
+	row.add_child(flow)
+	return row
 
 
 func _block(b: Dictionary, width: float) -> Control:
@@ -353,44 +393,97 @@ func _rich(bbcode: String, width: float, size: Array = TEXT) -> RichTextLabel:
 	return r
 
 
-## A grid of cells; the head row in bold. "difficulty" is built from the engine.
+## A table in a frame: the head row on a band in gold, a rule between rows. The
+## columns that name things keep to one line where they can, and the widest column,
+## the one that explains, wraps in what is left. "difficulty" is built from the engine.
 func _table(t, width: float) -> Control:
 	var head: Array
 	var rows: Array
 	if t is String and t == "difficulty":
-		head = ["Difficulty", "Cards drawn", "Changed", "To Level"]
+		head = ["Difficulty", "Drawn", "Changed", "To Level"]
 		rows = Rulebook.difficulty_rows().map(func(r): return [r.name, str(r.offered), str(r.changed), str(r.level)])
 	else:
 		head = t.head
 		rows = t.rows
-	var grid := GridContainer.new()
-	grid.columns = head.size()
-	grid.add_theme_constant_override("h_separation", T.M)
-	grid.add_theme_constant_override("v_separation", T.S)
-	# Columns share the width by the length of their longest cell.
-	var weights := []
-	for c in head.size():
-		var longest := 4
-		for r in [head] + rows:
-			longest = maxi(longest, _plain(r[c]).length())
-		weights.append(clampi(longest, 6, 40))
-	var total := 0
-	for w in weights:
-		total += w
-	var free := width - T.M * (head.size() - 1)
-	for r in [head] + rows:
+	# A margin of the border's width, so the head band never covers the frame.
+	var frame := UI.panel(Color(T.BG_BASE, 0.35), T.LINE_SOFT, 1, T.RADIUS_S, 1)
+	var widths := _column_widths([head] + rows, width - 2 - CELL_PAD * 2 * head.size())
+	var col := UI.vbox(0)
+	for i in rows.size() + 1:
+		var r: Array = head if i == 0 else rows[i - 1]
+		if i > 1:
+			var rule := ColorRect.new()
+			rule.color = Color(T.LINE_SOFT, 0.7)
+			rule.custom_minimum_size.y = 1
+			col.add_child(rule)
+		var band := PanelContainer.new()
+		var look := StyleBoxFlat.new()
+		look.bg_color = T.BG_RAISED if i == 0 else Color(0, 0, 0, 0)
+		look.corner_radius_top_left = T.RADIUS_S if i == 0 else 0
+		look.corner_radius_top_right = look.corner_radius_top_left
+		look.content_margin_top = 5 if i == 0 else 6
+		look.content_margin_bottom = look.content_margin_top
+		band.add_theme_stylebox_override("panel", look)
+		var line := UI.hbox(0)
 		for c in head.size():
-			var text: String = r[c]
-			var cell := _rich("[b]%s[/b]" % text if r == head else text, floorf(free * weights[c] / total), SMALL)
-			grid.add_child(cell)
-	return grid
+			var cell := MarginContainer.new()
+			cell.add_theme_constant_override("margin_left", CELL_PAD)
+			cell.add_theme_constant_override("margin_right", CELL_PAD)
+			var text := _rich("[b]%s[/b]" % r[c] if i == 0 else r[c], widths[c], SMALL)
+			if i == 0:
+				text.add_theme_color_override("default_color", T.GOLD)
+			cell.add_child(text)
+			line.add_child(cell)
+		band.add_child(line)
+		col.add_child(band)
+	frame.add_child(col)
+	return frame
 
 
-## The visible text of a cell, an inline icon counted as two letters.
+## Each column's width within `room`, as a browser sets out a table: every column
+## at its one-line width if they all fit; otherwise each starts at its longest word
+## and the room left is shared in proportion to how much more each needs for one line.
+func _column_widths(cells: Array, room: float) -> Array:
+	var n: int = cells[0].size()
+	var font := UI.font("body_bold")
+	var fs: int = SMALL[1]
+	var line := []
+	var word := []
+	for c in n:
+		line.append(0.0)
+		word.append(0.0)
+	for r in cells:
+		for c in n:
+			var icons := _icon_count(r[c]) * (Rulebook.ICON_SIZE + 4)
+			var plain := _plain(r[c]).strip_edges()
+			line[c] = maxf(line[c], font.get_string_size(plain, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + icons + 2)
+			for w in plain.split(" ", false):
+				word[c] = maxf(word[c], font.get_string_size(w, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + icons + 2)
+	var line_total := 0.0
+	var word_total := 0.0
+	for c in n:
+		line_total += line[c]
+		word_total += word[c]
+	var widths := []
+	if line_total <= room:
+		widths = line.duplicate()
+		widths[n - 1] += room - line_total
+		return widths
+	var share := clampf((room - word_total) / maxf(1.0, line_total - word_total), 0.0, 1.0)
+	for c in n:
+		widths.append(word[c] + (line[c] - word[c]) * share)
+	return widths
+
+
+## The visible text of a cell, without its tags or inline icons.
 func _plain(bbcode: String) -> String:
 	var icons := RegEx.create_from_string(r"\[img[^\]]*\][^\[]*\[/img\]")
 	var tags := RegEx.create_from_string(r"\[[^\]]*\]")
-	return tags.sub(icons.sub(bbcode, "  ", true), "", true)
+	return tags.sub(icons.sub(bbcode, "", true), "", true)
+
+
+func _icon_count(bbcode: String) -> int:
+	return RegEx.create_from_string(r"\[img[^\]]*\]").search_all(bbcode).size()
 
 
 # ---------------------------------------------------------------- keys

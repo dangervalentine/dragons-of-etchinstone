@@ -9,6 +9,7 @@ const Art = preload("res://ui/model/art.gd")
 
 signal intent(data: Dictionary)
 
+var heading := ""
 var _layout := Control.new()
 var _content := Rect2(16, 16, 1248, 688)
 var _score: Label
@@ -30,6 +31,7 @@ func render(vs: Dictionary) -> void:
 	apply_layout(_content)
 	var e: Dictionary = vs.ending
 	var colour: Color = T.GOLD if e.won else T.BAD
+	heading = "Victory" if e.won else "Defeat"
 	var root := UI.hbox(T.XL)
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_layout.add_child(root)
@@ -47,7 +49,7 @@ func render(vs: Dictionary) -> void:
 	var head := ("%s is defeated" % e.dragon) if e.won else "You have perished"
 	# The verdict, inscribed in a slab of stone (feature 006).
 	var slab := UI.slab(colour, 16)
-	var verdict := UI.carved_label(head.to_upper(), ["display_bold", 50], colour)
+	var verdict := UI.carved_label(head.to_upper(), T.BANNER, colour)
 	verdict.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	slab.add_child(verdict)
 	left.add_child(slab)
@@ -63,9 +65,9 @@ func render(vs: Dictionary) -> void:
 	right.alignment = BoxContainer.ALIGNMENT_CENTER
 	var score_row := UI.hbox(T.M)
 	score_row.add_child(UI.icon_rect("crown", 72, T.GOLD))
-	_score = UI.label("0", ["display_bold", 88], T.GOLD)
+	_score = UI.label("0", T.TITLE, T.GOLD)
 	score_row.add_child(_score)
-	var cap := UI.label("SCORE", ["display", 30], T.INK_MUTED)
+	var cap := UI.label("SCORE", T.HEADING, T.INK_MUTED)
 	cap.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	score_row.add_child(cap)
 	right.add_child(score_row)
@@ -76,7 +78,7 @@ func render(vs: Dictionary) -> void:
 			var line := UI.hbox(T.S)
 			line.add_child(UI.label("%d %s at Level %d" % [r.count, "card" if r.count == 1 else "cards", r.level], T.BODY, T.INK))
 			line.add_child(UI.spacer())
-			line.add_child(UI.label("%d" % r.points, ["display_bold", 30], T.GOLD))
+			line.add_child(UI.label("%d" % r.points, T.NUMERAL, T.GOLD))
 			rows.add_child(line)
 		if e.trashed > 0:
 			rows.add_child(UI.label("%d %s Trashed, scoring nothing" % [e.trashed, "card" if e.trashed == 1 else "cards"], T.LABEL, T.INK_MUTED))
@@ -94,7 +96,7 @@ func render(vs: Dictionary) -> void:
 		line.add_child(UI.label(e.placing[i], ["body_bold", T.BODY[1]], T.GOLD))
 		right.add_child(line)
 	var board := UI.button("Leaderboard", "quiet", "trophy")
-	board.pressed.connect(func(): intent.emit({"type": "records", "from": "ending"}))
+	board.pressed.connect(func(): intent.emit({"type": "records", "page": "leaderboard", "from": "ending"}))
 	right.add_child(board)
 	right.add_child(UI.spacer())
 	var buttons := UI.hbox(T.S)
@@ -130,4 +132,4 @@ func render(vs: Dictionary) -> void:
 		_score.text = str(_target)
 	else:
 		create_tween().tween_method(func(v: float): _score.text = str(int(v)), 0.0, float(_target), 1.0).set_ease(Tween.EASE_OUT)
-	again.grab_focus.call_deferred()
+	again.grab_focus.call_deferred(true)

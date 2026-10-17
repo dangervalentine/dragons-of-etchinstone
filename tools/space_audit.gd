@@ -6,6 +6,7 @@ extends SceneTree
 ## godot --path . -s tools/space_audit.gd -- [--baseline <file> | --compare <file>]
 
 const Solver = preload("res://ui/model/layout_solver.gd")
+const T = preload("res://ui/theme/tokens.gd")
 
 ## The window sizes SC-002 is judged at: the minimum ones.
 const SIZES := ["phone-16x9", "phone-small"]
@@ -37,7 +38,7 @@ func _run() -> void:
 
 func _open(name: String) -> void:
 	var m: Array = Solver.MATRIX[name]
-	var view := Vector2i(Solver.view_for_window(m[0]))
+	var view := Vector2i(T.DESIGN_MIN)
 	DisplayServer.window_set_size(view)
 	root.size = view
 	for i in 3:
@@ -45,6 +46,7 @@ func _open(name: String) -> void:
 	if ui != null:
 		ui.free()
 	ui = load("res://scenes/main.tscn").instantiate()
+	ui.window_override = m[0]
 	root.add_child(ui)
 	await process_frame
 	await process_frame

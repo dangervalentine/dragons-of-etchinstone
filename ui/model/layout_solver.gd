@@ -1,7 +1,7 @@
 extends RefCounted
 ## Works out where everything on the play screen goes for a given window.
-## The game is landscape only: one arrangement, at least 1280 x 720 design units,
-## that grows on larger screens. Pure, so it is tested without a display.
+## The game is landscape only: one arrangement, laid out at 1280 x 720 design units
+## and scaled evenly to the window. Pure, so it is tested without a display.
 
 const T = preload("res://ui/theme/tokens.gd")
 
@@ -40,8 +40,9 @@ const CARD_GAP_MAX := 36.0
 ## Below this many points per design unit, 22-unit text is under about 9 points.
 const LEGIBLE_SCALE := 0.41
 
-## Window sizes the layout is checked at: name -> [window pixels, safe-area insets
-## in pixels as left, top, right, bottom, points per pixel].
+## Window shapes the game is checked at: name -> [window pixels, safe-area insets
+## in pixels as left, top, right, bottom, points per pixel]. The layout is always
+## 1280 x 720; these test where its letterbox falls and how the safe area maps in.
 const MATRIX := {
 	"phone-16x9": [Vector2(1280, 720), [0, 0, 0, 0], 0.5],
 	"phone-tall": [Vector2(2532, 1170), [141, 0, 141, 63], 1.0 / 3.0],
@@ -54,11 +55,31 @@ const MATRIX := {
 }
 
 
-## The design-unit size of a window, as the project's stretch settings produce it:
-## the 1280 x 720 minimum fits, and the longer axis gets the extra.
-static func view_for_window(window_px: Vector2) -> Vector2:
+## The part of a window the 16:9 play area fills, in window pixels, as the
+## project's `keep` stretch places it; the rest is letterbox.
+static func stage_for_window(window_px: Vector2) -> Rect2:
 	var s := minf(window_px.x / T.DESIGN_MIN.x, window_px.y / T.DESIGN_MIN.y)
-	return window_px / s
+	var size := T.DESIGN_MIN * s
+	return Rect2((window_px - size) / 2.0, size)
+
+
+## A safe area given in window pixels, in design units: mapped through the play
+## area, less whatever of it is letterbox.
+static func safe_in_view(window_px: Vector2, safe_px: Rect2) -> Rect2:
+	var stage := stage_for_window(window_px)
+	var k := stage.size.x / T.DESIGN_MIN.x
+	return Rect2((safe_px.position - stage.position) / k, safe_px.size / k).intersection(Rect2(Vector2.ZERO, T.DESIGN_MIN))
+
+
+## The safe area of a MATRIX row in design units; `flipped` swaps its left and
+## right insets, as turning the phone end over end does.
+static func matrix_safe(name: String, flipped := false) -> Rect2:
+	var m: Array = MATRIX[name]
+	var inset: Array = m[1]
+	if flipped:
+		inset = [inset[2], inset[1], inset[0], inset[3]]
+	var px := Rect2(Vector2(inset[0], inset[1]), m[0] - Vector2(inset[0] + inset[2], inset[1] + inset[3]))
+	return safe_in_view(m[0], px)
 
 
 ## How far inside a rounded screen corner the safe area stops, as a share of its
@@ -109,13 +130,14 @@ static func action_width(set_count: int) -> float:
 ## Action Sets in the slot band, 0 to give its room to the Hand. preview_needed: the
 ## height the preview asks for; 0 keeps the fixed split. encounter_min: the least
 ## height the face on show needs (T.ENCOUNTER_MIN, or T.DRAGON_MIN in the Final
-## Battle); the preview never takes that from it.
+## Battle); the preview never takes that from it. upright: the window is taller
+## than it is wide, so the play area is a thin strip and the layout is undersized.
 ##
 ## The right column: the Hand at the top, and under it the slot band with the action
 ## column beside it (secondary actions in its top row, Play in its bottom row, both
 ## full width), at the foot of the column. With no sets the band shrinks to the
 ## action column's one row.
-static func solve(view: Vector2, safe: Rect2, hand_count := 4, set_count := 1, points_per_unit := 0.5, preview_needed := 0.0, encounter_min: int = T.ENCOUNTER_MIN) -> Dictionary:
+static func solve(view: Vector2, safe: Rect2, hand_count := 4, set_count := 1, points_per_unit := 0.5, preview_needed := 0.0, encounter_min: int = T.ENCOUNTER_MIN, upright := false) -> Dictionary:
 	var left := maxf(safe.position.x, T.M)
 	var top := maxf(safe.position.y, T.M)
 	var right := minf(safe.end.x, view.x - T.M)
@@ -177,10 +199,12 @@ static func solve(view: Vector2, safe: Rect2, hand_count := 4, set_count := 1, p
 	var fit: Dictionary = _fit_cards(regions.hand, hand_count)
 	return {
 		"view": view, "content": c, "regions": regions,
+		# What the screens other than the play screen have, under the header.
+		"body": Rect2(c.position.x, body_y, c.size.x, body_h),
 		"card_size": fit.size, "hand_rows": fit.rows,
 		"card_rects": card_rects(regions.hand, fit.size, hand_count, fit.rows),
 		"points_per_unit": points_per_unit,
-		"undersized": view.y > view.x or points_per_unit < LEGIBLE_SCALE,
+		"undersized": upright or points_per_unit < LEGIBLE_SCALE,
 	}
 
 

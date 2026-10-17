@@ -19,7 +19,7 @@ func _init() -> void:
 	visible = false
 	_panel.add_theme_stylebox_override("panel", UI.stone_slab(T.GOLD, 12))
 	var col := UI.vbox(T.S)
-	var title := UI.label("The fused card counts as", ["body_bold", T.LABEL[1]], T.INK)
+	var title := UI.label("The fused card counts as", T.LABEL_BOLD, T.INK)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(title)
 	var row := UI.hbox(T.S)

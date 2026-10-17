@@ -290,16 +290,16 @@ const SECTIONS := [
 			{"p": "You can play simply to win, or keep score as well."},
 			{"p": "A loss scores 0. A win scores the total of the Levels of every card that was not Trashed, counted after you Soak the dragon's last attack."},
 			{"p": "So a high score means keeping your cards strong to the very end: Upgrade whenever you can, and choose carefully what you Downgrade."},
-			{"p": "Every game you play is kept in Records, on the first screen: your best wins on each difficulty, which you can narrow to one dragon, and every attempt with how far it got."},
+			{"p": "Every game you play is kept. The Leaderboard, on the first screen and in the menu, shows your best wins on each difficulty, which you can narrow to one dragon; the History, in the menu, lists every attempt with how far it got."},
 		]},
 	]},
 	{"id": "ethers", "title": "The Four Ethers", "pages": [
 		{"text": [
 			{"list": [
-				"{icon:water} [[water]]: very strong Armor and Initiative; middling Attack, Boost and Move.",
+				"{icon:water} [[water]]: very strong Armor and Initiative; standard Attack, Boost and Move.",
 				"{icon:fire} [[fire]]: very strong Attack; weak Armor, Boost, Initiative and Move.",
-				"{icon:lightning} [[lightning]]: very strong Move and strong Initiative; weak Attack and Boost; dear to Upgrade.",
-				"{icon:shadow} [[shadow]]: very strong Boost; middling Attack, Initiative and Move. The actions that work as Attack or Move are enhanced by Shadow.",
+				"{icon:lightning} [[lightning]]: very strong Move and strong Initiative; weak Attack and Boost; costly to Upgrade.",
+				"{icon:shadow} [[shadow]]: very strong Boost; standard Attack, Initiative and Move. The actions that work as Attack or Move are enhanced by Shadow.",
 			]},
 			{"p": "Ether matters in four places: a Spell's enhanced action, enemy and dragon Armor, your own Armor against damage, and a Journey's MP."},
 		]},

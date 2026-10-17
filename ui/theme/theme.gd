@@ -97,8 +97,8 @@ static func entry_content(title: String, body: String, icon_name := "", width :=
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", T.S)
 	if icon_name != "":
-		head.add_child(icon_rect(icon_name, 26, T.GOLD))
-	var t := label(title.to_upper(), ["display_bold", 24], T.INK)
+		head.add_child(icon_rect(icon_name, 26, icon_ink(icon_name)))
+	var t := label(title.to_upper(), T.SUBHEAD, T.INK)
 	t.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	head.add_child(t)
 	col.add_child(head)
@@ -106,6 +106,12 @@ static func entry_content(title: String, body: String, icon_name := "", width :=
 	l.custom_minimum_size.x = width
 	col.add_child(l)
 	return col
+
+
+## The colour an explanation's icon is drawn in: an Ether in its own ink, any other
+## term in gold.
+static func icon_ink(id: String) -> Color:
+	return T.ether_ink(id) if T.ETHER.has(id) else T.GOLD
 
 
 static func label(text: String, type: Array = T.BODY, color: Color = T.INK, wrap := false) -> Label:

@@ -14,6 +14,7 @@ const DIFFICULTIES := [
 	["hard", "Hard"], ["impossible", "Impossible"], ["dont_even_try", "Don't Even Try It"],
 ]
 
+var heading := "Difficulty and Rules"
 var db
 var options := {}
 var _tiles := {}
@@ -58,7 +59,7 @@ func _build() -> void:
 	slab.add_child(right)
 	var decree := UI.hbox(T.S)
 	decree.add_child(UI.icon_rect("orn_tower", 34, T.muted(T.GOLD)))
-	var by_order := UI.carved_label("BY ORDER OF THE TOWER", ["display", 24], T.GOLD)
+	var by_order := UI.carved_label("BY ORDER OF THE TOWER", T.EYEBROW, T.GOLD)
 	by_order.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	decree.add_child(by_order)
 	right.add_child(decree)
@@ -91,25 +92,21 @@ func _build() -> void:
 	_tiles["glass_cannon"] = glass
 	right.add_child(rules)
 	root.add_child(slab)
-	# Back and Set out where the dragon screen keeps Back and Continue.
+	# Set out where the dragon screen keeps Continue. Back is in the title bar.
 	var bottom := UI.hbox(T.S)
 	bottom.custom_minimum_size.y = T.TAP_MIN
-	var back_button := UI.button("Back", "normal")
-	back_button.custom_minimum_size.x = 200
-	back_button.pressed.connect(back)
-	bottom.add_child(back_button)
 	bottom.add_child(UI.spacer())
-	var start := UI.button("Set out", "primary", "orn_seal")
+	var start := UI.button("Set out", "primary")
 	start.custom_minimum_size.x = 240
 	start.pressed.connect(func(): intent.emit({"type": "start", "options": options.duplicate()}))
 	bottom.add_child(start)
 	root.add_child(bottom)
 	_refresh()
-	start.grab_focus.call_deferred()
+	start.grab_focus.call_deferred(true)
 
 
 func _heading(text: String) -> Label:
-	return UI.label(text.to_upper(), ["display", 24], T.GOLD)
+	return UI.label(text.to_upper(), T.EYEBROW, T.GOLD)
 
 
 func _difficulty_text(key: String) -> String:

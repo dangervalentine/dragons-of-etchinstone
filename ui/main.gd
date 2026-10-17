@@ -37,6 +37,8 @@ const StageBanner = preload("res://ui/overlays/stage_banner.gd")
 const ConfirmDialog = preload("res://ui/overlays/confirm_dialog.gd")
 const MenuOverlay = preload("res://ui/overlays/menu_overlay.gd")
 const SizeNotice = preload("res://ui/overlays/size_notice.gd")
+const WindowSizer = preload("res://ui/model/window_sizer.gd")
+const HeaderBar = preload("res://ui/widgets/header_bar.gd")
 
 var db = CardDB.new()
 var game: Variant = null
@@ -50,6 +52,9 @@ var screen: Control
 var play: Control
 var animator := Animator.new()
 var _screen_host := Control.new()
+## The title bar over every screen but the play screen, which has its own in the same
+## place, so the menu button never moves.
+var title_bar := HeaderBar.new()
 var _flight := FlightLayer.new()
 var _overlays := Control.new()
 var _backdrop := ColorRect.new()
@@ -64,15 +69,24 @@ var _last_card := ""
 var _undo: Array = []
 ## For tools: pretend the device has these safe-area insets (design units).
 var safe_override := Rect2()
+## For tools: pretend the window has this size in pixels.
+var window_override := Vector2()
+## Whether an upright or unreadably small window gets the size notice: only on the
+## web, where a browser can be held or dragged upright. The app is held landscape,
+## and a desktop window still shows the whole game, letterboxed.
+var notice_applies := OS.has_feature("web")
 ## The device's safe area when the layout was last made, to notice it moving.
 var _device_safe := Rect2i()
+## What the layout was last made for; a window drag that changes none of it changes nothing.
+var _layout_key := []
 ## Active play time of the game in progress.
 var clock = PlayClock.new()
 var _started_at := 0
 ## Whether the game in progress has been recorded; a game is recorded once.
 var _recorded := false
 var _focused := true
-## The screen Records was opened from: "title" or "ending".
+## The screen the Leaderboard or History was opened from: "title", "dragons",
+## "rules", "ending" or "game".
 var _records_from := "title"
 ## The record the last game left, and where it placed.
 var _last_record := {}
@@ -82,6 +96,8 @@ var _placing := {}
 func _ready() -> void:
 	theme = UI.build_theme()
 	Settings.load_all()
+	if _owns_window():
+		WindowSizer.apply(Settings.window_mode)
 	HistoryStore.load_all()
 	menu = Settings.last_options.duplicate()
 	# Options remembered from an older version may name a dragon or difficulty that is gone.
@@ -104,6 +120,9 @@ func _ready() -> void:
 		layer.set_anchors_preset(Control.PRESET_FULL_RECT)
 		layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(layer)
+		if layer == _screen_host:
+			add_child(title_bar)
+	title_bar.intent.connect(dispatch)
 	# Cards under an overlay hold still, so only what can be seen is animated.
 	_overlays.child_entered_tree.connect(func(_n):
 		_fields_live.call_deferred()
@@ -129,19 +148,33 @@ func _ready() -> void:
 
 # ---------------------------------------------------------------- layout
 
+## Whether the game sizes its own window: on a desktop, when it is the running scene
+## (tools that load it size the window themselves).
+func _owns_window() -> bool:
+	return WindowSizer.applies() and is_inside_tree() and get_tree().current_scene == self
+
+
+## The window's size in pixels.
+func _window_px() -> Vector2:
+	if window_override != Vector2.ZERO:
+		return window_override
+	return Vector2(DisplayServer.window_get_size())
+
+
 ## The part of the viewport clear of notches and the home indicator, in design units.
+## The letterbox round the play area is outside the view, so whatever of the unsafe
+## edge falls in it is left out already.
 func _safe_rect(view: Vector2) -> Rect2:
 	if safe_override.size != Vector2.ZERO:
 		return safe_override
 	if not OS.has_feature("mobile"):
 		return Rect2(Vector2.ZERO, view)
-	var window := Vector2(DisplayServer.window_get_size())
+	var window := _window_px()
 	var safe := Rect2(DisplayServer.get_display_safe_area())
 	if window.x <= 0 or safe.size.x <= 0:
 		return Rect2(Vector2.ZERO, view)
 	safe = Solver.clear_corners(safe, window, _corner_radii())
-	var k := view.x / window.x
-	return Rect2(safe.position * k, safe.size * k).intersection(Rect2(Vector2.ZERO, view))
+	return Solver.safe_in_view(window, safe)
 
 
 ## The screen's corner radii in pixels (top left, top right, bottom right, bottom
@@ -168,28 +201,42 @@ func _check_safe_area() -> void:
 
 
 func _points_per_unit(view: Vector2) -> float:
-	var window := Vector2(DisplayServer.window_get_size())
+	var window := _window_px()
 	var scale := DisplayServer.screen_get_scale()
 	if window.x <= 0 or scale <= 0:
 		return 0.5
-	return window.x / view.x / scale
+	return Solver.stage_for_window(window).size.x / view.x / scale
 
 
 func _on_resize() -> void:
-	animator.skip()
+	# The OS can take the window in or out of full screen itself; the setting follows.
+	if _owns_window() and WindowSizer.current_mode() != Settings.window_mode:
+		Settings.window_mode = WindowSizer.current_mode()
+		Settings.save_all()
+		_refresh_menu()
 	var view := get_viewport_rect().size
 	_device_safe = DisplayServer.get_display_safe_area()
 	var safe := _safe_rect(view)
 	var count: int = vs.hand.size() if not vs.is_empty() and vs.has("hand") else 4
 	var sets: int = Solver.slot_rows(vs)
-	plan = Solver.solve(view, safe, count, sets, _points_per_unit(view))
+	var ppu := _points_per_unit(view)
+	var window := _window_px()
+	var upright := window.y > window.x
+	var key := [view, safe, ppu, upright, count, sets]
+	if key == _layout_key:
+		_update_notice()
+		return
+	_layout_key = key
+	animator.skip()
+	plan = Solver.solve(view, safe, count, sets, ppu, 0.0, T.ENCOUNTER_MIN, upright)
 	plan["safe"] = safe
 	plan["for"] = [count, sets]
 	if screen != null:
 		if screen == play:
 			play.apply_layout(plan)
 		else:
-			screen.apply_layout(plan.content)
+			screen.apply_layout(plan.body)
+	_place_title_bar()
 	for o in _overlays.get_children():
 		if o.has_method("close") and o.get_script() == InspectOverlay:
 			o.close()
@@ -198,8 +245,15 @@ func _on_resize() -> void:
 	_update_notice()
 
 
+## Show an open settings menu the window mode as it is now.
+func _refresh_menu() -> void:
+	for o in _overlays.get_children():
+		if o.get_script() == MenuOverlay:
+			o._refresh()
+
+
 func _update_notice() -> void:
-	var under: bool = plan.get("undersized", false)
+	var under: bool = notice_applies and plan.get("undersized", false)
 	if not under:
 		_notice_dismissed = false
 	if under and _notice == null and not _notice_dismissed:
@@ -242,7 +296,19 @@ func _switch(to: Control) -> void:
 		if to == play:
 			play.apply_layout(plan)
 		else:
-			to.apply_layout(plan.content)
+			to.apply_layout(plan.body)
+	_place_title_bar()
+
+
+## The title bar shows the screen's name, where the play screen's header would be.
+func _place_title_bar() -> void:
+	title_bar.visible = screen != null and screen != play
+	if not title_bar.visible:
+		return
+	title_bar.set_title(screen.heading, screen.has_method("back"))
+	if not plan.is_empty():
+		title_bar.position = plan.regions.header.position
+		title_bar.size = plan.regions.header.size
 
 
 func _show_title() -> void:
@@ -275,13 +341,38 @@ func _show_rules() -> void:
 	_switch(r)
 
 
-## Records opens on the difficulty last chosen. The game, if one has just ended,
-## is kept so its ending can be shown again on the way back.
-func _show_records() -> void:
+## The Leaderboard or History opens on the difficulty last chosen. The game, if one
+## is in progress or has just ended, is kept so it can be shown again on the way back.
+func _show_records(page: String) -> void:
 	var r := RecordsScreen.new()
-	r.setup(db, menu.difficulty)
+	r.setup(db, menu.difficulty, page)
 	r.intent.connect(dispatch)
 	_switch(r)
+
+
+## Back to the game in progress, as it was left.
+func _resume_play() -> void:
+	play = PlayScreen.new()
+	play.flight = _flight
+	play.intent.connect(dispatch)
+	_switch(play)
+	_refresh(false)
+
+
+## The screen showing now, by the name the records pages go back to.
+func _screen_name() -> String:
+	if play != null and screen == play:
+		return "game"
+	match screen.get_script() if screen != null else null:
+		EndingScreen:
+			return "ending"
+		DragonScreen:
+			return "dragons"
+		RulesScreen:
+			return "rules"
+		RecordsScreen:
+			return "records"
+	return "title"
 
 
 func _show_ending() -> void:
@@ -289,6 +380,7 @@ func _show_ending() -> void:
 	e.intent.connect(dispatch)
 	_switch(e)
 	e.render(vs)
+	_place_title_bar()
 
 
 func start_game(opts: Dictionary) -> void:
@@ -365,8 +457,13 @@ func dispatch(intent: Dictionary) -> void:
 			menu = intent.options.duplicate()
 			_show_dragons()
 		"records":
-			_records_from = intent.get("from", "title")
-			_show_records()
+			var from: String = intent.get("from", "title")
+			if from == "menu":
+				from = _screen_name()
+			# From one records page to the other, Back still goes where the first came from.
+			if from != "records":
+				_records_from = from
+			_show_records(intent.get("page", "leaderboard"))
 		"records_clear":
 			var c := ConfirmDialog.new()
 			_overlays.add_child(c)
@@ -379,27 +476,36 @@ func dispatch(intent: Dictionary) -> void:
 		"records_back":
 			if _records_from == "ending" and game != null:
 				_show_ending()
+			elif _records_from == "game" and game != null:
+				_resume_play()
+			elif _records_from == "dragons":
+				_show_dragons()
+			elif _records_from == "rules":
+				_show_rules()
 			else:
 				_show_title()
-		"settings":
-			_open_menu(false)
+		"back":
+			if screen != null and screen.has_method("back"):
+				screen.back()
 		"ground":
 			backdrop_layer.refresh_ground()
 		"menu":
-			_open_menu(true)
+			_open_menu(play != null and screen == play)
 		"glossary":
 			var g := GlossaryPopover.new()
 			_overlays.add_child(g)
 			g.show_all(plan.content.grow(-T.M))
+			_return_to_menu(g, intent)
 		"rulebook":
 			var r := RulebookOverlay.new()
 			_overlays.add_child(r)
 			r.intent.connect(dispatch)
 			r.open(plan.content.grow(-T.M), intent.get("section", ""), db)
+			_return_to_menu(r, intent)
 		"leave":
 			var c := ConfirmDialog.new()
 			_overlays.add_child(c)
-			c.setup("Leave this game? It cannot be resumed.", "Leave game", "Keep playing")
+			c.setup("Abandon this run? It cannot be resumed.", "Abandon run", "Keep playing")
 			c.confirmed.connect(func():
 				_record("abandoned")
 				_close_overlays()
@@ -662,10 +768,18 @@ func _inspect(id: String) -> void:
 	o.setup(db, vs.cards[id], plan.content)
 
 
+## An overlay opened from the Settings menu reopens it when closed, as the X or
+## Escape leaves it; one opened any other way just closes.
+func _return_to_menu(o: Control, intent: Dictionary) -> void:
+	if intent.get("from", "") == "menu":
+		var in_game := play != null and screen == play
+		o.closed.connect(func(): _open_menu(in_game))
+
+
 func _open_menu(in_game: bool) -> void:
 	var m := MenuOverlay.new()
 	_overlays.add_child(m)
-	m.setup(in_game)
+	m.setup(in_game, plan.content)
 	m.intent.connect(dispatch)
 
 
@@ -721,6 +835,13 @@ func _record(outcome: String) -> void:
 # ---------------------------------------------------------------- keyboard and skipping
 
 func _input(event: InputEvent) -> void:
+	# Before anything else: Alt+Enter must not reach a focused button as Enter, and
+	# F11 must not also skip a sequence.
+	if _owns_window() and event.is_action_pressed("toggle_fullscreen") and not event.is_echo():
+		WindowSizer.toggle()
+		_refresh_menu()
+		get_viewport().set_input_as_handled()
+		return
 	# While a sequence plays, the first press of anything finishes it and does nothing else.
 	if animator.is_playing():
 		var press: bool = (event is InputEventMouseButton and event.pressed) or (event is InputEventKey and event.pressed and not event.echo) \

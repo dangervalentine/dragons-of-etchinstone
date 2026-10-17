@@ -106,14 +106,14 @@ func _build(enc: Dictionary) -> void:
 	_rungs = []
 	_how = null
 	if journey:
-		var intro := UI.label("THE FINAL JOURNEY", ["body_bold", T.LABEL[1]], T.GOLD)
+		var intro := UI.label("THE FINAL JOURNEY", T.EYEBROW, T.GOLD)
 		_panel.add_child(intro)
 		var how := UI.label("Add the Move of both sets. Each tier reached costs less time.", T.LABEL, T.INK, true)
 		how.custom_minimum_size.x = 200
 		_panel.add_child(how)
 		_how = how
 	else:
-		_panel.add_child(UI.label("THE FINAL ENEMY", ["body_bold", T.LABEL[1]], T.GOLD))
+		_panel.add_child(UI.label("THE FINAL ENEMY", T.EYEBROW, T.GOLD))
 		# One row of figures, named once underneath; each explains itself when pressed.
 		var stats := HFlowContainer.new()
 		stats.add_theme_constant_override("h_separation", 2)
@@ -236,17 +236,17 @@ func _rung(tier: Dictionary, journey: bool, element: String) -> Control:
 	var need: int = tier.mp.value if journey else tier.hp
 	var cost: int = tier.time_penalty if journey else tier.attack.value
 	row.add_child(UI.icon_rect("move" if journey else "attack", 24))
-	row.add_child(UI.label(str(need), ["display_bold", 28]))
+	row.add_child(UI.label(str(need), T.NUMERAL_S))
 	if journey:
 		var e := UI.icon_rect(element, 20, T.ether_ink(element))
 		e.set_meta("keep_colour", true)
 		row.add_child(e)
-	var arrow := UI.label("→", ["display_bold", 24], T.INK)
+	var arrow := UI.label("→", T.NUMERAL_S, T.INK)
 	arrow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	arrow.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	row.add_child(arrow)
 	row.add_child(UI.icon_rect("time" if journey else "hp", 24))
-	row.add_child(UI.label(str(cost), ["display_bold", 28]))
+	row.add_child(UI.label(str(cost), T.NUMERAL_S))
 	p.tooltip_text = DragonStats.rung_text({"need": need, "cost": cost}, journey)
 	p.mouse_default_cursor_shape = Control.CURSOR_HELP
 	p.add_child(row)

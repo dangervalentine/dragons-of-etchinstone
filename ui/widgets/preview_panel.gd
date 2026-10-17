@@ -19,12 +19,8 @@ const HELP_W := 64.0
 ## smaller: the dragon's face leaves the box less room (T.DRAGON_MIN).
 const ROW_H := 64.0
 const ROW_H_FINAL := 52.0
-const TERM := ["display_bold", 28]
-const TERM_FINAL := ["display_bold", 24]
-const TOTAL := ["display_bold", 32]
-const TOTAL_FINAL := ["display_bold", 28]
-## Term labels sit under the number they name, so they may go under the text floor.
-const TERM_LABEL := ["body_medium", 18]
+const TERM := T.NUMERAL_S
+const TOTAL := T.NUMERAL
 const MINUS := "\u2212"
 
 var _box := VBoxContainer.new()
@@ -85,7 +81,7 @@ func render(vs: Dictionary) -> void:
 	# In the Final Battle the red edge, verdict and Play already say it; the box has
 	# no room for the line (T.DRAGON_MIN).
 	if fatal and not _final():
-		var warn := UI.label("Playing this ends the game in defeat.", ["body_bold", T.LABEL[1]], T.BAD)
+		var warn := UI.label("Playing this ends the game in defeat.", T.LABEL_BOLD, T.BAD)
 		warn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_box.add_child(warn)
 	if p.changed.has("verdict"):
@@ -183,24 +179,36 @@ func _count(l: Label, from: int, to: int, duration: float) -> void:
 ## the total.
 func _row(s: Dictionary) -> Control:
 	var row := HFlowContainer.new()
-	row.add_theme_constant_override("h_separation", 4)
+	# Wide enough apart that the captions under neighbouring terms read as two.
+	row.add_theme_constant_override("h_separation", T.S + 2)
 	row.add_theme_constant_override("v_separation", 4)
 	row.tooltip_text = s.label
 	for i in s.terms.size():
 		row.add_child(_term(s.terms[i], i == 0))
 	if s.total == null:
+		# With nothing placed, the sum's icon and name lead the list, rather than an
+		# empty cell whose caption runs on into it.
+		var lead := "Still needed:"
 		if s.terms.is_empty():
-			row.add_child(_cell("", s.label, T.INK_MUTED, TERM_FINAL if _final() else TERM, s.icon))
-		var need := UI.label("Still needed:\n" + ", ".join(s.missing), ["body_medium", 20], T.INK_MUTED)
-		need.set_meta("small_ok", "the roles still needed, beside the terms")
+			if s.icon != "":
+				row.add_child(UI.icon_rect(s.icon, 26, T.INK_MUTED))
+			lead = "%s still needs" % s.label
+		# The Final Enemy's two rows share a short box: the list wraps beside the cell
+		# rather than dropping under it, so each row keeps its one height.
+		var beside := _kind == "final_enemy"
+		var need := UI.label(lead + (" " if beside else "\n") + ", ".join(s.missing),
+			T.LABEL, T.INK_MUTED, beside)
 		need.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		need.custom_minimum_size.y = _row_h()
+		if beside:
+			need.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			need.custom_minimum_size.x = 160
 		row.add_child(need)
 		return row
 	if not s.terms.is_empty():
 		row.add_child(_sign("="))
 	var colour: Color = T.VERDICT[s.result].color if T.VERDICT.has(s.result) else T.INK
-	var total := _cell(str(s.total), s.label, colour, TOTAL_FINAL if _final() else TOTAL)
+	var total := _cell(str(s.total), s.label, colour, TOTAL)
 	var value_label: Label = total.get_child(0)
 	value_label.set_meta("value", int(s.total))
 	_totals[s.id] = value_label
@@ -225,7 +233,7 @@ func _term(t: Dictionary, first: bool) -> Control:
 		colour = T.BAD
 	elif t.note.begins_with("enhanced") or t.source == "reserve":
 		colour = T.GOLD
-	var c := _cell(text, t.label, colour, TERM_FINAL if _final() else TERM)
+	var c := _cell(text, t.label, colour, TERM)
 	c.tooltip_text = t.label + (": " + t.note if t.note != "" else "")
 	c.mouse_filter = Control.MOUSE_FILTER_PASS
 	return c
@@ -249,15 +257,14 @@ func _cell(text: String, caption: String, colour: Color, type: Array, icon := ""
 	else:
 		top = value
 	c.add_child(top)
-	var cap := UI.label(caption, TERM_LABEL, T.INK_MUTED)
+	var cap := UI.label(caption, T.LABEL, T.INK_MUTED)
 	cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	cap.set_meta("small_ok", "a term's label, under the number it names")
 	c.add_child(cap)
 	return c
 
 
 func _sign(text: String) -> Control:
-	var l := UI.label(text, ["display_bold", 26], T.INK_MUTED)
+	var l := UI.label(text, T.NUMERAL_S, T.INK_MUTED)
 	l.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	l.custom_minimum_size = Vector2(14, _row_h())
 	return l
@@ -293,7 +300,7 @@ func _target_sum(s: Dictionary) -> Control:
 
 func _prompt(vs: Dictionary, p, prompt: Dictionary) -> void:
 	if prompt.step != "":
-		_box.add_child(UI.label(prompt.step.to_upper(), ["body_bold", T.LABEL[1]], T.GOLD))
+		_box.add_child(UI.label(prompt.step.to_upper(), T.EYEBROW, T.GOLD))
 	_box.add_child(UI.label(prompt.text, T.BODY, T.INK, true))
 	if p != null and vs.mode == "none":
 		if p.status == "incomplete":
@@ -331,7 +338,7 @@ func _outcome_row(p: Dictionary, m: Dictionary, fatal: bool) -> Control:
 	var verdict := UI.hbox(6)
 	verdict.custom_minimum_size.y = 44
 	verdict.add_child(UI.icon_rect(look.icon, 30, colour))
-	var text := UI.label(p.verdict_text if _final() else p.verdict_text.to_upper(), ["display_bold", 22 if _final() else 24], colour)
+	var text := UI.label(p.verdict_text if _final() else p.verdict_text.to_upper(), T.SUBHEAD, colour)
 	text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	verdict.add_child(text)
 	row.add_child(verdict)
@@ -362,7 +369,7 @@ func _pill(text: String, icon_name: String, element: String, colour: Color, help
 	var row := UI.hbox(4)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_child(UI.icon_rect(icon_name, 26, colour))
-	var l := UI.label(text, ["display_bold", 26] if text.is_valid_int() or text.begins_with("+") else ["body_bold", T.LABEL[1]], T.INK)
+	var l := UI.label(text, T.NUMERAL_S if text.is_valid_int() or text.begins_with("+") else T.LABEL_BOLD, T.INK)
 	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(l)
 	if element != "":

@@ -91,8 +91,6 @@ func render(vs: Dictionary) -> void:
 		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		b.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
 		b.add_theme_constant_override("icon_max_width", 30)
-		b.add_theme_font_override("font", UI.font(T.LABEL[0]))
-		b.add_theme_font_size_override("font_size", T.LABEL[1])
 		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		b.clip_text = true

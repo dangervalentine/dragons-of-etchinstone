@@ -33,7 +33,7 @@ static func make(title: String, desc: String, emblem: Variant = "", colour: Colo
 	var col := UI.vbox(0)
 	col.alignment = BoxContainer.ALIGNMENT_CENTER
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	b._title = UI.label(title, ["display", 25], T.INK)
+	b._title = UI.label(title, T.BUTTON, T.INK)
 	col.add_child(b._title)
 	if desc != "":
 		b._desc = UI.label(desc, T.LABEL, T.INK_MUTED, true)

@@ -183,6 +183,17 @@ func sigil_rects() -> Array:
 	return out
 
 
+## The Ether each of sigil_rects() shows, in the same order: the card's own, the
+## enhanced action's and the Armor's.
+func sigil_ethers() -> Array:
+	if model.is_empty():
+		return []
+	var out: Array = [model.element, model.stats.enhanced.element]
+	if model.stats.armor.element != null:
+		out.append(model.stats.armor.element)
+	return out
+
+
 static func _square(centre: Vector2, d: float) -> Rect2:
 	return Rect2(centre - Vector2(d, d) / 2.0, Vector2(d, d))
 

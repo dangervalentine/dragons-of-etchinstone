@@ -10,7 +10,7 @@ const TipBox = preload("res://ui/widgets/tip_box.gd")
 const HelpTip = preload("res://ui/widgets/help_tip.gd")
 
 const ICON := 20.0
-const FIGURE := ["body_bold", 24]
+const FIGURE := T.NUMERAL_S
 
 
 ## The tiers of one ladder, easiest first, as {need, cost, element}: on the

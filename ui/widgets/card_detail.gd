@@ -40,7 +40,7 @@ func show_card(m: Dictionary, area: Rect2) -> void:
 		_rows.remove_child(c)
 		c.queue_free()
 	var lv: Dictionary = m.stats
-	var name := UI.label(m.name.to_upper(), ["display_bold", 26], T.INK, true)
+	var name := UI.label(m.name.to_upper(), T.SUBHEAD, T.INK, true)
 	name.custom_minimum_size.x = 230
 	_rows.add_child(name)
 	_line(m.element, "%s Ether · Level %d of %d" % [m.element.capitalize(), m.level, m.max_level], T.ether_ink(m.element))
@@ -61,7 +61,7 @@ func show_card(m: Dictionary, area: Rect2) -> void:
 	_row("upgrade", "Upgrade", ("%d XP to Level %d" % [lv.upgrade_cost, m.level + 1]) if lv.upgrade_cost != null else "Highest Level", T.GOLD)
 	var now := _context(m)
 	if now != "":
-		var l := UI.label(now, ["body_bold", T.LABEL[1]], T.GOLD, true)
+		var l := UI.label(now, T.LABEL_BOLD, T.GOLD, true)
 		l.custom_minimum_size.x = 230
 		_rows.add_child(l)
 	reset_size()
@@ -113,7 +113,7 @@ func _row(icon: String, label: String, value: String, colour: Color = T.INK) -> 
 	var col := UI.vbox(0)
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	col.add_child(UI.label(label, T.LABEL, T.INK_MUTED))
-	var v := UI.label(value, ["body_bold", T.BODY[1] - 2], T.INK, true)
+	var v := UI.label(value, T.LABEL_BOLD, T.INK, true)
 	v.custom_minimum_size.x = 190
 	col.add_child(v)
 	r.add_child(col)

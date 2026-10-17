@@ -20,6 +20,8 @@ const GlossaryPopover = preload("res://ui/overlays/glossary_popover.gd")
 const Rulebook = preload("res://ui/model/rulebook.gd")
 const HistoryStore = preload("res://ui/model/history_store.gd")
 const RecordsScreen = preload("res://ui/screens/records_screen.gd")
+const MenuOverlay = preload("res://ui/overlays/menu_overlay.gd")
+const WindowSizer = preload("res://ui/model/window_sizer.gd")
 
 ## Games played here are recorded in their own folder, never the player's records.
 const HISTORY_DIR := "user://tool_history/"
@@ -74,10 +76,10 @@ func _ok(cond: bool, what: String) -> void:
 
 func _open(name: String) -> void:
 	var m: Array = Solver.MATRIX[name]
-	var view: Vector2 = Solver.view_for_window(m[0])
+	var view: Vector2 = T.DESIGN_MIN
 	# The game runs in a viewport of exactly this size, in design units, as the
-	# project's stretch settings make it: a headless window keeps one
-	# size whatever it is asked for, so the root cannot stand in for each screen.
+	# project's stretch settings make it; the row's window is pretended, since a
+	# headless window keeps one size whatever it is asked for.
 	if host == null:
 		host = SubViewport.new()
 		host.disable_3d = true
@@ -88,20 +90,25 @@ func _open(name: String) -> void:
 	if ui != null:
 		ui.free()
 	ui = load("res://scenes/main.tscn").instantiate()
-	var real: Vector2 = Vector2(host.size)
-	var k: float = real.x / m[0].x
-	var inset: Array = m[1]
-	if name == "phone-tall-flipped":
-		inset = [inset[2], inset[1], inset[0], inset[3]]
-	if inset != [0, 0, 0, 0]:
-		ui.safe_override = Rect2(inset[0] * k, inset[1] * k, real.x - (inset[0] + inset[2]) * k, real.y - (inset[1] + inset[3]) * k)
+	ui.window_override = m[0]
+	# Played as the web build, the one place the size notice is shown.
+	ui.notice_applies = true
+	if m[1] != [0, 0, 0, 0]:
+		ui.safe_override = Solver.matrix_safe(name, name == "phone-tall-flipped")
 	host.add_child(ui)
 	await process_frame
 	await process_frame
+	_ok(ui.plan.view == T.DESIGN_MIN, "%s: the view is the design size" % name)
 	_ok(ui.plan.undersized == (name == "upright-browser"), "%s: undersized is %s" % [name, ui.plan.undersized])
 	_ok(ui._notice != null if name == "upright-browser" else ui._notice == null, "%s: size notice" % name)
 	if ui._notice != null:
 		_ok(ui.plan.safe.grow(1.0).encloses(ui._notice.get_global_rect()), "%s: size notice at %s is outside the safe area" % [name, str(ui._notice.get_global_rect())])
+		# Off the web the same window gets no notice.
+		ui.notice_applies = false
+		ui._update_notice()
+		_ok(ui._notice == null, "%s: no size notice off the web" % name)
+		ui.notice_applies = true
+		ui._update_notice()
 
 
 ## The minimum window sizes, where no play-screen zone may be over a third empty
@@ -122,7 +129,7 @@ func _check_space(where: String) -> void:
 	if not SPACE_SIZES.has(size_name):
 		return
 	# Only when the window really has that size: a headless window may not resize.
-	if ui.play.plan.view != Solver.view_for_window(Solver.MATRIX[size_name][0]):
+	if ui.play.plan.view != T.DESIGN_MIN:
 		return
 	var play = ui.play
 	var zones := {"encounter": [play._regions.encounter.get_global_rect(), play.encounter_node()],
@@ -154,6 +161,16 @@ func _inspect_screen(where: String) -> void:
 	var safe: Rect2 = ui.plan.safe.grow(1.0)
 	var view := Rect2(Vector2.ZERO, Vector2(host.size)).grow(1.0)
 	var nodes: Array = ui.screen.find_children("*", "Control", true, false) + ui._overlays.find_children("*", "Control", true, false)
+	if ui.title_bar.visible:
+		nodes += ui.title_bar.find_children("*", "Control", true, false)
+	# Every screen has the menu button, in the same place.
+	var bar: Control = ui.play.header if ui.play != null and ui.screen == ui.play else ui.title_bar
+	var header: Rect2 = ui.plan.regions.header
+	var menu_rect: Rect2 = bar.menu_button.get_global_rect()
+	_ok(bar.is_visible_in_tree() and menu_rect.position.is_equal_approx(Vector2(header.end.x - menu_rect.size.x, header.position.y)),
+		"%s: the menu button is not at the title bar's right" % where)
+	if bar == ui.title_bar and bar.back_button.visible:
+		_ok(bar.back_button.get_global_rect().position.is_equal_approx(header.position), "%s: Back is not at the title bar's left" % where)
 	for node in nodes:
 		var c := node as Control
 		if not c.is_visible_in_tree() or c.is_queued_for_deletion() or c.modulate.a < 0.5:
@@ -167,8 +184,8 @@ func _inspect_screen(where: String) -> void:
 			_ok(minf(r.size.x, r.size.y) >= minimum - 0.5, "%s: %s is %s, under %d" % [where, _name(c), str(r.size), int(minimum)])
 			if ui.plan.undersized:
 				continue
-			# The menu button reaches below the header on purpose; its visible part is inside.
-			var r_check := Rect2(r.position, Vector2(r.size.x, minf(r.size.y, 56.0))) if c == ui.play.header.menu_button if ui.play != null else false else r
+			# The menu and Back buttons reach below the header on purpose; their visible parts are inside.
+			var r_check := Rect2(r.position, Vector2(r.size.x, minf(r.size.y, 56.0))) if c.name in ["MenuButton", "BackButton"] else r
 			_ok(safe.encloses(r_check), "%s: %s at %s is outside the safe area %s" % [where, _name(c), str(r), str(safe)])
 		if c is Label and c.text != "" and not c.has_meta("small_ok"):
 			var fs: int = c.get_theme_font_size("font_size")
@@ -304,9 +321,28 @@ func _screens_and_overlays(where: String) -> void:
 	_ok(ui.screen.get_script() == TitleScreen, "%s: launch shows the landing page" % where)
 	_ok(ui.screen._tiles.is_empty(), "%s: the landing page offers no choices" % where)
 	_ok(not _has_label(ui.screen, "Journey") and not _has_label(ui.screen, "Battle"), "%s: the landing page shows no dragon's figures" % where)
-	ui.dispatch({"type": "settings"})
+	ui.dispatch({"type": "menu"})
 	await _settle()
 	_inspect_screen("%s settings" % where)
+	var menu: Node = null
+	for o in ui._overlays.get_children():
+		if o.get_script() == MenuOverlay:
+			menu = o
+	_ok(menu != null, "%s: settings open" % where)
+	if menu != null:
+		# Feature 008: the Window row is only on a desktop with a real window. Its
+		# tiles are not pressed here, as a headless window cannot change mode.
+		var tiles: Dictionary = menu._window_tiles
+		_ok(tiles.size() == (2 if WindowSizer.applies() else 0), "%s: Window row on desktops only (%d tiles)" % [where, tiles.size()])
+		if not tiles.is_empty():
+			_ok(tiles.values().filter(func(t): return t.selected).size() == 1, "%s: one window mode is chosen" % where)
+	ui._close_overlays()
+	# The tallest the menu gets: in a game, on a desktop with the Window row.
+	var tall := MenuOverlay.new()
+	ui._overlays.add_child(tall)
+	tall.setup(true, ui.plan.content, true)
+	await _settle()
+	_ok(ui.plan.content.grow(1.0).encloses(tall.panel.get_global_rect()), "%s: the in-game menu at %s fits the content area %s" % [where, str(tall.panel.get_global_rect()), str(ui.plan.content)])
 	ui._close_overlays()
 	await _records_walk(where)
 	await _rulebook_walk(where)
@@ -336,14 +372,15 @@ func _screens_and_overlays(where: String) -> void:
 	await _rulebook_mid_game(where)
 
 
-## The Records screen from the title, empty and then with a seeded history: each
-## tab, difficulty and dragon filter whole on the screen, then back to the title.
+## The Leaderboard from the title, empty and then with a seeded history: each
+## difficulty and dragon filter whole on the screen; then the History, from the
+## menu; clearing the records, from the menu; and back to the title.
 func _records_walk(where: String) -> void:
 	var kept: Array = HistoryStore.records.duplicate()
 	HistoryStore.records = []
-	ui.dispatch({"type": "records", "from": "title"})
+	ui.dispatch({"type": "records", "page": "leaderboard", "from": "title"})
 	await _settle()
-	_ok(ui.screen.get_script() == RecordsScreen, "%s: Records opens" % where)
+	_ok(ui.screen.get_script() == RecordsScreen and ui.screen.heading == "Leaderboard", "%s: the Leaderboard opens" % where)
 	_inspect_screen("%s records, empty" % where)
 	_ok(_has_label(ui.screen, "No game won on"), "%s: an empty board says so" % where)
 	HistoryStore.records = _sample_records(60)
@@ -361,7 +398,7 @@ func _records_walk(where: String) -> void:
 		_inspect_screen("%s records %s" % [where, key])
 	await _history_walk(where)
 	await _clear_walk(where)
-	ui.screen._tiles["back"].pressed.emit()
+	ui.title_bar.back_button.pressed.emit()
 	await _settle()
 	_ok(ui.screen.get_script() == TitleScreen, "%s: Back returns to the title" % where)
 	HistoryStore.records = kept
@@ -376,6 +413,9 @@ func _ending_placing(where: String) -> void:
 		ui.start_game({"seed": 8, "dragon": "helsang", "difficulty": "hard", "cavalier": false, "glass_cannon": false})
 		await _settle()
 		ui.game.phase = "won"
+		# Equal wins rank by time played, then by when they ended; the two games here
+		# take whatever real time the frames do, so give them the same.
+		ui.clock.reset()
 		ui._record("won")
 		ui._refresh(false, false)
 		ui._show_ending()
@@ -388,7 +428,7 @@ func _ending_placing(where: String) -> void:
 	var board: Button = ui.screen.find_children("*", "Button", true, false).filter(func(b): return b.text == "Leaderboard")[0]
 	board.pressed.emit()
 	await _settle()
-	_ok(ui.screen.get_script() == RecordsScreen, "%s: the ending's Leaderboard button opens Records" % where)
+	_ok(ui.screen.get_script() == RecordsScreen, "%s: the ending's Leaderboard button opens the Leaderboard" % where)
 	_ok(_has_label(ui.screen, "1st"), "%s: the win is on the board" % where)
 	_inspect_screen("%s records from the ending" % where)
 	ui.screen.back()
@@ -398,13 +438,14 @@ func _ending_placing(where: String) -> void:
 	HistoryStore.use_empty(HISTORY_DIR)
 
 
-## The History tab: the first and last pages of a long history, a difficulty this
-## version no longer has, and back to the Leaderboard.
+## The History, from the menu over the Leaderboard: the first and last pages of a
+## long history, a difficulty this version no longer has, and back to the Leaderboard.
 func _history_walk(where: String) -> void:
+	ui.menu.difficulty = "normal"
+	_menu_button("History").pressed.emit()
+	await _settle()
 	var s = ui.screen
-	s._tiles["difficulty:normal"].pressed.emit()
-	s._tiles["tab:history"].pressed.emit()
-	await process_frame
+	_ok(s.get_script() == RecordsScreen and s.heading == "History", "%s: the menu's History opens the History" % where)
 	_inspect_screen("%s records history" % where)
 	_ok(s._tiles["prev"].disabled, "%s: no newer page than the first" % where)
 	var pages := 1
@@ -418,29 +459,50 @@ func _history_walk(where: String) -> void:
 	s._tiles["difficulty:other"].pressed.emit()
 	await process_frame
 	_inspect_screen("%s records history, other" % where)
-	s._tiles["tab:leaderboard"].pressed.emit()
-	await process_frame
-	_ok(not s._tiles.has("difficulty:other") and s._difficulty == "normal", "%s: the Leaderboard has no Other" % where)
+	_menu_button("Leaderboard").pressed.emit()
+	await _settle()
+	s = ui.screen
+	_ok(s.heading == "Leaderboard" and not s._tiles.has("difficulty:other") and s._difficulty == "normal", "%s: the Leaderboard has no Other" % where)
 
 
-## Clear records asks first: keeping them changes nothing, clearing empties both tabs.
-## The seeded records are only in memory, so nothing on disk is lost.
+## Clear records, in the menu, asks first: keeping them changes nothing, clearing
+## empties the Leaderboard. The seeded records are only in memory, so nothing on disk is lost.
 func _clear_walk(where: String) -> void:
 	var count := HistoryStore.records.size()
-	ui.screen._tiles["clear"].pressed.emit()
+	_menu_button("Clear records").pressed.emit()
 	await process_frame
 	await process_frame
 	_inspect_screen("%s clear records dialog" % where)
 	ui._top_overlay().close()
 	await _settle()
 	_ok(HistoryStore.records.size() == count, "%s: keeping the records changes nothing" % where)
-	ui.screen._tiles["clear"].pressed.emit()
+	_close_menu()
+	await _settle()
+	_menu_button("Clear records").pressed.emit()
 	await process_frame
 	ui._top_overlay().confirmed.emit()
 	await _settle()
 	_ok(HistoryStore.records.is_empty(), "%s: clearing empties the records" % where)
 	_ok(_has_label(ui.screen, "No game won on"), "%s: the Leaderboard is empty after clearing" % where)
-	_ok(ui.screen._tiles["clear"].disabled, "%s: nothing left to clear" % where)
+	_ok(_menu_button("Clear records").disabled, "%s: nothing left to clear" % where)
+	_close_menu()
+	await _settle()
+
+
+## Open the menu and find its button named `text`.
+func _menu_button(text: String) -> Button:
+	ui.dispatch({"type": "menu"})
+	var menu: Node = null
+	for o in ui._overlays.get_children():
+		if o.get_script() == MenuOverlay and not o.is_queued_for_deletion():
+			menu = o
+	return menu.find_children("*", "Button", true, false).filter(func(b): return b.text == text)[0]
+
+
+func _close_menu() -> void:
+	for o in ui._overlays.get_children():
+		if o.get_script() == MenuOverlay and not o.is_queued_for_deletion():
+			o.close()
 
 
 ## Made-up records over every difficulty, dragon and outcome, as a long history.
@@ -519,7 +581,7 @@ func _rulebook_walk(where: String) -> void:
 			ui._unhandled_key_input(esc_help)
 			await _settle()
 			_ok(ui._top_overlay() == book and book.shown() == at, "%s: closing the entry returns to the same page" % label)
-		if book._next.disabled:
+		if Rulebook.step(at, 1) == at:
 			break
 		book.next()
 		await process_frame
@@ -528,7 +590,7 @@ func _rulebook_walk(where: String) -> void:
 	for i in Rulebook.section_count():
 		total += Rulebook.page_count(i)
 	_ok(pages == total, "%s: walked %d of %d rulebook pages" % [where, pages, total])
-	_ok(book._next.text == "End of rulebook", "%s: the last page says it is the end" % where)
+	_ok(book._next.text == "Close" and not book._next.disabled, "%s: the last page's Next closes the book" % where)
 	_ok(book._prev.disabled == false or total == 1, "%s: the last page can step back" % where)
 	var esc := InputEventKey.new()
 	esc.keycode = KEY_ESCAPE
@@ -597,7 +659,11 @@ func _rulebook_mid_game(where: String) -> void:
 	esc.pressed = true
 	ui._unhandled_key_input(esc)
 	await _settle()
-	_ok(ui._top_overlay() == null, "%s: escape closes the rulebook mid-game" % where)
+	var back = ui._top_overlay()
+	_ok(back != null and back.get_script() == MenuOverlay, "%s: escape from the rulebook returns to Settings" % where)
+	ui._unhandled_key_input(esc)
+	await _settle()
+	_ok(ui._top_overlay() == null, "%s: escape then closes Settings mid-game" % where)
 	_ok(ui.draft.to_action() == draft and ui.vs.hand == hand and g.phase == phase and g.deck == deck,
 		"%s: the game is unchanged after reading the rulebook" % where)
 	ui.dispatch({"type": "rulebook"})
@@ -607,6 +673,14 @@ func _rulebook_mid_game(where: String) -> void:
 		"%s: the rulebook reopens on the page left, %s" % [where, str(left)])
 	ui._close_overlays()
 	await process_frame
+	# The Leaderboard from the in-game menu, and Back to the same game.
+	_menu_button("Leaderboard").pressed.emit()
+	await _settle()
+	_ok(ui.screen.get_script() == RecordsScreen and ui.screen.heading == "Leaderboard", "%s: the in-game menu opens the Leaderboard" % where)
+	ui.screen.back()
+	await _settle()
+	_ok(ui.screen == ui.play and ui.game == g and ui.draft.to_action() == draft and ui.vs.hand == hand,
+		"%s: Back from the Leaderboard returns to the game as it was" % where)
 
 
 func _key(code: int) -> InputEventKey:

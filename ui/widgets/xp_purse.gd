@@ -29,7 +29,7 @@ func render(vs: Dictionary) -> void:
 		var look: Dictionary = T.VERDICT[r.outcome]
 		var head := UI.hbox(T.S)
 		head.add_child(UI.icon_rect(look.icon, 34, look.color))
-		head.add_child(UI.label(look.text.to_upper(), ["display_bold", 28], look.color))
+		head.add_child(UI.label(look.text.to_upper(), T.SUBHEAD, look.color))
 		_box.add_child(head)
 		var notes := []
 		if r.damage > 0:

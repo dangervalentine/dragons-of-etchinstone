@@ -12,6 +12,8 @@ const CardFace = preload("res://ui/widgets/card_face.gd")
 const HOLD_SECONDS := 0.35
 const ROLE_ICONS := {"spell": "spell", "element": "element_role", "boost": "boost"}
 const ROLE_NAMES := {"spell": "Spell", "element": "Element", "boost": "Boost"}
+## The widest tag a card carries on its top edge.
+const TAG_LONGEST := "Element · Discarded after"
 
 signal tapped(id: String)
 signal held(id: String)
@@ -133,9 +135,12 @@ func part_help(at: Vector2) -> String:
 	var h = _face.model.get("stats", {}).get("hardship")
 	if h != null and _face.hardship_rect().grow(3).has_point(at - _face.position):
 		return hardship_help(h)
-	for r in _face.sigil_rects():
-		if r.grow(3).has_point(at - _face.position):
-			return ETHER_HELP
+	# A sigil explains the Ether it shows, as the Glossary does.
+	var ethers: Array = _face.sigil_ethers()
+	var rects: Array = _face.sigil_rects()
+	for i in rects.size():
+		if rects[i].grow(3).has_point(at - _face.position):
+			return HelpTip.text(str(ethers[i]))
 	for key in PART_ORDER:
 		if _face.region_rect(key).grow(2).has_point(at - _face.position):
 			if key == "basic" or key == "enhanced":
@@ -156,9 +161,11 @@ func part_icon(at: Vector2) -> String:
 	var h = stats.get("hardship")
 	if h != null and _face.hardship_rect().grow(3).has_point(at - _face.position):
 		return h
-	for r in _face.sigil_rects():
-		if r.grow(3).has_point(at - _face.position):
-			return str(_face.model.element)
+	var ethers: Array = _face.sigil_ethers()
+	var rects: Array = _face.sigil_rects()
+	for i in rects.size():
+		if rects[i].grow(3).has_point(at - _face.position):
+			return str(ethers[i])
 	for key in PART_ORDER:
 		if _face.region_rect(key).grow(2).has_point(at - _face.position):
 			if key == "basic" or key == "enhanced":
@@ -193,7 +200,6 @@ const PART_HELP := {
 	"boost": "Boost: when this card is the Boost, this is added to your Attack, Initiative or Move.",
 	"armor": "Armor: the damage this card Soaks when Downgraded, doubled against damage of the Ether marked beside it.",
 }
-const ETHER_HELP := "Ether: Fire, Water, Lightning or Shadow. A Spell's enhanced action needs the Element to supply the Ether on its corner; Armor Soaks double against damage of the Ether beside it; the sigil by the name is the Ether this card supplies as the Element."
 
 
 ## The part's explanation wrapped to a narrow, opaque panel rather than one long line.
@@ -351,7 +357,12 @@ func _tag(text: String, icon_name: String, bg: Color, ink: Color) -> void:
 	var fs := int(clampf(size.x * 0.105, 15.0, 20.0))
 	var h := fs * 1.5
 	var icon_w := h * 0.66 + 3
-	while fs > 13 and font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + icon_w + 16 > size.x + 8:
+	# Sized for the longest tag, not this one, so every card of a size in a row
+	# carries its tag at the same size.
+	var widest := text
+	if font.get_string_size(TAG_LONGEST, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x:
+		widest = TAG_LONGEST
+	while fs > 13 and font.get_string_size(widest, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + icon_w + 16 > size.x + 8:
 		fs -= 1
 	var tw := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 	var w := tw + icon_w + 16

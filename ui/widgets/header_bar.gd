@@ -1,8 +1,10 @@
 extends Control
-## The strip across the top of the play screen: where you are, how much of the deck
-## is left, the three piles with their counts, and the menu button. It is a shallow
-## lintel of carved stone with the heading cut into it, and it stays quiet, so the
-## Encounter and the cards below it come first.
+## The strip across the top of every screen, with the menu button always at its right.
+## On the play screen it also shows where you are, how much of the deck is left and
+## the three piles with their counts; elsewhere the screen's name, centred
+## (set_title), and, on a screen that can go back, Back at its left.
+## It is a shallow lintel of carved stone with the heading cut into it, and it stays
+## quiet, so what is below it comes first.
 
 const T = preload("res://ui/theme/tokens.gd")
 const HelpTip = preload("res://ui/widgets/help_tip.gd")
@@ -14,16 +16,22 @@ signal intent(data: Dictionary)
 
 const PILES := ["deck", "discard", "trash"]
 const PILE_NAMES := {"deck": "Deck", "discard": "Discard", "trash": "Trash"}
+## The width of Back's tap target.
+const BACK_W := 150
 
 var menu_button := Button.new()
+var back_button := Button.new()
 var _row := HBoxContainer.new()
 var _heading := Label.new()
 var _progress := Control.new()
 var _counts := {}
 var _icons := {}
+var _piles := []
 var _shown := {"deck": 0, "discard": 0, "trash": 0}
 var _fraction := 1.0
 var _lintel := StoneStyle.new("lintel", 0.15)
+## Whether the bar shows only a screen's name (set_title), centred.
+var _titled := false
 
 
 func _init() -> void:
@@ -61,7 +69,7 @@ func _init() -> void:
 		box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		var icon := UI.icon_rect(pile, 26, Color(T.INK_MUTED, 0.8))
 		box.add_child(icon)
-		var count := UI.label("0", ["display_bold", 24], T.INK_MUTED)
+		var count := UI.label("0", T.NUMERAL_S, T.INK_MUTED)
 		count.custom_minimum_size.x = 34
 		count.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		box.add_child(count)
@@ -69,9 +77,11 @@ func _init() -> void:
 		b.add_child(box)
 		b.pressed.connect(func(): intent.emit({"type": "help", "id": pile, "source": b}))
 		_row.add_child(b)
+		_piles.append(b)
 		_counts[pile] = count
 		_icons[pile] = icon
 	# The header is shorter than a thumb, so the menu button reaches below it.
+	menu_button.name = "MenuButton"
 	menu_button.custom_minimum_size = Vector2(T.TAP_MIN, T.TAP_MIN)
 	menu_button.flat = true
 	for state in ["normal", "hover", "pressed", "focus", "disabled"]:
@@ -85,12 +95,46 @@ func _init() -> void:
 	menu_button.pressed.connect(func(): intent.emit({"type": "menu"}))
 	UI.press_feedback(menu_button)
 	add_child(menu_button)
+	# Back mirrors the menu button: a full tap target reaching below the header, its
+	# word in the header's left end.
+	back_button.name = "BackButton"
+	back_button.tooltip_text = "Back"
+	back_button.custom_minimum_size = Vector2(BACK_W, T.TAP_MIN)
+	back_button.flat = true
+	back_button.visible = false
+	for state in ["normal", "hover", "pressed", "focus", "disabled"]:
+		back_button.add_theme_stylebox_override(state, StyleBoxEmpty.new())
+	var word := UI.label("‹ Back", T.BUTTON, T.INK)
+	word.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	word.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	word.position = Vector2(T.S, 0)
+	word.size = Vector2(BACK_W - T.S, 48)
+	word.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	back_button.add_child(word)
+	back_button.mouse_entered.connect(func(): word.add_theme_color_override("font_color", T.GOLD))
+	back_button.mouse_exited.connect(func(): word.add_theme_color_override("font_color", T.INK))
+	back_button.pressed.connect(func(): intent.emit({"type": "back"}))
+	UI.press_feedback(back_button)
+	add_child(back_button)
 	resized.connect(_fit)
 	_lintel.changed.connect(queue_redraw)
 
 
 func _draw() -> void:
 	draw_style_box(_lintel, Rect2(Vector2(-T.S, -4), size + Vector2(2 * T.S, 8)))
+
+
+## Show only a heading and the menu button, as on every screen but the play screen,
+## and Back when the screen can go back.
+func set_title(text: String, can_go_back := false) -> void:
+	_titled = true
+	_heading.text = text
+	_heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	back_button.visible = can_go_back
+	_progress.visible = false
+	for b in _piles:
+		b.visible = false
+	_fit()
 
 
 func render(vs: Dictionary) -> void:
@@ -121,10 +165,16 @@ func pile_point(pile: String) -> Vector2:
 
 
 func _fit() -> void:
-	menu_button.position = Vector2.ZERO
 	menu_button.size = Vector2(T.TAP_MIN, T.TAP_MIN)
-	_row.position = Vector2(T.TAP_MIN, 0)
-	_row.size = Vector2(size.x - T.TAP_MIN - T.S, size.y)
+	menu_button.position = Vector2(size.x - T.TAP_MIN, 0)
+	back_button.size = Vector2(BACK_W, T.TAP_MIN)
+	back_button.position = Vector2.ZERO
+	# A name alone is centred on the bar, clear of Back and the menu button alike;
+	# on the play screen the row runs from the left edge to the menu button.
+	var left: float = maxf(BACK_W, T.TAP_MIN) if _titled else float(T.S)
+	var right: float = maxf(BACK_W, T.TAP_MIN) if _titled else float(T.TAP_MIN)
+	_row.position = Vector2(left, 0)
+	_row.size = Vector2(maxf(0.0, size.x - left - right), size.y)
 
 
 func _draw_progress() -> void:

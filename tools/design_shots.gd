@@ -66,7 +66,7 @@ func _ethers() -> void:
 	print("ethers %s" % img.get_size())
 
 
-## The Records screen over a fixed sample history: the Normal leaderboard, all
+## The Leaderboard and History over a fixed sample history: the Normal leaderboard, all
 ## dragons and one, and the History with its summary.
 func _records() -> void:
 	HistoryStore.records = []
@@ -82,14 +82,14 @@ func _records() -> void:
 			"score": 18 + (i * 11) % 21 if outcome == "won" else 0, "active_ms": 640000 + (i * 97000) % 1500000,
 			"started_at": 1789000000 + i * 86000, "ended_at": 1789000000 + i * 86000 + 1500, "seed": i})
 	ui.menu.difficulty = "normal"
-	ui.dispatch({"type": "records", "from": "title"})
+	ui.dispatch({"type": "records", "page": "leaderboard", "from": "title"})
 	await _shot("records_leaderboard")
 	ui.screen._tiles["dragon:helsang"].pressed.emit()
 	await _shot("records_leaderboard_helsang")
 	ui.screen._tiles["difficulty:dont_even_try"].pressed.emit()
 	await _shot("records_leaderboard_empty")
 	ui.screen._tiles["difficulty:normal"].pressed.emit()
-	ui.screen._tiles["tab:history"].pressed.emit()
+	ui.dispatch({"type": "records", "page": "history", "from": "menu"})
 	await _shot("records_history")
 	ui.screen.back()
 	await _shot("title_records_button")

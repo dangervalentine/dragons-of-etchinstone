@@ -27,5 +27,5 @@ func setup(message: String, yes: String, no := "Cancel") -> void:
 	p.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	p.grow_vertical = Control.GROW_DIRECTION_BOTH
 	add_child(p)
-	cancel.grab_focus.call_deferred()
+	cancel.grab_focus.call_deferred(true)
 	appear()
