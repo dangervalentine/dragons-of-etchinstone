@@ -1,8 +1,8 @@
 extends Control
-## Records: the games played on this device. The Leaderboard ranks the wins on one
-## difficulty, all dragons together or one at a time; the History lists every
-## attempt with a summary of how each dragon has gone. Nothing here reads the
-## engine: only the stored records.
+## The games played on this device, as one of two pages: the Leaderboard ranks the
+## wins on one difficulty, all dragons together or one at a time; the History lists
+## every attempt with a summary of how each dragon has gone. Nothing here reads the
+## engine: only the stored records. Clearing them is in the menu.
 
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
@@ -14,22 +14,26 @@ const HistoryStore = preload("res://ui/model/history_store.gd")
 signal intent(data: Dictionary)
 
 const RAIL_W := 270
-const ROW_H := 40
+const ROW_H := 36
 
+var heading := "Leaderboard"
 var db
+## "leaderboard" or "history".
 var _tab := "leaderboard"
 var _difficulty := "normal"
 var _dragon := ""
 var _page := 0
-## Every control a test may press, by name: "tab:history", "difficulty:hard",
-## "dragon:helsang", "dragon:" (all), "back", "clear", "prev", "next".
+## Every control a test may press, by name: "difficulty:hard", "dragon:helsang",
+## "dragon:" (all), "prev", "next". Back is in the title bar.
 var _tiles := {}
 var _layout := Control.new()
 var _content := Rect2(16, 16, 1248, 688)
 
 
-func setup(card_db, difficulty: String) -> void:
+func setup(card_db, difficulty: String, page := "leaderboard") -> void:
 	db = card_db
+	_tab = page if page == "history" else "leaderboard"
+	heading = "History" if _tab == "history" else "Leaderboard"
 	_difficulty = difficulty if Game.DIFFICULTY.has(difficulty) else "normal"
 	_build()
 
@@ -40,7 +44,7 @@ func apply_layout(content: Rect2) -> void:
 	_layout.size = content.size
 
 
-## Back to the screen Records was opened from.
+## Back to the screen this page was opened from.
 func back() -> void:
 	intent.emit({"type": "records_back"})
 
@@ -63,71 +67,53 @@ func _build() -> void:
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_layout.add_child(root)
 	root.add_child(_rail())
-	var right := UI.vbox(T.M)
+	var right := UI.vbox(T.S)
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	right.add_child(_header())
 	if _tab == "leaderboard":
+		right.add_child(_dragon_filter())
 		_leaderboard(right)
 	else:
+		# On the History, the records from a difficulty this version no longer has:
+		# here rather than a seventh tile in the rail, which would not fit under the
+		# title bar.
+		if _has_other():
+			right.add_child(_other_row())
 		_history(right)
 	root.add_child(right)
 
 
 # ---------------------------------------------------------------- frame
 
-## The difficulties, down the left; "Other" too on the History, when there are
-## records from a difficulty this version no longer has.
+## The difficulties, down the left.
 func _rail() -> Control:
 	var rail := UI.vbox(T.S)
 	rail.custom_minimum_size.x = RAIL_W
-	var keys: Array = Game.DIFFICULTY.keys()
-	if _tab == "history" and _has_other():
-		keys.append("other")
-	for key in keys:
-		var tile: Button = ChoiceTile.make(PlayHistory.difficulty_name(key) if key != "other" else "Other", "")
+	for key in Game.DIFFICULTY.keys():
+		var tile := _difficulty_tile(key, PlayHistory.difficulty_name(key))
 		tile.size_flags_vertical = Control.SIZE_FILL
-		tile.selected = key == _difficulty
-		tile.pressed.connect(func():
-			_difficulty = key
-			_page = 0
-			_build())
 		rail.add_child(tile)
-		_tiles["difficulty:" + key] = tile
 	return rail
 
 
-func _header() -> Control:
+func _difficulty_tile(key: String, title: String) -> Button:
+	var tile: Button = ChoiceTile.make(title, "")
+	tile.selected = key == _difficulty
+	tile.pressed.connect(func():
+		_difficulty = key
+		_page = 0
+		_build())
+	_tiles["difficulty:" + key] = tile
+	return tile
+
+
+func _other_row() -> Control:
 	var row := UI.hbox(T.S)
 	row.custom_minimum_size.y = T.TAP_MIN
-	var back_button := UI.button("Back", "quiet")
-	back_button.custom_minimum_size.x = 150
-	back_button.pressed.connect(back)
-	row.add_child(back_button)
-	_tiles["back"] = back_button
-	for entry in [["leaderboard", "Leaderboard"], ["history", "History"]]:
-		var tile: Button = ChoiceTile.make(entry[1], "")
-		tile.size_flags_horizontal = Control.SIZE_FILL
-		tile.custom_minimum_size.x = 210
-		tile.selected = _tab == entry[0]
-		tile.pressed.connect(_show_tab.bind(entry[0]))
-		row.add_child(tile)
-		_tiles["tab:" + entry[0]] = tile
-	row.add_child(UI.spacer())
-	var clear := UI.button("Clear records", "quiet", "close")
-	clear.custom_minimum_size.x = 240
-	clear.disabled = HistoryStore.records.is_empty()
-	clear.pressed.connect(func(): intent.emit({"type": "records_clear"}))
-	row.add_child(clear)
-	_tiles["clear"] = clear
+	var other := _difficulty_tile("other", "Other")
+	other.size_flags_horizontal = Control.SIZE_FILL
+	other.custom_minimum_size.x = 110
+	row.add_child(other)
 	return row
-
-
-func _show_tab(tab: String) -> void:
-	_tab = tab
-	_page = 0
-	if tab == "leaderboard" and not Game.DIFFICULTY.has(_difficulty):
-		_difficulty = "normal"
-	_build()
 
 
 func _has_other() -> bool:
@@ -136,7 +122,8 @@ func _has_other() -> bool:
 
 # ---------------------------------------------------------------- leaderboard
 
-func _leaderboard(col: VBoxContainer) -> void:
+## All dragons, then each one.
+func _dragon_filter() -> Control:
 	var filter := UI.hbox(T.S)
 	filter.custom_minimum_size.y = T.TAP_MIN
 	for id in [""] + db.dragon_ids():
@@ -148,12 +135,15 @@ func _leaderboard(col: VBoxContainer) -> void:
 			_build())
 		filter.add_child(tile)
 		_tiles["dragon:" + id] = tile
-	col.add_child(filter)
+	return filter
+
+
+func _leaderboard(col: VBoxContainer) -> void:
 	var entries := PlayHistory.board(HistoryStore.records, _difficulty, _dragon)
 	if entries.is_empty():
 		col.add_child(_empty_board())
 		return
-	var table := UI.vbox(2)
+	var table := UI.vbox(0)
 	table.add_child(_board_row(["", "Score", "Dragon", "Rules", "Time", "Date"], T.LABEL, T.INK_MUTED))
 	for e in entries:
 		var r: Dictionary = e.record
@@ -294,7 +284,7 @@ func _summary() -> Control:
 	panel.custom_minimum_size.x = SUMMARY_W
 	panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	var col := UI.vbox(T.XS)
-	col.add_child(UI.label(_difficulty_label().to_upper(), ["display", 24], T.GOLD))
+	col.add_child(UI.label(_difficulty_label().to_upper(), T.EYEBROW, T.GOLD))
 	col.add_child(UI.label(_tally_text(s), ["body_bold", T.BODY[1]], T.INK))
 	col.add_child(UI.label("%s played" % PlayHistory.duration_text(s.active_ms), T.LABEL, T.INK_MUTED))
 	for d in s.dragons:

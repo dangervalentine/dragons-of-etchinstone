@@ -16,10 +16,10 @@ const ENTRIES := {
 	"boost": {"name": "Boost", "icon": "boost", "text": "The amount a card adds when played in the Boost role. Against an enemy you choose whether it adds to Attack or to Initiative."},
 	"crown": {"name": "Level", "icon": "crown", "text": "A card's Level, from 1 to 4. Upgrading raises it, Soaking damage lowers it, and your score is the total of your cards' Levels."},
 	# Ethers
-	"fire": {"name": "Fire", "icon": "fire", "text": "One of the four Ethers. A Spell uses its stronger, enhanced action when the Element card supplies the Ether it asks for."},
-	"water": {"name": "Water", "icon": "water", "text": "One of the four Ethers. A Spell uses its stronger, enhanced action when the Element card supplies the Ether it asks for."},
-	"lightning": {"name": "Lightning", "icon": "lightning", "text": "One of the four Ethers. A Spell uses its stronger, enhanced action when the Element card supplies the Ether it asks for."},
-	"shadow": {"name": "Shadow", "icon": "shadow", "text": "One of the four Ethers. A Spell uses its stronger, enhanced action when the Element card supplies the Ether it asks for."},
+	"fire": {"name": "Fire", "icon": "fire", "text": "Very strong Attack; weak Armor, Boost, Initiative and Move."},
+	"water": {"name": "Water", "icon": "water", "text": "Very strong Armor and Initiative; middling Attack, Boost and Move."},
+	"lightning": {"name": "Lightning", "icon": "lightning", "text": "Very strong Move and strong Initiative; weak Attack and Boost; dear to Upgrade."},
+	"shadow": {"name": "Shadow", "icon": "shadow", "text": "Very strong Boost; middling Attack, Initiative and Move. The actions that work as Attack or Move are enhanced by Shadow."},
 	# Encounter kinds
 	"enemy": {"name": "Enemy", "icon": "enemy", "text": "An Encounter you fight. Compare your Attack with its HP and your Initiative with its Initiative."},
 	"journey": {"name": "Journey", "icon": "journey", "text": "An Encounter you travel. Compare your Move with its MP; falling short costs a Time Penalty."},
@@ -63,7 +63,7 @@ const ENTRIES := {
 }
 
 ## Icons that are decoration or controls, not game symbols, and need no entry.
-const NOT_SYMBOLS := ["menu", "settings", "help", "skip", "close", "inspect", "card_back", "down_arrow", "undo", "book", "trophy",
+const NOT_SYMBOLS := ["menu", "settings", "help", "skip", "close", "inspect", "card_back", "down_arrow", "undo", "book", "glossary", "trophy",
 	# Shapes that hold an Attack, MP or Time Penalty number; those have the entries.
 	"attack_badge", "mp_badge", "time_badge"]
 

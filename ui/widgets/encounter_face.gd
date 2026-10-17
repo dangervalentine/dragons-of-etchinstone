@@ -20,6 +20,9 @@ const ENEMY_SHOWN := 0.74
 const ENEMY_ROOM := 1.12
 ## Room above the figure's top, as a share of its width.
 const ENEMY_HEADROOM := 0.08
+## The least side of a badge. The rulebook's example, which shares its column with
+## the page's terms, sets it a little smaller; its shields still make 44.
+var badge_min := 52.0
 ## The art panel's last size, to crop for before the panel is laid out.
 var _panel := Vector2(300, 250)
 ## Each figure's outline in its 512 units, measured once from its art.
@@ -117,7 +120,7 @@ func _fit() -> void:
 		return
 	var rows := _column.get_child_count()
 	var room := body.size.y - 36.0 - T.XS * (rows - 1)
-	var b := clampf(room / maxf(1.0, rows), 52.0, 84.0)
+	var b := clampf(room / maxf(1.0, rows), badge_min, 84.0)
 	for c in _column.get_children():
 		if c is HBoxContainer:
 			for shield in c.get_children():

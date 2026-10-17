@@ -29,8 +29,8 @@ func show_banner(eyebrow: String, title: String, sigil, colour: Color, duration:
 		row.add_child(UI.icon_rect(sigil, 140, colour))
 	var col := UI.vbox(0)
 	col.alignment = BoxContainer.ALIGNMENT_CENTER
-	col.add_child(UI.label(eyebrow.to_upper(), ["display", 30], T.INK_MUTED))
-	col.add_child(UI.label(title.to_upper(), ["display_bold", 64], colour))
+	col.add_child(UI.label(eyebrow.to_upper(), T.HEADING, T.INK_MUTED))
+	col.add_child(UI.label(title.to_upper(), T.TITLE, colour))
 	row.add_child(col)
 	band.add_child(row)
 	add_child(band)

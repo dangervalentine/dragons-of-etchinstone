@@ -1,6 +1,8 @@
 extends PanelContainer
-## Shown when the window does not suit the landscape layout: taller than it is
-## wide, or too small to read. The game stays playable underneath.
+## Shown on the web when the browser does not suit the landscape layout: taller than
+## it is wide, so the 16:9 play area is a thin strip between the letterbox, or too
+## small to read. A browser cannot always be made to turn landscape, so the player
+## is asked to. The game stays playable underneath.
 
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
@@ -15,8 +17,8 @@ func _init() -> void:
 	var touch := DisplayServer.is_touchscreen_available()
 	var col := UI.vbox(0)
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	col.add_child(UI.label("Turn your device sideways" if touch else "Widen the window", ["display_bold", 40], T.INK))
-	var why := UI.label("Dragons of Etchinstone is laid out for a landscape screen.", ["body", 34], T.INK_MUTED, true)
+	col.add_child(UI.label("Turn your device sideways" if touch else "Widen the window", T.H1, T.INK))
+	var why := UI.label("Dragons of Etchinstone is laid out for a landscape screen.", T.BODY, T.INK_MUTED, true)
 	why.custom_minimum_size.x = 640
 	col.add_child(why)
 	row.add_child(col)

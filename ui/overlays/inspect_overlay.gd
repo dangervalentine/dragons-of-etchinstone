@@ -83,7 +83,7 @@ func _column(title: String, face: Control, caption: String, colour: Color, width
 	var col := UI.vbox(T.S)
 	col.alignment = BoxContainer.ALIGNMENT_CENTER
 	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var t := UI.label(title, ["display_bold", 24], colour)
+	var t := UI.label(title, T.SUBHEAD, colour)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(t)
 	face.size_flags_horizontal = Control.SIZE_SHRINK_CENTER

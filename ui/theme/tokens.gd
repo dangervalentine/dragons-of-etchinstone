@@ -18,15 +18,29 @@ const TAP_MIN := 88
 const TEXT_MIN := 22
 
 # Type: [font, size]. Fonts are named in theme.gd.
+# The display face (Cinzel) is for titles, names, verdicts and the figures on game
+# pieces. The body face (Alegreya Sans) is for everything read as text, and for
+# everything pressed: a button's words, a tile's title, a slot's role.
 const TITLE := ["display_bold", 64]
-const BANNER := ["display_bold", 46]
+## The game's name on the title screen and the verdict on the ending.
+const BANNER := ["display_bold", 50]
+## A screen's own subject: the chosen dragon's name, the size notice.
+const H1 := ["display_bold", 40]
 const HEADING := ["display", 30]
-const CARD_NAME := ["display", 21]
+## The title of an explanation, a popup or a small panel.
+const SUBHEAD := ["display_bold", 24]
+## A small gold heading in capitals over a group of choices.
+const EYEBROW := ["display", 24]
+## Figures: small in a sum or a table, normal as a total, medium in a role slot,
+## large as a purse.
+const NUMERAL_S := ["display_bold", 24]
 const NUMERAL := ["display_bold", 32]
+const NUMERAL_M := ["display_bold", 44]
 const NUMERAL_L := ["display_bold", 52]
 const BODY := ["body", 26]
 const LABEL := ["body_medium", 22]
-const BUTTON := ["body_bold", 27]
+const LABEL_BOLD := ["body_bold", 22]
+const BUTTON := ["body_bold", 26]
 
 # Colour roles
 const BG_BASE := Color("100e17")

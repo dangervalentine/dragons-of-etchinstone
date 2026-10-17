@@ -46,20 +46,24 @@ static func _mage(db, size: Vector2) -> Control:
 	var rows := UI.vbox(2)
 	rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var key: Dictionary = lv.encounter
+	# Top to bottom as the card reads: the Level, the strip's Key Card and Upgrade
+	# cost, then the figures down the field.
 	_row(rows, "crown", "Level %d of 4" % LEVEL, T.GOLD)
 	_row(rows, key.type, "Key Card: %s %d" % [key.type.capitalize(), key.index])
+	_row(rows, "upgrade", "Upgrade: %d XP" % lv.upgrade_cost if lv.upgrade_cost != null else "Highest Level", T.GOLD)
 	_row(rows, "initiative", "Initiative %d" % lv.initiative)
 	_row(rows, lv.basic.type if lv.basic.type != "flex" else "attack", "Basic: %d %s" % [lv.basic.value, ACTION_NAMES[lv.basic.type]])
 	_row(rows, lv.enhanced.element, "Enhanced: %d %s" % [lv.enhanced.value, ACTION_NAMES[lv.enhanced.type]], T.ether_ink(lv.enhanced.element))
 	_row(rows, "boost", "Boost +%d" % lv.boost)
 	_row(rows, "armor", "Armor %d" % lv.armor.value)
-	_row(rows, "upgrade", "Upgrade: %d XP" % lv.upgrade_cost if lv.upgrade_cost != null else "Highest Level", T.GOLD)
 	row.add_child(rows)
 	return row
 
 
 static func _row(parent: Control, icon: String, text: String, colour: Color = T.INK) -> void:
+	# Set against the aside's right edge.
 	var r := UI.hbox(6)
+	r.alignment = BoxContainer.ALIGNMENT_END
 	r.add_child(UI.icon_rect(icon, 24, colour))
 	r.add_child(UI.label(text, ROW, T.INK))
 	parent.add_child(r)
@@ -75,7 +79,10 @@ static func _encounter(db, kind: String, size: Vector2, on_help: Callable) -> Co
 			break
 	var key := {"id": key_id, "name": db.mage(key_id).name, "level": LEVEL, "element": db.mage(key_id).element}
 	var face := EncounterFace.new()
-	face.custom_minimum_size = Vector2(size.x, minf(size.y, 320.0))
+	# Badges a little smaller than play's, and never less height than they need, so
+	# the face fits above the page's terms with its caption inside the frame.
+	face.badge_min = 48.0
+	face.custom_minimum_size = Vector2(size.x, clampf(size.y, T.ENCOUNTER_MIN - 16, 360.0))
 	face.intent.connect(func(d): on_help.call(d))
 	face.render(ViewState.encounter_model(db, 1, kind, 1, null, key))
 	return face
@@ -89,10 +96,10 @@ static func _dragon(db, size: Vector2) -> Control:
 	var head := UI.hbox(T.M)
 	var art_name: String = Art.dragon(id)
 	var colour: Color = T.ether(d.early_damage.element)
-	head.add_child(UI.texture_rect(UI.art_crop(art_name, Art.head(art_name)), minf(96.0, size.y * 0.35), colour))
+	head.add_child(UI.texture_rect(UI.art_crop(Art.head_art(art_name), Art.head(art_name)), minf(96.0, size.y * 0.35), colour))
 	var names := UI.vbox(0)
 	names.alignment = BoxContainer.ALIGNMENT_CENTER
-	names.add_child(UI.label(d.name.to_upper(), ["display_bold", 28], T.INK))
+	names.add_child(UI.label(d.name.to_upper(), T.SUBHEAD, T.INK))
 	names.add_child(UI.label(d.title, T.LABEL, T.INK_MUTED))
 	head.add_child(names)
 	col.add_child(head)

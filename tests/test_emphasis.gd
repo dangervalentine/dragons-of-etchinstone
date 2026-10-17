@@ -213,7 +213,7 @@ func test_upgrade_marks_agree_with_eligibility() -> void:
 			for key in c.alt.changed:
 				ok(c.focus.regions.has(mapped.get(key, key)), "what an Upgrade changes is in focus: " + key)
 		else:
-			eq(c.reason, "Costs %d XP" % g.level_data(id).upgrade_cost, "too dear")
+			eq(c.reason, "Costs %d XP" % g.level_data(id).upgrade_cost, "too costly")
 			eq(c.focus.mark, "unaffordable", "and marked so")
 			eq(c.focus.regions, ["cost"], "only the cost")
 

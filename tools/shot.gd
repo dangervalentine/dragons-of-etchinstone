@@ -4,6 +4,7 @@ extends SceneTree
 ## godot --path . -s tools/shot.gd -- <output dir> [size name ...]
 
 const Solver = preload("res://ui/model/layout_solver.gd")
+const T = preload("res://ui/theme/tokens.gd")
 const Rulebook = preload("res://ui/model/rulebook.gd")
 
 const HistoryStore = preload("res://ui/model/history_store.gd")
@@ -30,12 +31,11 @@ func _run(names: Array) -> void:
 	quit()
 
 
-## Size the window so the viewport has the design size this matrix entry would have.
+## Size the window to the design size, which the viewport always has, and have the
+## game take it for this matrix entry's window.
 func _size(name: String) -> void:
 	var m: Array = Solver.MATRIX[name]
-	var view: Vector2 = Solver.view_for_window(m[0])
-	if name == "upright-browser":
-		view = Vector2(720, 1280)
+	var view: Vector2 = T.DESIGN_MIN
 	DisplayServer.window_set_size(Vector2i(view))
 	root.size = Vector2i(view)
 	for i in 3:
@@ -43,12 +43,9 @@ func _size(name: String) -> void:
 	if ui != null:
 		ui.queue_free()
 	ui = load("res://scenes/main.tscn").instantiate()
-	var k: float = view.x / m[0].x
-	var inset: Array = m[1]
-	if name == "phone-tall-flipped":
-		inset = [inset[2], inset[1], inset[0], inset[3]]
-	if inset != [0, 0, 0, 0]:
-		ui.safe_override = Rect2(inset[0] * k, inset[1] * k, view.x - (inset[0] + inset[2]) * k, view.y - (inset[1] + inset[3]) * k)
+	ui.window_override = m[0]
+	if m[1] != [0, 0, 0, 0]:
+		ui.safe_override = Solver.matrix_safe(name, name == "phone-tall-flipped")
 	root.add_child(ui)
 
 

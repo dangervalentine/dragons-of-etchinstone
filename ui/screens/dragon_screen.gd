@@ -24,6 +24,7 @@ signal intent(data: Dictionary)
 ## The cards' order, top to bottom and left to right, by each dragon's Ether.
 const ETHER_ORDER := ["fire", "lightning", "water", "shadow"]
 
+var heading := "Hunt a Dragon"
 var db
 var options := {}
 var _tiles := {}
@@ -68,7 +69,6 @@ func _build() -> void:
 	var root := UI.vbox(T.S)
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_layout.add_child(root)
-	root.add_child(UI.label("HUNT A DRAGON", ["display", 24], T.GOLD))
 	var row := UI.hbox(T.S)
 	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	root.add_child(row)
@@ -99,20 +99,15 @@ func _build() -> void:
 		# The head alone, still; the whole of the chosen one moves on the card beside.
 		var tile: Button = ChoiceTile.make(d.name, d.title, UI.art_crop(Art.head_art(art), Art.head(art)), T.ether(d.early_damage.element), null, 80.0, flavour)
 		tile.custom_minimum_size.y = 160
-		tile.tooltip_text = DragonStats.ladder_text(d)
 		tile.pressed.connect(_choose.bind(id))
 		dragons.add_child(tile)
 		_tiles["dragon:" + id] = tile
 	row.add_child(dragons)
 
-	# Back at the screen's bottom left and Continue at its right, where the next
-	# step keeps Back and Set out.
+	# Continue at the screen's bottom right, where the next step keeps Set out. Back
+	# is in the title bar.
 	var bottom := UI.hbox(T.S)
 	bottom.custom_minimum_size.y = T.TAP_MIN
-	var back_button := UI.button("Back", "normal")
-	back_button.custom_minimum_size.x = 200
-	back_button.pressed.connect(back)
-	bottom.add_child(back_button)
 	bottom.add_child(UI.spacer())
 	_next = UI.button("Continue", "primary")
 	_next.custom_minimum_size.x = 240
@@ -123,7 +118,7 @@ func _build() -> void:
 	# With none chosen no card takes focus, so none looks chosen; the first arrow
 	# or Tab press focuses the first card.
 	if options.dragon != "":
-		_tiles["dragon:" + options.dragon].grab_focus.call_deferred()
+		_tiles["dragon:" + options.dragon].grab_focus.call_deferred(true)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -190,7 +185,7 @@ func _fill_side() -> void:
 	crest.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	crest.setup(Art.dragon(options.dragon), T.ether(ether).lightened(0.15), ether)
 	stage.add_child(crest)
-	_name = UI.label(d.name.to_upper(), ["display_bold", 40], T.GOLD)
+	_name = UI.label(d.name.to_upper(), T.H1, T.GOLD)
 	_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_side.add_child(_name)
 	var title := UI.label(d.title, T.BODY, T.INK, true)
@@ -215,7 +210,7 @@ func _fill_empty() -> void:
 	var gap := Control.new()
 	gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_side.add_child(gap)
-	var hint := UI.label("Choose a dragon", ["display", 28], T.INK_MUTED)
+	var hint := UI.label("Choose a dragon", T.HEADING, T.INK_MUTED)
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_side.add_child(hint)
 	var more := UI.label("Its Armor, Initiative and the tiers of the Final Battle show here.", T.LABEL, Color(T.INK_MUTED, 0.8), true)

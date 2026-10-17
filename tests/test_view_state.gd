@@ -297,7 +297,7 @@ func test_card_parts_explain_themselves_on_hover() -> void:
 	v.free()
 
 
-func test_every_ether_sigil_shares_one_helper_and_the_background_has_none() -> void:
+func test_every_ether_sigil_explains_its_own_ether_and_the_background_has_none() -> void:
 	var CardView = load("res://ui/widgets/card_view.gd")
 	var g = _game()
 	var vs: Dictionary = ViewState.build(g, Draft.new(), db)
@@ -305,8 +305,13 @@ func test_every_ether_sigil_shares_one_helper_and_the_background_has_none() -> v
 	v.size = Vector2(197, 275)
 	v.set_model(vs.cards[g.hand[0]])
 	v._fit()
-	for r in v._face.sigil_rects():
-		eq(v.part_help(r.get_center()), CardView.ETHER_HELP, "sigil at %s" % str(r))
+	var HelpTip = load("res://ui/widgets/help_tip.gd")
+	var ethers: Array = v._face.sigil_ethers()
+	var rects: Array = v._face.sigil_rects()
+	eq(ethers.size(), rects.size(), "an Ether for every sigil")
+	for i in rects.size():
+		eq(v.part_help(rects[i].get_center()), HelpTip.text(str(ethers[i])), "sigil at %s" % str(rects[i]))
+		eq(v.part_icon(rects[i].get_center()), str(ethers[i]), "sigil icon at %s" % str(rects[i]))
 	var field: Rect2 = v._face.region_rect("field")
 	eq(v.part_help(field.end - Vector2(20, 60)), "", "background")
 	v.free()

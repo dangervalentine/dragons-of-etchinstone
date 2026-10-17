@@ -17,8 +17,8 @@ signal intent(data: Dictionary)
 const ROLE_ICONS := {"spell": "spell", "element": "element_role", "boost": "boost", "reserve": "reserve"}
 const ROLE_NAMES := {"spell": "Spell", "element": "Element", "boost": "Boost", "reserve": "Reserve"}
 ## The slot's large figure; 44 at full size, smaller in the Final Battle's narrow slots.
-const NUMBER := ["display_bold", 44]
-const NUMBER_NARROW := ["display_bold", 36]
+const NUMBER := T.NUMERAL_M
+const NUMBER_NARROW := T.NUMERAL
 ## Below this width a slot shows its role by icon only.
 const NAME_MIN_W := 130.0
 ## The Boost target icon's hit area, like the other small help targets.
@@ -141,7 +141,7 @@ func _slot(s: Dictionary, narrow: bool, two: bool) -> Button:
 	var icon := UI.icon_rect(ROLE_ICONS[s.role], 24 if filled else 30, ink)
 	head.add_child(icon)
 	if two:
-		head.add_child(UI.label(str(s.set + 1), ["body_bold", T.TEXT_MIN], ink))
+		head.add_child(UI.label(str(s.set + 1), T.LABEL_BOLD, ink))
 	elif not narrow:
 		head.add_child(UI.label(ROLE_NAMES[s.role].to_upper(), T.LABEL, ink))
 	col.add_child(head)
