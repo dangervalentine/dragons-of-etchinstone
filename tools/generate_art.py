@@ -117,7 +117,9 @@ def read_doc():
     style = quoted_after(text, "## Style block")
     journey = quoted_after(text, "For **journey scenes**")
     moving = quoted_after(text, "For **images with a moving part**")
-    body = quoted_after(text, "3. **Make the body layer by inpainting**")
+    # The inpainting step left the doc when the dragons moved to Illustrator layers.
+    body_heading = "3. **Make the body layer by inpainting**"
+    body = quoted_after(text, body_heading) if body_heading in text else ""
     subjects = {}
     for row in re.findall(r"^\|\s*([a-z][a-z-]*)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*$", text, re.M):
         name, title, subject, part = row
@@ -420,6 +422,8 @@ def main():
         s = doc["subjects"][name]
         if not s["part"]:
             sys.exit("%s has no moving part in the doc" % name)
+        if not doc["body"]:
+            sys.exit("the doc has no body-layer prompt any more; the dragons are drawn in layers")
         prompt = (doc["body"].replace("[MOVING PART]", s["part"].lower())
                   .replace("[WHAT FILLS THE GAP]", a.fill or s["fill"].rstrip(".")))
         run(inpaint(prompt, upload(a.image), upload(a.mask), seed, "etch/" + name + "-body"),

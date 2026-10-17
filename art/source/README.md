@@ -16,6 +16,11 @@ The dragons are now drawn in layers in Illustrator, as
 `art/creatures/<name>-parts.svg` (see `../STYLE_PROMPT.md`); the images here are where
 they started.
 
+`painted/` holds the inputs for the coloured art of feature 008 (`tools/paint_art.py`,
+`../PAINTED_PROMPTS.txt`): `anchors/`, the shared style references, and `starts/`,
+silhouettes painted over by hand to start from in place of the ones in
+`art/creatures/`. None of it is approved art.
+
 Godot ignores this folder (`.gdignore`); nothing here ships with the game.
 
 ## Where each image came from

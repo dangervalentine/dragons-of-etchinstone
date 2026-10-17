@@ -116,7 +116,7 @@ usual way. Set your own team ID and bundle identifier in the export presets.
 | `art/creatures/` | Enemy, journey and dragon silhouettes made for this project, listed in `CREDITS.md` |
 | `art/source/` | The approved images the silhouettes are made from |
 | `tests/` | Test runner and tests |
-| `tools/` | Test script, UI check, screenshot driver, data and icon generators, and art generation, framing and vectorising (`generate_art.py`, `frame_art.py`, `vectorize_art.py`), and the dragon rig splitter (`split_rig.py`) |
+| `tools/` | Test script, UI check, screenshot driver, data and icon generators, and art generation, painting, framing and vectorising (`generate_art.py`, `paint_art.py`, `frame_art.py`, `vectorize_art.py`), and the dragon rig splitter (`split_rig.py`) |
 | `scripts/install.sh` | Build, install and launch on emulators and web |
 | `specs/` | Specification, plan and tasks for each feature |
 

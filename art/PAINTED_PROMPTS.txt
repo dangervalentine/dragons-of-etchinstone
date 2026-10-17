@@ -1,0 +1,144 @@
+PAINTED CREATURE PROMPTS (feature 008), iteration 3
+====================================================
+
+tools/paint_art.py reads this file and sends SUBJECT + EMANATION + STYLE as one prompt.
+Run `python3 tools/paint_art.py prompt <name>` to see exactly what is sent. STYLE is the same for
+every creature, EMANATION is filled in the same way for every creature, and every
+creature is steered by the same SHARED STYLE REFERENCES. Only the subjects differ.
+
+Each image starts from the creature's old silhouette in flat mid-grey (the START), at
+denoise 0.88: the silhouette fixes the pose and outline, and the prompt and references
+paint everything inside it.
+
+Write how you picture each character under YOUR VISION, or edit the SUBJECT directly.
+
+Lessons so far:
+- Background, shadow and signature are written as what the picture IS ("empty all
+  around and beneath it"). FLUX ignores negatives, and naming a thing, even as "no
+  tail", tends to draw it. Ground shadows still appear; the cut-out step removes them.
+- Tails come from three places, and all three are kept clean: the prompt (only a
+  creature that has one names one), the starting silhouette, and the style references.
+- Starting from noise gives soft, rendered, semi-3D images. Starting from the flat grey
+  silhouette gives flat ones.
+- Per-creature references pulled each creature toward its own earlier look, so the set
+  didn't match. One shared set of references does.
+- Redux above 0.05 copies the references' colours and designs. Keep it at 0.05.
+- Colour words in the subjects gave every creature a different palette. The palette is
+  now shared, in STYLE, and subjects describe shapes and materials, not colours.
+- Without the ferocity sentence, creatures came out cute (iteration 2's lion).
+- The emanation is followed reliably at one or two places, rarely at four.
+
+
+SHARED STYLE REFERENCES (every creature, Redux 0.05 each)
+---------------------------------------------------------
+art/source/painted/anchors/goblin-61-clean.png  (iteration 2b goblin, tail and shadow
+                                                 painted out)
+art/source/painted/anchors/ape-61.png           (iteration 2b ape)
+
+
+STYLE (appended to every prompt, unchanged)
+-------------------------------------------
+A flat 2D game art drawing in the style of a modern indie deckbuilder card game. Big,
+simple, readable shapes filled with flat colour, and smooth clean edges. One light falls
+from the upper left, so every form has its flat base colour and one hard-edged darker
+shade tone on its lower right side. Large plain areas of colour with little surface
+detail. A limited, muted palette shared by every creature: moss green, umber brown,
+slate grey, bone white and dark iron, with the creature's Ether energy as the only
+bright, saturated colour. The creature is shown whole and alone, centred, in side view,
+filling about four fifths of the picture's height, its feet at the bottom margin, on a
+plain, evenly lit, flat light grey background that is empty all around and beneath it.
+Its head and limbs are clearly separate from its body. The creature is ferocious and
+dangerous, a savage monster rather than a cute character: a heavy, scowling brow over
+narrow, fierce eyes with no visible pupils, a snarl that bares its fangs, and a
+powerful, battle-hardened build.
+
+
+EMANATION (follows every subject; fill in the three blanks from the tables)
+---------------------------------------------------------------------------
+Bright [COLOUR] Ether energy emanates from its [PARTS], [TEXTURE], as if its power is
+leaking out of it.
+
+  Ether      COLOUR          TEXTURE
+  fire       ember-red       rising off them in flickering tongues of flame
+  water      icy blue        rising off them in curling wisps of frost and mist
+  lightning  amber-orange    crackling off them in jagged sparks and arcs
+  shadow     violet          rising off them in curling wisps of smoke
+
+[PARTS] is the eyes and one more place, picked on purpose for each creature: its mouth,
+its hands or its weapon. The energy appears only there.
+
+
+1. FRENZIED APE  (monkey-brawler · R1 Enemy 4 · shadow, 13 HP, slow initiative)
+------------------------------------------------------------------------------
+START: art/creatures/monkey-brawler.svg
+
+SUBJECT:
+An enraged silverback gorilla facing right, a wild animal with no clothing, hunched on
+its short legs and the knuckles of its huge long arms, its massive shoulders rising in a
+high rounded hump, its heavy domed head thrust forward with its jaw open in a roar
+showing long fangs under a jutting brow, a broad pale saddle of fur across its back.
+
+EMANATION:
+Bright violet Ether energy emanates from its eyes and its fists, rising off them in
+curling wisps of smoke, as if its power is leaking out of it.
+
+YOUR VISION:
+
+
+
+2. LIONEL ARCHER  (lion-archer · R1 Enemy 2 · fire, 11 HP)
+---------------------------------------------------------
+START: art/creatures/lion-archer.svg
+
+SUBJECT:
+A huge, ferocious lion beast-warrior facing right, savage and battle-scarred, with a
+snarling muzzle full of long fangs and thick corded muscle, drawing a tall longbow with
+an arrow nocked and aimed forward, its arm pulled back to its cheek. Its heavy mane is
+worn in thick braids swept back from its face, with a short beard at its jaw. It wears
+a sleeveless leather tunic belted at the waist, and on its back a quiver inlaid with
+one dazzling ruby. Its lion's tail curls behind it.
+
+EMANATION:
+Bright ember-red Ether energy emanates from its eyes and its arrowhead, rising off them
+in flickering tongues of flame, as if its power is leaking out of it.
+
+YOUR VISION:
+
+
+
+3. WEREBOAR  (boar-shaman · R3 Enemy 4 · lightning, ranged, 9 HP)
+----------------------------------------------------------------
+START: art/source/painted/starts/boar-shaman-throw.png  (the silhouette with its tail
+       painted out and the spear raised overhead to throw)
+
+SUBJECT:
+A stocky boar-headed warrior facing right, rearing back to hurl a long spear overhand,
+the spear raised high above and behind its head in one hand and its other arm thrust
+forward. Its head is a wild pig's with a long blunt snout, two thick curved tusks and
+small ears laid back. It wears a rounded iron shoulder plate, a belted tunic and a short
+cape.
+
+EMANATION:
+Bright amber-orange Ether energy emanates from its eyes and its spearhead, crackling off
+them in jagged sparks and arcs, as if its power is leaking out of it.
+
+YOUR VISION:
+
+
+
+4. GOBLIN RAIDER  (horned-goblin · R2 Enemy 4 · water, freeze, 13 HP)
+--------------------------------------------------------------------
+START: art/creatures/horned-goblin.svg
+
+SUBJECT:
+A lean, menacing goblin raider facing right, charging forward in a low crouch, a long
+curved blade held low in one hand. It wears a round iron helmet with two great smooth
+curving bone horns, and plain rounded iron plates on its shoulders and forearms. Its
+long pointed ears sweep back, and its grin is full of sharp teeth.
+
+EMANATION:
+Bright icy blue Ether energy emanates from its eyes and its blade, rising off them in
+curling wisps of frost and mist, as if its power is leaking out of it.
+
+YOUR VISION:
+

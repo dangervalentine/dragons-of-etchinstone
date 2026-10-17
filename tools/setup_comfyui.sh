@@ -72,6 +72,13 @@ if [ $Q8 = 1 ]; then
 	fetch city96/FLUX.1-dev-gguf flux1-dev-Q8_0.gguf unet flux1-dev-Q8_0.gguf
 	fetch YarvixPA/FLUX.1-Fill-dev-GGUF flux1-fill-dev-Q8_0.gguf unet flux1-fill-dev-Q8_0.gguf
 fi
+# FLUX Redux, for generate_art.py --style and tools/paint_art.py. Its repo is gated:
+# accept the licence at https://huggingface.co/black-forest-labs/FLUX.1-Redux-dev and
+# log in with .venv/bin/hf auth login, then run this again.
+mkdir -p models/style_models models/clip_vision
+fetch Comfy-Org/sigclip_vision_384 sigclip_vision_patch14_384.safetensors clip_vision sigclip_vision_patch14_384.safetensors
+fetch black-forest-labs/FLUX.1-Redux-dev flux1-redux-dev.safetensors style_models flux1-redux-dev.safetensors ||
+	echo "   skipped style_models/flux1-redux-dev.safetensors: accept its licence and log in to Hugging Face first"
 rm -rf models/.dl
 
 echo "== Done"
