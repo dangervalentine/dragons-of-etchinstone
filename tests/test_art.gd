@@ -59,12 +59,13 @@ func test_every_bone_is_placed_on_the_art() -> void:
 	for name in Art.BONES:
 		ok(Art.MOTION.has(name), name + " is a silhouette in use")
 		var bones := Art.bones(name)
-		ok(bones.size() <= 4, name + " has as many bones as the shader bends")
+		ok(bones.size() <= 8, name + " has as many bones as the shader bends")
 		for b in bones:
 			for at in [b.joint, b.tip]:
 				ok(at != Vector2.ZERO and at.x <= 512 and at.y >= 0 and at.y <= 512, "%s's bone is on the art" % name)
 			ok(b.reach > 0.0, name + "'s bone reaches")
 			ok(Art.MOVES.has(b.motion), name + "'s bone moves in a way the shader knows")
+			ok(b.last >= bones.find(b) and b.last < bones.size(), name + "'s bone carries bones in its chain")
 
 
 func test_every_dragon_has_a_head_region_inside_its_art() -> void:

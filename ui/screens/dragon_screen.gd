@@ -14,6 +14,10 @@ const Creature = preload("res://ui/fx/creature.gd")
 const DragonStats = preload("res://ui/widgets/dragon_stats.gd")
 const Flavor = preload("res://ui/model/flavor.gd")
 const StoneStyle = preload("res://ui/theme/stone_style.gd")
+const FIELD_SHADER = preload("res://ui/fx/shaders/ether_field.gdshader")
+## How strongly the Ether field shows behind the chosen dragon: faint, so the dragon
+## reads first.
+const FIELD_ALPHA := 0.35
 
 signal intent(data: Dictionary)
 
@@ -163,12 +167,29 @@ func _fill_side() -> void:
 	for side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
 		stone.set_content_margin(side, T.S)
 	_card.add_theme_stylebox_override("panel", stone)
+	# The dragon stands over a faint field of its Ether, the moving woodcut the
+	# Encounters stand on.
+	var stage := Control.new()
+	stage.custom_minimum_size = Vector2(120, 120)
+	stage.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	stage.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	stage.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_side.add_child(stage)
+	var field := ColorRect.new()
+	field.material = ShaderMaterial.new()
+	field.material.shader = FIELD_SHADER
+	field.material.set_shader_parameter("tint", T.ether(ether))
+	field.material.set_shader_parameter("ether", T.ETHER_ID.get(ether, -1))
+	field.material.set_shader_parameter("motion", 0.0 if UI.reduced_motion else 1.0)
+	field.modulate.a = FIELD_ALPHA
+	field.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	field.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	field.resized.connect(func(): field.material.set_shader_parameter("size", field.size))
+	stage.add_child(field)
 	var crest := Creature.new()
-	crest.custom_minimum_size = Vector2(120, 120)
-	crest.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	crest.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	crest.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	crest.setup(Art.dragon(options.dragon), T.ether(ether).lightened(0.15), ether)
-	_side.add_child(crest)
+	stage.add_child(crest)
 	_name = UI.label(d.name.to_upper(), ["display_bold", 40], T.GOLD)
 	_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_side.add_child(_name)

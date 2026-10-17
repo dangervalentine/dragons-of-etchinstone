@@ -11,6 +11,9 @@ uniform float speed = 1.0;
 // Offsets the cycle so two creatures never move in step.
 uniform float phase = 0.0;
 uniform vec4 tint : source_color = vec4(1.0);
+// The share of the picture on each side that is room around the art, for parts
+// that move past the art's edge.
+uniform float pad = 0.0;
 // A creature cut into parts is drawn from up to six layers (layer0 at the bottom)
 // in this one pass, each with the same idle motion so they move as one creature,
 // and then its own turn about its pivot (in UV), carried by its parent's turn
@@ -36,15 +39,26 @@ uniform vec4 moves[6];
 // it carries (a head and its jaw): neither cuts the other, and their gaps together
 // cut only what is below them both.
 uniform int joins[6];
+// A part that lunges as well as turning: it slides by xy (in UV) and back, as a
+// hinge opens and closes, every z, w the phase in periods (z 0: it doesn't), carrying
+// the parts it carries (a head thrusting forward with its jaw).
+uniform vec4 slides[6];
 // Soft bones bend the art in place, with nothing cut out: each turns the art
 // near the line from its joint to its tip (bone_lines: joint xy, tip xy, in UV)
-// about its joint, fully within half its reach of that line (bone_reach, in UV)
-// and fading to nothing at its reach. bone_moves are as moves. Bones apply in
-// order, so a bone listed after another rides on it (the head on the neck).
+// about its joint, fully within three quarters of its reach of that line (bone_reach, in UV)
+// and fading to nothing at its reach. bone_moves are as moves, and one more:
+// 4 lunge, which slides the art by bone_shift (in UV) instead of turning it, out
+// and back as a hinge opens, more the further along the bone, so whatever is
+// between joint and tip stretches (a neck thrusting the head forward). A bone
+// carries the bones after it up to bone_last (a chain, such as a tail): it moves
+// the art near any of them too. Bones apply in order, so a bone listed after
+// another rides on it (the head on the neck, the tip of a tail on its root).
 uniform int bones = 0;
-uniform vec4 bone_lines[4];
-uniform vec4 bone_moves[4];
-uniform float bone_reach[4];
+uniform vec4 bone_lines[8];
+uniform vec4 bone_moves[8];
+uniform float bone_reach[8];
+uniform int bone_last[8];
+uniform vec2 bone_shift[8];
 
 // The node's modulate, its parents' included (a screen fading in or out). It
 // arrives in the vertex colour, which writing COLOR would otherwise throw away.
@@ -66,14 +80,18 @@ vec2 turn(vec2 uv, vec2 p, float r) {
 }
 
 // How far a part moving by m (as moves) is turned at time t, in radians.
+// A hinge's cycle: opens quickly, holds, closes, then rests for the second half.
+float opening(float p) {
+	return smoothstep(0.0, 0.12, p) * (1.0 - smoothstep(0.32, 0.5, p));
+}
+
 float turned(vec4 m, float t) {
 	if (m.x < 0.5) {
 		return 0.0;
 	}
 	float p = fract(t / m.z + m.w);
 	if (m.x < 1.5) {
-		// Opens quickly, holds, closes, then rests for the second half of the cycle.
-		return radians(m.y) * smoothstep(0.0, 0.12, p) * (1.0 - smoothstep(0.32, 0.5, p));
+		return radians(m.y) * opening(p);
 	}
 	if (m.x < 2.5) {
 		return radians(m.y) * sin(6.2831853 * p);
@@ -93,11 +111,36 @@ float line_distance(vec2 p, vec2 a, vec2 b) {
 }
 
 // The art under uv once every bone has turned.
+// How far bone i moves the art that rests at p.
+vec2 moved(int i, vec2 p, float t, float a) {
+	// How much of it moves with the bone: near it, or near a bone it carries.
+	float w = 0.0;
+	for (int j = i; j <= bone_last[i]; j++) {
+		vec4 c = bone_lines[j];
+		w = max(w, 1.0 - smoothstep(bone_reach[j] * 0.75, bone_reach[j], line_distance(p, c.xy, c.zw)));
+	}
+	vec4 l = bone_lines[i];
+	vec4 m = bone_moves[i];
+	if (m.x > 3.5) {
+		// Lunge: nothing at the joint, all of it from three quarters along on, so the
+		// head beyond the neck slides whole.
+		vec2 ab = l.zw - l.xy;
+		float along = clamp(dot(p - l.xy, ab) / max(dot(ab, ab), 1e-6), 0.0, 1.0);
+		return bone_shift[i] * opening(fract(t / m.z + m.w)) * a * w * smoothstep(0.0, 0.75, along);
+	}
+	return (turn(p, l.xy, -turned(m, t) * a) - p) * w;
+}
+
+// The art under uv once every bone has moved: for each, the resting point that
+// its move carries to uv, found by refining a guess, so a part that moves far
+// out of where it rests (the tip of a tail) is still found whole.
 vec2 bend(vec2 uv, float t, float a) {
 	for (int i = 0; i < bones; i++) {
-		vec4 l = bone_lines[i];
-		float w = 1.0 - smoothstep(bone_reach[i] * 0.5, bone_reach[i], line_distance(uv, l.xy, l.zw));
-		uv = mix(uv, turn(uv, l.xy, turned(bone_moves[i], t) * a), w);
+		vec2 p = uv;
+		for (int k = 0; k < 4; k++) {
+			p = uv - moved(i, p, t, a);
+		}
+		uv = p;
 	}
 	return uv;
 }
@@ -116,6 +159,10 @@ vec2 place(int i, vec2 uv, float t, float a) {
 		j = parents[j];
 	}
 	for (int k = n - 1; k >= 0; k--) {
+		vec4 s = slides[chain[k]];
+		if (s.z > 0.0) {
+			uv -= s.xy * opening(fract(t / s.z + s.w)) * a;
+		}
 		uv = turn(uv, pivots[chain[k]], angle(chain[k], t) * a);
 	}
 	return uv;
@@ -133,7 +180,7 @@ vec4 layer(int i, vec2 uv) {
 void fragment() {
 	float t = TIME * speed + phase;
 	float a = amount;
-	vec2 uv = UV;
+	vec2 uv = (UV - pad) / (1.0 - 2.0 * pad);
 	if (mode == 1) {
 		// Breathe: rise and fall about the feet, more in height than width.
 		float s = 1.0 + 0.03 * a * sin(t * 1.5);

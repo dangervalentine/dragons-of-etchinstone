@@ -83,41 +83,65 @@ const SPEED := {
 ## jaws do. swing: back and forth, evenly. rise: out to the angle and back to rest,
 ## smoothly, never past it. angle in degrees, clockwise when positive; period in
 ## the creature's time, scaled by its SPEED; phase shifts the cycle, in periods. A
-## part turns about its own pivot, carried by its parent's turn.
+## part turns about its own pivot, carried by its parent's turn. lunge, as well:
+## now and then the part slides by shift (512 units) and back, as a hinge opens and
+## closes, every period, carrying the parts it carries; a head thrust forward shows
+## more of the neck behind it.
 const RIGS := {
 	"grimroch": {
 		# Breathing runs a cycle every 4.19; the head lifts with it, counter-clockwise
-		# about the eye, a little behind.
-		"head": {"motion": "rise", "angle": -4.0, "period": 4.19, "phase": -0.1},
-		"jaw": {"motion": "hinge", "angle": 16.0, "period": 4.0},
+		# about the eye, a little behind. Now and then it thrusts forward and the jaw
+		# snaps, in the same cycle.
+		"head": {"motion": "rise", "angle": -4.0, "period": 4.19, "phase": -0.1,
+			"lunge": {"shift": Vector2(14, 4), "period": 6.0}},
+		"jaw": {"motion": "hinge", "angle": 16.0, "period": 6.0},
 	},
 	"rodving": {
-		"head": {"motion": "rise", "angle": -4.0, "period": 4.19, "phase": -0.1},
-		"jaw": {"motion": "hinge", "angle": 18.0, "period": 3.4},
+		"head": {"motion": "rise", "angle": -4.0, "period": 4.19, "phase": -0.1,
+			"lunge": {"shift": Vector2(16, 6), "period": 6.0}},
+		"jaw": {"motion": "hinge", "angle": 18.0, "period": 6.0},
 	},
 	"helsang": {
-		"head": {"motion": "rise", "angle": -4.0, "period": 4.19, "phase": -0.1},
-		"jaw": {"motion": "hinge", "angle": 14.0, "period": 3.6},
+		"head": {"motion": "rise", "angle": -4.0, "period": 4.19, "phase": -0.1,
+			"lunge": {"shift": Vector2(16, 6), "period": 6.0}},
+		"jaw": {"motion": "hinge", "angle": 14.0, "period": 6.0},
 	},
 	"vuurhast": {
 		"head": {"motion": "rise", "angle": -4.0, "period": 4.19, "phase": -0.1},
-		"jaw": {"motion": "hinge", "angle": 14.0, "period": 3.2},
+		# Opens as the neck lunges (BONES), in the same cycle.
+		"jaw": {"motion": "hinge", "angle": 18.0, "period": 6.0},
 	},
 }
 ## Silhouettes bent in place by soft bones, with nothing cut out: each bone turns
 ## the art near the line from its joint to its tip about the joint, fully within
-## half its reach of that line and fading out at its reach (512 units). joint and
+## three quarters of its reach of that line and fading out at its reach (512 units). joint and
 ## tip are points in 512 units, or the names of points marked on the art (in
-## <name>-rig.json). Motions are as in RIGS. A bone listed after another rides on it.
+## <name>-rig.json). Motions are as in RIGS, and one more, lunge: slides the art by
+## shift (512 units) and back, as a hinge opens and closes, more the further along
+## the bone, so what lies between joint and tip stretches. Bones that share a chain
+## name, listed together from root to tip, are a chain: each carries the ones after
+## it, as a tail's root swings all of it. A bone listed after another rides on it.
 const BONES := {
 	"vuurhast": [
 		{"joint": Vector2(345, 300), "tip": Vector2(325, 110), "reach": 45.0, "motion": "swing", "angle": 2.0, "period": 8.38},
-		{"joint": Vector2(150, 410), "tip": Vector2(75, 140), "reach": 40.0, "motion": "swing", "angle": 3.0, "period": 8.38, "phase": 0.25},
+		# Now and then the neck thrusts the head forward, the jaw snapping with it.
+		{"joint": Vector2(360, 300), "tip": Vector2(330, 80), "reach": 120.0, "motion": "lunge", "shift": Vector2(30, 8), "period": 6.0},
+		# The tail whips: five bones from the hip around the curl to the tip, each
+		# swinging a little behind the one before.
+		{"chain": "tail", "joint": Vector2(215, 415), "tip": Vector2(130, 395), "reach": 50.0, "motion": "swing", "angle": 3.0, "period": 7.0},
+		{"chain": "tail", "joint": Vector2(130, 395), "tip": Vector2(128, 300), "reach": 65.0, "motion": "swing", "angle": 3.0, "period": 7.0, "phase": -0.07},
+		{"chain": "tail", "joint": Vector2(128, 300), "tip": Vector2(142, 190), "reach": 70.0, "motion": "swing", "angle": 3.0, "period": 7.0, "phase": -0.14},
+		{"chain": "tail", "joint": Vector2(142, 190), "tip": Vector2(110, 128), "reach": 70.0, "motion": "swing", "angle": 3.0, "period": 7.0, "phase": -0.21},
+		{"chain": "tail", "joint": Vector2(110, 128), "tip": Vector2(66, 152), "reach": 70.0, "motion": "swing", "angle": 3.0, "period": 7.0, "phase": -0.28},
 	],
 	# The arms hang heavy and drift at half the breath, against each other.
 	"grimroch": [
 		{"joint": "front-arm-joint", "tip": Vector2(285, 400), "reach": 30.0, "motion": "swing", "angle": 4.5, "period": 8.38},
 		{"joint": "back-arm-joint", "tip": Vector2(365, 400), "reach": 30.0, "motion": "swing", "angle": 4.5, "period": 8.38, "phase": 0.5},
+		# A short, heavy tail, lashing from the hip.
+		{"chain": "tail", "joint": Vector2(170, 420), "tip": Vector2(110, 395), "reach": 38.0, "motion": "swing", "angle": 3.0, "period": 7.0},
+		{"chain": "tail", "joint": Vector2(110, 395), "tip": Vector2(70, 370), "reach": 42.0, "motion": "swing", "angle": 3.0, "period": 7.0, "phase": -0.08},
+		{"chain": "tail", "joint": Vector2(70, 370), "tip": Vector2(46, 343), "reach": 42.0, "motion": "swing", "angle": 3.0, "period": 7.0, "phase": -0.16},
 	],
 	"rodving": [
 		{"joint": "front-arm-joint", "tip": Vector2(390, 330), "reach": 40.0, "motion": "swing", "angle": 4.5, "period": 8.38},
@@ -126,10 +150,15 @@ const BONES := {
 	"helsang": [
 		{"joint": "front-arm-joint", "tip": Vector2(307, 400), "reach": 25.0, "motion": "swing", "angle": 4.5, "period": 8.38},
 		{"joint": "back-arm-joint", "tip": Vector2(367, 413), "reach": 25.0, "motion": "swing", "angle": 4.5, "period": 8.38, "phase": 0.5},
+		# The frilled tail curls down and round; its curl kept clear of the hind feet.
+		{"chain": "tail", "joint": Vector2(225, 285), "tip": Vector2(165, 330), "reach": 40.0, "motion": "swing", "angle": 3.0, "period": 7.0},
+		{"chain": "tail", "joint": Vector2(165, 330), "tip": Vector2(110, 385), "reach": 45.0, "motion": "swing", "angle": 3.0, "period": 7.0, "phase": -0.07},
+		{"chain": "tail", "joint": Vector2(110, 385), "tip": Vector2(95, 440), "reach": 45.0, "motion": "swing", "angle": 3.0, "period": 7.0, "phase": -0.14},
+		{"chain": "tail", "joint": Vector2(95, 440), "tip": Vector2(155, 420), "reach": 35.0, "motion": "swing", "angle": 3.0, "period": 7.0, "phase": -0.21},
 	],
 }
 ## The ways a part can move, as the shader numbers them.
-const MOVES := {"still": 0, "hinge": 1, "swing": 2, "rise": 3}
+const MOVES := {"still": 0, "hinge": 1, "swing": 2, "rise": 3, "lunge": 4}
 static var _rigs := {}
 
 
@@ -153,13 +182,19 @@ static func layers(name: String) -> Array:
 
 
 ## The soft bones a silhouette bends by, or []: each as in BONES, its joint and tip
-## as points in 512 units.
+## as points in 512 units, and last, the index of the last bone it carries (itself,
+## or the tip of its chain).
 static func bones(name: String) -> Array:
+	var list: Array = BONES.get(name, [])
 	var out := []
-	for b in BONES.get(name, []):
-		var bone: Dictionary = b.duplicate()
-		bone.joint = _point(name, b.joint)
-		bone.tip = _point(name, b.tip)
+	for i in list.size():
+		var bone: Dictionary = list[i].duplicate()
+		bone.joint = _point(name, bone.joint)
+		bone.tip = _point(name, bone.tip)
+		bone.last = i
+		var chain: String = bone.get("chain", "")
+		while chain != "" and bone.last + 1 < list.size() and list[bone.last + 1].get("chain", "") == chain:
+			bone.last += 1
 		out.append(bone)
 	return out
 
@@ -196,6 +231,7 @@ static func _layer(art: String, pivot: Vector2, parent: int, move: Dictionary) -
 		"art": art, "pivot": pivot, "parent": parent,
 		"motion": move.get("motion", "still"), "angle": move.get("angle", 0.0),
 		"period": move.get("period", 1.0), "phase": move.get("phase", 0.0),
+		"lunge": move.get("lunge", {}),
 	}
 
 

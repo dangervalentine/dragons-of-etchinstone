@@ -9,8 +9,8 @@ func test_whole_art_fills_a_square_widget() -> void:
 	var c := Creature.new()
 	c.size = Vector2(200, 200)
 	c._fit()
-	eq(c._picture.position, Vector2.ZERO, "whole art sits at the corner")
-	eq(c._picture.size, Vector2(200, 200), "whole art fills the widget")
+	eq(c.art_rect().position, Vector2.ZERO, "whole art sits at the corner")
+	eq(c.art_rect().size, Vector2(200, 200), "whole art fills the widget")
 	ok(not c._frame.clip_contents, "whole art is not clipped")
 	c.free()
 
@@ -19,8 +19,8 @@ func test_whole_art_is_centred_in_a_wide_widget() -> void:
 	var c := Creature.new()
 	c.size = Vector2(300, 200)
 	c._fit()
-	eq(c._picture.position, Vector2(50, 0), "centred across")
-	eq(c._picture.size, Vector2(200, 200), "kept square")
+	eq(c.art_rect().position, Vector2(50, 0), "centred across")
+	eq(c.art_rect().size, Vector2(200, 200), "kept square")
 	c.free()
 
 
@@ -28,8 +28,8 @@ func test_a_crop_fills_the_widget_with_its_region() -> void:
 	var c := Creature.new()
 	c.size = Vector2(100, 100)
 	c.crop = Rect2(256, 0, 256, 256)
-	eq(c._picture.size, Vector2(200, 200), "the art is scaled so the region is the widget's size")
-	eq(c._picture.position, Vector2(-100, 0), "and moved so the region is at the corner")
+	eq(c.art_rect().size, Vector2(200, 200), "the art is scaled so the region is the widget's size")
+	eq(c.art_rect().position, Vector2(-100, 0), "and moved so the region is at the corner")
 	ok(c._frame.clip_contents, "the rest of the picture is clipped")
 	ok(not c.clip_contents, "but not the creature, so its Ether can drift past the edge")
 	eq(c._frame.size, Vector2(100, 100), "the frame fills the widget")
@@ -42,8 +42,8 @@ func test_a_crop_is_centred_when_its_aspect_differs_from_the_widget() -> void:
 	var c := Creature.new()
 	c.size = Vector2(200, 100)
 	c.crop = Rect2(0, 0, 256, 256)
-	eq(c._picture.size, Vector2(200, 200), "scaled so the region's taller side fills the widget")
-	eq(c._picture.position, Vector2(50, 0), "and centred across the wider widget")
+	eq(c.art_rect().size, Vector2(200, 200), "scaled so the region's taller side fills the widget")
+	eq(c.art_rect().position, Vector2(50, 0), "and centred across the wider widget")
 	c.free()
 
 

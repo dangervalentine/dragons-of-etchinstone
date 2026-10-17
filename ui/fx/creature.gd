@@ -14,8 +14,11 @@ const IDLE = preload("res://ui/fx/shaders/creature_idle.gdshader")
 
 ## As many layers as creature_idle.gdshader draws.
 const MAX_LAYERS := 6
+## Room drawn around the art on every side, as a share of its side, so a part that
+## moves past the edge of its square (antlers lifting, a tail whipping) isn't cut off.
+const MARGIN := 0.15
 ## As many soft bones as it bends the art with.
-const MAX_BONES := 4
+const MAX_BONES := 8
 const MODES := {"still": 0, "breathe": 1, "hover": 2, "sway": 3, "wave": 4, "shimmer": 5, "flow": 6, "glow": 7}
 
 var art_name := ""
@@ -71,6 +74,7 @@ func setup(name: String, tint: Color, ether := "", particles := true) -> void:
 	var pivots := PackedVector2Array()
 	var parents := PackedInt32Array()
 	var joins := PackedInt32Array()
+	var slides := PackedVector4Array()
 	var moves := PackedVector4Array()
 	for i in MAX_LAYERS:
 		var l: Dictionary = layers[i] if i < layers.size() else {}
@@ -82,16 +86,22 @@ func setup(name: String, tint: Color, ether := "", particles := true) -> void:
 		var joined: bool = not before.is_empty() and (l.parent == i - 1 or before.parent == i)
 		joins.append(1 if joined else 0)
 		moves.append(Vector4(Art.MOVES[l.get("motion", "still")], l.get("angle", 0.0), l.get("period", 1.0), l.get("phase", 0.0)))
+		var lunge: Dictionary = l.get("lunge", {})
+		var by: Vector2 = lunge.get("shift", Vector2.ZERO) / 512.0
+		slides.append(Vector4(by.x, by.y, lunge.get("period", 0.0), lunge.get("phase", 0.0)))
 	m.set_shader_parameter("layers", layers.size())
 	m.set_shader_parameter("pivots", pivots)
 	m.set_shader_parameter("parents", parents)
 	m.set_shader_parameter("joins", joins)
+	m.set_shader_parameter("slides", slides)
 	m.set_shader_parameter("moves", moves)
 	var bones := Art.bones(name)
 	assert(bones.size() <= MAX_BONES, name + " has more bones than the shader bends")
 	var lines := PackedVector4Array()
 	var bone_moves := PackedVector4Array()
 	var reach := PackedFloat32Array()
+	var last := PackedInt32Array()
+	var shift := PackedVector2Array()
 	for i in MAX_BONES:
 		var b: Dictionary = bones[i] if i < bones.size() else {}
 		var joint: Vector2 = b.get("joint", Vector2.ZERO) / 512.0
@@ -99,14 +109,20 @@ func setup(name: String, tint: Color, ether := "", particles := true) -> void:
 		lines.append(Vector4(joint.x, joint.y, tip.x, tip.y))
 		bone_moves.append(Vector4(Art.MOVES[b.get("motion", "still")], b.get("angle", 0.0), b.get("period", 1.0), b.get("phase", 0.0)))
 		reach.append(b.get("reach", 0.0) / 512.0)
+		last.append(b.get("last", i))
+		shift.append(b.get("shift", Vector2.ZERO) / 512.0)
 	m.set_shader_parameter("bones", bones.size())
 	m.set_shader_parameter("bone_lines", lines)
 	m.set_shader_parameter("bone_moves", bone_moves)
 	m.set_shader_parameter("bone_reach", reach)
+	m.set_shader_parameter("bone_last", last)
+	m.set_shader_parameter("bone_shift", shift)
 	if _particles != null:
 		_particles.queue_free()
 		_particles = null
-	if particles and ether != "":
+	# The dragons move enough on their own; only the others have their Ether drifting
+	# round them.
+	if particles and ether != "" and not Art.DRAGONS.values().has(name):
 		_particles = _make_particles(ether)
 		add_child(_particles)
 	_still = not UI.reduced_motion
@@ -137,16 +153,24 @@ func _apply_motion() -> void:
 		_particles.visible = not _still
 
 
+## Where the art's square is in the widget: scaled so `crop` fits the widget and
+## placed so `crop` is centred in it.
+func art_rect() -> Rect2:
+	var zoom := minf(size.x / crop.size.x, size.y / crop.size.y)
+	var side := Art.FULL.size.x * zoom
+	return Rect2((size - crop.size * zoom) / 2.0 - crop.position * zoom, Vector2(side, side))
+
+
 func _fit() -> void:
 	# The picture is the whole square of art, scaled so `crop` fits the widget and
 	# placed so `crop` is centred in it.
-	var zoom := minf(size.x / crop.size.x, size.y / crop.size.y)
-	var side := Art.FULL.size.x * zoom
-	var at := (size - crop.size * zoom) / 2.0 - crop.position * zoom
+	var art := art_rect()
 	_frame.position = Vector2.ZERO
 	_frame.size = size
-	_picture.position = at
-	_picture.size = Vector2(side, side)
+	# The picture is the art with MARGIN round it, which the shader leaves room for.
+	_picture.position = art.position - art.size * MARGIN
+	_picture.size = art.size * (1.0 + 2.0 * MARGIN)
+	_picture.material.set_shader_parameter("pad", MARGIN / (1.0 + 2.0 * MARGIN))
 	if _particles != null:
 		_particles.position = size / 2.0
 		_particles.emission_rect_extents = size * Vector2(0.34, 0.3)
