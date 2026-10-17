@@ -5,7 +5,10 @@ extends "res://tests/base.gd"
 const CardFace = preload("res://ui/widgets/card_face.gd")
 
 const REGIONS := ["level", "name", "key", "cost", "initiative", "basic", "enhanced", "boost", "armor", "ether"]
-const SIZES := [Vector2(197, 275), Vector2(170, 238), Vector2(280, 392), Vector2(314, 440)]
+## The last three: the Hand's cards in a Region, the Final Battle, and a full
+## nine-card Final Enemy Hand since the ordered Hand (specs/009 research R4, R6).
+const SIZES := [Vector2(197, 275), Vector2(170, 238), Vector2(280, 392), Vector2(314, 440),
+	Vector2(149, 208), Vector2(112, 156), Vector2(96, 134)]
 ## Numeral size on a 197 x 275 Hand card before the rebuild
 ## (specs/005-playfield-polish/baseline.md).
 const BASELINE_NUMERAL := 30.1

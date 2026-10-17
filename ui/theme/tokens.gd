@@ -84,9 +84,11 @@ const BRONZE_LIGHT := Color("a88a63")
 ## units clear of the edge (measured for feature 006, T009): a Region Enemy with four
 ## badge rows at their 52-unit minimum and the Key Card line (a Journey needs 206);
 ## the dragon's face with its tiers (332 on the Final Journey, 384 for Grimroch's
-## Final Enemy).
+## Final Enemy). Since feature 009 the Final Battle's left side is narrower and its
+## math box taller, so the face may drop its heading and caption to fit: what is
+## left, the band, the figures and the three tiers, needs 276.
 const ENCOUNTER_MIN := 316
-const DRAGON_MIN := 384
+const DRAGON_MIN := 276
 ## The least height the preview takes in the left column; the Encounter gets the rest.
 const PREVIEW_MIN := 150
 

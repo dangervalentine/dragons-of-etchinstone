@@ -1,9 +1,9 @@
 extends Control
-## The action column beside the role slots (contracts/role-slots.md): the secondary
-## actions (Fuse, Divert, Regroup, Give up Reserve, Undo Upgrade, or Cancel in place
-## of the one under way) in a row of tap targets, and the one primary action, Play,
-## across the column under them, under the right thumb
-## (layout_solver.PLAY_IN_COLUMN is false).
+## The action row under the Hand (specs/009 contracts/board-layout.md): two
+## secondary cells a quarter of the row each (Fuse or Undo Upgrade, then Divert or
+## Regroup, or Cancel in place of the one under way), and the one primary action,
+## Play, across the right half, under the right thumb. Play never moves; a cell with
+## nothing on offer is left blank.
 
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
@@ -13,9 +13,12 @@ signal intent(data: Dictionary)
 const Solver = preload("res://ui/model/layout_solver.gd")
 
 var primary := Button.new()
+## Over Play while it is not ready: a press here asks why rather than doing nothing.
+var _why := Control.new()
 var _actions := Control.new()
 var _area := Rect2()
 var _commit := Rect2()
+var _cells_at: Array = []
 var _was_enabled := false
 var _kind := ""
 var _ready := false
@@ -29,58 +32,48 @@ func _init() -> void:
 	UI.style_stone_button(primary, "primary")
 	primary.pressed.connect(func(): intent.emit({"type": "primary"}))
 	add_child(primary)
+	_why.mouse_filter = Control.MOUSE_FILTER_STOP
+	_why.visible = false
+	_why.gui_input.connect(func(e):
+		if e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT and not e.pressed:
+			intent.emit({"type": "primary"}))
+	add_child(_why)
 
 
-## actions: the whole column; commit: Play's cells inside it.
-func apply_layout(actions: Rect2, commit: Rect2) -> void:
+## actions: the whole row; commit: Play's half of it; secondary: the two quarter cells.
+func apply_layout(actions: Rect2, commit: Rect2, secondary: Array = []) -> void:
 	_area = actions
 	_commit = commit
+	_cells_at = secondary
 	_actions.position = actions.position - global_position
 	_actions.size = actions.size
-	primary.position = commit.position - global_position
-	primary.size = commit.size
 	_place()
 
 
-## Where `count` secondary actions go: side by side across the column above Play,
-## in as many rows as the room above it holds (one, beside the slots).
-func _cells(count: int) -> Array:
-	var room := _commit.position.y - _area.position.y - T.S
-	if count == 0 or room < T.TAP_MIN:
-		return []
-	var cols := maxi(1, floori((_area.size.x + T.S) / (T.TAP_MIN + T.S)))
-	var rows := ceili(count / float(cols))
-	var h := (room - (rows - 1) * T.S) / rows
-	var out := []
-	for i in count:
-		var r := i / cols
-		var in_row := mini(cols, count - r * cols)
-		var w := (_area.size.x - (in_row - 1) * T.S) / in_row
-		out.append(Rect2((i - r * cols) * (w + T.S), r * (h + T.S), w, h))
-	return out
-
-
 func _place() -> void:
+	primary.position = _commit.position - global_position
+	primary.size = _commit.size
+	_why.position = primary.position
+	_why.size = primary.size
 	var buttons := _actions.get_children()
-	# Alone in the column (Soak, setup), Play takes all of it.
-	var alone := buttons.is_empty() and _area.size != Vector2.ZERO
-	var r := _area if alone else _commit
-	primary.position = r.position - global_position
-	primary.size = r.size
-	var cells := _cells(buttons.size())
 	for i in buttons.size():
 		var b: Control = buttons[i]
-		b.visible = i < cells.size()
-		if b.visible:
-			b.position = cells[i].position
-			b.size = cells[i].size
+		var cell: int = b.get_meta("cell", i)
+		b.visible = b.get_meta("shown", true) and cell < _cells_at.size()
+		if cell < _cells_at.size():
+			var r: Rect2 = _cells_at[cell]
+			b.position = r.position - _area.position
+			b.size = r.size
 
 
 func render(vs: Dictionary) -> void:
 	for c in _actions.get_children():
 		_actions.remove_child(c)
 		c.queue_free()
-	for a in vs.secondary:
+	for cell in vs.secondary.size():
+		var a = vs.secondary[cell]
+		if a == null:
+			continue
 		var label: String = a.label if a.enabled else a.reason
 		var kind: String = "active" if a.active else ("quiet" if a.id == "cancel" else "normal")
 		var b := UI.button(label, kind, a.icon)
@@ -95,13 +88,17 @@ func render(vs: Dictionary) -> void:
 		b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		b.clip_text = true
 		b.custom_minimum_size = Vector2(T.TAP_MIN, T.TAP_MIN)
-		b.pressed.connect(func(): intent.emit({"type": "action", "id": a.id}))
+		b.set_meta("cell", cell)
+		var id: String = a.id
+		b.pressed.connect(func(): intent.emit({"type": "action", "id": id}))
 		_actions.add_child(b)
 	_place()
 	var p: Dictionary = vs.prompt.primary
 	primary.visible = p.label != ""
 	primary.text = p.label
 	primary.disabled = not p.enabled
+	_why.visible = primary.visible and not p.enabled and p.reason != ""
+	_why.tooltip_text = p.reason
 	if p.kind != _kind:
 		_kind = p.kind
 		UI.style_stone_button(primary, p.kind)

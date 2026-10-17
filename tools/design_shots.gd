@@ -196,6 +196,22 @@ func _best_final() -> Array:
 	return best
 
 
+## Place a card as a player does: tap it, then its place.
+func _place_card(id: String, target: Array) -> void:
+	_press({"type": "card", "id": id})
+	_press({"type": "put", "target": target})
+
+
+## Place cards given as Spell, Element, Boost for each set in turn.
+func _place_set(ids: Array, sets: int, choose := true) -> void:
+	var roles := ["spell", "element", "boost"]
+	for i in mini(ids.size(), sets * 3):
+		_place_card(ids[i], [i / 3, roles[i % 3]])
+	if choose:
+		for i in sets:
+			_press({"type": "set_boost_to", "set": i, "to": "attack"})
+
+
 func _game() -> void:
 	await _shot("title")
 	ui.dispatch({"type": "setup_rules", "options": ui.menu})
@@ -211,9 +227,11 @@ func _game() -> void:
 	_key_of_kind("enemy")
 	await _shot("enemy_encounter")
 	var g = ui.game
-	_press({"type": "card", "id": g.hand[0]})
-	_press({"type": "card", "id": g.hand[1]})
+	_place_card(g.hand[0], [0, "spell"])
+	_place_card(g.hand[1], [0, "element"])
+	_press({"type": "card", "id": g.hand[2]})
 	await _shot("enemy_assigning_cards")
+	_press({"type": "put_down"})
 	_hover(g.hand[2])
 	await create_timer(0.4).timeout
 	await _shot("card_detail_hover")
@@ -237,8 +255,9 @@ func _game() -> void:
 	ui.draft.reset(1)
 	ui._refresh(false)
 
-	for id in _best_single():
-		_press({"type": "card", "id": id})
+	_place_set(_best_single(), 1, false)
+	await _shot("enemy_boost_unchosen")
+	_press({"type": "set_boost_to", "set": 0, "to": "attack"})
 	await _shot("enemy_ready_with_preview")
 	ui.dispatch({"type": "primary"})
 	for i in 25:
@@ -279,6 +298,11 @@ func _game() -> void:
 		await _shot("inspect_card")
 		ui._close_overlays()
 		_press({"type": "primary"})
+		var top = ui._top_overlay()
+		if top != null and top.has_signal("confirmed"):
+			await _shot("unspent_xp_warning", false)
+			top.confirmed.emit()
+			top.close()
 	await create_timer(0.2).timeout
 	ui.animator.skip()
 	ui._close_overlays()
@@ -310,16 +334,14 @@ func _game() -> void:
 	ui.draft.reset(2)
 	ui._refresh(false)
 	await _shot("final_journey")
-	for id in _best_final():
-		_press({"type": "card", "id": id})
+	_place_set(_best_final(), 2)
 	await _shot("final_journey_ready")
 	_press({"type": "primary"})
 	await create_timer(0.2).timeout
 	ui.animator.skip()
 	if g.phase == "final_enemy":
 		await _shot("final_enemy")
-		for id in _best_final():
-			_press({"type": "card", "id": id})
+		_place_set(_best_final(), 2)
 		await _shot("final_enemy_ready")
 		_press({"type": "primary"})
 		await create_timer(0.2).timeout

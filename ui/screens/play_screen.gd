@@ -1,9 +1,9 @@
 extends Control
 ## The one screen used for every step of play, from choosing starting cards to the
 ## last blow against the dragon. Regions in fixed places: header, Encounter, the
-## math box, the role slots with the action column (and Play) beside them, and the
-## Hand. Widgets update
-## in place; card nodes persist so they can move.
+## math box on the left; on the right the role strip, the Hand (its ordered places
+## and the floating cards) and the action row under them. Widgets update in place;
+## card nodes persist so they can move.
 
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
@@ -106,7 +106,7 @@ func apply_layout(p: Dictionary) -> void:
 ## `arrive_from` (a global point) when given.
 func render(state: Dictionary, animate := false, arrive_from = null) -> void:
 	var fused_before := _fused_top(vs)
-	var slots_before: Array = vs.get("slots", [])
+	var slots_before: Array = vs.get("places", [])
 	vs = state
 	if plan.is_empty():
 		return
@@ -145,7 +145,8 @@ func _place_regions(p: Dictionary) -> void:
 		var r: Rect2 = p.regions[key]
 		_regions[key].position = r.position
 		_regions[key].size = r.size
-	actions.apply_layout(p.regions.actions, p.regions.commit)
+	actions.apply_layout(p.regions.actions, p.regions.commit, p.regions.secondary)
+	slots.set_columns(p.get("place_rects", []))
 
 
 ## The slots answer a placement (contracts/role-slots.md): a newly filled slot's
@@ -157,11 +158,11 @@ func _answer_slots(before: Array, animate: bool) -> void:
 		return
 	var old := {}
 	for s in before:
-		old["%d/%s" % [s.set, s.role]] = s
-	for s in vs.get("slots", []):
+		old[s.key] = s
+	for s in vs.get("places", []):
 		if s.state != "filled" or s.number == null:
 			continue
-		var key := "%d/%s" % [s.set, s.role]
+		var key: String = s.key
 		var was: Dictionary = old.get(key, {})
 		var label: Label = slots.number_label(s.set, s.role)
 		if label == null:
@@ -204,18 +205,28 @@ func _count(label: Label, from: int, to: int, signed: bool) -> void:
 	label.create_tween().tween_method(show, float(from), float(to), T.COUNT)
 
 
-## The Hand's panel: round the cards themselves, with room for a placed card to rise.
+## The Hand's panel: round its whole band while cards float under the places, round
+## the places alone once every card has one, and round the cards themselves when
+## there are no places (setup, Soak).
 func _place_hand_panel() -> void:
-	var rects: Array = plan.get("card_rects", [])
-	if rects.is_empty():
+	if plan.is_empty():
 		return
-	var cards: Rect2 = rects[0]
-	for r in rects:
-		cards = cards.merge(r)
-	var hand: Rect2 = plan.regions.hand
-	var top := maxf(cards.position.y - 24.0, hand.position.y - 6.0)
-	var bottom := minf(cards.end.y + 12.0, hand.end.y + 6.0)
-	var panel := Rect2(cards.position.x - 10.0, top, cards.size.x + 20.0, bottom - top)
+	var panel: Rect2 = plan.regions.hand.grow(6.0)
+	var floating: int = vs.get("floating", []).size() if not vs.is_empty() else plan.hand_count
+	if not plan.place_rects.is_empty() and floating == 0:
+		var row: Rect2 = plan.place_rects[0]
+		for r in plan.place_rects:
+			row = row.merge(r)
+		panel = Rect2(plan.regions.hand.position.x - 6.0, row.position.y - 6.0, plan.regions.hand.size.x + 12.0, row.size.y + 12.0)
+	elif plan.place_rects.is_empty():
+		var Solver = load("res://ui/model/layout_solver.gd")
+		var rects: Array = Solver.floating_rects(plan, plan.hand_count)
+		if rects.is_empty():
+			return
+		var cards: Rect2 = rects[0]
+		for r in rects:
+			cards = cards.merge(r)
+		panel = Rect2(cards.position.x - 10.0, cards.position.y - 24.0, cards.size.x + 20.0, cards.size.y + 36.0)
 	_hand_panel.position = panel.position
 	_hand_panel.size = panel.size
 
@@ -375,18 +386,20 @@ func encounter_node() -> Control:
 func _replan(p: Dictionary, state: Dictionary) -> Dictionary:
 	var count: int = state.hand.size()
 	var Solver = load("res://ui/model/layout_solver.gd")
-	var sets: int = Solver.slot_rows(state)
+	var places: int = Solver.place_count(state)
+	var final: bool = Solver.is_final(state)
 	# The preview asks for the height its fullest look needs this Encounter, so this
 	# changes between steps and Encounters, not as cards are placed.
 	var needed := roundi(_preview_widget().needed_height(p.regions.preview.size.x))
 	var enc = state.get("encounter")
 	var least: int = T.DRAGON_MIN if enc != null and enc.kind.begins_with("final") else T.ENCOUNTER_MIN
-	if p.get("for", []) == [count, sets, needed, least]:
+	if p.get("for", []) == [count, places, final, needed, least]:
 		return p
-	var q: Dictionary = Solver.solve(p.view, p.safe, count, sets, p.points_per_unit, needed, least)
+	var q: Dictionary = Solver.solve(p.view, p.safe, count, places, p.points_per_unit, needed, least, p.get("undersized_upright", false), final)
 	q["safe"] = p.safe
-	q["for"] = [count, sets, needed, least]
-	if q.regions != p.regions:
+	q["undersized_upright"] = p.get("undersized_upright", false)
+	q["for"] = [count, places, final, needed, least]
+	if q.regions != p.regions or q.place_rects != p.get("place_rects"):
 		plan = q
 		_place_regions(q)
 	return q

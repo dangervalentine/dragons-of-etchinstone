@@ -29,7 +29,8 @@ var _scene := Control.new()
 var _road := Creature.new()
 var _beast := Creature.new()
 var _panel := VBoxContainer.new()
-var _how: Label
+## The lines the panel can do without, in the order they go when it runs short.
+var _spare: Array = []
 var _room := INF
 var _tween: Tween
 
@@ -69,7 +70,7 @@ func set_reached(tier: int) -> void:
 		var rung: PanelContainer = _rungs[i]
 		rung.add_theme_stylebox_override("panel", UI.box(
 			Color(T.GOLD, 0.92) if on else Color(T.BG_BAND, 0.85),
-			T.GOLD if on else Color(T.INK, 0.25), 2 if on else 1, T.RADIUS_S, 4))
+			T.GOLD if on else Color(T.INK, 0.25), 2 if on else 1, T.RADIUS_S, 4 if _kind == "final_journey" else 2))
 		for l in rung.find_children("*", "Label", true, false):
 			l.add_theme_color_override("font_color", T.BG_BASE if on else T.INK)
 		for t in rung.find_children("*", "TextureRect", true, false):
@@ -104,27 +105,30 @@ func _build(enc: Dictionary) -> void:
 		_panel.remove_child(c)
 		c.queue_free()
 	_rungs = []
-	_how = null
+	_spare = []
+	# The battle shares the column with a taller math box: its lines sit closer.
+	_panel.add_theme_constant_override("separation", 6 if journey else 3)
 	if journey:
 		var intro := UI.label("THE FINAL JOURNEY", T.EYEBROW, T.GOLD)
 		_panel.add_child(intro)
 		var how := UI.label("Add the Move of both sets. Each tier reached costs less time.", T.LABEL, T.INK, true)
 		how.custom_minimum_size.x = 200
 		_panel.add_child(how)
-		_how = how
+		_spare = [how]
 	else:
-		_panel.add_child(UI.label("THE FINAL ENEMY", T.EYEBROW, T.GOLD))
+		var eyebrow := UI.label("THE FINAL ENEMY", T.EYEBROW, T.GOLD)
+		_panel.add_child(eyebrow)
 		# One row of figures, named once underneath; each explains itself when pressed.
 		var stats := HFlowContainer.new()
 		stats.add_theme_constant_override("h_separation", 2)
 		stats.add_theme_constant_override("v_separation", 2)
 		stats.add_child(_chip({"icon": "initiative", "text": str(d.initiative), "color": T.BG_BAND,
-			"glossary_id": "initiative", "min_size": Vector2(44, 48)}))
+			"glossary_id": "initiative", "min_size": Vector2(44, 44)}))
 		stats.add_child(_chip({"icon": "attack", "text": "+%d" % d.early_damage.value, "color": colour, "ink": T.ether_shade(enc.element, "plate_ink"),
-			"element": d.early_damage.element, "plate": true, "glossary_id": "early_damage", "min_size": Vector2(84, 48)}))
+			"element": d.early_damage.element, "plate": true, "glossary_id": "early_damage", "min_size": Vector2(84, 44)}))
 		for a in d.armor:
 			stats.add_child(_chip({"icon": "armor", "text": str(a.value), "color": T.ether(a.element), "ink": T.ether_shade(a.element, "plate_ink"),
-				"element": a.element, "glossary_id": "armor", "min_size": Vector2(44, 48)}))
+				"element": a.element, "glossary_id": "armor", "min_size": Vector2(44, 44)}))
 		_panel.add_child(stats)
 		var names := "Initiative · early · Armor"
 		if enc.carried_damage > 0:
@@ -132,7 +136,8 @@ func _build(enc: Dictionary) -> void:
 		var caption := UI.label(names, T.LABEL, T.INK_MUTED, true)
 		caption.custom_minimum_size.x = 200
 		_panel.add_child(caption)
-		_how = caption
+		# The chips explain themselves when pressed, and the band names the dragon.
+		_spare = [caption, eyebrow]
 	var tiers: Array = d.mp_tiers if journey else d.hp_tiers
 	var rows := []
 	for i in tiers.size():
@@ -215,17 +220,23 @@ func _place(crossing: bool) -> void:
 ## Wrapped text and figures only know their height once laid out, so this
 ## checks after each sort of the panel.
 func _fit_ladder(panel: Rect2) -> void:
-	_room = panel.size.y
-	if _how != null:
-		_how.visible = true
+	# The stage can run on under the frame's foot; only what the frame shows counts.
+	var shown := size.y - (_stage.global_position.y - global_position.y) - T.M
+	_room = minf(panel.size.y, shown) if size.y > 0.0 else panel.size.y
+	for c in _spare:
+		c.visible = true
 
 
 func _trim() -> void:
-	if _how == null or not _how.visible or _panel.get_child_count() == 0:
+	if _panel.get_child_count() == 0:
 		return
 	var last: Control = _panel.get_child(-1)
-	if last.position.y + last.size.y > _room:
-		_how.visible = false
+	if last.position.y + last.size.y <= _room:
+		return
+	for c in _spare:
+		if c.visible:
+			c.visible = false
+			return
 
 
 func _rung(tier: Dictionary, journey: bool, element: String) -> Control:
