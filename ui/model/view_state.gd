@@ -9,6 +9,8 @@ const Art = preload("res://ui/model/art.gd")
 const Emphasis = preload("res://ui/model/emphasis.gd")
 
 const ROLE_NAMES := {"spell": "Spell", "element": "Element", "boost": "Boost"}
+## The Roles of an Action Set as the Hand holds them, left to right (rulebook p. 15).
+const ORDER := ["element", "spell", "boost"]
 const DIFFICULTY_NAMES := {
 	"casual": "Casual", "easy": "Easy", "normal": "Normal", "hard": "Hard",
 	"impossible": "Impossible", "dont_even_try": "Don't Even Try It",
@@ -62,6 +64,7 @@ static func build(game, draft, db, extra := {}) -> Dictionary:
 		"fuse_pick": draft.fuse_pick.duplicate(),
 		"played": _played(game),
 		"undo": extra.get("undo", 0),
+		"key_target": extra.get("key_target"),
 	}
 	if playing:
 		vs.preview = preview(game, draft, extra.get("previous_preview"))
@@ -87,7 +90,18 @@ static func build(game, draft, db, extra := {}) -> Dictionary:
 			for role in vs.played.roles:
 				if vs.played.roles[role] == id:
 					vs.cards[id]["played_role"] = [0, role]
-	vs["slots"] = role_slots(vs, game)
+	vs["held"] = draft.held
+	vs["floating"] = draft.floating(vs.hand) if playing else []
+	vs["places"] = places(vs, game, draft)
+	for id in vs.hand:
+		vs.cards[id]["place"] = null
+	for pl in vs.places:
+		if pl.card_id != null and vs.cards.has(pl.card_id):
+			vs.cards[pl.card_id]["place"] = pl.key
+	if not playing and vs.places.is_empty():
+		vs.floating = vs.hand.duplicate()
+	elif not playing:
+		vs.floating = vs.hand.filter(func(id): return vs.cards[id].place == null)
 	vs["prompt"] = _prompt(game, draft, vs)
 	vs["secondary"] = _secondary(game, draft, vs)
 	vs["input_region"] = _input_region(game, draft, vs)
@@ -118,15 +132,26 @@ static func preview(game, draft, previous = null) -> Dictionary:
 	var out := {"status": "ready", "missing": [], "reason": "", "comparisons": [], "verdict": "",
 		"verdict_text": "", "rewards": {"xp": 0}, "costs": [], "fatal": false, "tier": -1,
 		"figures": {}, "changed": []}
+	# Against an Enemy each placed Boost waits for the player to send it to Attack or
+	# to Initiative; until then there is no outcome to show.
+	var targets := []
+	if _boost_has_target(game):
+		for i in draft.boost_unchosen():
+			targets.append("Boost target" + (" %d" % (i + 1) if draft.set_count > 1 else ""))
 	if r.has("error"):
 		if INCOMPLETE_ERRORS.has(r.error) and not draft.empty_slots().is_empty():
 			out.status = "incomplete"
 			for slot in draft.empty_slots():
 				var name: String = ROLE_NAMES[slot[1]]
 				out.missing.append(name + (" %d" % (slot[0] + 1) if draft.set_count > 1 else ""))
+			out.missing.append_array(targets)
 		else:
 			out.status = "blocked"
 			out.reason = r.error
+		return out
+	if not targets.is_empty():
+		out.status = "incomplete"
+		out.missing = targets
 		return out
 	match game.phase:
 		"challenge":
@@ -147,6 +172,11 @@ static func preview(game, draft, previous = null) -> Dictionary:
 			if previous.figures.get(key) != out.figures[key]:
 				out.changed.append(key)
 	return out
+
+
+## Whether a Boost can go to Attack or to Initiative here: against an Enemy.
+static func _boost_has_target(game) -> bool:
+	return game.phase == "final_enemy" or (game.phase == "challenge" and game.encounter().kind == "enemy")
 
 
 static func _preview_region(game, draft, r: Dictionary, out: Dictionary) -> void:
@@ -353,32 +383,67 @@ static func _math_target(game, e: Dictionary, id: String, cmp: Dictionary, targe
 	return {"value": e.mp, "icon": "mp", "terms": target_terms if target_terms.size() > 1 else []}
 
 
-## The role slots: one per role per Action Set while building, each with the number
-## its card gives there (contracts/role-slots.md). After a battle, the same slots
-## recap what was played and whether the Reserve stays. A slot never carries a
-## card's name; only its tooltip does.
-static func role_slots(vs: Dictionary, game = null) -> Array:
+## The places of the Hand, in the rulebook's order from the left: the Reserve, then
+## each Action Set's Element, Spell and Boost (contracts/board-layout.md). Each shows
+## the number its card gives there; a place never carries a card's name, only its
+## tooltip does. After a battle the same places recap what was played and whether
+## the Reserve stays. The Final Enemy keeps no Reserve.
+static func places(vs: Dictionary, game = null, draft = null) -> Array:
 	var out := []
 	if vs.sets.is_empty():
 		var p = vs.played
 		if p == null:
 			return out
 		var terms: Array = game.result.get("terms", []) if game != null else []
-		for role in ["spell", "element", "boost"]:
+		var r = p.reserve
+		out.append(_place("reserve", 0, "reserve", "kept" if r != null and p.reserve_kept else "discarded", r, null, "",
+			null, null, {"type": "inspect", "id": r} if r != null else null, _tip(vs, 0, "reserve", r, false)))
+		for role in ORDER:
 			var id = p.roles.get(role)
 			var n = _term_value(terms, ROLE_NAMES[role]) if id != null else null
-			out.append(_slot(0, role, "played" if id != null else "discarded", id, n, "", null, null,
+			out.append(_place("0/" + role, 0, role, "played" if id != null else "discarded", id, n, "", null, null,
 				{"type": "inspect", "id": id} if id != null else null, _tip(vs, 0, role, id, false)))
-		var r = p.reserve
-		out.append(_slot(0, "reserve", "kept" if r != null and p.reserve_kept else "discarded", r, null, "", null, null,
-			{"type": "inspect", "id": r} if r != null else null, _tip(vs, 0, "reserve", r, false)))
 		return out
 	var two: bool = vs.sets.size() > 1
 	var enemy: bool = vs.sets[0].show_boost_to
 	var terms: Array = vs.explain.get("terms", [])
+	var held = draft.held if draft != null else null
+	var idle: bool = held == null and vs.mode == "none"
+	if draft == null or draft.with_reserve:
+		var offered: bool = draft == null or draft.reserve_offered(vs.hand)
+		var r = draft.reserve_card(vs.hand) if draft != null else null
+		var state := "inactive"
+		if offered:
+			state = "filled" if r != null else "empty"
+			if held != null and held != r:
+				state = "target"
+		var given_up: bool = r != null and draft != null and draft.give_up_reserve
+		if given_up:
+			state = "given_up"
+		var n = null
+		if r != null and vs.cards.has(r) and vs.cards[r].reserve_boosts:
+			n = vs.cards[r].stats.boost
+		var tap = null
+		if offered and held != null:
+			tap = {"type": "put", "target": "reserve"}
+		elif r != null and idle:
+			tap = {"type": "pick", "id": r}
+		var ranged: bool = vs.encounter != null and vs.encounter.kind == "enemy" and vs.encounter.data.get("ability") == "ranged"
+		var toggle = {"type": "toggle_give_up_reserve"} if ranged and offered else null
+		var place := _place("reserve", 0, "reserve", state, r, n, "move" if n != null else "",
+			vs.cards[r].element if r != null and vs.cards.has(r) else null, null, tap,
+			_tip(vs, 0, "reserve", r, two), toggle)
+		place["given_up"] = given_up
+		# A rule of this Encounter that reads the Reserve: Steep raises the MP by its
+		# Boost, Freeze can take it away. The place shows that rule's mark.
+		var effects: Array = vs.encounter.get("effects", []) if vs.encounter != null else []
+		for rule in ["steep", "freeze"]:
+			if effects.has(rule):
+				place["rule"] = rule
+		out.append(place)
 	for i in vs.sets.size():
 		var st: Dictionary = vs.sets[i]
-		for role in ["spell", "element", "boost"]:
+		for role in ORDER:
 			var id = st.roles.get(role)
 			var counts := ""
 			match role:
@@ -387,32 +452,47 @@ static func role_slots(vs: Dictionary, game = null) -> Array:
 				"element":
 					counts = "initiative"
 				"boost":
-					counts = st.boost_to if enemy else "move"
+					counts = ("" if st.boost_to == null else st.boost_to) if enemy else "move"
 			var boost_to = st.boost_to if role == "boost" and enemy else null
-			var toggle = {"type": "toggle_boost_to", "set": i} if boost_to != null else null
+			var toggle = null
+			var choices := []
+			if role == "boost" and enemy:
+				for to in ["attack", "initiative"]:
+					choices.append({"to": to, "on": st.boost_to == to, "tap": {"type": "set_boost_to", "set": i, "to": to}})
+			var key := "%d/%s" % [i, role]
+			var put = {"type": "put", "target": [i, role]} if held != null else null
+			var place: Dictionary
 			if id == null:
-				var next: bool = vs.active_slot == [i, role] and vs.mode == "none"
-				out.append(_slot(i, role, "next" if next else "empty", null, null, counts, null, boost_to,
-					{"type": "select_slot", "set": i, "role": role}, _tip(vs, i, role, null, two), toggle))
-				continue
-			var c: Dictionary = vs.cards.get(id, {})
-			var n = null
-			match role:
-				"spell":
-					n = _term_value(terms, "Spell %d" % (i + 1) if two else "Spell")
-				"element":
-					n = c.stats.initiative if c.has("stats") else null
-				"boost":
-					n = c.stats.boost if c.has("stats") else null
-			out.append(_slot(i, role, "filled", id, n, counts, c.get("element"), boost_to,
-				{"type": "take_back", "id": id}, _tip(vs, i, role, id, two), toggle))
+				var next: bool = idle and vs.active_slot == [i, role]
+				var state := "target" if held != null else ("next" if next else "empty")
+				place = _place(key, i, role, state, null, null, counts, null, boost_to,
+					put if put != null else {"type": "select_slot", "set": i, "role": role},
+					_tip(vs, i, role, null, two), toggle)
+			else:
+				var c: Dictionary = vs.cards.get(id, {})
+				var n = null
+				match role:
+					"spell":
+						n = _term_value(terms, "Spell %d" % (i + 1) if two else "Spell")
+					"element":
+						n = c.stats.initiative if c.has("stats") else null
+					"boost":
+						n = c.stats.boost if c.has("stats") else null
+				var tap = put
+				if tap == null:
+					tap = {"type": "pick", "id": id} if idle else {"type": "take_back", "id": id}
+				place = _place(key, i, role, "target" if held != null and held != id else "filled", id, n, counts,
+					c.get("element"), boost_to, tap, _tip(vs, i, role, id, two), toggle)
+			place["set_start"] = two and i == 1 and role == ORDER[0]
+			place["choices"] = choices
+			out.append(place)
 	return out
 
 
-static func _slot(set_index: int, role: String, state: String, id, number, counts_to: String, ether, boost_to, tap, tooltip: String, toggle_tap = null) -> Dictionary:
-	return {"set": set_index, "role": role, "state": state, "card_id": id, "number": number,
+static func _place(key: String, set_index: int, role: String, state: String, id, number, counts_to: String, ether, boost_to, tap, tooltip: String, toggle_tap = null) -> Dictionary:
+	return {"key": key, "set": set_index, "role": role, "state": state, "card_id": id, "number": number,
 		"counts_to": counts_to, "ether": ether, "boost_to": boost_to, "tap": tap,
-		"toggle_tap": toggle_tap, "tooltip": tooltip}
+		"toggle_tap": toggle_tap, "tooltip": tooltip, "set_start": false, "given_up": false, "rule": "", "choices": []}
 
 
 ## The value of the first term labelled `label`, or 0 when the engine left it out
@@ -553,10 +633,11 @@ static func _card_in_play(game, draft, db, c: Dictionary) -> void:
 		elif draft.fuse.bottom == id:
 			c.fuse = {"part": "bottom", "element": draft.fuse.element, "other": draft.fuse.top}
 			c.state = "fused_bottom"
-	if c.state == "available":
-		if draft.is_filled() and game._reserve(draft.sets.slice(0, draft.set_count), draft.fuse) == id:
-			c.reserve = true
-			c.state = "reserve"
+	if c.state == "available" and draft.reserve_card(game.hand) == id:
+		c.reserve = true
+		c.state = "reserve"
+	if draft.held == id:
+		c.state = "held"
 	match draft.mode:
 		"fuse_pick":
 			var order: int = draft.fuse_pick.find(id)
@@ -607,6 +688,8 @@ static func _prompt(game, draft, vs: Dictionary) -> Dictionary:
 			p.primary.enabled = pv.status == "ready" and draft.mode == "none"
 			if pv.status == "incomplete":
 				p.primary.reason = "Still needed: " + ", ".join(pv.missing)
+				if pv.missing.all(func(m): return m.begins_with("Boost target")):
+					p.primary.reason = "Choose whether the Boost adds to Attack or to Initiative."
 			elif pv.status == "blocked":
 				p.primary.reason = pv.reason
 			elif draft.mode != "none":
@@ -636,51 +719,50 @@ static func _prompt(game, draft, vs: Dictionary) -> Dictionary:
 	return p
 
 
+## The secondary actions for the action row, one per cell (research R5): the first
+## quarter holds Fuse (or Undo Upgrade), the second Divert or Regroup. A null entry
+## leaves its cell blank, so nothing moves when an action is not on offer. Giving up
+## the Reserve is the Reserve place's own switch, not an action here.
 static func _secondary(game, draft, vs: Dictionary) -> Array:
 	var out := []
 	var cavalier: bool = game.options.get("cavalier", false)
 	var fusing: bool = draft.mode.begins_with("fuse")
+	var fuse := {"id": "fuse", "label": "Unfuse" if draft.fuse != null else "Fuse", "icon": "fuse",
+		"enabled": true, "active": fusing or draft.fuse != null, "reason": ""}
 	match game.phase:
 		"challenge":
-			if not cavalier and game.hand.size() == Game.HAND_SIZE:
-				out.append({"id": "fuse", "label": "Unfuse" if draft.fuse != null else "Fuse", "icon": "fuse",
-					"enabled": true, "active": fusing or draft.fuse != null, "reason": ""})
+			out.append(fuse if not cavalier and game.hand.size() == Game.HAND_SIZE else null)
 			var left: int = Game.MAX_DIVERTS - game.diverts
 			var can: bool = left > 0 and game.deck.size() >= 2
 			out.append({"id": "divert", "label": "Divert · %d" % left, "icon": "divert", "enabled": can,
 				"active": draft.mode == "divert",
 				"reason": "" if can else ("No Diverts left" if left <= 0 else "No other Key Card")})
-			var enc: Dictionary = vs.encounter
-			if enc != null and enc.kind == "enemy" and enc.data.ability == "ranged":
-				out.append({"id": "give_up_reserve", "label": "Give up Reserve", "icon": "reserve",
-					"enabled": true, "active": draft.give_up_reserve, "reason": ""})
 		"final_journey", "final_enemy":
-			if not cavalier:
-				out.append({"id": "fuse", "label": "Unfuse" if draft.fuse != null else "Fuse", "icon": "fuse",
-					"enabled": true, "active": fusing or draft.fuse != null, "reason": ""})
+			out.append(fuse if not cavalier else null)
 			if game.phase == "final_journey":
 				out.append({"id": "regroup", "label": "Regroup", "icon": "regroup", "enabled": not game._regrouped,
 					"active": draft.mode == "regroup", "reason": "" if not game._regrouped else "Already used"})
 	if game.phase == "upgrade" and vs.undo > 0:
 		out.append({"id": "undo", "label": "Undo Upgrade", "icon": "undo", "enabled": true, "active": false, "reason": ""})
-	# While a step is under way, the action that started it becomes its Cancel, so
-	# the action column never needs a button more than the actions themselves.
+	# While a step is under way, the action that started it becomes its Cancel, in
+	# its own cell, so the row never needs a button more than the actions themselves.
 	if draft.mode != "none":
 		var started: String = "fuse" if fusing else draft.mode
 		var cancel := {"id": "cancel", "label": "Cancel", "icon": "close", "enabled": true, "active": true,
 			"reason": "", "tooltip": "Cancel " + started.capitalize()}
 		var at := -1
 		for i in out.size():
-			if out[i].id == started:
+			if out[i] != null and out[i].id == started:
 				at = i
 		if at >= 0:
 			out[at] = cancel
-		else:
+		elif out.size() < 2:
 			out.append(cancel)
+		else:
+			out[0] = cancel
 	return out
 
 
-## A one-line account of the Encounter just resolved, for the Upgrade and Soak steps.
 static func _recap(game) -> Dictionary:
 	var r: Dictionary = game.result
 	if r.is_empty() or not r.has("outcome"):

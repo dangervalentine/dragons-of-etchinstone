@@ -16,6 +16,9 @@ static var motion := "system"
 static var ground := 1
 static var window_mode := "windowed"
 static var last_options := DEFAULT_OPTIONS.duplicate()
+## Ask before leaving the Upgrade step with XP that could still Upgrade a card; off
+## once the player ticks "Don't show this again".
+static var warn_unspent_xp := true
 
 
 static func load_all() -> void:
@@ -28,6 +31,7 @@ static func load_all() -> void:
 	ground = g if g is int and g >= 1 and g <= GROUNDS else 1
 	var w = cfg.get_value("display", "window", "windowed")
 	window_mode = w if WINDOW.has(w) else "windowed"
+	warn_unspent_xp = cfg.get_value("play", "warn_unspent_xp", true) == true
 	var opts = cfg.get_value("game", "last_options", {})
 	if opts is Dictionary:
 		for key in DEFAULT_OPTIONS:
@@ -41,6 +45,7 @@ static func save_all() -> void:
 	cfg.set_value("display", "ground", ground)
 	cfg.set_value("display", "window", window_mode)
 	cfg.set_value("game", "last_options", last_options)
+	cfg.set_value("play", "warn_unspent_xp", warn_unspent_xp)
 	cfg.save(PATH)
 
 

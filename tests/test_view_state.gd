@@ -19,6 +19,7 @@ func _filled(g) -> Object:
 	var d = Draft.new()
 	for id in g.hand.slice(0, 3):
 		d.tap(id)
+	d.set_boost_to(0, "attack")
 	return d
 
 
@@ -89,20 +90,53 @@ func test_cancel_is_offered_in_every_mode() -> void:
 	var d = Draft.new()
 	for m in ["divert", "fuse_pick"]:
 		d.begin_mode(m)
-		var ids: Array = ViewState.build(g, d, db).secondary.map(func(a): return a.id)
+		var ids: Array = _ids(ViewState.build(g, d, db))
 		ok(ids.has("cancel"), "cancel during " + m)
 		ok(not ids.has("divert" if m == "divert" else "fuse"), "in place of the action that started " + m)
 		ok(not ViewState.build(g, d, db).prompt.primary.enabled, "cannot play during " + m)
 		d.cancel_mode()
-	var ids: Array = ViewState.build(g, d, db).secondary.map(func(a): return a.id)
+	var ids: Array = _ids(ViewState.build(g, d, db))
 	ok(not ids.has("cancel"), "no cancel outside a mode")
+
+
+func _ids(vs: Dictionary) -> Array:
+	return vs.secondary.map(func(a): return a.id if a != null else null)
 
 
 func test_cavalier_has_no_fuse_action() -> void:
 	var g = _game(3, "normal", {"cavalier": true})
-	var ids: Array = ViewState.build(g, Draft.new(), db).secondary.map(func(a): return a.id)
-	ok(not ids.has("fuse"), "absent, not disabled")
-	ok(ids.has("divert"), "Divert is still there")
+	var ids: Array = _ids(ViewState.build(g, Draft.new(), db))
+	eq(ids, [null, "divert"], "Fuse's cell is blank, so Divert keeps its own")
+
+
+func test_each_action_keeps_its_cell() -> void:
+	var g = _game()
+	eq(_ids(ViewState.build(g, Draft.new(), db)), ["fuse", "divert"], "Fuse, then Divert")
+	var d = Draft.new()
+	d.begin_mode("divert")
+	eq(_ids(ViewState.build(g, d, db)), ["fuse", "cancel"], "Cancel in Divert's cell")
+
+
+func test_giving_up_the_reserve_is_the_reserve_places_switch() -> void:
+	for game_seed in range(1, 400):
+		var g = _game(game_seed)
+		g.region = 2  # Region 2's first Enemy is Ranged
+		var enc: Dictionary = g.encounter()
+		if enc.kind != "enemy" or enc.data.ability != "ranged":
+			continue
+		var d = Draft.new()
+		var vs: Dictionary = ViewState.build(g, d, db)
+		ok(not _ids(vs).has("give_up_reserve"), "not in the action row")
+		eq(vs.places[0].toggle_tap, {"type": "toggle_give_up_reserve"}, "the Reserve place has the switch")
+		for pair in [[0, "element"], [1, "spell"], [2, "boost"]]:
+			d.pick(g.hand[pair[0]])
+			d.put([0, pair[1]], g.hand)
+		d.give_up_reserve = true
+		vs = ViewState.build(g, d, db)
+		eq(vs.places[0].state, "given_up", "shown as given up")
+		eq(d.to_action().ranged_discard, true, "and sent to the engine as before")
+		return
+	ok(false, "no seed opened on a Ranged enemy")
 
 
 func test_incomplete_preview_names_the_empty_slots() -> void:
@@ -422,6 +456,7 @@ func test_the_active_zone_is_the_hand_or_the_commit_control() -> void:
 				d = Draft.new()
 				for id in hand.slice(0, mini(3, hand.size())):
 					d.tap(id)
+				d.set_boost_to(0, "attack")
 				eq(ViewState.build(g, d, db).input_region, "commit", "ready to play: the commit control")
 				g.play(d.to_action())
 				d = Draft.new()
@@ -454,6 +489,31 @@ func _sum(vs: Dictionary, id: String) -> Dictionary:
 		if s.id == id:
 			return s
 	return {}
+
+
+func test_the_boost_target_starts_unchosen_against_an_enemy() -> void:
+	for game_seed in range(1, 40):
+		var g = _game(game_seed)
+		if g.encounter().kind != "enemy":
+			continue
+		var d = Draft.new()
+		for id in g.hand.slice(0, 3):
+			d.tap(id)
+		var vs: Dictionary = ViewState.build(g, d, db)
+		eq(d.boost_to[0], null, "neither Attack nor Initiative is chosen")
+		eq(vs.preview.status, "incomplete", "so there is no outcome yet")
+		eq(vs.preview.missing, ["Boost target"], "and it is what is missing")
+		ok(not vs.prompt.primary.enabled, "Play waits for it")
+		eq(vs.prompt.primary.reason, "Choose whether the Boost adds to Attack or to Initiative.", "and says why")
+		var boost: Dictionary = vs.places.filter(func(p): return p.role == "boost")[0]
+		eq(boost.choices.map(func(c): return [c.to, c.on]), [["attack", false], ["initiative", false]], "two choices, neither lit")
+		d.set_boost_to(0, "initiative")
+		vs = ViewState.build(g, d, db)
+		ok(vs.prompt.primary.enabled, "once chosen, Play is ready")
+		boost = vs.places.filter(func(p): return p.role == "boost")[0]
+		eq(boost.choices.map(func(c): return c.on), [false, true], "the choice is lit")
+		return
+	ok(false, "no seed opened on an Enemy")
 
 
 func test_the_math_box_sums_come_from_the_engine() -> void:

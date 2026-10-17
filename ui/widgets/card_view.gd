@@ -10,6 +10,8 @@ const Haptics = preload("res://ui/fx/haptics.gd")
 const CardFace = preload("res://ui/widgets/card_face.gd")
 
 const HOLD_SECONDS := 0.35
+## How far the pointer moves with the button down before a press becomes a drag.
+const DRAG_START := 12.0
 const ROLE_ICONS := {"spell": "spell", "element": "element_role", "boost": "boost"}
 const ROLE_NAMES := {"spell": "Spell", "element": "Element", "boost": "Boost"}
 ## The widest tag a card carries on its top edge.
@@ -19,6 +21,10 @@ signal tapped(id: String)
 signal held(id: String)
 ## The pointer has come to rest on the card, or left it (mouse only).
 signal hovered(id: String, on: bool)
+## A drag: started, moved to a global point, and let go at one.
+signal drag_started(id: String)
+signal dragged(id: String, at: Vector2)
+signal dropped(id: String, at: Vector2)
 
 var id := ""
 var model := {}
@@ -37,6 +43,8 @@ var _showing_alt := false
 var _pressing := false
 var _held := false
 var _hover := false
+var _press_at := Vector2.ZERO
+var _dragging := false
 
 
 func _init() -> void:
@@ -96,6 +104,17 @@ func _fit() -> void:
 func _gui_input(event: InputEvent) -> void:
 	# The tooltip is the part under the pointer, or none at all over the background.
 	if event is InputEventMouseMotion:
+		# Moving far enough with the button down picks the card up to drag it; it
+		# then is not a hold, so the inspector does not open.
+		if _pressing and not _held and not _dragging and event.position.distance_to(_press_at) > DRAG_START:
+			_dragging = true
+			_hold.stop()
+			UI.pulse_scale(self, 1.0)
+			drag_started.emit(id)
+		if _dragging:
+			dragged.emit(id, get_global_transform() * event.position)
+			accept_event()
+			return
 		HelpTip.show(self, part_help(event.position), part_icon(event.position), _cursor)
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
@@ -105,13 +124,18 @@ func _gui_input(event: InputEvent) -> void:
 			if event.pressed:
 				_pressing = true
 				_held = false
+				_dragging = false
+				_press_at = event.position
 				_hold.start()
 				UI.pulse_scale(self, 0.96)
 			elif _pressing:
 				_pressing = false
 				_hold.stop()
 				UI.pulse_scale(self, 1.0)
-				if not _held and Rect2(Vector2.ZERO, size).has_point(event.position):
+				if _dragging:
+					_dragging = false
+					dropped.emit(id, get_global_transform() * event.position)
+				elif not _held and Rect2(Vector2.ZERO, size).has_point(event.position):
 					hovered.emit(id, false)
 					Haptics.tap()
 					tapped.emit(id)

@@ -72,7 +72,7 @@ func render(vs: Dictionary) -> void:
 		_box.add_child(UI.label(prompt.text, T.BODY, T.INK, true))
 		# By the Final Battle the player knows how to place a card, and its box is short.
 		if not _final():
-			_box.add_child(UI.label("Tap a card to place it. Hold a card to inspect it.", T.LABEL, T.INK_MUTED, true))
+			_box.add_child(UI.label("Tap a card, then the place it goes in. Hold a card to inspect it.", T.LABEL, T.INK_MUTED, true))
 		_shown_totals = {}
 		return
 	_box.add_child(UI.spacer())
@@ -180,7 +180,8 @@ func _count(l: Label, from: int, to: int, duration: float) -> void:
 func _row(s: Dictionary) -> Control:
 	var row := HFlowContainer.new()
 	# Wide enough apart that the captions under neighbouring terms read as two.
-	row.add_theme_constant_override("h_separation", T.S + 2)
+	# The Final Battle's box is narrow: closer terms keep each sum on one line.
+	row.add_theme_constant_override("h_separation", 4 if _final() else T.S + 2)
 	row.add_theme_constant_override("v_separation", 4)
 	row.tooltip_text = s.label
 	for i in s.terms.size():
@@ -196,11 +197,13 @@ func _row(s: Dictionary) -> Control:
 		# The Final Enemy's two rows share a short box: the list wraps beside the cell
 		# rather than dropping under it, so each row keeps its one height.
 		var beside := _kind == "final_enemy"
+		# The Final Battle's list of six Roles is longer than the box is wide: it wraps.
+		var long: bool = s.missing.size() > 3
 		var need := UI.label(lead + (" " if beside else "\n") + ", ".join(s.missing),
-			T.LABEL, T.INK_MUTED, beside)
+			T.LABEL, T.INK_MUTED, beside or long)
 		need.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		need.custom_minimum_size.y = _row_h()
-		if beside:
+		if beside or long:
 			need.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			need.custom_minimum_size.x = 160
 		row.add_child(need)
@@ -323,7 +326,7 @@ func _prompt(vs: Dictionary, p, prompt: Dictionary) -> void:
 	if vs.phase == "setup":
 		_box.add_child(UI.label("Hold a card to see its other Levels.", T.LABEL, T.INK_MUTED, true))
 	elif p != null and vs.mode == "none":
-		_box.add_child(UI.label("Tap a card to place it. Hold a card to inspect it.", T.LABEL, T.INK_MUTED, true))
+		_box.add_child(UI.label("Tap a card, then the place it goes in. Hold a card to inspect it.", T.LABEL, T.INK_MUTED, true))
 
 
 ## The verdict and its consequences on one line: rewards, then each cost. Each

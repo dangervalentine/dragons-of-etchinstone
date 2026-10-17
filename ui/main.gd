@@ -65,6 +65,8 @@ var _notice: Control = null
 var _notice_dismissed := false
 var _lost_at := ""
 var _last_card := ""
+## While a card is held, the place Tab has moved to and Space puts it in.
+var _key_target: Variant = null
 ## Upgrades made in this Upgrade step, newest last, so they can be taken back.
 var _undo: Array = []
 ## For tools: pretend the device has these safe-area insets (design units).
@@ -218,19 +220,21 @@ func _on_resize() -> void:
 	_device_safe = DisplayServer.get_display_safe_area()
 	var safe := _safe_rect(view)
 	var count: int = vs.hand.size() if not vs.is_empty() and vs.has("hand") else 4
-	var sets: int = Solver.slot_rows(vs)
+	var places: int = Solver.place_count(vs)
+	var final: bool = Solver.is_final(vs)
 	var ppu := _points_per_unit(view)
 	var window := _window_px()
 	var upright := window.y > window.x
-	var key := [view, safe, ppu, upright, count, sets]
+	var key := [view, safe, ppu, upright, count, places, final]
 	if key == _layout_key:
 		_update_notice()
 		return
 	_layout_key = key
 	animator.skip()
-	plan = Solver.solve(view, safe, count, sets, ppu, 0.0, T.ENCOUNTER_MIN, upright)
+	plan = Solver.solve(view, safe, count, places, ppu, 0.0, T.ENCOUNTER_MIN, upright, final)
 	plan["safe"] = safe
-	plan["for"] = [count, sets]
+	plan["undersized_upright"] = upright
+	plan["for"] = [count, places, final]
 	if screen != null:
 		if screen == play:
 			play.apply_layout(plan)
@@ -428,7 +432,9 @@ func _refresh(animate := true, show := true) -> void:
 		return
 	var previous = vs.get("preview") if not vs.is_empty() else null
 	var placing: Array = PlayHistory.placing_lines(_placing, _last_record) if not _placing.is_empty() else []
-	vs = ViewState.build(game, draft, db, {"previous_preview": previous, "lost_at": _lost_at, "undo": _undo.size(), "placing": placing})
+	if draft.held == null:
+		_key_target = null
+	vs = ViewState.build(game, draft, db, {"previous_preview": previous, "lost_at": _lost_at, "undo": _undo.size(), "placing": placing, "key_target": _key_target})
 	if show and play != null and screen == play and not animator.is_playing():
 		play.render(vs, animate)
 		_tint_backdrop(vs)
@@ -524,10 +530,35 @@ func dispatch(intent: Dictionary) -> void:
 		"select_slot":
 			draft.select_slot(intent.set, intent.role)
 			_refresh()
+		"pick":
+			_last_card = intent.id
+			var err: String = draft.pick(intent.id)
+			_refresh()
+			if err != "":
+				_refuse(err, intent.id)
+		"put":
+			_put(intent.target)
+		"drag_put":
+			draft.held = null
+			var err: String = draft.pick(intent.id)
+			if err != "":
+				_refresh()
+				_refuse(err, intent.id)
+			else:
+				_put(intent.target)
+		"put_down":
+			draft.put_down()
+			_refresh()
+		"toggle_give_up_reserve":
+			draft.give_up_reserve = not draft.give_up_reserve
+			_refresh()
 		"take_back":
 			draft.take_back(intent.id)
 			_refresh()
 			_respond("take_back", null, intent.id)
+		"set_boost_to":
+			draft.set_boost_to(intent.set, intent.to)
+			_refresh()
 		"toggle_boost_to":
 			draft.toggle_boost_to(intent.set)
 			_refresh()
@@ -584,12 +615,44 @@ func _on_card(id: String) -> void:
 				"fuse_element":
 					_refuse("Choose the Ether for the fused card.", id)
 				_:
-					var err: String = draft.tap(id)
+					# A card is picked up, then put in a place. Tapping a placed card
+					# while another is held swaps the two.
+					var place = draft.place_of(id, game.hand)
+					if draft.held != null and draft.held != id and place != null:
+						_put(place)
+						return
+					var err: String = draft.pick(id)
 					_refresh()
 					if err != "":
 						_refuse(err, id)
-					else:
-						_respond("place" if draft.slot_of(id) != null else "take_back", db.mage(id).element, id)
+
+
+## Put the held card at `target` ([set, role], "reserve" or "floating") and answer
+## on the board: the card it displaced, if any, moves too.
+func _put(target: Variant) -> void:
+	var id = draft.held
+	if id == null or game == null:
+		return
+	var before: Dictionary = {}
+	for other in game.hand:
+		before[other] = draft.place_of(other, game.hand)
+	var err: String = draft.put(target, game.hand)
+	_refresh()
+	if err != "":
+		_refuse(err, id)
+		return
+	var moved := 0
+	for other in game.hand:
+		var now = draft.place_of(other, game.hand)
+		if typeof(now) == typeof(before[other]) and now == before[other]:
+			continue
+		var event := "take_back" if now == null else "place"
+		if moved == 0:
+			_respond(event, db.mage(other).element, other)
+		else:
+			var later: String = other
+			get_tree().create_timer(T.STAGGER).timeout.connect(func(): _respond(event, db.mage(later).element, later))
+		moved += 1
 
 
 func _on_action(id: String) -> void:
@@ -601,8 +664,6 @@ func _on_action(id: String) -> void:
 				draft.begin_mode("fuse_pick")
 		"divert", "regroup":
 			draft.begin_mode(id)
-		"give_up_reserve":
-			draft.give_up_reserve = not draft.give_up_reserve
 		"undo":
 			if not _undo.is_empty():
 				var entry: Dictionary = _undo.pop_back()
@@ -616,7 +677,13 @@ func _on_action(id: String) -> void:
 
 
 func _on_primary() -> void:
-	if game == null or vs.is_empty() or not vs.prompt.primary.enabled:
+	if game == null or vs.is_empty():
+		return
+	if not vs.prompt.primary.enabled:
+		# Play pressed too soon: say what is still missing.
+		var reason: String = vs.prompt.primary.reason
+		if reason != "":
+			_refuse(reason)
 		return
 	match game.phase:
 		"setup":
@@ -633,12 +700,38 @@ func _on_primary() -> void:
 			var picks: Array = draft.picks.duplicate()
 			_act({"kind": "soak", "cards": picks}, func(): return game.soak(picks))
 		"upgrade":
-			var spent: Array = game._action.cards.values()
-			if game._action.fuse != null:
-				spent.append(game._action.fuse.bottom)
-			if game._discard_reserve and game._action.reserve != null:
-				spent.append(game._action.reserve)
-			_act({"kind": "finish", "cards": spent}, func(): return game.finish())
+			var affordable := false
+			for id in vs.hand:
+				affordable = affordable or vs.cards[id].get("eligible", false)
+			if Settings.warn_unspent_xp and game.xp > 0 and affordable:
+				_confirm_unspent_xp()
+				return
+			_finish_upgrade()
+
+
+## Before leaving the Upgrade step with XP that could still Upgrade a card: ask, with
+## a box to stop asking.
+func _confirm_unspent_xp() -> void:
+	var c := ConfirmDialog.new()
+	_overlays.add_child(c)
+	c.setup("You have %d XP left, enough to Upgrade a card. Unspent XP is lost. Continue anyway?" % game.xp,
+		"Continue anyway", "Keep upgrading", "Don't show this again")
+	c.confirmed.connect(_finish_upgrade)
+	c.tree_exiting.connect(func():
+		if c.opted_out:
+			Settings.warn_unspent_xp = false
+			Settings.save_all())
+
+
+func _finish_upgrade() -> void:
+	if game == null or game.phase != "upgrade":
+		return
+	var spent: Array = game._action.cards.values()
+	if game._action.fuse != null:
+		spent.append(game._action.fuse.bottom)
+	if game._discard_reserve and game._action.reserve != null:
+		spent.append(game._action.reserve)
+	_act({"kind": "finish", "cards": spent}, func(): return game.finish())
 
 
 func _played(a: Dictionary) -> Array:
@@ -672,9 +765,9 @@ func _act(action: Dictionary, call: Callable) -> void:
 		"upgrade":
 			pass
 		_:
-			draft.reset(2 if game.phase.begins_with("final") and game.phase != "final_soak" else 1)
+			draft.reset(2 if game.phase.begins_with("final") and game.phase != "final_soak" else 1, game.phase != "final_enemy")
 	if game.phase != phase_before and (game.phase == "challenge" or game.phase.begins_with("final")):
-		draft.reset(2 if game.phase == "final_journey" or game.phase == "final_enemy" else 1)
+		draft.reset(2 if game.phase == "final_journey" or game.phase == "final_enemy" else 1, game.phase != "final_enemy")
 	var steps := Sequencer.build(before, action, game.result, after)
 	_refresh(false, false)
 	if steps.is_empty():
@@ -861,6 +954,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			top.close()
 		elif screen != null and (screen.get_script() in [RulesScreen, RecordsScreen, DragonScreen]):
 			screen.back()
+		elif play != null and screen == play and draft.held != null:
+			dispatch({"type": "put_down"})
 		elif play != null and screen == play and draft.mode != "none":
 			dispatch({"type": "action", "id": "cancel"})
 		elif play != null and screen == play:
@@ -875,10 +970,36 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		dispatch({"type": "rulebook"})
 	elif play == null or screen != play:
 		return
-	elif key >= KEY_1 and key <= KEY_7:
+	elif key >= KEY_1 and key <= KEY_9:
+		# Cards count as they sit on screen: the places from the left, then the
+		# floating row.
+		var order: Array = []
+		for p in vs.get("places", []):
+			if p.card_id != null:
+				order.append(p.card_id)
+		for id in vs.get("floating", vs.hand):
+			if not order.has(id):
+				order.append(id)
 		var i := key - KEY_1
-		if i < vs.hand.size():
-			dispatch({"type": "card", "id": vs.hand[i]})
+		if i < order.size():
+			dispatch({"type": "card", "id": order[i]})
+	elif key == KEY_TAB and draft.held != null:
+		# Move the target across the places that can take the held card, then the
+		# floating row.
+		var targets: Array = []
+		for p in vs.get("places", []):
+			if p.state == "target":
+				targets.append(p.tap.target)
+		targets.append("floating")
+		var at: int = targets.find(_key_target)
+		var step := -1 if event.shift_pressed else 1
+		_key_target = targets[(at + step + targets.size()) % targets.size()] if at >= 0 else targets[0 if step > 0 else targets.size() - 1]
+		_refresh(false)
+	elif key == KEY_SPACE and draft.held != null and _key_target != null:
+		dispatch({"type": "put", "target": _key_target})
+	elif key == KEY_R:
+		if not vs.get("places", []).is_empty() and vs.places[0].get("toggle_tap") != null and vs.places[0].toggle_tap.type == "toggle_give_up_reserve":
+			dispatch({"type": "toggle_give_up_reserve"})
 	elif key == KEY_ENTER or key == KEY_KP_ENTER:
 		dispatch({"type": "primary"})
 	elif key == KEY_TAB:

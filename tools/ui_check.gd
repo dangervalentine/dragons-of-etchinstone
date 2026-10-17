@@ -15,6 +15,7 @@ const TitleScreen = preload("res://ui/screens/title_screen.gd")
 const RulesScreen = preload("res://ui/screens/rules_screen.gd")
 const DragonScreen = preload("res://ui/screens/dragon_screen.gd")
 const Settings = preload("res://ui/model/settings.gd")
+const ConfirmDialog = preload("res://ui/overlays/confirm_dialog.gd")
 const RulebookOverlay = preload("res://ui/overlays/rulebook_overlay.gd")
 const GlossaryPopover = preload("res://ui/overlays/glossary_popover.gd")
 const Rulebook = preload("res://ui/model/rulebook.gd")
@@ -58,6 +59,9 @@ func _run() -> void:
 	await _ending_placing("phone-tall")
 	await _open("desktop")
 	await _resize_mid_turn()
+	await _open("phone-16x9")
+	await _arrange_walk("phone-16x9")
+	await _unspent_xp_walk("phone-16x9")
 	print("ui check: %d checks, %d failed (%d space checks)" % [checks, failures, space_checks])
 	ui.free()
 	quit(1 if failures > 0 else 0)
@@ -246,8 +250,11 @@ func _play(where: String, game_seed: int, difficulty: String, animated: bool) ->
 				shadow.choose_setup_cards(picks)
 			"challenge":
 				var hand: Array = g.hand.duplicate()
-				for id in hand.slice(0, mini(3, hand.size())):
-					await _press({"type": "card", "id": id}, animated)
+				var roles := ["spell", "element", "boost"]
+				for i in mini(3, hand.size()):
+					await _place(hand[i], [0, roles[i]], animated, where)
+				if hand.size() > 2:
+					await _press({"type": "set_boost_to", "set": 0, "to": "attack"}, animated)
 				var a := {"spell": hand[0]}
 				if hand.size() > 1:
 					a["element"] = hand[1]
@@ -270,12 +277,27 @@ func _play(where: String, game_seed: int, difficulty: String, animated: bool) ->
 			"upgrade":
 				if not animated:
 					_inspect_screen("%s upgrade" % where)
+				var can_spend: bool = g.xp > 0 and g.hand.any(func(id): return ui.vs.cards[id].get("eligible", false))
 				await _press({"type": "primary"}, animated)
+				var top = ui._top_overlay()
+				var asked: bool = top != null and top.get_script() == ConfirmDialog
+				_ok(asked == (can_spend and Settings.warn_unspent_xp), "%s: unspent XP asks first only when a card could be Upgraded" % where)
+				if asked:
+					_ok(g.phase == "upgrade", "%s: nothing moves on until answered" % where)
+					if not animated:
+						await _settle()
+						_inspect_screen("%s unspent XP" % where)
+					top.confirmed.emit()
+					top.close()
+					await _settle()
 				shadow.finish()
 			"final_journey", "final_enemy":
 				var hand: Array = g.hand.duplicate()
-				for id in hand.slice(0, mini(6, hand.size())):
-					await _press({"type": "card", "id": id}, animated)
+				var order := ["spell", "element", "boost"]
+				for i in mini(6, hand.size()):
+					await _place(hand[i], [i / 3, order[i % 3]], animated, where)
+				for i in 2:
+					await _press({"type": "set_boost_to", "set": i, "to": "attack"}, animated)
 				if not animated:
 					_inspect_screen("%s %s, placed" % [where, g.phase])
 				var sets := [{}, {}]
@@ -806,6 +828,27 @@ func _shows_only(id: String) -> bool:
 		and figures.size() == 1 and s._name.text == ui.db.dragon(id).name.to_upper() and not s._next.disabled
 
 
+## Place a card the way a player does: tap it, then tap its place in the role strip.
+## Between the two, and after, every card must be wholly on screen (SC-004a).
+func _place(id: String, target: Array, animated: bool, where: String) -> void:
+	await _press({"type": "card", "id": id}, animated)
+	_ok(ui.draft.held == id, "%s: tapping %s picks it up" % [where, id])
+	await _press({"type": "put", "target": target}, animated)
+	_ok(ui.draft.slot_of(id) == target, "%s: %s is put in %s" % [where, id, str(target)])
+	if not animated:
+		_cards_on_screen("%s %s" % [where, ui.game.phase])
+
+
+func _cards_on_screen(where: String) -> void:
+	if ui.screen != ui.play or ui.play.plan.is_empty():
+		return
+	var view := Rect2(Vector2.ZERO, ui.play.plan.view).grow(1.0)
+	for id in ui.play.hand.ids():
+		var c: Control = ui.play.hand.card(id)
+		var home := Rect2(c.home.position + ui.play.hand.global_position, c.home.size)
+		_ok(view.encloses(home), "%s: card %s is on screen, at %s" % [where, id, str(home)])
+
+
 ## Animated runs press again while a sequence is still playing, as a quick player would.
 func _press(intent: Dictionary, animated: bool) -> void:
 	if animated:
@@ -817,12 +860,88 @@ func _press(intent: Dictionary, animated: bool) -> void:
 		ui.animator.skip()
 
 
+## The ordered Hand by every input: tap a card then a place, swap by tapping a
+## placed card, drag onto a place and away, and the keyboard (specs/009 US1, US2).
+## The unspent XP question: "Don't show this again" stops it, and the setting is kept.
+func _unspent_xp_walk(where: String) -> void:
+	ui._close_overlays()
+	Settings.warn_unspent_xp = true
+	var c := ConfirmDialog.new()
+	ui._overlays.add_child(c)
+	c.setup("Question", "Yes", "No", "Don't show this again")
+	var box: CheckBox = c.find_children("*", "CheckBox", true, false)[0]
+	_ok(box.size.y >= 44.0 or box.custom_minimum_size.y >= 44.0, "%s: the box is a full tap target" % where)
+	box.button_pressed = true
+	var opted: bool = c.opted_out
+	c.close()
+	await _settle()
+	_ok(opted, "%s: ticking the box is remembered" % where)
+	Settings.warn_unspent_xp = true
+
+
+func _arrange_walk(where: String) -> void:
+	ui._close_overlays()
+	ui.start_game({"seed": 4, "dragon": "rodving", "difficulty": "normal", "cavalier": false, "glass_cannon": false})
+	await _settle()
+	var g = ui.game
+	var hand: Array = g.hand.duplicate()
+	_ok(ui.vs.floating == hand and ui.vs.preview.status == "incomplete", "%s: a dealt Hand floats and shows no outcome" % where)
+	ui.dispatch({"type": "card", "id": hand[0]})
+	ui.dispatch({"type": "put", "target": [0, "spell"]})
+	ui.dispatch({"type": "card", "id": hand[1]})
+	ui.dispatch({"type": "put", "target": [0, "element"]})
+	ui.dispatch({"type": "card", "id": hand[2]})
+	ui.dispatch({"type": "put", "target": [0, "boost"]})
+	await _settle()
+	_ok(ui.vs.places.map(func(p): return p.card_id) == [hand[3], hand[1], hand[0], hand[2]],
+		"%s: the Hand reads Reserve, Element, Spell, Boost" % where)
+	_cards_on_screen(where + " arranged")
+	if g.encounter().kind == "enemy":
+		# Play before the Boost has a target: nothing is played, and the board says why.
+		ui.dispatch({"type": "primary"})
+		await _settle()
+		_ok(g.phase == "challenge", "%s: Play waits for the Boost's target" % where)
+		_ok(ui.play._toast.modulate.a > 0.5 and ui.play._toast_label.text.contains("Boost"), "%s: and says what is missing" % where)
+	# Tap the Boost, then the Element: they swap.
+	ui.dispatch({"type": "card", "id": hand[2]})
+	ui.dispatch({"type": "card", "id": hand[1]})
+	_ok(ui.draft.sets[0].element == hand[2] and ui.draft.sets[0].boost == hand[1], "%s: tapping a placed card swaps it with the held one" % where)
+	# Drag the Reserve onto the Spell's column.
+	await _settle()
+	var tray = ui.play.hand
+	var spell_rect: Rect2 = ui.play.plan.place_rects[2]
+	tray._on_drag_started(hand[3])
+	tray._on_dragged(hand[3], spell_rect.get_center())
+	tray._on_dropped(hand[3], spell_rect.get_center())
+	_ok(ui.draft.sets[0].spell == hand[3] and ui.draft.reserve_card(g.hand) == hand[0], "%s: dragging the Reserve onto the Spell swaps them" % where)
+	# A drag let go away from any place changes nothing.
+	await _settle()
+	var before: Dictionary = ui.draft.to_action()
+	tray._on_drag_started(hand[3])
+	tray._on_dropped(hand[3], ui.play.plan.regions.encounter.get_center())
+	_ok(ui.draft.to_action() == before, "%s: a drag let go elsewhere changes nothing" % where)
+	# The keyboard: pick the first card on screen, aim with Tab, put with Space.
+	await _settle()
+	var first: String = ui.vs.places[0].card_id
+	ui._unhandled_key_input(_key(KEY_1))
+	_ok(ui.draft.held == first, "%s: 1 picks the leftmost card" % where)
+	ui._unhandled_key_input(_key(KEY_TAB))
+	var aim = ui._key_target
+	ui._unhandled_key_input(_key(KEY_SPACE))
+	_ok(ui.draft.held == null and typeof(ui.draft.place_of(first, g.hand)) == TYPE_ARRAY, "%s: Space puts it where Tab aimed (%s)" % [where, str(aim)])
+	ui._unhandled_key_input(_key(KEY_2))
+	ui._unhandled_key_input(_key(KEY_ESCAPE))
+	_ok(ui.draft.held == null, "%s: Escape puts the card down" % where)
+
+
 func _resize_mid_turn() -> void:
 	ui.start_game({"seed": 4, "dragon": "rodving", "difficulty": "normal", "cavalier": false, "glass_cannon": false})
 	await _settle()
 	var g = ui.game
 	ui.dispatch({"type": "card", "id": g.hand[0]})
+	ui.dispatch({"type": "put", "target": [0, "spell"]})
 	ui.dispatch({"type": "card", "id": g.hand[1]})
+	ui.dispatch({"type": "put", "target": [0, "element"]})
 	var before: Dictionary = ui.draft.to_action()
 	host.size = Vector2i(1280, 720)
 	ui._on_resize()

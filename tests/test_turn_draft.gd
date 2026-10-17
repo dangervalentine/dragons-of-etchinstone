@@ -115,7 +115,7 @@ func test_action_for_one_set() -> void:
 	var d = Draft.new()
 	for id in ["a", "b", "c"]:
 		d.tap(id)
-	d.toggle_boost_to(0)
+	d.set_boost_to(0, "initiative")
 	d.give_up_reserve = true
 	eq(d.to_action(), {"spell": "a", "element": "b", "boost": "c", "boost_to": "initiative", "ranged_discard": true},
 		"same shape the engine takes today")
@@ -126,7 +126,7 @@ func test_action_for_two_sets() -> void:
 	d.reset(2)
 	for id in ["a", "b", "c", "d", "e", "f"]:
 		d.tap(id)
-	d.toggle_boost_to(1)
+	d.set_boost_to(1, "initiative")
 	eq(d.to_action(), {"sets": [
 		{"spell": "a", "element": "b", "boost": "c", "boost_to": "attack"},
 		{"spell": "d", "element": "e", "boost": "f", "boost_to": "initiative"}]}, "two sets")
@@ -140,3 +140,183 @@ func test_dropping_a_card_that_left_the_hand() -> void:
 	d.drop("a")
 	eq(d.slot_of("a"), null, "forgotten")
 	eq(d.active, [0, "spell"], "its slot is next")
+
+
+# Feature 009: the Hand in rulebook order. A card is picked up, then put in a place.
+
+const HAND := ["a", "b", "c", "d"]
+
+
+func test_held_and_reserve_start_empty_and_are_copied() -> void:
+	var d = Draft.new()
+	eq(d.held, null, "nothing held")
+	eq(d.reserve, null, "no Reserve chosen")
+	d.pick("a")
+	d.put("reserve", HAND)
+	d.pick("b")
+	var c = d.duplicate_draft()
+	eq(c.held, "b", "held is copied")
+	eq(c.reserve, "a", "the Reserve is copied")
+	d.reset()
+	eq([d.held, d.reserve], [null, null], "reset clears both")
+
+
+func test_a_dealt_hand_floats() -> void:
+	var d = Draft.new()
+	eq(d.floating(HAND), HAND, "every card floats, in Hand order")
+	for id in HAND:
+		eq(d.place_of(id, HAND), null, id + " has no place")
+	eq(d.reserve_card(HAND), null, "no Reserve yet")
+
+
+func test_pick_then_put_places_a_card() -> void:
+	var d = Draft.new()
+	eq(d.pick("c"), "", "picked")
+	eq(d.held, "c", "held")
+	eq(d.put([0, "element"], HAND), "", "put")
+	eq(d.held, null, "no longer held")
+	eq(d.sets[0], {"element": "c"}, "c is the Element")
+	eq(d.place_of("c", HAND), [0, "element"], "its place")
+	eq(d.floating(HAND), ["a", "b", "d"], "the rest float")
+	eq(d.active, [0, "spell"], "the hint is the first empty Role")
+
+
+func test_picking_the_held_card_again_puts_it_down() -> void:
+	var d = Draft.new()
+	d.pick("a")
+	d.pick("a")
+	eq(d.held, null, "put down")
+	d.pick("b")
+	d.put_down()
+	eq(d.held, null, "put down")
+	eq(d.sets[0], {}, "nothing placed")
+
+
+func test_the_last_card_goes_to_the_reserve() -> void:
+	var d = Draft.new()
+	for pair in [["a", [0, "spell"]], ["b", [0, "element"]], ["c", [0, "boost"]]]:
+		d.pick(pair[0])
+		d.put(pair[1], HAND)
+	eq(d.reserve_card(HAND), "d", "the one left over is the Reserve")
+	eq(d.place_of("d", HAND), "reserve", "shown in the Reserve place")
+	eq(d.floating(HAND), [], "nothing floats")
+	eq(d.to_action(), {"spell": "a", "element": "b", "boost": "c", "boost_to": "attack", "ranged_discard": false},
+		"the engine gets what tapping gave it before")
+
+
+func test_a_card_can_be_put_in_the_reserve_first() -> void:
+	var d = Draft.new()
+	d.pick("b")
+	eq(d.put("reserve", HAND), "", "the Reserve takes it")
+	eq(d.reserve_card(HAND), "b", "b is the Reserve")
+	eq(d.floating(HAND), ["a", "c", "d"], "it no longer floats")
+
+
+func test_sending_a_card_back_to_floating() -> void:
+	var d = Draft.new()
+	d.pick("a")
+	d.put([0, "spell"], HAND)
+	d.pick("a")
+	d.put("floating", HAND)
+	eq(d.sets[0], {}, "the Spell is empty")
+	eq(d.floating(HAND), HAND, "a floats again")
+
+
+func test_no_reserve_with_a_small_hand_or_in_the_final_enemy() -> void:
+	var d = Draft.new()
+	d.pick("a")
+	ok(d.put("reserve", ["a", "b", "c"]) != "", "three cards fill the three Roles")
+	eq(d.reserve, null, "nothing in the Reserve")
+	d.reset(2, false)
+	var seven := ["a", "b", "c", "d", "e", "f", "g"]
+	d.pick("a")
+	ok(d.put("reserve", seven) != "", "the Final Enemy keeps no Reserve")
+	d.reset(2)
+	d.pick("a")
+	eq(d.put("reserve", seven), "", "the Final Journey does")
+
+
+func test_a_tucked_card_cannot_be_picked_or_be_the_reserve() -> void:
+	var pair := _two_of_one_ether()
+	var hand := [pair[0], pair[1], "x", "y"]
+	var d = Draft.new()
+	d.pick(pair[1])
+	d.put("reserve", hand)
+	d.begin_mode("fuse_pick")
+	d.pick_for_fuse(pair[0], db)
+	d.pick_for_fuse(pair[1], db)
+	d.choose_fuse_element("fire")
+	eq(d.reserve, null, "the tucked card left the Reserve")
+	ok(d.pick(pair[1]) != "", "it cannot be picked")
+	eq(d.held, null, "nothing held")
+	ok(not d.floating(hand).has(pair[1]), "it does not float either")
+
+
+func test_dropping_forgets_held_and_reserve() -> void:
+	var d = Draft.new()
+	d.pick("a")
+	d.put("reserve", HAND)
+	d.pick("b")
+	d.drop("a")
+	d.drop("b")
+	eq([d.held, d.reserve], [null, null], "both forgotten")
+
+
+func test_starting_a_mode_puts_the_held_card_down() -> void:
+	var d = Draft.new()
+	d.pick("a")
+	d.begin_mode("divert")
+	eq(d.held, null, "nothing held during a Divert")
+
+
+func _full(d) -> void:
+	for pair in [["a", [0, "spell"]], ["b", [0, "element"]], ["c", [0, "boost"]]]:
+		d.pick(pair[0])
+		d.put(pair[1], HAND)
+
+
+func test_two_placed_cards_swap() -> void:
+	var d = Draft.new()
+	_full(d)
+	d.pick("c")
+	d.put([0, "element"], HAND)
+	eq(d.sets[0], {"spell": "a", "element": "c", "boost": "b"}, "the Boost and the Element trade places")
+	eq(d.reserve_card(HAND), "d", "the Reserve is untouched")
+
+
+func test_the_reserve_swaps_with_a_role() -> void:
+	var d = Draft.new()
+	_full(d)
+	d.pick("d")
+	d.put([0, "spell"], HAND)
+	eq(d.sets[0].spell, "d", "the Reserve became the Spell")
+	eq(d.reserve_card(HAND), "a", "the former Spell is the Reserve")
+	eq(d.reserve, "a", "and is held there")
+
+
+func test_a_floating_card_displaces_a_placed_one() -> void:
+	var d = Draft.new()
+	d.pick("a")
+	d.put([0, "spell"], HAND)
+	d.pick("b")
+	d.put([0, "spell"], HAND)
+	eq(d.sets[0], {"spell": "b"}, "b is the Spell")
+	ok(d.floating(HAND).has("a"), "a floats again")
+
+
+func test_a_fused_card_moves_with_its_partner() -> void:
+	var pair := _two_of_one_ether()
+	var hand := [pair[0], pair[1], "x", "y"]
+	var d = Draft.new()
+	d.begin_mode("fuse_pick")
+	d.pick_for_fuse(pair[0], db)
+	d.pick_for_fuse(pair[1], db)
+	d.choose_fuse_element("fire")
+	d.pick(pair[0])
+	d.put([0, "element"], hand)
+	d.pick(pair[0])
+	d.put([0, "boost"], hand)
+	eq(d.slot_of(pair[0]), [0, "boost"], "the top card moved")
+	eq(d.fuse, {"top": pair[0], "bottom": pair[1], "element": "fire"}, "the Fuse is intact")
+	eq(d.slot_of(pair[1]), null, "the tucked card fills no Role")
+	ok(not d.floating(hand).has(pair[1]) and d.reserve_card(hand) != pair[1], "nor floats, nor is the Reserve")
