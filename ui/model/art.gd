@@ -4,10 +4,10 @@ extends RefCounted
 ## the creatures on the official cards.
 
 const ENEMIES := {
-	1: ["panda-fighter", "monkey-brawler", "crane-monk", "lion-archer"],
-	2: ["axe-gnome", "club-ogre", "horned-goblin", "marsh-treant"],
-	3: ["naga", "twin-ogre", "twin-ghoul", "boar-shaman"],
-	4: ["hedge-wizard", "goblin-hexer", "antler-horror", "gath-brute"],
+	1: ["panda-fighter", "lion-archer", "crane-monk", "monkey-brawler"],
+	2: ["marsh-treant", "axe-gnome", "club-ogre", "horned-goblin"],
+	3: ["twin-ghoul", "twin-ogre", "naga", "boar-shaman"],
+	4: ["goblin-hexer", "hedge-wizard", "antler-horror", "gath-brute"],
 }
 const JOURNEYS := {
 	1: ["peaks", "waterfall", "mountain-road", "cave-entrance"],
@@ -20,10 +20,10 @@ const FINAL_JOURNEY := "horizon-road"
 ## Names for the Encounters, which the cards only number. These are this
 ## project's own, chosen to match the pictures; they are not from the game.
 const ENEMY_NAMES := {
-	1: ["Shaolin Panda", "Frenzied Ape", "Crane Monk", "Lionel Archer"],
-	2: ["Rapid Gnome", "Bog Ogre", "Goblin Raider", "Swamp Treant"],
-	3: ["Naga Goro", "Twin Ogre", "Conjoined Ghoul", "Wereboar"],
-	4: ["Hedge Wizard", "Goblin Hexer", "Antlered Horror", "Brute of Gath"],
+	1: ["Shaolin Panda", "Lionel Archer", "Crane Monk", "Frenzied Ape"],
+	2: ["Swamp Treant", "Rapid Gnome", "Bog Ogre", "Goblin Raider"],
+	3: ["Conjoined Ghoul", "Twin Ogre", "Naga Goro", "Wereboar"],
+	4: ["Goblin Hexer", "Hedge Wizard", "Antlered Horror", "Brute of Gath"],
 }
 const JOURNEY_NAMES := {
 	1: ["High Peaks", "The Falls", "Mountain Road", "Dark Cave"],

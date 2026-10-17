@@ -14,19 +14,19 @@ sources are in `art/source/`.
 | Rodving | rodving |
 | Vuurhast | vuurhast |
 | R1 Enemy 1 | panda-fighter |
-| R1 Enemy 2 | monkey-brawler |
+| R1 Enemy 2 | lion-archer |
 | R1 Enemy 3 | crane-monk |
-| R1 Enemy 4 | lion-archer |
-| R2 Enemy 1 | axe-gnome |
-| R2 Enemy 2 | club-ogre |
-| R2 Enemy 3 | horned-goblin |
-| R2 Enemy 4 | marsh-treant |
-| R3 Enemy 1 | naga |
+| R1 Enemy 4 | monkey-brawler |
+| R2 Enemy 1 | marsh-treant |
+| R2 Enemy 2 | axe-gnome |
+| R2 Enemy 3 | club-ogre |
+| R2 Enemy 4 | horned-goblin |
+| R3 Enemy 1 | twin-ghoul |
 | R3 Enemy 2 | twin-ogre |
-| R3 Enemy 3 | twin-ghoul |
+| R3 Enemy 3 | naga |
 | R3 Enemy 4 | boar-shaman |
-| R4 Enemy 1 | hedge-wizard |
-| R4 Enemy 2 | goblin-hexer |
+| R4 Enemy 1 | goblin-hexer |
+| R4 Enemy 2 | hedge-wizard |
 | R4 Enemy 3 | antler-horror |
 | R4 Enemy 4 | gath-brute |
 | R1 Journey 1 | peaks |
