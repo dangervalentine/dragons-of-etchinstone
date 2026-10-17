@@ -191,10 +191,17 @@ func _row(s: Dictionary) -> Control:
 	if s.total == null:
 		if s.terms.is_empty():
 			row.add_child(_cell("", s.label, T.INK_MUTED, TERM_FINAL if _final() else TERM, s.icon))
-		var need := UI.label("Still needed:\n" + ", ".join(s.missing), ["body_medium", 20], T.INK_MUTED)
+		# The Final Enemy's two rows share a short box: the list wraps beside the cell
+		# rather than dropping under it, so each row keeps its one height.
+		var beside := _kind == "final_enemy"
+		var need := UI.label(("Still needed: " if beside else "Still needed:\n") + ", ".join(s.missing),
+			TERM_LABEL if beside else ["body_medium", 20], T.INK_MUTED, beside)
 		need.set_meta("small_ok", "the roles still needed, beside the terms")
 		need.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		need.custom_minimum_size.y = _row_h()
+		if beside:
+			need.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			need.custom_minimum_size.x = 160
 		row.add_child(need)
 		return row
 	if not s.terms.is_empty():
