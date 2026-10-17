@@ -1,0 +1,47 @@
+{
+	"source": "grimroch-parts.svg",
+	"layers": [
+		{
+			"name": "body",
+			"art": "grimroch-rig-body",
+			"pivot": null,
+			"parent": null
+		},
+		{
+			"name": "jaw",
+			"art": "grimroch-rig-jaw",
+			"pivot": [
+				387.62,
+				186.17
+			],
+			"parent": "head"
+		},
+		{
+			"name": "head",
+			"art": "grimroch-rig-head",
+			"pivot": [
+				407.29,
+				163.74
+			],
+			"parent": null
+		}
+	],
+	"points": {
+		"jaw-joint": [
+			387.62,
+			186.17
+		],
+		"front-arm-joint": [
+			275.25,
+			201.08
+		],
+		"back-arm-joint": [
+			324.83,
+			223.88
+		],
+		"head-joint": [
+			407.29,
+			163.74
+		]
+	}
+}

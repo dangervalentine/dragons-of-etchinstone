@@ -1,0 +1,47 @@
+{
+	"source": "vuurhast-parts.svg",
+	"layers": [
+		{
+			"name": "body",
+			"art": "vuurhast-rig-body",
+			"pivot": null,
+			"parent": null
+		},
+		{
+			"name": "jaw",
+			"art": "vuurhast-rig-jaw",
+			"pivot": [
+				340.75,
+				86.81
+			],
+			"parent": "head"
+		},
+		{
+			"name": "head",
+			"art": "vuurhast-rig-head",
+			"pivot": [
+				330.69,
+				80.29
+			],
+			"parent": null
+		}
+	],
+	"points": {
+		"jaw-joint": [
+			340.75,
+			86.81
+		],
+		"head-joint": [
+			330.69,
+			80.29
+		],
+		"front-arm-joint": [
+			316.33,
+			298.33
+		],
+		"back-arm-joint": [
+			337.3,
+			303.5
+		]
+	}
+}

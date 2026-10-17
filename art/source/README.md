@@ -12,9 +12,9 @@ The table below records where each image started, before the hand finishing.
 Illustrator files); `tools/frame_art.py` puts them on the common canvas as the
 `<name>.png` here, which `tools/vectorize_art.py` turns into the game's SVGs.
 
-`masks/` holds the dragons' lower-jaw masks, white over the jaw, used by
-`tools/draw_throat.py` and `tools/vectorize_art.py --mask` to split each dragon
-into its body and moving jaw.
+The dragons are now drawn in layers in Illustrator, as
+`art/creatures/<name>-parts.svg` (see `../STYLE_PROMPT.md`); the images here are where
+they started.
 
 Godot ignores this folder (`.gdignore`); nothing here ships with the game.
 

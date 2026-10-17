@@ -93,65 +93,44 @@ way. For models that do take a negative prompt:
 
 ## Moving parts
 
-Sixteen of the images are built from two layers, like a cut-out puppet:
+The dragons are the only silhouettes with parts that move on their own: the head, which
+lifts, and the jaw, which opens with it. Everything else about them bends in place by
+soft bones, as the rest of the silhouettes breathe, hover and sway. Every part is the
+same 512 × 512 canvas, so they line up exactly, and `ui/fx/creature.gd` draws them all
+in one shader pass (`creature_idle.gdshader`), so the tint's alpha is applied once and
+they move as one creature.
 
-- **the body**, which holds still apart from the idle motion every creature already has
-- **one moving part**, such as a lower jaw, a wing, a tail or a pair of eyes, which moves
-  on its own over the body
+### Dragons drawn in Illustrator
 
-Both layers are always shown together as one creature. Both are tinted the same flat
-colour, so wherever the part overlaps the body the join is invisible. That's what makes
-this work with silhouettes: there's no edge to hide, as long as the body is solid behind
-the joint.
+Each dragon has one source file, `art/creatures/<name>-parts.svg`, a 512 × 512 artboard
+drawn in black, exported from Illustrator. Everything else is generated from it.
 
-Each part moves in one of these ways:
+- **`head`**: the one part cut out. It turns on its own, so extend its neck end a little
+  under the body.
+- **`jaw`**: a sublayer inside `head`, cut at the hinge, its back end extended up under
+  the head. It opens with the head and never gets a line cut between them.
+- **Every other layer** (the body, and arms, tail or wings if you keep them on layers
+  of their own) is drawn into the body, in stacking order. These bend in place by soft
+  bones rather than coming apart, so there's no need to cut them or draw hidden ends.
+- **Gaps**: each layer is separated from what's below it by a thin gap. Draw a white
+  offset path to set it by hand, or leave it out and one is made, 2 units wide.
+- **Points**: circles named `head-joint` and `jaw-joint` mark what the head and jaw
+  turn about. Other circles named `<anything>-joint` or `<anything>-tip` can place soft
+  bones (`Art.BONES` in `ui/model/art.gd` refers to them by name). Circles are only
+  read, never drawn. Names use hyphens; Illustrator's `_1_` suffixes are dropped.
 
-| Motion | What it does | Used for |
-|---|---|---|
-| hinge | rotates back and forth around the pivot by the given angle | jaws, wings, tails, a club arm |
-| slide | moves out and back along a direction by the given distance | a tortoise head from its shell |
-| blink | squashes flat about its own centre, briefly, at random intervals | eyes in the dark |
-| flicker | appears in short bursts, then disappears | a lightning bolt |
-| surge | grows upward from the pivot and settles back | a lava geyser |
+Then run:
 
-### Making the two layers
+```sh
+python3 tools/split_rig.py art/creatures/<name>-parts.svg <name>
+```
 
-1. **Generate the whole image** from its subject line, the style block and the
-   moving-part sentence. Draw it in its rest pose (jaw closed, wing raised, eyes open),
-   which is also how it appears with reduced motion on. Get this image approved before
-   splitting it.
-2. **Paint a mask over the moving part**: white over the part, black everywhere else, the
-   same size as the image. Extend it a little past the joint, into the body, so the part
-   has some overlap to pivot on. Any image editor will do.
-3. **Make the body layer by inpainting** the whole image inside that mask, with this
-   prompt (filling in the gap from the table):
-
-   > Remove the [MOVING PART] completely. In its place, continue the body as solid
-   > black: [WHAT FILLS THE GAP]. Keep everything outside the masked area exactly as it
-   > is. It is still a single solid black silhouette on pure white.
-
-   This step matters. When the jaw opens or the wing lowers, whatever was behind it
-   shows, and that must be solid body, not a hole. For the dragons, inpainting kept
-   redrawing a second jaw instead of removing it, so their bodies are drawn by
-   `tools/draw_throat.py <name>` instead.
-4. **Convert the layers.** Keep the whole image as well: it's still used for small
-   icons and the title screen, and it means nothing breaks before the game supports
-   parts.
-
-   ```sh
-   python3 tools/vectorize_art.py tortoise.png art/creatures/tortoise.svg
-   python3 tools/vectorize_art.py tortoise-body.png art/creatures/tortoise-base.svg
-   python3 tools/vectorize_art.py tortoise.png --mask tortoise-mask.png art/creatures/tortoise-part.svg
-   ```
-
-5. **Note the pivot.** Read the joint's position in 512-unit coordinates off the
-   converted image (top-left is 0, 0) and write it in the table below. That's the point
-   the part turns about, or slides and grows from.
-
-Every layer is the same 512 × 512 canvas, so the layers line up exactly with no offsets
-to track. `ui/fx/creature.gd` draws the part texture in the same shader pass as the
-body (`creature_idle.gdshader`'s `has_part`/`part_tex`), so the tint's alpha is applied
-once and they breathe, hover and move as one creature.
+That writes the body, head and jaw layers (`<name>-rig-*.svg`), `<name>-rig.json`
+(pivots, drawing order and points), the head alone for the dragon selection cards
+(`<name>-rig-head-whole.svg`) and the whole silhouette `<name>.svg`. It won't replace a
+`<name>.svg` it didn't make, so an export saved there by mistake is never lost.
+`--head-only` writes just the head for the cards, for a dragon whose motion is all soft
+bones. How the head and jaw move is set in `Art.RIGS`, and the bones in `Art.BONES`.
 
 ## Subject lines
 

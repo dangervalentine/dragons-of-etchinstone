@@ -1,0 +1,47 @@
+{
+	"source": "helsang-parts.svg",
+	"layers": [
+		{
+			"name": "body",
+			"art": "helsang-rig-body",
+			"pivot": null,
+			"parent": null
+		},
+		{
+			"name": "jaw",
+			"art": "helsang-rig-jaw",
+			"pivot": [
+				388.88,
+				157.0
+			],
+			"parent": "head"
+		},
+		{
+			"name": "head",
+			"art": "helsang-rig-head",
+			"pivot": [
+				379.75,
+				145.5
+			],
+			"parent": null
+		}
+	],
+	"points": {
+		"head-joint": [
+			379.75,
+			145.5
+		],
+		"front-arm-joint": [
+			332.5,
+			284.17
+		],
+		"back-arm-joint": [
+			348.67,
+			290.83
+		],
+		"jaw-joint": [
+			388.88,
+			157.0
+		]
+	}
+}

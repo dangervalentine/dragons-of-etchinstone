@@ -36,16 +36,36 @@ func test_every_encounter_has_its_own_name() -> void:
 				seen[name] = true
 
 
-func test_every_moving_part_has_its_body_and_part() -> void:
-	eq(Art.part("naga"), {}, "art without a moving part is all one piece")
-	for name in Art.PARTS:
-		var rig: Dictionary = Art.PARTS[name]
+func test_every_rig_has_its_layers_and_pivots() -> void:
+	for name in Art.RIGS:
 		ok(Art.MOTION.has(name), name + " is a silhouette in use")
-		ok(FileAccess.file_exists("res://art/creatures/%s-base.svg" % name), name + " has a body")
-		ok(FileAccess.file_exists("res://art/creatures/%s-part.svg" % name), name + " has a part")
-		eq(rig.motion, "hinge", name + " moves in a way the shader knows")
-		var p: Vector2 = rig.pivot
-		ok(p.x >= 0 and p.x <= 512 and p.y >= 0 and p.y <= 512, name + " pivots on the art")
+		var layers := Art.layers(name)
+		ok(layers.size() >= 2 and layers.size() <= 6, name + " has as many layers as the shader draws")
+		var arts: Array = layers.map(func(l): return l.art)
+		for part in Art.RIGS[name]:
+			ok(arts.has("%s-rig-%s" % [name, part]), "%s's %s is one of its layers" % [name, part])
+		for i in layers.size():
+			var l: Dictionary = layers[i]
+			ok(FileAccess.file_exists("res://art/creatures/%s.svg" % l.art), l.art + " exists")
+			ok(Art.MOVES.has(l.motion), l.art + " moves in a way the shader knows")
+			ok(l.parent >= -1 and l.parent < layers.size() and l.parent != i, l.art + " has a parent in the rig, or none")
+			if l.motion != "still":
+				var p: Vector2 = l.pivot
+				ok(p != Vector2.ZERO and p.x <= 512 and p.y >= 0 and p.y <= 512, l.art + " pivots on the art")
+				ok(l.period > 0.0, l.art + " has a period")
+
+
+func test_every_bone_is_placed_on_the_art() -> void:
+	for name in Art.BONES:
+		ok(Art.MOTION.has(name), name + " is a silhouette in use")
+		var bones := Art.bones(name)
+		ok(bones.size() <= 8, name + " has as many bones as the shader bends")
+		for b in bones:
+			for at in [b.joint, b.tip]:
+				ok(at != Vector2.ZERO and at.x <= 512 and at.y >= 0 and at.y <= 512, "%s's bone is on the art" % name)
+			ok(b.reach > 0.0, name + "'s bone reaches")
+			ok(Art.MOVES.has(b.motion), name + "'s bone moves in a way the shader knows")
+			ok(b.last >= bones.find(b) and b.last < bones.size(), name + "'s bone carries bones in its chain")
 
 
 func test_every_dragon_has_a_head_region_inside_its_art() -> void:
@@ -56,6 +76,12 @@ func test_every_dragon_has_a_head_region_inside_its_art() -> void:
 		ok(r.position.x >= 0 and r.position.y >= 0 and r.end.x <= 512 and r.end.y <= 512, name + " head is inside the art")
 		eq(r.size.x, r.size.y, name + " head region is square")
 	eq(Art.head("naga"), Art.FULL, "art without a head region is shown whole")
+
+
+
+func test_a_head_drawn_in_layers_is_shown_alone() -> void:
+	eq(Art.head_art("grimroch"), "grimroch-rig-head-whole", "grimroch's head without the body behind it")
+	eq(Art.head_art("naga"), "naga", "art not drawn in layers gives its head from the whole")
 
 
 func test_art_crop_cuts_the_head_region_out_of_the_full_art() -> void:
