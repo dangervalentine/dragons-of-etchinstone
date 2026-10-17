@@ -157,4 +157,22 @@ Polish: T022 (export_presets.cfg) ‖ T023 (ui/overlays/size_notice.gd)
 2. **US2** (T012–T021): the window opening at the right size, full screen, keys and the menu row.
 3. **Polish** (T022–T025): the Windows build, comments, and the manual quickstart, including the bar-colour check.
 
-Open decision to settle before shipping to mobile (plan, Risks): the 16:9 lock applies to phones and tablets too. If the user wants mobile to keep the old flexible layout, set the stretch aspect to `expand` at startup when `OS.has_feature("mobile")` (in `main._ready`, `get_window().content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND`), and make `_safe_rect` / `_points_per_unit` / `stage_for_window` use the full window there.
+Open decision to settle before shipping to mobile (plan, Risks): settled by the amendment below. Mobile fills the screen.
+
+---
+
+## Phase 6: Amendment, mobile fills the screen (US3)
+
+**Goal**: the Android and iOS apps fill the screen within the 1760×990 clamp (FR-012, FR-013); desktop and web stay locked. See research §12.
+
+- [X] T026 [US3] In `project.godot` `[display]`, add `window/stretch/aspect.mobile="expand"` under `window/stretch/aspect="keep"`.
+- [X] T027 [US3] In `ui/model/layout_solver.gd`:
+  - Add `view_for_window(window_px: Vector2, fills: bool) -> Vector2`: `T.DESIGN_MIN` when not `fills`; otherwise `window_px / min(window_px.x / 1280, window_px.y / 720)`.
+  - Give `stage_for_window` and `safe_in_view` a `view := T.DESIGN_MIN` parameter: the scale is `min(window / view)`, the stage is `view * s` centred, and the safe area is intersected with `Rect2(0, view)`.
+  - Give each `MATRIX` row a fifth entry, `fills`: true for `phone-16x9`, `phone-tall`, `phone-tall-flipped`, `phone-small` and `tablet`. Add `matrix_view(name)`, and have `matrix_safe` map through it.
+  - Update the file's and `MATRIX`'s `##` comments.
+- [X] T028 [US3] In `ui/main.gd`, pass `view` to `Solver.safe_in_view` in `_safe_rect` and to `Solver.stage_for_window` in `_points_per_unit`.
+- [X] T029 [P] [US3] In `tests/test_layout_solver.gd`: build `_plan` from `matrix_view` and its stage; test `view_for_window` both ways; `stage_for_window` covering the window when it fills; a filling notched phone's safe area keeping clear of the notch on each side; the tablet's home bar now inside the view; content clamped and centred past `T.DESIGN_MAX`; every region inside the safe area on each filling row.
+- [X] T030 [P] [US3] In `tools/ui_check.gd`, `tools/shot.gd` and `tools/space_audit.gd`, size the viewport to `Solver.matrix_view(name)` and expect `plan.view` to match it.
+- [X] T031 [US3] Run `./tools/test.sh` and fix failures until it reports 0 failed and `ui check` passes, then refresh the phone and tablet screenshots with `tools/shot.gd` and look at them.
+- [ ] T032 [US3] Quickstart rows 12–15 on a real phone and tablet.

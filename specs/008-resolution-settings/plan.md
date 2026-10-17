@@ -8,6 +8,8 @@
 
 Lock the play area to 16:9 by switching the project's stretch aspect from `expand` to `keep`. The viewport is then always 1280×720 design units, the engine scales it evenly and letterboxes the rest in black, and input mapping comes for free. `main.gd`'s three window-to-view conversions (safe area, points per unit, the upright notice) move to a new stage rect. On desktop, a small `WindowSizer` module opens the game as a 16:9 window sized to the monitor, allows free resize and maximise with a 960×540 minimum, and toggles borderless full screen from a new Window row in Settings or with F11 / Alt+Enter. The choice is saved with the other settings. A Windows export preset is added.
 
+**Amendment (mobile fills the screen)**: the Android and iOS apps override the aspect to `expand` (`window/stretch/aspect.mobile`), so phones grow wider and tablets taller, up to `T.DESIGN_MAX` (1760×990), with the layout centred past that. `stage_for_window` and `safe_in_view` take the real view size, so `main.gd` has one code path for both modes. See research §12.
+
 ## Technical Context
 
 **Language/Version**: GDScript, Godot 4.7.2 (`godot` shim in `~/.local/bin`)
@@ -18,13 +20,13 @@ Lock the play area to 16:9 by switching the project's stretch aspect from `expan
 
 **Testing**: `./tools/test.sh` (headless unit tests in `tests/` plus `tools/ui_check.gd` over `LayoutSolver.MATRIX`). Window behaviour checked by hand per [quickstart.md](quickstart.md), since headless runs have no real window.
 
-**Target Platform**: Windows desktop (new preset); Web, Android, iOS keep the aspect lock but get no display setting
+**Target Platform**: Windows desktop (new preset) and Web keep the aspect lock; Android and iOS fill the screen within the clamp (amendment). None but desktop get the display setting
 
 **Project Type**: Single Godot game project
 
 **Performance Goals**: Mode switch visible within 1 s (SC-002). Window drags cause no relayout.
 
-**Constraints**: No change to any screen's layout code. The layout is always the 1280×720 one. On larger windows it's scaled up, not given the extra room up to `T.DESIGN_MAX` that `expand` used to allow.
+**Constraints**: No change to any screen's layout code. On desktop and web the layout is always the 1280×720 one, scaled up on larger windows. On mobile it gets the extra room up to `T.DESIGN_MAX` (amendment).
 
 **Scale/Scope**: One new module (~80 lines), one new test file, edits to five existing files and two config files
 
@@ -80,7 +82,7 @@ tools/
 ## Risks
 
 - **Bar colour**: Godot 4 can't texture the letterbox, so it's black. If black looks wrong against the stone in quickstart step 11, fall back to the stage approach in research §1.
-- **Tablets and tall phones**: they now show bars instead of a wider or taller layout. The spec accepts this (FR-001, FR-011). The user's "mobile wouldn't need this" was read as covering the setting, not the lock. Confirm before shipping to mobile.
+- **Tablets and tall phones**: settled by the amendment. They fill the screen (FR-012). Every screen added since the lock (the 009 hand layout among them) was only checked at 1280×720, so the phone and tablet rows of `tools/ui_check.gd` are the check that they still fit when grown.
 - **Launch flash**: the window opens at 1280×720 and then resizes; kept short by sizing before the first screen is shown.
 
 ## Phases

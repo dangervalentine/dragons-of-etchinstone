@@ -6,7 +6,6 @@ extends SceneTree
 ## godot --path . -s tools/space_audit.gd -- [--baseline <file> | --compare <file>]
 
 const Solver = preload("res://ui/model/layout_solver.gd")
-const T = preload("res://ui/theme/tokens.gd")
 
 ## The window sizes SC-002 is judged at: the minimum ones.
 const SIZES := ["phone-16x9", "phone-small"]
@@ -38,7 +37,9 @@ func _run() -> void:
 
 func _open(name: String) -> void:
 	var m: Array = Solver.MATRIX[name]
-	var view := Vector2i(T.DESIGN_MIN)
+	var view := Vector2i(Solver.matrix_view(name))
+	# Locked to 16:9 on a desktop; a phone's row stretches as the mobile app does.
+	root.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND if m[3] else Window.CONTENT_SCALE_ASPECT_KEEP
 	DisplayServer.window_set_size(view)
 	root.size = view
 	for i in 3:

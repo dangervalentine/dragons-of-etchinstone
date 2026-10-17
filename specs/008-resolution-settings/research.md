@@ -65,3 +65,14 @@
 
 - **Decision**: Add a "Windows Desktop" preset to `export_presets.cfg`, with the same include filter (`data/*.json`) as the others, exporting to `build/windows/`.
 - **Rationale**: The spec's Assumptions note that there's no desktop preset yet. The feature can be checked in the editor without it, but SC-004 is about the shipped game. macOS and Linux presets stay out of scope.
+
+## 12. Amendment: mobile fills the screen
+
+- **Decision**: Override the stretch aspect for the mobile feature tag: `window/stretch/aspect.mobile="expand"` in `project.godot`, next to `aspect="keep"`. Desktop and web keep `keep`; Android and iOS get `expand`, so their viewport is at least 1280×720 units and the longer side grows (a 2532×1170 phone gets about 1558×720, a 2048×1536 tablet 1280×960). The clamp is the solver's existing `T.DESIGN_MAX` (1760×990): past it, the content stops growing and is centred, and the backdrop, which fills the whole viewport, shows around it.
+- **Rationale**: The engine applies feature-tag overrides at startup, so no code picks the mode, and input mapping stays the engine's job. The solver never lost its growth path (research §3 kept it), and every screen was built to the `expand` view before the lock, so no screen needs a mobile variant. The `mobile` tag isn't set in a phone's browser, which keeps the web build locked, as the user asked.
+- **One code path for both modes**: `stage_for_window(window_px, view)` and `safe_in_view(window_px, safe_px, view)` take the viewport's real size. Under `keep` the view is 1280×720 and the stage is the letterboxed 16:9 rect. Under `expand` the view already has the window's shape, so the same formula gives a stage covering the whole window. `main.gd` passes `get_viewport_rect().size` and needn't know which mode it's in. A new `view_for_window(window_px, fills)` gives the view each mode produces, for tests and tools.
+- **Test matrix**: each `MATRIX` row gains a fifth entry, whether that device fills its screen (phones and the tablet do; desktop, ultrawide and the upright browser don't). The tools size their viewport to `matrix_view(name)`, so the phone and tablet rows check the grown layout again, as they did before the lock.
+- **Alternatives considered**:
+  - *Set `content_scale_aspect` in `main._ready` when `OS.has_feature("mobile")`.* That works too, but the window would open with bars and then change, and the choice would sit in code instead of next to the setting it overrides.
+  - *A fixed 1280×720 stage centred on a full-screen backdrop on mobile.* It keeps the layout identical everywhere, but it leaves a phone's extra width unused. The user chose the growing layout.
+  - *A tighter clamp (20:9 only, no taller tablets).* It was offered and declined.

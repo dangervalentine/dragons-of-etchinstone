@@ -6,8 +6,9 @@ const T = preload("res://ui/theme/tokens.gd")
 
 func _plan(name: String, hand := 4, places := 4, final := false) -> Dictionary:
 	var m: Array = Solver.MATRIX[name]
-	var k: float = Solver.stage_for_window(m[0]).size.x / T.DESIGN_MIN.x
-	return Solver.solve(T.DESIGN_MIN, _safe(name), hand, places, m[2] * k, 0.0, T.ENCOUNTER_MIN, m[0].y > m[0].x, final)
+	var view := Solver.matrix_view(name)
+	var k: float = Solver.stage_for_window(m[0], view).size.x / view.x
+	return Solver.solve(view, _safe(name), hand, places, m[2] * k, 0.0, T.ENCOUNTER_MIN, m[0].y > m[0].x, final)
 
 
 func _safe(name: String) -> Rect2:
@@ -21,21 +22,84 @@ func test_stage_for_window() -> void:
 	eq(Solver.stage_for_window(Vector2(720, 1280)), Rect2(0, 437.5, 720, 405), "upright: a strip across the middle")
 	for name in Solver.MATRIX:
 		var window: Vector2 = Solver.MATRIX[name][0]
-		var stage := Solver.stage_for_window(window)
-		ok(absf(stage.size.x / stage.size.y - 16.0 / 9.0) < 0.01, "%s: the play area is 16:9" % name)
+		var view := Solver.matrix_view(name)
+		var stage := Solver.stage_for_window(window, view)
 		ok(Rect2(Vector2.ZERO, window).grow(0.01).encloses(stage), "%s: the play area is inside the window" % name)
+		if Solver.MATRIX[name][3]:
+			ok(stage.grow(0.5).encloses(Rect2(Vector2.ZERO, window)), "%s: the play area fills the screen" % name)
+		else:
+			ok(absf(stage.size.x / stage.size.y - 16.0 / 9.0) < 0.01, "%s: the play area is 16:9" % name)
+
+
+func test_view_for_window() -> void:
+	for window in [Vector2(1440, 900), Vector2(3840, 1080), Vector2(2532, 1170), Vector2(720, 1280)]:
+		eq(Solver.view_for_window(window, false), T.DESIGN_MIN, "locked at %s: the design size" % str(window))
+	eq(Solver.view_for_window(Vector2(1280, 720), true), T.DESIGN_MIN, "a 16:9 phone: the design size")
+	eq(Solver.view_for_window(Vector2(2532, 1170), true), Vector2(1558, 720), "a tall phone grows wider")
+	eq(Solver.view_for_window(Vector2(2048, 1536), true), Vector2(1280, 960), "a tablet grows taller")
+	for name in Solver.MATRIX:
+		var view := Solver.matrix_view(name)
+		ok(view.x >= T.DESIGN_MIN.x and view.y >= T.DESIGN_MIN.y, "%s: at least the design size" % name)
 
 
 func test_safe_area_maps_through_the_letterbox() -> void:
 	eq(Solver.matrix_safe("phone-16x9"), Rect2(Vector2.ZERO, T.DESIGN_MIN), "no insets: all of it")
-	# A tall phone's side bars (226 px) are wider than its notch (141 px); only the
-	# home indicator, 63 px of 1170, reaches into the play area.
-	var tall := Solver.matrix_safe("phone-tall")
+	# Locked, as the web build is in a phone's browser: the tall phone's side bars
+	# (226 px) are wider than its notch (141 px); only the home indicator, 63 px of
+	# 1170, reaches into the play area.
+	var tall_px := Rect2(141, 0, 2532 - 282, 1170 - 63)
+	var tall := Solver.safe_in_view(Vector2(2532, 1170), tall_px)
 	eq(tall.position.x, 0.0, "the notch is in the letterbox")
 	eq(tall.size.x, T.DESIGN_MIN.x, "so the width is all safe")
 	ok(absf(tall.end.y - (1170.0 - 63.0) * 720.0 / 1170.0) < 0.01, "the home indicator is left out")
-	var tablet := Solver.matrix_safe("tablet")
+	var tablet := Solver.safe_in_view(Vector2(2048, 1536), Rect2(0, 0, 2048, 1536 - 40))
 	eq(tablet, Rect2(Vector2.ZERO, T.DESIGN_MIN), "a tablet's home bar sits in the bottom letterbox")
+
+
+func test_safe_area_of_a_screen_the_view_fills() -> void:
+	# The app on the same phone: no letterbox, so the notch and home indicator are
+	# in the view and the safe area keeps clear of them, on whichever side.
+	var k := 1170.0 / 720.0
+	var tall := Solver.matrix_safe("phone-tall")
+	ok(absf(tall.position.x - 141.0 / k) < 0.5, "clear of the notch on the left, got %s" % str(tall))
+	ok(absf(tall.end.x - (Solver.matrix_view("phone-tall").x - 141.0 / k)) < 0.5, "and of the other side")
+	ok(absf(tall.end.y - (1170.0 - 63.0) / k) < 0.5, "and of the home indicator")
+	var flipped := Solver.matrix_safe("phone-tall", true)
+	eq(flipped.size, tall.size, "turned over, the same size")
+	var tablet := Solver.matrix_safe("tablet")
+	eq(tablet.size.x, 1280.0, "a tablet keeps its width")
+	ok(absf(tablet.end.y - (1536.0 - 40.0) / 1.6) < 0.5, "and keeps clear of its home bar")
+
+
+## The same device's layout under the 16:9 lock, as the web build gives it.
+func _locked(name: String) -> Dictionary:
+	var m: Array = Solver.MATRIX[name]
+	var inset: Array = m[1]
+	var px := Rect2(Vector2(inset[0], inset[1]), m[0] - Vector2(inset[0] + inset[2], inset[1] + inset[3]))
+	return Solver.solve(T.DESIGN_MIN, Solver.safe_in_view(m[0], px))
+
+
+func test_screens_that_fill_use_the_room() -> void:
+	var tall := _plan("phone-tall")
+	ok(tall.content.size.x > _locked("phone-tall").content.size.x, "a tall phone's layout is wider than locked")
+	var tablet := _plan("tablet")
+	ok(tablet.content.size.y > _locked("tablet").content.size.y, "a tablet's layout is taller than locked")
+	ok(tablet.card_size.x > _locked("tablet").card_size.x, "with bigger cards")
+	for name in Solver.MATRIX:
+		ok(_plan(name).card_size.x >= _locked(name).card_size.x, "%s: cards no smaller than locked" % name)
+	for name in Solver.MATRIX:
+		var p := _plan(name)
+		for key in ["header", "encounter", "preview", "slots", "hand", "actions", "commit"]:
+			ok(_safe(name).grow(0.5).encloses(p.regions[key]),
+				"%s: %s inside the safe area" % [name, key])
+
+
+func test_the_layout_stops_growing_at_the_maximum() -> void:
+	# A phone longer than 22:9: the content stays at its widest and sits in the middle.
+	var view := Solver.view_for_window(Vector2(3200, 1080), true)
+	var p := Solver.solve(view, Rect2(Vector2.ZERO, view))
+	eq(p.content.size.x, T.DESIGN_MAX.x, "no wider than the maximum")
+	ok(absf(p.content.get_center().x - view.x / 2.0) <= 1.0, "centred")
 
 
 func test_upright_is_undersized() -> void:
@@ -48,7 +112,7 @@ func test_the_encounter_keeps_its_height() -> void:
 	for name in Solver.MATRIX:
 		if name == "upright-browser":
 			continue
-		var view: Vector2 = T.DESIGN_MIN
+		var view := Solver.matrix_view(name)
 		# The largest preview the solver allows, beside an Encounter and the dragon.
 		for least in [T.ENCOUNTER_MIN, T.DRAGON_MIN]:
 			var plan := Solver.solve(view, _safe(name), 4, 1, 0.5, 5000.0, least)

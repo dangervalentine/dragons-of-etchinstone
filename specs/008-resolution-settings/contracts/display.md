@@ -4,8 +4,19 @@ What the player, the tests and the tools can rely on.
 
 ## Play area
 
-- The viewport is always 1280×720 design units (`get_viewport_rect().size == T.DESIGN_MIN`) on every platform and window shape.
+Desktop and web (stretch aspect `keep`):
+
+- The viewport is always 1280×720 design units (`get_viewport_rect().size == T.DESIGN_MIN`) at every window shape.
 - The play area is centred in the window and scaled evenly. Leftover space is a black letterbox; nothing is drawn there.
+
+Android and iOS (stretch aspect `expand`, through `window/stretch/aspect.mobile`):
+
+- The viewport fills the screen. It is at least 1280×720 design units, and the longer side gets the extra: `view == Solver.view_for_window(window_px, true)`.
+- The layout grows with the view up to `T.DESIGN_MAX` (1760×990). Past that, `plan.content` stays at the maximum and is centred; the backdrop fills the rest.
+- Every region is inside `plan.safe`, the device's safe area in view units.
+
+Both:
+
 - Pointer and touch positions arrive in view units, already mapped by the engine.
 
 ## Keys (desktop only)
@@ -52,5 +63,8 @@ The row is absent on mobile and web (`WindowSizer.applies() == false`). It's pre
 
 | Change | Detail |
 |--------|--------|
-| `view_for_window(px)` → `stage_for_window(px) -> Rect2` | The 16:9 rect in window pixels |
+| `view_for_window(px, fills: bool) -> Vector2` | The view each stretch mode gives: `T.DESIGN_MIN` when locked, the window's shape at 1280×720 or more when it fills the screen |
+| `stage_for_window(px, view := T.DESIGN_MIN) -> Rect2` | The rect in window pixels that `view` is drawn in: the 16:9 rect when locked, the whole window when it fills |
+| `safe_in_view(px, safe_px, view := T.DESIGN_MIN) -> Rect2` | A safe area in pixels, in view units, mapped through the stage |
+| `MATRIX` rows: `[window, insets, points per pixel, fills]` | `fills` is true for the phone and tablet rows; `matrix_view(name)` gives each row's view |
 | `solve(..., upright := false)` | `undersized = upright or points_per_unit < LEGIBLE_SCALE` |

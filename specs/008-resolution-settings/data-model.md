@@ -37,7 +37,17 @@ size  = (1280 * s, 720 * s)
 pos   = ((window - size) / 2)
 ```
 
-It's used to map the device safe area into view units and to compute points per unit. The view itself is always `T.DESIGN_MIN` (1280×720).
+It's used to map the device safe area into view units and to compute points per unit. On desktop and web the view is always `T.DESIGN_MIN` (1280×720).
+
+On mobile (amendment) the view has the window's shape, and the same formula, with the view in place of 1280×720, gives a stage covering the whole window:
+
+```text
+s     = min(window.x / 1280, window.y / 720)
+view  = window / s                     # e.g. 2532×1170 → about 1558×720
+stage = (0, 0, window)                 # no letterbox
+```
+
+The solver's content rect stops growing at `T.DESIGN_MAX` (1760×990) and is centred beyond it.
 
 ## Starting window size (derived)
 

@@ -1,7 +1,9 @@
 extends RefCounted
 ## Works out where everything on the play screen goes for a given window.
-## The game is landscape only: one arrangement, laid out at 1280 x 720 design units
-## and scaled evenly to the window. Pure, so it is tested without a display.
+## The game is landscape only: one arrangement, at least 1280 x 720 design units.
+## On desktop and web the view is exactly that, scaled evenly to the window; on
+## phones and tablets it fills the screen and the layout grows, up to
+## T.DESIGN_MAX. Pure, so it is tested without a display.
 
 const T = preload("res://ui/theme/tokens.gd")
 
@@ -31,34 +33,52 @@ const CARD_GAP_MAX := 36.0
 const LEGIBLE_SCALE := 0.41
 
 ## Window shapes the game is checked at: name -> [window pixels, safe-area insets
-## in pixels as left, top, right, bottom, points per pixel]. The layout is always
-## 1280 x 720; these test where its letterbox falls and how the safe area maps in.
+## in pixels as left, top, right, bottom, points per pixel, fills]. `fills`: the
+## device runs the mobile app, whose view fills the screen; the others are locked
+## to 1280 x 720 and test where its letterbox falls.
 const MATRIX := {
-	"phone-16x9": [Vector2(1280, 720), [0, 0, 0, 0], 0.5],
-	"phone-tall": [Vector2(2532, 1170), [141, 0, 141, 63], 1.0 / 3.0],
-	"phone-tall-flipped": [Vector2(2532, 1170), [141, 0, 141, 63], 1.0 / 3.0],
-	"phone-small": [Vector2(1334, 750), [0, 0, 0, 0], 0.5],
-	"tablet": [Vector2(2048, 1536), [0, 0, 0, 40], 0.5],
-	"desktop": [Vector2(1440, 900), [0, 0, 0, 0], 1.0],
-	"desktop-ultrawide": [Vector2(3840, 1080), [0, 0, 0, 0], 1.0],
-	"upright-browser": [Vector2(720, 1280), [0, 0, 0, 0], 0.5],
+	"phone-16x9": [Vector2(1280, 720), [0, 0, 0, 0], 0.5, true],
+	"phone-tall": [Vector2(2532, 1170), [141, 0, 141, 63], 1.0 / 3.0, true],
+	"phone-tall-flipped": [Vector2(2532, 1170), [141, 0, 141, 63], 1.0 / 3.0, true],
+	"phone-small": [Vector2(1334, 750), [0, 0, 0, 0], 0.5, true],
+	"tablet": [Vector2(2048, 1536), [0, 0, 0, 40], 0.5, true],
+	"desktop": [Vector2(1440, 900), [0, 0, 0, 0], 1.0, false],
+	"desktop-ultrawide": [Vector2(3840, 1080), [0, 0, 0, 0], 1.0, false],
+	"upright-browser": [Vector2(720, 1280), [0, 0, 0, 0], 0.5, false],
 }
 
 
-## The part of a window the 16:9 play area fills, in window pixels, as the
-## project's `keep` stretch places it; the rest is letterbox.
-static func stage_for_window(window_px: Vector2) -> Rect2:
+## The view a window gets, in design units, as the project's stretch settings make
+## it. Locked (`keep`, desktop and web): always 1280 x 720. Filling (`expand`, the
+## mobile apps): the 1280 x 720 minimum fits, and the longer axis gets the extra.
+static func view_for_window(window_px: Vector2, fills: bool) -> Vector2:
+	if not fills:
+		return T.DESIGN_MIN
 	var s := minf(window_px.x / T.DESIGN_MIN.x, window_px.y / T.DESIGN_MIN.y)
-	var size := T.DESIGN_MIN * s
+	return (window_px / s).floor()
+
+
+## The part of a window a view of `view` units is drawn in, in window pixels:
+## scaled evenly and centred. A locked view leaves letterbox round it; a filling
+## one already has the window's shape, so it covers the window.
+static func stage_for_window(window_px: Vector2, view := T.DESIGN_MIN) -> Rect2:
+	var s := minf(window_px.x / view.x, window_px.y / view.y)
+	var size := view * s
 	return Rect2((window_px - size) / 2.0, size)
 
 
 ## A safe area given in window pixels, in design units: mapped through the play
 ## area, less whatever of it is letterbox.
-static func safe_in_view(window_px: Vector2, safe_px: Rect2) -> Rect2:
-	var stage := stage_for_window(window_px)
-	var k := stage.size.x / T.DESIGN_MIN.x
-	return Rect2((safe_px.position - stage.position) / k, safe_px.size / k).intersection(Rect2(Vector2.ZERO, T.DESIGN_MIN))
+static func safe_in_view(window_px: Vector2, safe_px: Rect2, view := T.DESIGN_MIN) -> Rect2:
+	var stage := stage_for_window(window_px, view)
+	var k := stage.size.x / view.x
+	return Rect2((safe_px.position - stage.position) / k, safe_px.size / k).intersection(Rect2(Vector2.ZERO, view))
+
+
+## The view of a MATRIX row in design units.
+static func matrix_view(name: String) -> Vector2:
+	var m: Array = MATRIX[name]
+	return view_for_window(m[0], m[3])
 
 
 ## The safe area of a MATRIX row in design units; `flipped` swaps its left and
@@ -69,7 +89,7 @@ static func matrix_safe(name: String, flipped := false) -> Rect2:
 	if flipped:
 		inset = [inset[2], inset[1], inset[0], inset[3]]
 	var px := Rect2(Vector2(inset[0], inset[1]), m[0] - Vector2(inset[0] + inset[2], inset[1] + inset[3]))
-	return safe_in_view(m[0], px)
+	return safe_in_view(m[0], px, matrix_view(name))
 
 
 ## How far inside a rounded screen corner the safe area stops, as a share of its

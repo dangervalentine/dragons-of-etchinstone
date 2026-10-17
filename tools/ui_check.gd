@@ -80,10 +80,10 @@ func _ok(cond: bool, what: String) -> void:
 
 func _open(name: String) -> void:
 	var m: Array = Solver.MATRIX[name]
-	var view: Vector2 = T.DESIGN_MIN
+	var view: Vector2 = Solver.matrix_view(name)
 	# The game runs in a viewport of exactly this size, in design units, as the
-	# project's stretch settings make it; the row's window is pretended, since a
-	# headless window keeps one size whatever it is asked for.
+	# project's stretch settings make it for this row's device; the row's window is
+	# pretended, since a headless window keeps one size whatever it is asked for.
 	if host == null:
 		host = SubViewport.new()
 		host.disable_3d = true
@@ -102,7 +102,7 @@ func _open(name: String) -> void:
 	host.add_child(ui)
 	await process_frame
 	await process_frame
-	_ok(ui.plan.view == T.DESIGN_MIN, "%s: the view is the design size" % name)
+	_ok(ui.plan.view == view, "%s: the view is %s, got %s" % [name, str(view), str(ui.plan.view)])
 	_ok(ui.plan.undersized == (name == "upright-browser"), "%s: undersized is %s" % [name, ui.plan.undersized])
 	_ok(ui._notice != null if name == "upright-browser" else ui._notice == null, "%s: size notice" % name)
 	if ui._notice != null:
@@ -133,7 +133,7 @@ func _check_space(where: String) -> void:
 	if not SPACE_SIZES.has(size_name):
 		return
 	# Only when the window really has that size: a headless window may not resize.
-	if ui.play.plan.view != T.DESIGN_MIN:
+	if ui.play.plan.view != Solver.matrix_view(size_name):
 		return
 	var play = ui.play
 	var zones := {"encounter": [play._regions.encounter.get_global_rect(), play.encounter_node()],

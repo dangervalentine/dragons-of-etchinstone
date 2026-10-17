@@ -164,8 +164,8 @@ func _window_px() -> Vector2:
 
 
 ## The part of the viewport clear of notches and the home indicator, in design units.
-## The letterbox round the play area is outside the view, so whatever of the unsafe
-## edge falls in it is left out already.
+## A letterbox round the play area is outside the view, so whatever of the unsafe
+## edge falls in it is left out already; a view that fills the screen has none.
 func _safe_rect(view: Vector2) -> Rect2:
 	if safe_override.size != Vector2.ZERO:
 		return safe_override
@@ -176,7 +176,7 @@ func _safe_rect(view: Vector2) -> Rect2:
 	if window.x <= 0 or safe.size.x <= 0:
 		return Rect2(Vector2.ZERO, view)
 	safe = Solver.clear_corners(safe, window, _corner_radii())
-	return Solver.safe_in_view(window, safe)
+	return Solver.safe_in_view(window, safe, view)
 
 
 ## The screen's corner radii in pixels (top left, top right, bottom right, bottom
@@ -207,7 +207,7 @@ func _points_per_unit(view: Vector2) -> float:
 	var scale := DisplayServer.screen_get_scale()
 	if window.x <= 0 or scale <= 0:
 		return 0.5
-	return Solver.stage_for_window(window).size.x / view.x / scale
+	return Solver.stage_for_window(window, view).size.x / view.x / scale
 
 
 func _on_resize() -> void:

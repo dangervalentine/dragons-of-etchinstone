@@ -4,7 +4,6 @@ extends SceneTree
 ## godot --path . -s tools/shot.gd -- <output dir> [size name ...]
 
 const Solver = preload("res://ui/model/layout_solver.gd")
-const T = preload("res://ui/theme/tokens.gd")
 const Rulebook = preload("res://ui/model/rulebook.gd")
 
 const HistoryStore = preload("res://ui/model/history_store.gd")
@@ -31,11 +30,14 @@ func _run(names: Array) -> void:
 	quit()
 
 
-## Size the window to the design size, which the viewport always has, and have the
-## game take it for this matrix entry's window.
+## Size the window to the view this matrix entry's device gets, and have the game
+## take it for that entry's window.
 func _size(name: String) -> void:
 	var m: Array = Solver.MATRIX[name]
-	var view: Vector2 = T.DESIGN_MIN
+	var view: Vector2 = Solver.matrix_view(name)
+	# Run here on a desktop, the project is locked to 16:9; a phone's or tablet's
+	# row stretches as the mobile app does.
+	root.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND if m[3] else Window.CONTENT_SCALE_ASPECT_KEEP
 	DisplayServer.window_set_size(Vector2i(view))
 	root.size = Vector2i(view)
 	for i in 3:
