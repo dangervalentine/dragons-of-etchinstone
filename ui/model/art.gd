@@ -53,7 +53,7 @@ const HEADS := {
 ## glow: still places, which only brighten and dim.
 const MOTION := {
 	# Dragons
-	"grimroch": "breathe", "helsang": "breathe", "rodving": "breathe", "vuurhast": "sway",
+	"grimroch": "breathe", "helsang": "breathe", "rodving": "breathe", "vuurhast": "breathe",
 	# Region 1
 	"panda-fighter": "breathe", "monkey-brawler": "breathe", "crane-monk": "breathe", "lion-archer": "breathe",
 	"peaks": "glow", "waterfall": "flow", "mountain-road": "glow", "cave-entrance": "glow",
@@ -75,16 +75,62 @@ const SPEED := {
 	"marsh-treant": 0.7, "monkey-brawler": 0.8, "twin-ghoul": 0.8, "hedge-wizard": 0.85,
 	"axe-gnome": 1.3, "horned-goblin": 1.2, "goblin-hexer": 1.1, "rope-bridge": 0.6,
 }
-## Silhouettes cut into a body (<name>-base.svg) and a part that moves on its own
-## (<name>-part.svg), drawn together; <name>.svg stays whole for small uses. pivot is
-## in the art's 512 units; angle in degrees, clockwise when positive. See
-## art/STYLE_PROMPT.md for how they are made.
-const PARTS := {
-	"grimroch": {"motion": "hinge", "pivot": Vector2(403, 191), "angle": 16.0, "period": 4.0},
-	"helsang": {"motion": "hinge", "pivot": Vector2(399, 158), "angle": 14.0, "period": 3.6},
-	"rodving": {"motion": "hinge", "pivot": Vector2(378.5, 100), "angle": 18.0, "period": 3.4},
-	"vuurhast": {"motion": "hinge", "pivot": Vector2(357.5, 96.5), "angle": 14.0, "period": 3.2},
+## Silhouettes drawn in layers (tools/split_rig.py makes <name>-rig-<part>.svg and
+## <name>-rig.json from <name>-parts.svg): the body, and the head and its jaw, each
+## turning on its own. The json holds each part's pivot, its parent, the order they
+## are drawn in, and the points marked on the art. Here is how each part moves; a
+## part not named holds still. hinge: opens now and then and closes again, as the
+## jaws do. swing: back and forth, evenly. rise: out to the angle and back to rest,
+## smoothly, never past it. angle in degrees, clockwise when positive; period in
+## the creature's time, scaled by its SPEED; phase shifts the cycle, in periods. A
+## part turns about its own pivot, carried by its parent's turn.
+const RIGS := {
+	"grimroch": {
+		# Breathing runs a cycle every 4.19; the head lifts with it, counter-clockwise
+		# about the eye, a little behind.
+		"head": {"motion": "rise", "angle": -4.0, "period": 4.19, "phase": -0.1},
+		"jaw": {"motion": "hinge", "angle": 16.0, "period": 4.0},
+	},
+	"rodving": {
+		"head": {"motion": "rise", "angle": -4.0, "period": 4.19, "phase": -0.1},
+		"jaw": {"motion": "hinge", "angle": 18.0, "period": 3.4},
+	},
+	"helsang": {
+		"head": {"motion": "rise", "angle": -4.0, "period": 4.19, "phase": -0.1},
+		"jaw": {"motion": "hinge", "angle": 14.0, "period": 3.6},
+	},
+	"vuurhast": {
+		"head": {"motion": "rise", "angle": -4.0, "period": 4.19, "phase": -0.1},
+		"jaw": {"motion": "hinge", "angle": 14.0, "period": 3.2},
+	},
 }
+## Silhouettes bent in place by soft bones, with nothing cut out: each bone turns
+## the art near the line from its joint to its tip about the joint, fully within
+## half its reach of that line and fading out at its reach (512 units). joint and
+## tip are points in 512 units, or the names of points marked on the art (in
+## <name>-rig.json). Motions are as in RIGS. A bone listed after another rides on it.
+const BONES := {
+	"vuurhast": [
+		{"joint": Vector2(345, 300), "tip": Vector2(325, 110), "reach": 45.0, "motion": "swing", "angle": 2.0, "period": 8.38},
+		{"joint": Vector2(150, 410), "tip": Vector2(75, 140), "reach": 40.0, "motion": "swing", "angle": 3.0, "period": 8.38, "phase": 0.25},
+	],
+	# The arms hang heavy and drift at half the breath, against each other.
+	"grimroch": [
+		{"joint": "front-arm-joint", "tip": Vector2(285, 400), "reach": 30.0, "motion": "swing", "angle": 4.5, "period": 8.38},
+		{"joint": "back-arm-joint", "tip": Vector2(365, 400), "reach": 30.0, "motion": "swing", "angle": 4.5, "period": 8.38, "phase": 0.5},
+	],
+	"rodving": [
+		{"joint": "front-arm-joint", "tip": Vector2(390, 330), "reach": 40.0, "motion": "swing", "angle": 4.5, "period": 8.38},
+		{"joint": "back-arm-joint", "tip": Vector2(380, 295), "reach": 30.0, "motion": "swing", "angle": 4.5, "period": 8.38, "phase": 0.5},
+	],
+	"helsang": [
+		{"joint": "front-arm-joint", "tip": Vector2(307, 400), "reach": 25.0, "motion": "swing", "angle": 4.5, "period": 8.38},
+		{"joint": "back-arm-joint", "tip": Vector2(367, 413), "reach": 25.0, "motion": "swing", "angle": 4.5, "period": 8.38, "phase": 0.5},
+	],
+}
+## The ways a part can move, as the shader numbers them.
+const MOVES := {"still": 0, "hinge": 1, "swing": 2, "rise": 3}
+static var _rigs := {}
 
 
 static func motion(name: String) -> String:
@@ -95,9 +141,62 @@ static func speed(name: String) -> float:
 	return SPEED.get(name, 1.0)
 
 
-## The moving part of a silhouette, or {} when it is all one piece.
-static func part(name: String) -> Dictionary:
-	return PARTS.get(name, {})
+## The layers a silhouette is drawn from, bottom first, or [] when it is all one
+## piece. Each is {art, pivot (512 units), parent (an index into the list, or -1),
+## motion, angle, period, phase}.
+static func layers(name: String) -> Array:
+	if RIGS.has(name):
+		if not _rigs.has(name):
+			_rigs[name] = _load_rig(name)
+		return _rigs[name]
+	return []
+
+
+## The soft bones a silhouette bends by, or []: each as in BONES, its joint and tip
+## as points in 512 units.
+static func bones(name: String) -> Array:
+	var out := []
+	for b in BONES.get(name, []):
+		var bone: Dictionary = b.duplicate()
+		bone.joint = _point(name, b.joint)
+		bone.tip = _point(name, b.tip)
+		out.append(bone)
+	return out
+
+
+## A point, or the point marked on the art by that name.
+static func _point(name: String, at: Variant) -> Vector2:
+	if at is Vector2:
+		return at
+	var p: Array = _rig_data(name).get("points", {}).get(at, [])
+	assert(p.size() == 2, "%s has no point %s" % [name, at])
+	return Vector2(p[0], p[1]) if p.size() == 2 else Vector2.ZERO
+
+
+static func _rig_data(name: String) -> Dictionary:
+	var path := "res://art/creatures/%s-rig.json" % name
+	if not FileAccess.file_exists(path):
+		return {}
+	return JSON.parse_string(FileAccess.get_file_as_string(path))
+
+
+static func _load_rig(name: String) -> Array:
+	var data: Dictionary = _rig_data(name)
+	var names: Array = data.layers.map(func(l): return l.name)
+	var out := []
+	for l in data.layers:
+		var pivot: Vector2 = Vector2(l.pivot[0], l.pivot[1]) if l.pivot != null else Vector2.ZERO
+		var parent: int = names.find(l.parent) if l.parent != null else -1
+		out.append(_layer(l.art, pivot, parent, RIGS[name].get(l.name, {})))
+	return out
+
+
+static func _layer(art: String, pivot: Vector2, parent: int, move: Dictionary) -> Dictionary:
+	return {
+		"art": art, "pivot": pivot, "parent": parent,
+		"motion": move.get("motion", "still"), "angle": move.get("angle", 0.0),
+		"period": move.get("period", 1.0), "phase": move.get("phase", 0.0),
+	}
 
 
 ## kind is "enemy" or "journey"; index is 1 to 4.
@@ -118,3 +217,10 @@ static func dragon(id: String) -> String:
 ## The region of `name` to show where the dragon is faced: its head, or all of it.
 static func head(name: String) -> Rect2:
 	return HEADS.get(name, FULL)
+
+
+## The art to cut the head from: the head alone where the silhouette is drawn in
+## layers (tools/split_rig.py), so none of the body behind it shows, or the whole.
+static func head_art(name: String) -> String:
+	var alone := name + "-rig-head-whole"
+	return alone if ResourceLoader.exists("res://art/creatures/%s.svg" % alone) else name

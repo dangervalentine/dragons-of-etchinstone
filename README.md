@@ -116,7 +116,7 @@ usual way. Set your own team ID and bundle identifier in the export presets.
 | `art/creatures/` | Enemy, journey and dragon silhouettes made for this project, listed in `CREDITS.md` |
 | `art/source/` | The approved images the silhouettes are made from |
 | `tests/` | Test runner and tests |
-| `tools/` | Test script, UI check, screenshot driver, data and icon generators, and art generation, framing and vectorising (`generate_art.py`, `frame_art.py`, `vectorize_art.py`, `draw_throat.py`) |
+| `tools/` | Test script, UI check, screenshot driver, data and icon generators, and art generation, framing and vectorising (`generate_art.py`, `frame_art.py`, `vectorize_art.py`), and the dragon rig splitter (`split_rig.py`) |
 | `scripts/install.sh` | Build, install and launch on emulators and web |
 | `specs/` | Specification, plan and tasks for each feature |
 
@@ -125,7 +125,7 @@ usual way. Set your own team ID and bundle identifier in the export presets.
 - Enemy, journey and dragon art: made for this project with FLUX.1-dev, the enemies
   finished by hand
   (`art/STYLE_PROMPT.md`, `art/source/`, `tools/frame_art.py`, `tools/vectorize_art.py`,
-  `tools/draw_throat.py`).
+  `tools/split_rig.py`).
 - Fonts: Cinzel and Alegreya Sans, under the SIL Open Font License (`art/fonts/`).
 
 ## Card data

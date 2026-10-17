@@ -1,0 +1,47 @@
+{
+	"source": "rodving-parts.svg",
+	"layers": [
+		{
+			"name": "body",
+			"art": "rodving-rig-body",
+			"pivot": null,
+			"parent": null
+		},
+		{
+			"name": "jaw",
+			"art": "rodving-rig-jaw",
+			"pivot": [
+				365.8,
+				98.35
+			],
+			"parent": "head"
+		},
+		{
+			"name": "head",
+			"art": "rodving-rig-head",
+			"pivot": [
+				344.34,
+				94.65
+			],
+			"parent": null
+		}
+	],
+	"points": {
+		"jaw-joint": [
+			365.8,
+			98.35
+		],
+		"head-joint": [
+			344.34,
+			94.65
+		],
+		"front-arm-joint": [
+			330.47,
+			228.36
+		],
+		"back-arm-joint": [
+			340.9,
+			247.02
+		]
+	}
+}
