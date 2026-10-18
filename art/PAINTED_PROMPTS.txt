@@ -1,4 +1,4 @@
-PAINTED CREATURE PROMPTS (feature 008), iteration 3
+PAINTED CREATURE PROMPTS (feature 008), iteration 5
 ====================================================
 
 tools/paint_art.py reads this file and sends SUBJECT + EMANATION + STYLE as one prompt.
@@ -16,47 +16,141 @@ Lessons so far:
 - Background, shadow and signature are written as what the picture IS ("empty all
   around and beneath it"). FLUX ignores negatives, and naming a thing, even as "no
   tail", tends to draw it. Ground shadows still appear; the cut-out step removes them.
-- Tails come from three places, and all three are kept clean: the prompt (only a
-  creature that has one names one), the starting silhouette, and the style references.
+- Tails come from three places: the prompt (only a creature that has one names one),
+  the starting silhouette, and the style references. Since iteration 4 only the prompt
+  is kept clean (see the tails lesson below).
 - Starting from noise gives soft, rendered, semi-3D images. Starting from the flat grey
   silhouette gives flat ones.
 - Per-creature references pulled each creature toward its own earlier look, so the set
   didn't match. One shared set of references does.
 - Redux above 0.05 copies the references' colours and designs. Keep it at 0.05.
 - Colour words in the subjects gave every creature a different palette. The palette is
-  now shared, in STYLE, and subjects describe shapes and materials, not colours.
+  now in STYLE, and subjects describe shapes and materials, not colours.
 - Without the ferocity sentence, creatures came out cute (iteration 2's lion).
 - The emanation is followed reliably at one or two places, rarely at four.
+- Iteration 3 (PC, Q8, seeds 81-84) was judged against the user's picks: it rendered
+  more fur and gradient than the good ones. The target is the seven GOOD images below:
+  flat fills, few big shapes, mean faces, side view, the Ether at the eyes and one place.
+- Colour matching across the set is deferred: colours can be adjusted later, or the
+  creatures remade from scratch in Illustrator. Don't chase the palette in the prompt.
+- Eyes come out yellow or red unless the emanation names them glowing in the Ether's
+  colour, so the eyes are now their own sentence in the EMANATION.
+- Tails: never prompted, but not fought either. One that appears is removed later.
+  Long shapes low behind the legs in a START (the goblin's blade) get painted as tails.
+- The ape puts its Ether in its mouth whatever the prompt names.
+- An all-grey reference plus the grey START keeps fur grey (the ape-61 anchor, dropped).
+- Iteration 3 painted fur as texture, so STYLE now says fur, hair and cloth are smooth
+  solid shapes.
+- Iteration 3's four creatures are set aside; iteration 4 tries eight new ones, 8
+  seeds each, to see how the style holds across the set.
+- Iteration 4 (seeds 91-98, stopped after 30 images): seven references at 0.05 each
+  copied their designs onto new creatures. The crane and treant grew lion tails, the
+  crane a mane, the treant a goblin's body and loincloth, and "wolfish muzzle" plus the
+  lions turned the panda into a wolf. References made from a handful of creatures and
+  then used for the rest spread that handful's look.
+- So iteration 5 paints every enemy from its own silhouette with no references, as a
+  clean baseline; references are picked later from the whole set.
+- A light direction ("one light falls from the upper left") brought soft shading, low
+  tones and highlights (crane 94). STYLE now asks for matte flat colour with at most
+  one hard shade tone.
+- Faint signatures appear in a corner of some images; the cut-out step crops them.
+- Vector test (after iteration 5, tag "vector"): STYLE opened with "A flat 2D game art
+  drawing in the style of a modern indie deckbuilder card game", which may pull toward
+  card art, mostly painted and shaded. It now opens with the flat-colour vocabulary of
+  the SDXL LoRA "Flat 2d Style Cutout" (civitai 284812; SDXL, so it can't load on
+  FLUX): flat vector illustration, minimalistic graphic design, flat colour, clean
+  lines. Its absence words ("no face", "no background") are left out, per the first
+  lesson. Four creatures rerun on iteration 5's seeds 101-104 for a side-by-side.
+  Result: almost identical to iteration 5, image for image; the vector wording kept
+  (no worse) but made at most a slightly flatter body here and there. On the same seed
+  and START, the opening words of STYLE barely move the result, so wording is not the
+  lever for flatness. Next levers: a FLUX flat-colour LoRA, or flattening in post.
+- Flattening in post (proof of concept from the Mac session, flatten.py: mean-shift and
+  bilateral smoothing, k-means to 6 body tones with the saturated Ether masked out and
+  quantized on its own, a dark outline), run on 43 iteration 5 picks: bodies, robes and
+  fur do turn into flat shapes, and strong, saturated Ether (violet breath, fire, the
+  goblin's ice) keeps its colour. It fails on: pale glows (the brute's cyan eyes and
+  frost turn white; S>80 misses them), thin detached Ether (the gnome's sparks and the
+  crane's wisps get the dark outline drawn round them and turn black), large smooth
+  bodies (6 tones break a gradient into camouflage blobs), ground shadows (left as pale
+  outlined patches) and signatures (left as outlined black specks). So the prompt still
+  carries the flat look, and post-processing tidies it once the background is removed.
+- flatten.py v2 (Mac, rembg cut-out, Ether found by its hue): background, shadows and
+  signatures are gone; pale cyan eyes and frost, the gnome's sparks and detached wisps
+  keep their colour; the outline runs round the body only. Still wrong: a water hue
+  window catches slate-blue cloth (cyan stripes on crane 107's robe); small warm eyes
+  and pale-yellow lightning drop out (the lion's and wizard's red eyes, boar 106's and
+  antler 104's sparks); big smooth bodies still break into blobs (the brute); a scrap of
+  ground shadow can stay at the feet (crane 107, wizard 104).
+- flatten.py v3 (hysteresis Ether mask, small vivid features kept, wider lightning
+  window, same-hue tone merging): the shadow scraps are gone, and the lion's and the
+  wizard's red eyes hold. Not fixed: the crane's robe still gets cyan stripes. New
+  problem: the wider lightning window takes tan skin as Ether (the gnome's face and
+  hands turn orange; boar 106's snout becomes a pale yellow smear). The antler
+  horror's zigzag spark is still lost, a non-Ether eye colour (the wizard's yellow
+  eyes) still drops out, and the brute is only slightly less blotchy.
+- flatten.py v4 (Ether must glow and stand out from its surroundings; base-and-shade
+  body tones), run by the Mac on the 43 iteration 5 picks: the best yet. The crane's
+  robe stripes, the gnome's orange face and the boar's snout smear are gone; the
+  antler horror's zigzag and the wizard's eyes are kept; the brute's blotches are
+  much reduced. Its strictness now drops big, pale, soft glows: crane 101's pale blue
+  sword glow disappears entirely, crane 108's becomes a thin white crackle, gath-brute
+  101's blue crackle and goblin-hexer 106's pale smoke are gone, and twin-ogre 104's
+  cyan flame turns into a dark squiggle (kept as body, then outlined). Pale Ether in
+  the raw image is the risky case.
+- flatten.py v5 (a soft-glow path for water and shadow; keep_ink keeps the drawing's
+  dark lines): crane 101's halo, crane 108's glow, the twin ogre's flame (cyan, not
+  dark) and the brute's and goblin's glows are back; crane 107 and the gnome stay
+  clean. Big glows come out as one solid flat shape, which suits the flat look. The
+  hexer's pale smoke is still faint.
+- Iteration 6: all 16 enemies x 8 seeds (109-116), the iteration 5 prompts with the
+  vector opening of STYLE, no references. Raw images on the share under i6\raw\.
+- The approach is volume: many seeds per creature, then pick, rather than perfecting
+  the prompt for every image.
 
 
 SHARED STYLE REFERENCES (every creature, Redux 0.05 each)
 ---------------------------------------------------------
-art/source/painted/anchors/goblin-61-clean.png  (iteration 2b goblin, tail and shadow
-                                                 painted out)
-art/source/painted/anchors/ape-61.png           (iteration 2b ape)
+NONE in iteration 5: every enemy is painted from its own silhouette and the prompt
+alone. A reference is used when its path starts a line here; the ones below are
+indented, so they are off. Once every enemy has a pass, references are chosen again
+from the whole set.
+
+The user's picks of the best so far (iterations 1 to 3), used in iteration 4: flat
+colours, mean looking, side-facing, emanating their Ether.
+  art/source/painted/anchors/good-boar-shaman-42.png
+  art/source/painted/anchors/good-boar-shaman-43.png
+  art/source/painted/anchors/good-horned-goblin-23.png
+  art/source/painted/anchors/good-horned-goblin-42.png
+  art/source/painted/anchors/good-lion-archer-82.png
+  art/source/painted/anchors/good-lion-archer-83.png
+  art/source/painted/anchors/good-monkey-brawler-42.png
+
+Earlier anchors, no longer used: goblin-61-clean.png (iteration 2b goblin, tail and
+shadow painted out), ape-61.png (iteration 2b ape, all grey).
 
 
-STYLE (appended to every prompt, unchanged)
--------------------------------------------
-A flat 2D game art drawing in the style of a modern indie deckbuilder card game. Big,
-simple, readable shapes filled with flat colour, and smooth clean edges. One light falls
-from the upper left, so every form has its flat base colour and one hard-edged darker
-shade tone on its lower right side. Large plain areas of colour with little surface
-detail. A limited, muted palette shared by every creature: moss green, umber brown,
-slate grey, bone white and dark iron, with the creature's Ether energy as the only
-bright, saturated colour. The creature is shown whole and alone, centred, in side view,
-filling about four fifths of the picture's height, its feet at the bottom margin, on a
-plain, evenly lit, flat light grey background that is empty all around and beneath it.
+STYLE (appended to every prompt; changed in iterations 4 and 5, see the lessons)
+-------------------------------------------------------------------------------
+A flat vector illustration: minimalistic graphic design in flat colour with clean
+lines, made of big, simple, readable shapes with smooth clean edges. Every form is
+one flat, matte base colour, with at most a single hard-edged darker shade tone along
+its lower edge. Large plain areas of colour with little surface detail; fur, hair and
+cloth are smooth solid shapes. A limited, muted, earthy palette, with the creature's
+Ether energy as the only bright, saturated colour. The creature is shown whole and
+alone, centred, in side view, filling about four fifths of the picture's height, its
+feet at the bottom margin, on a plain, evenly lit, flat light grey background that is
+empty all around and beneath it.
 Its head and limbs are clearly separate from its body. The creature is ferocious and
 dangerous, a savage monster rather than a cute character: a heavy, scowling brow over
 narrow, fierce eyes with no visible pupils, a snarl that bares its fangs, and a
 powerful, battle-hardened build.
 
 
-EMANATION (follows every subject; fill in the three blanks from the tables)
----------------------------------------------------------------------------
-Bright [COLOUR] Ether energy emanates from its [PARTS], [TEXTURE], as if its power is
-leaking out of it.
+EMANATION (follows every subject; fill in the blanks from the tables)
+---------------------------------------------------------------------
+Its eyes glow bright [COLOUR]. Bright [COLOUR] Ether energy emanates from its [PART],
+[TEXTURE], as if its power is leaking out of it.
 
   Ether      COLOUR          TEXTURE
   fire       ember-red       rising off them in flickering tongues of flame
@@ -64,8 +158,8 @@ leaking out of it.
   lightning  amber-orange    crackling off them in jagged sparks and arcs
   shadow     violet          rising off them in curling wisps of smoke
 
-[PARTS] is the eyes and one more place, picked on purpose for each creature: its mouth,
-its hands or its weapon. The energy appears only there.
+[PART] is one place, picked on purpose for each creature: its mouth, its hands or its
+weapon. The energy appears only there and in the eyes.
 
 
 1. FRENZIED APE  (monkey-brawler · R1 Enemy 4 · shadow, 13 HP, slow initiative)
@@ -79,8 +173,8 @@ high rounded hump, its heavy domed head thrust forward with its jaw open in a ro
 showing long fangs under a jutting brow, a broad pale saddle of fur across its back.
 
 EMANATION:
-Bright violet Ether energy emanates from its eyes and its fists, rising off them in
-curling wisps of smoke, as if its power is leaking out of it.
+Its eyes glow bright violet. Bright violet Ether energy emanates from its roaring
+mouth, rising off it in curling wisps of smoke, as if its power is leaking out of it.
 
 YOUR VISION:
 
@@ -99,8 +193,9 @@ a sleeveless leather tunic belted at the waist, and on its back a quiver inlaid 
 one dazzling ruby. Its lion's tail curls behind it.
 
 EMANATION:
-Bright ember-red Ether energy emanates from its eyes and its arrowhead, rising off them
-in flickering tongues of flame, as if its power is leaking out of it.
+Its eyes glow bright ember-red. Bright ember-red Ether energy emanates from its
+arrowhead, rising off it in flickering tongues of flame, as if its power is leaking out
+of it.
 
 YOUR VISION:
 
@@ -119,8 +214,9 @@ small ears laid back. It wears a rounded iron shoulder plate, a belted tunic and
 cape.
 
 EMANATION:
-Bright amber-orange Ether energy emanates from its eyes and its spearhead, crackling off
-them in jagged sparks and arcs, as if its power is leaking out of it.
+Its eyes glow bright amber-orange. Bright amber-orange Ether energy emanates from its
+spearhead, crackling off it in jagged sparks and arcs, as if its power is leaking out
+of it.
 
 YOUR VISION:
 
@@ -137,8 +233,236 @@ curving bone horns, and plain rounded iron plates on its shoulders and forearms.
 long pointed ears sweep back, and its grin is full of sharp teeth.
 
 EMANATION:
-Bright icy blue Ether energy emanates from its eyes and its blade, rising off them in
-curling wisps of frost and mist, as if its power is leaking out of it.
+Its eyes glow bright icy blue. Bright icy blue Ether energy emanates from its blade,
+rising off it in curling wisps of frost and mist, as if its power is leaking out of it.
+
+YOUR VISION:
+
+
+
+5. SHAOLIN PANDA  (panda-fighter · R1 Enemy 1 · lightning)
+---------------------------------------------------------
+START: art/creatures/panda-fighter.svg
+
+SUBJECT:
+A fierce red panda kung fu master facing right, crouched low like a predator in a wide
+fighting stance, both feet planted. Its short, broad red panda's muzzle is pulled back in a snarl baring long fangs, its round ears laid flat back. It wears a loose wrap-front jacket tied at
+the waist with a sash and wide trousers. Both clawed paws are raised in front of its
+chest as fists, ready to strike.
+
+EMANATION:
+Its eyes glow bright amber-orange. Bright amber-orange Ether energy emanates from its
+fists, crackling off them in jagged sparks and arcs, as if its power is leaking out of
+it.
+
+YOUR VISION:
+
+
+
+6. CRANE MONK  (crane-monk · R1 Enemy 3 · water)
+-----------------------------------------------
+START: art/creatures/crane-monk.svg
+
+SUBJECT:
+A tall crane warrior monk facing right, striding forward on two long thin legs, holding
+a long straight sword angled forward and up. Its body is wrapped in a long robe of
+smooth cloth tied with a sash, the hem sweeping back behind it. A long S-curved neck
+lifts its slender head high, with a long, straight spear-like beak under a heavy brow.
+
+EMANATION:
+Its eyes glow bright icy blue. Bright icy blue Ether energy emanates from its sword,
+rising off it in curling wisps of frost and mist, as if its power is leaking out of it.
+
+YOUR VISION:
+
+
+
+7. SWAMP TREANT  (marsh-treant · R2 Enemy 1 · shadow)
+----------------------------------------------------
+START: art/creatures/marsh-treant.svg
+
+SUBJECT:
+A tall, gaunt tree creature facing right, stalking forward on two thick trunk-like
+legs that spread into roots at the ground. Its body is a twisted, leaning trunk of
+smooth bark, its long thin arms end in hooked twig claws reaching forward, and its head
+is a crown of sharp broken branches around a snarling, fanged mouth.
+
+EMANATION:
+Its eyes glow bright violet. Bright violet Ether energy emanates from its claws,
+rising off them in curling wisps of smoke, as if its power is leaking out of it.
+
+YOUR VISION:
+
+
+
+8. BOG OGRE  (club-ogre · R2 Enemy 3 · fire)
+-------------------------------------------
+START: art/creatures/club-ogre.svg
+
+SUBJECT:
+A hulking, hunched ogre facing right, its huge rounded back and massive shoulders
+rising above a small, low head with a heavy brow and tusked underbite. Its long thick
+arms end in big fists; one swings a huge stone-headed maul low beside its legs. It
+wears a simple loincloth and stands on short, thick legs.
+
+EMANATION:
+Its eyes glow bright ember-red. Bright ember-red Ether energy emanates from the head of
+its maul, rising off it in flickering tongues of flame, as if its power is leaking out
+of it.
+
+YOUR VISION:
+
+
+
+9. TWIN OGRE  (twin-ogre · R3 Enemy 2 · water)
+---------------------------------------------
+START: art/creatures/twin-ogre.svg
+
+SUBJECT:
+A massive hairless ogre with two heads facing right, striding forward. Two bald heads
+grow side by side from its broad hunched shoulders, one slightly higher and behind the
+other, both brutish in profile with a low heavy brow, a thick underbite and two short
+tusks. In one fist it holds up a thick, knotted wooden club. Its body is a broad barrel
+shape with long thick arms, a wide belt and a plain loincloth, on two short thick legs.
+
+EMANATION:
+Its eyes glow bright icy blue. Bright icy blue Ether energy emanates from its club,
+rising off it in curling wisps of frost and mist, as if its power is leaking out of it.
+
+YOUR VISION:
+
+
+
+10. NAGA GORO  (naga · R3 Enemy 3 · fire)
+----------------------------------------
+START: art/creatures/naga.svg
+
+SUBJECT:
+A menacing snake-headed man facing right, standing tall in a long plain robe that falls
+to the ground. One clawed hand reaches out of a wide sleeve, its long hooked claws
+spread to strike. On a long, arched neck its smooth snake head is thrust forward, the
+jaws gaping wide to show two long fangs and a forked tongue, under a heavy brow.
+
+EMANATION:
+Its eyes glow bright ember-red. Bright ember-red Ether energy emanates from its open
+mouth, rising off it in flickering tongues of flame, as if its power is leaking out of
+it.
+
+YOUR VISION:
+
+
+
+11. GOBLIN HEXER  (goblin-hexer · R4 Enemy 1 · shadow)
+-----------------------------------------------------
+START: art/creatures/goblin-hexer.svg
+
+SUBJECT:
+A hunched, menacing goblin witch-doctor facing right, leaning forward. It wears a long
+heavy robe with a pointed hood pulled up over its head, the hood framing a long hooked
+nose and a grin of sharp teeth. In its clawed hand it holds out a short staff topped
+with a crescent-bladed iron head.
+
+EMANATION:
+Its eyes glow bright violet. Bright violet Ether energy emanates from the head of its
+staff, rising off it in curling wisps of smoke, as if its power is leaking out of it.
+
+YOUR VISION:
+
+
+
+12. ANTLERED HORROR  (antler-horror · R4 Enemy 3 · lightning)
+------------------------------------------------------------
+START: art/creatures/antler-horror.svg
+
+SUBJECT:
+A gaunt, menacing horror facing right, a hunched beast stalking forward on four long,
+thin, jointed legs ending in small hooves. Its body is one heavy rounded hump sloping
+down to a thick neck. Its head is a bare stag's skull thrust forward, its long jaw open
+and full of sharp teeth, with two great branching antlers rising from it.
+
+EMANATION:
+Its eyes glow bright amber-orange. Bright amber-orange Ether energy emanates from its
+antlers, crackling off them in jagged sparks and arcs, as if its power is leaking out
+of it.
+
+YOUR VISION:
+
+
+
+13. RAPID GNOME  (axe-gnome · R2 Enemy 2 · lightning)
+----------------------------------------------------
+START: art/creatures/axe-gnome.svg
+
+SUBJECT:
+A small, hunched, menacing gnome facing right, leaping forward mid-stride with a short
+hand-axe gripped out in front of it. It wears a very tall pointed hat that curls back
+and ends in a small round bell. It has a huge hooked nose under a heavy scowling brow,
+and its hair and long beard are one smooth solid wedge sweeping back behind its head.
+Its short legs are bent mid-leap in pointed boots.
+
+EMANATION:
+Its eyes glow bright amber-orange. Bright amber-orange Ether energy emanates from its
+axe blade, crackling off it in jagged sparks and arcs, as if its power is leaking out
+of it.
+
+YOUR VISION:
+
+
+
+14. CONJOINED GHOUL  (twin-ghoul · R3 Enemy 1 · shadow)
+------------------------------------------------------
+START: art/creatures/twin-ghoul.svg
+
+SUBJECT:
+A gaunt, hairless ghoul with two heads facing right, stooped and lurching forward. Two
+bald, skull-like heads grow side by side from its hunched shoulders, one slightly
+higher and behind the other, both with long jaws full of bared teeth. Its long thin
+arms hang low in front of it, ending in hands with long hooked claws. Its skin is
+smooth and bare, stretched over a bony frame, and a plain cloth is wrapped at its waist.
+
+EMANATION:
+Its eyes glow bright violet. Bright violet Ether energy emanates from its claws,
+rising off them in curling wisps of smoke, as if its power is leaking out of it.
+
+YOUR VISION:
+
+
+
+15. HEDGE WIZARD  (hedge-wizard · R4 Enemy 2 · fire)
+---------------------------------------------------
+START: art/creatures/hedge-wizard.svg
+
+SUBJECT:
+A hunched, sinister old wizard facing right, standing in a long heavy robe that falls
+to the ground, gripping a tall crooked staff held upright before him, its top curling
+into a hook. He wears a pointed hat with a wide brim and a drooping tip. Under the brim
+a long hooked nose juts over a sneer of crooked teeth, and his hair and beard flow back
+as one smooth solid mass.
+
+EMANATION:
+Its eyes glow bright ember-red. Bright ember-red Ether energy emanates from the hooked
+top of its staff, rising off it in flickering tongues of flame, as if its power is
+leaking out of it.
+
+YOUR VISION:
+
+
+
+16. BRUTE OF GATH  (gath-brute · R4 Enemy 4 · water)
+---------------------------------------------------
+START: art/creatures/gath-brute.svg
+
+SUBJECT:
+A colossal hunchbacked brute facing right, so wide it fills the frame: an enormous
+rounded back and shoulders towering over a small head set low at the front, with a
+fanged jaw. Large smooth curved horns sweep forward and up from its head. Its massive
+arms hang low, ending in heavy clawed fists, and it stands on short thick legs. Its
+hide is smooth and bare.
+
+EMANATION:
+Its eyes glow bright icy blue. Bright icy blue Ether energy emanates from its fists,
+rising off them in curling wisps of frost and mist, as if its power is leaking out of
+it.
 
 YOUR VISION:
 

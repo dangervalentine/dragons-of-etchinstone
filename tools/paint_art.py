@@ -18,6 +18,7 @@ Run:
   python3 tools/paint_art.py prompt lion-archer
   python3 tools/paint_art.py paint [names...] [--seed 81] [--count 4] [--q8]
   python3 tools/paint_art.py paint all --server http://other-pc:8188 --q8
+  python3 tools/paint_art.py paint crane-monk --seed 101 --tag vector --q8
 
 paint queues every image first, so they all show in ComfyUI's queue, then saves each
 as it finishes. An image already in build/art/painted/ is skipped.
@@ -99,8 +100,10 @@ def grey_start(name, start):
 
 def graph(prompt, start, refs, seed, denoise, strength, prefix):
     """Image to image from start, its positive conditioning passed through Redux once
-    for each reference."""
+    for each reference; plain image to image when there are none."""
     g = ga.image_to_image(prompt, start, seed, denoise, prefix)
+    if not refs:
+        return g
     positive = ["guide", 0]
     g["vision"] = {"class_type": "CLIPVisionLoader", "inputs": {"clip_name": ga.STYLE_VISION}}
     g["redux"] = {"class_type": "StyleModelLoader", "inputs": {"style_model_name": ga.STYLE_MODEL}}
@@ -157,6 +160,8 @@ def main():
                    help="Redux strength for each shared reference; %(default)s")
     p.add_argument("--server", default=ga.SERVER, help="the ComfyUI to use; %(default)s")
     p.add_argument("--q8", action="store_true", help="use the Q8 models")
+    p.add_argument("--tag", default="",
+                   help="added to each file name, to rerun the same seeds after a prompt change")
     a = p.parse_args()
     ga.SERVER = a.server.rstrip("/")
     ga.models = ga.MODELS["q8" if a.q8 else "q4"]
@@ -182,14 +187,15 @@ def main():
         c = creatures[name]
         start = None
         for s in range(seed, seed + a.count):
-            dest = os.path.join(OUT, "%s-%d.png" % (name, s))
+            tag = "-" + a.tag if a.tag else ""
+            dest = os.path.join(OUT, "%s-%d%s.png" % (name, s, tag))
             if os.path.exists(dest):
                 print("have", os.path.relpath(dest, ROOT))
                 continue
             uploaded = uploaded or [ga.upload(r) for r in refs]
             start = start or ga.upload(grey_start(name, c["start"]))
             g = graph(c["prompt"], start, uploaded, s, a.denoise, a.style_strength,
-                      "etch008/%s-%d" % (name, s))
+                      "etch008/%s-%d%s" % (name, s, tag))
             jobs.append((queue(g), dest))
             print("queued", name, s, flush=True)
     for pid, dest in jobs:

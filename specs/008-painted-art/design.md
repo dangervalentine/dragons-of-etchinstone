@@ -97,8 +97,15 @@ Moved from the Mac to the Windows PC. On the PC:
 3. `%USERPROFILE%\ComfyUI\.venv\Scripts\python.exe tools\paint_art.py paint all --q8`
    (images to `build\art\painted\`).
 
-Next: review iteration 3 (the four creatures in `PAINTED_PROMPTS.txt`, from the
-shared anchors), then write the other twelve enemies into the file and run them.
+Iteration 3 ran on the PC (Q8, seeds 81-84). The user then picked seven images from
+iterations 1 to 3 as the target look, and they are now the shared references
+(`art/source/painted/anchors/good-*.png`). Colour matching is deferred (adjust later or
+remake in Illustrator), and tails are not prompted but removed if they appear.
+
+Iteration 4 (eight new creatures from those references) showed the references copying
+their designs (tails, manes, bodies) onto the new creatures, so it was stopped.
+Iteration 5 paints all 16 enemies × 8 seeds (seed 101) from their silhouettes with no
+references, as a baseline; references are then picked from the whole set.
 
 Sizes: creatures 1024 × 1024. Journeys 1344 × 768 (FLUX native, about 16:9), shown
 cropped to cover the art panel.
@@ -114,6 +121,17 @@ cropped to cover the art panel.
   their shade tones and the four Ether accents) without merging small areas, and
   never touching saturated accent pixels. Per-image quantizing to 8 colours was tried
   and rejected: it greyed out the Ether accents (the naga's violet wisps and eyes).
+  A candidate is the Mac session's flatten.py (2026-10-17, proof of concept, not in
+  the repo): edge-preserving smoothing, then k-means on the body with the Ether masked
+  out and quantized separately. It flattens bodies well and keeps strong Ether. To be
+  usable here it needs: background removal first, so shadows and signatures are gone;
+  the outline drawn round the body's alpha only, never round detached Ether; a wider
+  accent mask for pale glows; and fewer tones or a minimum region size on large
+  smooth bodies. v2 (rembg first, Ether by hue, body-only outline) fixes most of that;
+  what remains is in the lessons in `art/PAINTED_PROMPTS.txt`. v3 (2026-10-17) fixed
+  the shadow scraps and kept the small red eyes, but its wider lightning window takes
+  tan skin as Ether; see the lessons. v4 fixes that and is the best so far; it now
+  drops big pale glows instead.
 - Ground shadow removed with the background.
 - **Outline in post**: an outer outline of fixed width and colour drawn round the
   cut-out's alpha, the same on every creature, since FLUX draws none.
