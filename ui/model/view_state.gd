@@ -46,7 +46,6 @@ static func build(game, draft, db, extra := {}) -> Dictionary:
 		"mode": draft.mode,
 		"stage": _stage(game, db),
 		"piles": {"deck": game.deck.size(), "discard": game.discard.size(), "trash": game.trash.size()},
-		"progress": {"deck": game.deck.size(), "total": game.cards.size() - game.trash.size()},
 		"hand": game.setup_offer.duplicate() if phase == "setup" else game.hand.duplicate(),
 		"cards": {},
 		"encounter": _encounter(game, db),

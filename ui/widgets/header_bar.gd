@@ -1,7 +1,7 @@
 extends Control
 ## The strip across the top of every screen, with the menu button always at its right.
-## On the play screen it also shows where you are, how much of the deck is left and
-## the three piles with their counts; elsewhere the screen's name, centred
+## On the play screen it also shows where you are and the three piles with their
+## counts; elsewhere the screen's name, centred
 ## (set_title), and, on a screen that can go back, Back at its left.
 ## It is a shallow lintel of carved stone with the heading cut into it, and it stays
 ## quiet, so what is below it comes first.
@@ -23,12 +23,10 @@ var menu_button := Button.new()
 var back_button := Button.new()
 var _row := HBoxContainer.new()
 var _heading := Label.new()
-var _progress := Control.new()
 var _counts := {}
 var _icons := {}
 var _piles := []
 var _shown := {"deck": 0, "discard": 0, "trash": 0}
-var _fraction := 1.0
 var _lintel := StoneStyle.new("lintel", 0.15)
 ## Whether the bar shows only a screen's name (set_title), centred.
 var _titled := false
@@ -49,11 +47,6 @@ func _init() -> void:
 	_heading.clip_text = true
 	_heading.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_row.add_child(_heading)
-	_progress.custom_minimum_size = Vector2(150, 10)
-	_progress.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	_progress.draw.connect(_draw_progress)
-	_progress.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_row.add_child(_progress)
 	for pile in PILES:
 		var b := HelpButton.new()
 		b.flat = true
@@ -87,7 +80,8 @@ func _init() -> void:
 	for state in ["normal", "hover", "pressed", "focus", "disabled"]:
 		menu_button.add_theme_stylebox_override(state, StyleBoxEmpty.new())
 	var icon := UI.icon_rect("menu", 34, T.INK)
-	icon.position = Vector2(27, 7)
+	# Its icon sits at the button's right end, level with the body's right edge.
+	icon.position = Vector2(T.TAP_MIN - 34, 7)
 	icon.size = Vector2(34, 34)
 	menu_button.add_child(icon)
 	menu_button.mouse_entered.connect(func(): icon.modulate = T.GOLD)
@@ -107,8 +101,8 @@ func _init() -> void:
 	var word := UI.label("‹ Back", T.BUTTON, T.INK)
 	word.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	word.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	word.position = Vector2(T.S, 0)
-	word.size = Vector2(BACK_W - T.S, 48)
+	word.position = Vector2.ZERO
+	word.size = Vector2(BACK_W, 48)
 	word.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	back_button.add_child(word)
 	back_button.mouse_entered.connect(func(): word.add_theme_color_override("font_color", T.GOLD))
@@ -117,11 +111,20 @@ func _init() -> void:
 	UI.press_feedback(back_button)
 	add_child(back_button)
 	resized.connect(_fit)
+	# The band follows the screen's edges, so it is redrawn when the bar moves.
+	item_rect_changed.connect(queue_redraw)
 	_lintel.changed.connect(queue_redraw)
 
 
 func _draw() -> void:
-	draw_style_box(_lintel, Rect2(Vector2(-T.S, -4), size + Vector2(2 * T.S, 8)))
+	# A flat band across the whole screen, from its very top to just under the bar.
+	# The stone runs past the left, right and top edges by more than its chamfer, so
+	# only its straight bottom edge shows.
+	var view := get_global_transform().affine_inverse() * get_viewport_rect()
+	var over := T.CHAMFER_L + 8.0
+	var top := view.position.y - over
+	var band := Rect2(view.position.x - over, top, view.size.x + 2.0 * over, size.y + 4.0 - top)
+	draw_style_box(_lintel, band)
 
 
 ## Show only a heading and the menu button, as on every screen but the play screen,
@@ -131,7 +134,6 @@ func set_title(text: String, can_go_back := false) -> void:
 	_heading.text = text
 	_heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	back_button.visible = can_go_back
-	_progress.visible = false
 	for b in _piles:
 		b.visible = false
 	_fit()
@@ -139,9 +141,6 @@ func set_title(text: String, can_go_back := false) -> void:
 
 func render(vs: Dictionary) -> void:
 	_heading.text = vs.stage.heading
-	var total: int = maxi(1, vs.progress.total)
-	_fraction = clampf(vs.progress.deck / float(total), 0.0, 1.0)
-	_progress.queue_redraw()
 	set_counts(vs.piles)
 
 
@@ -170,16 +169,10 @@ func _fit() -> void:
 	back_button.size = Vector2(BACK_W, T.TAP_MIN)
 	back_button.position = Vector2.ZERO
 	# A name alone is centred on the bar, clear of Back and the menu button alike;
-	# on the play screen the row runs from the left edge to the menu button.
-	var left: float = maxf(BACK_W, T.TAP_MIN) if _titled else float(T.S)
+	# on the play screen the row runs from the left edge, level with the body below,
+	# to the menu button.
+	var left: float = maxf(BACK_W, T.TAP_MIN) if _titled else 0.0
 	var right: float = maxf(BACK_W, T.TAP_MIN) if _titled else float(T.TAP_MIN)
 	_row.position = Vector2(left, 0)
 	_row.size = Vector2(maxf(0.0, size.x - left - right), size.y)
 
-
-func _draw_progress() -> void:
-	var r := Rect2(Vector2.ZERO, _progress.size)
-	_progress.draw_style_box(UI.box(Color(T.LINE_SOFT, 0.5), Color.TRANSPARENT, 0, 7, 0), r)
-	if _fraction > 0.0:
-		_progress.draw_style_box(UI.box(T.INK_MUTED, Color.TRANSPARENT, 0, 7, 0),
-			Rect2(r.position, Vector2(maxf(14.0, r.size.x * _fraction), r.size.y)))

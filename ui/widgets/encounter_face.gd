@@ -71,7 +71,8 @@ func render(enc: Dictionary) -> void:
 	var row := UI.hbox(T.M)
 	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_column = UI.vbox(T.XS)
-	_column.alignment = BoxContainer.ALIGNMENT_CENTER
+	# Top-aligned, so the first badge starts level with the top of the art beside it.
+	_column.alignment = BoxContainer.ALIGNMENT_BEGIN
 	if enemy:
 		_column.add_child(_chip({"icon": "hp", "text": str(d.hp), "color": T.HP, "glossary_id": "hp"}))
 		_column.add_child(_chip({"icon": "initiative", "text": str(d.initiative), "color": T.BG_BAND, "glossary_id": "initiative"}))
