@@ -226,6 +226,9 @@ func _game() -> void:
 	ui.animator.skip()
 	_key_of_kind("enemy")
 	await _shot("enemy_encounter")
+	_press({"type": "inspect_key"})
+	await _shot("enemy_key_card")
+	ui._close_overlays()
 	var g = ui.game
 	_place_card(g.hand[0], [0, "spell"])
 	_place_card(g.hand[1], [0, "element"])
@@ -306,7 +309,7 @@ func _game() -> void:
 	await create_timer(0.2).timeout
 	ui.animator.skip()
 	ui._close_overlays()
-	ui.draft.reset(1)
+	ui._reset_draft()
 	ui.play._toast.modulate.a = 0.0
 	if _key_of_kind("journey"):
 		await _shot("journey_encounter")

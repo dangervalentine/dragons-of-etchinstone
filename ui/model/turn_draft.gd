@@ -4,6 +4,10 @@ extends RefCounted
 ## Nothing here touches the game; to_action() is what gets sent to it.
 
 const ROLES := ["spell", "element", "boost"]
+## A set's Roles in the rulebook's order from the left, as the Hand is dealt into them.
+const DEAL_ORDER := ["element", "spell", "boost"]
+## A Hand too short for every Role fills the Spell first: the rules want one.
+const SHORT_ORDER := ["spell", "element", "boost"]
 
 var set_count := 1
 var sets: Array = [{}, {}]            # role -> card id, one Dictionary per Action Set
@@ -14,7 +18,7 @@ var fuse_pick: Array = []
 var mode := "none"                    # none, divert, regroup, fuse_pick, fuse_element
 var give_up_reserve := false
 var picks: Array = []                 # ordered picks for setup and Soak
-var held: Variant = null              # the card picked up, waiting for a place
+var held: Variant = null              # the card picked up, to trade places with another
 var reserve: Variant = null           # the card the player put in the Reserve place
 var with_reserve := true              # false in the Final Enemy, which keeps no Reserve
 
@@ -81,10 +85,94 @@ func take_back(id: String) -> void:
 
 
 ## Whether the Hand has a Reserve place: one card more than the Action Sets take
-## (four in a Region, seven on the Final Journey). After a Divert the Hand is too
-## small, and the Final Enemy keeps no Reserve.
+## (four in a Region, seven on the Final Journey). After a Divert or a Fuse the Hand
+## is too small (a fused pair counts as one card), and the Final Enemy keeps no Reserve.
 func reserve_offered(hand: Array) -> bool:
-	return with_reserve and hand.size() > set_count * ROLES.size()
+	var tucked := 1 if fuse != null and hand.has(fuse.bottom) else 0
+	return with_reserve and hand.size() - tucked > set_count * ROLES.size()
+
+
+## The positions of the Hand in rulebook order from the left: the Reserve when this
+## Hand has one, then each set's Element, Spell and Boost.
+func positions(hand: Array) -> Array:
+	var out := []
+	if reserve_offered(hand):
+		out.append("reserve")
+	for i in set_count:
+		for role in DEAL_ORDER:
+			out.append([i, role])
+	return out
+
+
+## Deal the Hand into the positions in the order it was drawn: card k takes position
+## k, and any cards past the last position are extras with no Role (the Final Enemy).
+## A Hand short of a full deal fills each set's Spell, Element and Boost, in that order.
+func deal(hand: Array) -> void:
+	sets = [{}, {}]
+	reserve = null
+	held = null
+	var cards := _unplaced(hand)
+	var targets: Array = positions(hand)
+	if cards.size() < set_count * ROLES.size() + (1 if with_reserve else 0):
+		targets = []
+		for i in set_count:
+			for role in SHORT_ORDER:
+				targets.append([i, role])
+	for k in mini(cards.size(), targets.size()):
+		_place(cards[k], targets[k])
+	_advance()
+
+
+## Keep every position one the engine agrees with after the Hand or the Fuse
+## changes: a card that left the Hand or was tucked gives up its place; with no
+## Reserve on offer the Reserve card takes a Role; and a card with no place (one
+## just unfused) takes the first empty one: a Spell, an Element, a Boost, then the
+## Reserve.
+func settle(hand: Array) -> void:
+	var tucked = fuse.bottom if fuse != null else null
+	for i in sets.size():
+		for role in ROLES:
+			var id = sets[i].get(role)
+			if id != null and (not hand.has(id) or id == tucked):
+				sets[i].erase(role)
+	if reserve != null and (not hand.has(reserve) or reserve == tucked or not reserve_offered(hand)):
+		reserve = null
+	for id in _unplaced(hand):
+		var empty := _first_empty()
+		if not empty.is_empty():
+			sets[empty[0]][empty[1]] = id
+		elif reserve == null and reserve_offered(hand):
+			reserve = id
+	_advance()
+
+
+func _first_empty() -> Array:
+	for i in set_count:
+		for role in SHORT_ORDER:
+			if not sets[i].has(role):
+				return [i, role]
+	return []
+
+
+## Two Hand cards trade places, and so Roles.
+func swap(a: String, b: String, hand: Array) -> void:
+	held = a
+	put({"card": b}, hand)
+
+
+## The Action Set a tap on the Attack or Initiative row aims: the held card's set when
+## it is a Boost, else the first set whose Boost is placed but not yet aimed. With one
+## set that is the only one; with two and both aimed, -1: the player must pick up the
+## Boost they mean.
+func boost_target_set(card) -> int:
+	if card != null:
+		var slot = slot_of(card)
+		if slot != null and slot[1] == "boost":
+			return slot[0]
+	for i in set_count:
+		if sets[i].has("boost") and boost_to[i] == null:
+			return i
+	return 0 if set_count == 1 else -1
 
 
 ## The card in the Reserve place: the one the player put there, or, once every Role
@@ -100,8 +188,9 @@ func reserve_card(hand: Array) -> Variant:
 	return left[0] if left.size() == 1 else null
 
 
-## The Hand cards waiting for a place, in Hand order.
-func floating(hand: Array) -> Array:
+## The Hand cards with no place, in Hand order: the Final Enemy's cards past its six
+## Roles, or a short Hand's left over.
+func extras(hand: Array) -> Array:
 	var left := _unplaced(hand)
 	var r = reserve_card(hand)
 	if r != null:
@@ -109,7 +198,7 @@ func floating(hand: Array) -> Array:
 	return left
 
 
-## Where a card is: [set, role], "reserve", or null while it floats.
+## Where a card is: [set, role], "reserve", or null for an extra.
 func place_of(id: String, hand: Array) -> Variant:
 	var slot = slot_of(id)
 	if slot != null:
@@ -138,15 +227,33 @@ func put_down() -> void:
 	held = null
 
 
-## Put the held card at `target`: [set, role], "reserve" or "floating". A card
-## already there trades places with it, going where the held card came from.
-## Returns a message when the place cannot take it.
+## Put the held card at `target`: [set, role], "reserve", or {"card": id} for the
+## place of that card. A card already there trades places with it, going where the
+## held card came from (an extra's place is none: the card it displaces becomes an
+## extra). Returns a message when the place cannot take it.
 func put(target: Variant, hand: Array) -> String:
 	if held == null:
 		return ""
-	if typeof(target) == TYPE_STRING and target == "reserve" and not reserve_offered(hand):
-		return "There is no Reserve with this Hand."
 	var id: String = held
+	if typeof(target) == TYPE_DICTIONARY:
+		var other: String = target.card
+		target = place_of(other, hand)
+		if target == null:
+			# The other card is an extra: it takes the held card's place.
+			held = null
+			if other == id or (fuse != null and fuse.bottom == other):
+				return ""
+			var at = place_of(id, hand)
+			_clear(id)
+			if at != null:
+				_place(other, at)
+			_advance()
+			return ""
+	if typeof(target) == TYPE_STRING and target != "reserve":
+		held = null
+		return ""
+	if typeof(target) == TYPE_STRING and not reserve_offered(hand):
+		return "There is no Reserve with this Hand."
 	var from = place_of(id, hand)
 	var occupant = null
 	if typeof(target) == TYPE_ARRAY:
@@ -154,14 +261,14 @@ func put(target: Variant, hand: Array) -> String:
 	elif target == "reserve":
 		occupant = reserve_card(hand)
 	held = null
-	if occupant == id or (from == null and typeof(target) == TYPE_STRING and target == "floating"):
+	if occupant == id:
 		return ""
 	_clear(id)
 	if occupant != null:
 		_clear(occupant)
 	_place(id, target)
 	if occupant != null:
-		_place(occupant, from if from != null else "floating")
+		_place(occupant, from if from != null else "extra")
 	_advance()
 	return ""
 

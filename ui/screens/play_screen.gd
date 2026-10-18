@@ -1,9 +1,9 @@
 extends Control
 ## The one screen used for every step of play, from choosing starting cards to the
 ## last blow against the dragon. Regions in fixed places: header, Encounter, the
-## math box on the left; on the right the role strip, the Hand (its ordered places
-## and the floating cards) and the action row under them. Widgets update in place;
-## card nodes persist so they can move.
+## math box on the left; on the right the Hand, each card under its place's label,
+## and the action row under it. Widgets update in place; card nodes persist so they
+## can move.
 
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
@@ -14,7 +14,7 @@ const FaceFrame = preload("res://ui/widgets/face_frame.gd")
 const PreviewPanel = preload("res://ui/widgets/preview_panel.gd")
 const SoakMeter = preload("res://ui/widgets/soak_meter.gd")
 const XpPurse = preload("res://ui/widgets/xp_purse.gd")
-const RoleSlots = preload("res://ui/widgets/role_slots.gd")
+const PlaceLabels = preload("res://ui/widgets/place_labels.gd")
 const HandTray = preload("res://ui/widgets/hand_tray.gd")
 const ActionBar = preload("res://ui/widgets/action_bar.gd")
 const EtherPicker = preload("res://ui/widgets/ether_picker.gd")
@@ -31,7 +31,7 @@ var setup_face := FaceFrame.new()
 var preview := PreviewPanel.new()
 var soak_meter := SoakMeter.new()
 var xp_purse := XpPurse.new()
-var slots := RoleSlots.new()
+var labels := PlaceLabels.new()
 var actions := ActionBar.new()
 var hand := HandTray.new()
 var picker := EtherPicker.new()
@@ -57,7 +57,7 @@ var _setup_key := ""
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	for key in ["encounter", "preview", "slots", "actions", "header"]:
+	for key in ["encounter", "preview", "actions", "header"]:
 		var r := Control.new()
 		r.name = key
 		r.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -67,13 +67,14 @@ func _init() -> void:
 		_fill(_regions.encounter, face)
 	for panel in [preview, soak_meter, xp_purse]:
 		_fill(_regions.preview, panel)
-	_fill(_regions.slots, slots)
 	_fill(_regions.actions, actions)
 	_fill(_regions.header, header)
 	# The Hand sits in its own well, lit at the rim while it is waiting on the player.
 	_hand_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hand_panel.add_theme_stylebox_override("panel", _hand_well)
 	add_child(_hand_panel)
+	add_child(labels)
+	labels.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(hand)
 	hand.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(picker)
@@ -90,7 +91,7 @@ func _init() -> void:
 	_toast.modulate.a = 0.0
 	_toast.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_toast)
-	for w in [header, encounter_face, dragon_face, preview, slots, actions, hand, picker]:
+	for w in [header, encounter_face, dragon_face, preview, labels, actions, hand, picker]:
 		w.intent.connect(func(data): intent.emit(data))
 
 
@@ -106,7 +107,6 @@ func apply_layout(p: Dictionary) -> void:
 ## `arrive_from` (a global point) when given.
 func render(state: Dictionary, animate := false, arrive_from = null) -> void:
 	var fused_before := _fused_top(vs)
-	var slots_before: Array = vs.get("places", [])
 	vs = state
 	if plan.is_empty():
 		return
@@ -117,9 +117,8 @@ func render(state: Dictionary, animate := false, arrive_from = null) -> void:
 	plan = _replan(plan, vs)
 	_place_hand_panel()
 	_render_encounter()
-	slots.render(vs)
+	labels.render(vs, plan)
 	actions.render(vs)
-	_answer_slots(slots_before, animate)
 	_render_prominence()
 	hand.sync(vs, plan, animate, arrive_from)
 	if detail.visible:
@@ -146,87 +145,18 @@ func _place_regions(p: Dictionary) -> void:
 		_regions[key].position = r.position
 		_regions[key].size = r.size
 	actions.apply_layout(p.regions.actions, p.regions.commit, p.regions.secondary)
-	slots.set_columns(p.get("place_rects", []))
 
 
-## The slots answer a placement (contracts/role-slots.md): a newly filled slot's
-## number flies up from its card and shows when it lands; a number the engine
-## changed while its card stayed (an Element enabling the enhanced Spell) counts to
-## its new value and the slot's edge flashes. At once under reduced motion.
-func _answer_slots(before: Array, animate: bool) -> void:
-	if not animate or UI.reduced_motion:
-		return
-	var old := {}
-	for s in before:
-		old[s.key] = s
-	for s in vs.get("places", []):
-		if s.state != "filled" or s.number == null:
-			continue
-		var key: String = s.key
-		var was: Dictionary = old.get(key, {})
-		var label: Label = slots.number_label(s.set, s.role)
-		if label == null:
-			continue
-		if was.get("card_id") != s.card_id:
-			var card: Control = hand.card(s.card_id)
-			if card == null or flight == null:
-				continue
-			label.modulate.a = 0.0
-			var colour: Color = T.ether_ink(s.ether) if s.ether != null else T.INK
-			var text := label.text
-			var from := card.get_global_rect().get_center()
-			# The slot's containers sort on the next frame; aim once they have.
-			_fly_after_layout.call_deferred(label, text, from, colour, s.set, s.role)
-		elif was.get("number") != null and was.number != s.number:
-			_count(label, int(was.number), int(s.number), s.role == "boost")
-			slots.flare(s.card_id, T.GOLD, T.BASE)
-
-
-func _fly_after_layout(label, text: String, from: Vector2, colour: Color, set_index: int, role: String) -> void:
-	# The slots may have been redrawn (and this label freed) before the frame came.
-	if not is_instance_valid(label):
-		return
-	var to := slots.number_rect(set_index, role).get_center()
-	var tw: Tween = flight.fly_text(text, from, to, colour)
-	if tw == null:
-		label.modulate.a = 1.0
-		return
-	tw.finished.connect(func():
-		if is_instance_valid(label):
-			label.modulate.a = 1.0)
-
-
-## Count a slot's number from `from` to `to` over T.COUNT.
-func _count(label: Label, from: int, to: int, signed: bool) -> void:
-	var show := func(v: float) -> void:
-		if is_instance_valid(label):
-			label.text = ("+%d" % roundi(v)) if signed else str(roundi(v))
-	show.call(from)
-	label.create_tween().tween_method(show, float(from), float(to), T.COUNT)
-
-
-## The Hand's panel: round its whole band while cards float under the places, round
-## the places alone once every card has one, and round the cards themselves when
-## there are no places (setup, Soak).
+## The Hand's panel: round every place, its label and its card, at the Hand
+## region's edges (layout_solver.HAND_PAD).
 func _place_hand_panel() -> void:
-	if plan.is_empty():
+	if plan.is_empty() or plan.get("positions", []).is_empty():
 		return
-	var panel: Rect2 = plan.regions.hand.grow(6.0)
-	var floating: int = vs.get("floating", []).size() if not vs.is_empty() else plan.hand_count
-	if not plan.place_rects.is_empty() and floating == 0:
-		var row: Rect2 = plan.place_rects[0]
-		for r in plan.place_rects:
-			row = row.merge(r)
-		panel = Rect2(plan.regions.hand.position.x - 6.0, row.position.y - 6.0, plan.regions.hand.size.x + 12.0, row.size.y + 12.0)
-	elif plan.place_rects.is_empty():
-		var Solver = load("res://ui/model/layout_solver.gd")
-		var rects: Array = Solver.floating_rects(plan, plan.hand_count)
-		if rects.is_empty():
-			return
-		var cards: Rect2 = rects[0]
-		for r in rects:
-			cards = cards.merge(r)
-		panel = Rect2(cards.position.x - 10.0, cards.position.y - 24.0, cards.size.x + 20.0, cards.size.y + 36.0)
+	var cells: Rect2 = plan.positions[0].label.merge(plan.positions[0].card)
+	for pos in plan.positions:
+		cells = cells.merge(pos.label).merge(pos.card)
+	var Solver = load("res://ui/model/layout_solver.gd")
+	var panel := cells.grow(Solver.HAND_PAD)
 	_hand_panel.position = panel.position
 	_hand_panel.size = panel.size
 
@@ -267,7 +197,10 @@ func primary_style() -> StyleBox:
 ## motion the rim is held lit for a moment instead.
 func flare(target: String, colour: Color, kind: String, duration: float, card_id := "") -> void:
 	if target == "slot":
-		slots.flare(card_id, colour, duration)
+		# The card that took or left a place answers in its own light.
+		var card: Control = hand.card(card_id)
+		if card != null:
+			UI.flash(card, colour)
 		return
 	var style: StyleBox = null
 	var node: Control = null
@@ -393,13 +326,14 @@ func _replan(p: Dictionary, state: Dictionary) -> Dictionary:
 	var needed := roundi(_preview_widget().needed_height(p.regions.preview.size.x))
 	var enc = state.get("encounter")
 	var least: int = T.DRAGON_MIN if enc != null and enc.kind.begins_with("final") else T.ENCOUNTER_MIN
-	if p.get("for", []) == [count, places, final, needed, least]:
+	var cells: int = state.get("action_cells", 3)
+	if p.get("for", []) == [count, places, final, needed, least, cells]:
 		return p
-	var q: Dictionary = Solver.solve(p.view, p.safe, count, places, p.points_per_unit, needed, least, p.get("undersized_upright", false), final)
+	var q: Dictionary = Solver.solve(p.view, p.safe, count, places, p.points_per_unit, needed, least, p.get("undersized_upright", false), final, cells)
 	q["safe"] = p.safe
 	q["undersized_upright"] = p.get("undersized_upright", false)
-	q["for"] = [count, places, final, needed, least]
-	if q.regions != p.regions or q.place_rects != p.get("place_rects"):
+	q["for"] = [count, places, final, needed, least, cells]
+	if q.regions != p.regions or q.positions != p.get("positions"):
 		plan = q
 		_place_regions(q)
 	return q

@@ -13,6 +13,9 @@ const STEEL := Color("aaa6b8")
 
 var _shown := {}
 var _enemy := false
+## The "Enemy 2 · Key Card Adapt, Level 3" line under the art. Off on the board,
+## where pressing the face shows the Key Card itself; the rulebook's examples keep it.
+var show_key_line := false
 
 ## How much of an enemy's height shows: its top, with its feet below the frame.
 const ENEMY_SHOWN := 0.74
@@ -43,9 +46,16 @@ func render(enc: Dictionary) -> void:
 		enemy_crop(art_name, _panel) if enemy and art_name != "" else Art.FULL)
 
 	band.add_child(UI.icon_rect("enemy" if enemy else "journey", 34, T.ether_ink(enc.element)))
+	# Which Enemy or Journey of the Region it is, beside its icon, before the name
+	# (the line under the art that said so is gone since feature 010).
+	var number := UI.label(str(enc.index), T.HEADING, T.ether_ink(enc.element))
+	number.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	number.tooltip_text = enc.subtitle
+	number.mouse_filter = Control.MOUSE_FILTER_PASS
+	band.add_child(number)
 	# Long names step down a size so they fit the band.
 	var text: String = enc.title.to_upper()
-	var room := (size.x if size.x > 0.0 else 400.0) - 80.0
+	var room := (size.x if size.x > 0.0 else 400.0) - 80.0 - number.get_combined_minimum_size().x - T.S
 	var fs: int = T.HEADING[1]
 	while fs > T.TEXT_MIN and UI.font(T.HEADING[0]).get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > room:
 		fs -= 1
@@ -94,10 +104,12 @@ func render(enc: Dictionary) -> void:
 	row.add_child(_art_slot)
 	body.add_child(row)
 
-	var key: Dictionary = enc.key_card
-	var caption := UI.label("%s · Key Card %s, Level %d" % [enc.subtitle, key.name, key.level], T.LABEL, Color(T.INK, 0.8))
-	caption.clip_text = true
-	body.add_child(caption)
+	if show_key_line:
+		var key: Dictionary = enc.key_card
+		var caption := UI.label("%s · Key Card %s, Level %d" % [enc.subtitle, key.name, key.level], T.LABEL, Color(T.INK, 0.8))
+		caption.clip_text = true
+		body.add_child(caption)
+	tooltip_text = "Show the Key Card that named this %s" % ("Enemy" if enemy else "Journey")
 	_fit()
 
 
@@ -111,6 +123,16 @@ var _art_rect := Rect2()
 func _init() -> void:
 	super._init()
 	_edge.draw.connect(_draw_art_frame)
+	# A press on the face (outside its badges, which explain themselves) shows the
+	# Key Card that named the Encounter.
+	mouse_filter = Control.MOUSE_FILTER_STOP
+	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	# A touch arrives as a mouse press too (emulated), so only the mouse is read: one
+	# tap, one overlay.
+	gui_input.connect(func(e: InputEvent):
+		var up: bool = e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT and not e.pressed
+		if up and not _shown.is_empty():
+			intent.emit({"type": "inspect_key"}))
 
 
 ## Sizes the badges to the face: as large as the column's height allows.
@@ -119,7 +141,10 @@ func _fit() -> void:
 	if _column == null or not is_instance_valid(_column):
 		return
 	var rows := _column.get_child_count()
-	var room := body.size.y - 36.0 - T.XS * (rows - 1)
+	# From the face's own height, not the body's: the body is never smaller than the
+	# badges it already holds, so measuring it would never let them shrink again.
+	var body_h := size.y - BAND_H - T.S - T.S - EDGE
+	var room := body_h - (36.0 if show_key_line else 0.0) - T.XS * (rows - 1)
 	var b := clampf(room / maxf(1.0, rows), badge_min, 84.0)
 	for c in _column.get_children():
 		if c is HBoxContainer:
@@ -127,10 +152,19 @@ func _fit() -> void:
 				shield.custom_minimum_size = Vector2(b * 0.92, b * 0.92)
 		else:
 			c.custom_minimum_size = Vector2(b, b)
+	# The body took its height while the old, larger badges still held it open; now
+	# that they are smaller, give it its own again, at once and after they sort.
+	body.size.y = body_h
+	_fit_body.call_deferred(body_h)
 	# Straight away, so the art never shows a frame at the frame's own square
 	# size; and again once the row has sorted.
 	_place_art()
 	_place_art.call_deferred()
+
+
+func _fit_body(h: float) -> void:
+	if is_instance_valid(body) and is_equal_approx(size.y - BAND_H - T.S - T.S - EDGE, h):
+		body.size.y = h
 
 
 ## The part of an enemy's art shown in a panel of `panel` size: from just above the
@@ -203,7 +237,9 @@ func _place_art() -> void:
 	var x := minf(84.0, _art_rect.size.y * 0.32)
 	_xp.custom_minimum_size = Vector2(x, x)
 	_xp.size = Vector2(x, x)
-	_xp.position = _art_slot.size - Vector2(x * 0.92, x * 0.86)
+	# On the panel's lower corner, inside the face: with no Key Card line under the
+	# art since feature 010, the panel runs to the face's foot.
+	_xp.position = _art_slot.size - Vector2(x * 0.92, x)
 	var e := 52.0
 	for i in _effects.size():
 		_effects[i].custom_minimum_size = Vector2(e, e)

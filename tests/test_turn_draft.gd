@@ -163,7 +163,7 @@ func test_held_and_reserve_start_empty_and_are_copied() -> void:
 
 func test_a_dealt_hand_floats() -> void:
 	var d = Draft.new()
-	eq(d.floating(HAND), HAND, "every card floats, in Hand order")
+	eq(d.extras(HAND), HAND, "every card floats, in Hand order")
 	for id in HAND:
 		eq(d.place_of(id, HAND), null, id + " has no place")
 	eq(d.reserve_card(HAND), null, "no Reserve yet")
@@ -177,7 +177,7 @@ func test_pick_then_put_places_a_card() -> void:
 	eq(d.held, null, "no longer held")
 	eq(d.sets[0], {"element": "c"}, "c is the Element")
 	eq(d.place_of("c", HAND), [0, "element"], "its place")
-	eq(d.floating(HAND), ["a", "b", "d"], "the rest float")
+	eq(d.extras(HAND), ["a", "b", "d"], "the rest float")
 	eq(d.active, [0, "spell"], "the hint is the first empty Role")
 
 
@@ -199,7 +199,7 @@ func test_the_last_card_goes_to_the_reserve() -> void:
 		d.put(pair[1], HAND)
 	eq(d.reserve_card(HAND), "d", "the one left over is the Reserve")
 	eq(d.place_of("d", HAND), "reserve", "shown in the Reserve place")
-	eq(d.floating(HAND), [], "nothing floats")
+	eq(d.extras(HAND), [], "nothing floats")
 	eq(d.to_action(), {"spell": "a", "element": "b", "boost": "c", "boost_to": "attack", "ranged_discard": false},
 		"the engine gets what tapping gave it before")
 
@@ -209,17 +209,7 @@ func test_a_card_can_be_put_in_the_reserve_first() -> void:
 	d.pick("b")
 	eq(d.put("reserve", HAND), "", "the Reserve takes it")
 	eq(d.reserve_card(HAND), "b", "b is the Reserve")
-	eq(d.floating(HAND), ["a", "c", "d"], "it no longer floats")
-
-
-func test_sending_a_card_back_to_floating() -> void:
-	var d = Draft.new()
-	d.pick("a")
-	d.put([0, "spell"], HAND)
-	d.pick("a")
-	d.put("floating", HAND)
-	eq(d.sets[0], {}, "the Spell is empty")
-	eq(d.floating(HAND), HAND, "a floats again")
+	eq(d.extras(HAND), ["a", "c", "d"], "it no longer floats")
 
 
 func test_no_reserve_with_a_small_hand_or_in_the_final_enemy() -> void:
@@ -249,7 +239,7 @@ func test_a_tucked_card_cannot_be_picked_or_be_the_reserve() -> void:
 	eq(d.reserve, null, "the tucked card left the Reserve")
 	ok(d.pick(pair[1]) != "", "it cannot be picked")
 	eq(d.held, null, "nothing held")
-	ok(not d.floating(hand).has(pair[1]), "it does not float either")
+	ok(not d.extras(hand).has(pair[1]), "it does not float either")
 
 
 func test_dropping_forgets_held_and_reserve() -> void:
@@ -301,7 +291,7 @@ func test_a_floating_card_displaces_a_placed_one() -> void:
 	d.pick("b")
 	d.put([0, "spell"], HAND)
 	eq(d.sets[0], {"spell": "b"}, "b is the Spell")
-	ok(d.floating(HAND).has("a"), "a floats again")
+	ok(d.extras(HAND).has("a"), "a floats again")
 
 
 func test_a_fused_card_moves_with_its_partner() -> void:
@@ -319,4 +309,132 @@ func test_a_fused_card_moves_with_its_partner() -> void:
 	eq(d.slot_of(pair[0]), [0, "boost"], "the top card moved")
 	eq(d.fuse, {"top": pair[0], "bottom": pair[1], "element": "fire"}, "the Fuse is intact")
 	eq(d.slot_of(pair[1]), null, "the tucked card fills no Role")
-	ok(not d.floating(hand).has(pair[1]) and d.reserve_card(hand) != pair[1], "nor floats, nor is the Reserve")
+	ok(not d.extras(hand).has(pair[1]) and d.reserve_card(hand) != pair[1], "nor floats, nor is the Reserve")
+
+
+# Feature 010: the Hand is dealt into its places in draw order; the player swaps.
+
+func test_a_hand_is_dealt_in_draw_order() -> void:
+	var d = Draft.new()
+	d.deal(HAND)
+	eq(d.reserve, "a", "the first card drawn is the Reserve")
+	eq(d.sets[0], {"element": "b", "spell": "c", "boost": "d"}, "then Element, Spell, Boost")
+	eq(d.extras(HAND), [], "every card has a place")
+	eq(d.to_action(), {"spell": "c", "element": "b", "boost": "d", "boost_to": "attack", "ranged_discard": false},
+		"the engine gets the same action as placing them by hand")
+
+
+func test_a_short_hand_fills_the_spell_first() -> void:
+	var d = Draft.new()
+	d.deal(["a", "b", "c"])
+	eq(d.sets[0], {"spell": "a", "element": "b", "boost": "c"}, "three cards: every Role, no Reserve")
+	eq(d.reserve, null, "no Reserve")
+	d.deal(["a", "b"])
+	eq(d.sets[0], {"spell": "a", "element": "b"}, "two: Spell, then Element")
+	d.deal(["a"])
+	eq(d.sets[0], {"spell": "a"}, "one: the Spell")
+
+
+func test_the_final_battle_is_dealt_in_rulebook_order() -> void:
+	var seven := ["a", "b", "c", "d", "e", "f", "g"]
+	var d = Draft.new()
+	d.reset(2, true)
+	d.deal(seven)
+	eq(d.reserve, "a", "Final Journey: the Reserve first")
+	eq(d.sets[0], {"element": "b", "spell": "c", "boost": "d"}, "then Set 1")
+	eq(d.sets[1], {"element": "e", "spell": "f", "boost": "g"}, "then Set 2")
+	var nine := ["a", "b", "c", "d", "e", "f", "g", "h", "i"]
+	d.reset(2, false)
+	d.deal(nine)
+	eq(d.reserve, null, "Final Enemy: no Reserve")
+	eq(d.sets[0], {"element": "a", "spell": "b", "boost": "c"}, "Set 1 first")
+	eq(d.sets[1], {"element": "d", "spell": "e", "boost": "f"}, "then Set 2")
+	eq(d.extras(nine), ["g", "h", "i"], "the rest are extras, in Hand order")
+
+
+func test_a_divert_moves_the_reserve_into_the_empty_role() -> void:
+	var d = Draft.new()
+	d.deal(HAND)
+	d.drop("c")
+	d.settle(["a", "b", "d"])
+	eq(d.sets[0], {"element": "b", "spell": "a", "boost": "d"}, "the Reserve became the Spell")
+	eq(d.reserve, null, "three cards keep no Reserve")
+
+
+func test_a_fuse_moves_the_reserve_into_the_tucked_role() -> void:
+	var pair := _two_of_one_ether()
+	var hand := ["r", "x", pair[0], pair[1]]
+	var d = Draft.new()
+	d.deal(hand)
+	eq(d.sets[0].boost, pair[1], "the second of the pair is the Boost")
+	d.begin_mode("fuse_pick")
+	d.pick_for_fuse(pair[0], db)
+	d.pick_for_fuse(pair[1], db)
+	d.choose_fuse_element("fire")
+	d.settle(hand)
+	eq(d.sets[0].boost, "r", "the Reserve took the tucked card's Role")
+	eq(d.reserve, null, "a fused Hand of four keeps no Reserve")
+	d.unfuse()
+	d.settle(hand)
+	eq(d.reserve, pair[1], "unfused, the freed card takes the first empty place")
+	eq(d.extras(hand), [], "and nothing is left over")
+
+
+func test_swapping_two_cards_trades_their_roles() -> void:
+	var d = Draft.new()
+	d.deal(HAND)
+	d.swap("b", "d", HAND)
+	eq(d.sets[0], {"element": "d", "spell": "c", "boost": "b"}, "Element and Boost traded")
+	d.swap("c", "a", HAND)
+	eq(d.sets[0].spell, "a", "the Reserve became the Spell")
+	eq(d.reserve, "c", "and the Spell the Reserve")
+	eq(d.held, null, "nothing left held")
+
+
+func test_tapping_another_card_while_holding_one_swaps_them() -> void:
+	var d = Draft.new()
+	d.deal(HAND)
+	d.pick("b")
+	eq(d.put({"card": "c"}, HAND), "", "put on c")
+	eq(d.sets[0], {"element": "c", "spell": "b", "boost": "d"}, "b and c traded")
+
+
+func test_an_extra_swaps_into_a_role() -> void:
+	var nine := ["a", "b", "c", "d", "e", "f", "g", "h", "i"]
+	var d = Draft.new()
+	d.reset(2, false)
+	d.deal(nine)
+	d.swap("h", "b", nine)
+	eq(d.sets[0].spell, "h", "the extra became the Spell")
+	ok(d.extras(nine).has("b"), "the Spell became an extra")
+	d.swap("b", "c", nine)
+	eq(d.sets[0].boost, "b", "an extra put on a card takes its Role")
+	ok(d.extras(nine).has("c"), "and that card becomes an extra")
+
+
+func test_a_swap_keeps_the_boost_aim() -> void:
+	var d = Draft.new()
+	d.deal(HAND)
+	d.set_boost_to(0, "initiative")
+	d.swap("d", "a", HAND)
+	eq(d.sets[0].boost, "a", "a new Boost")
+	eq(d.boost_to[0], "initiative", "still aimed at Initiative")
+
+
+func test_which_boost_a_row_tap_aims() -> void:
+	var d = Draft.new()
+	d.deal(HAND)
+	eq(d.boost_target_set(null), 0, "one set: always that one")
+	d.set_boost_to(0, "attack")
+	eq(d.boost_target_set(null), 0, "even once aimed")
+	var nine := ["a", "b", "c", "d", "e", "f", "g", "h", "i"]
+	d.reset(2, false)
+	d.deal(nine)
+	eq(d.boost_target_set(null), 0, "two sets: the first unaimed")
+	d.set_boost_to(0, "attack")
+	eq(d.boost_target_set(null), 1, "then the second")
+	d.set_boost_to(1, "attack")
+	eq(d.boost_target_set(null), -1, "both aimed: the player must pick one up")
+	eq(d.boost_target_set("f"), 1, "the held Boost card's set")
+	eq(d.boost_target_set("c"), 0, "Set 1's Boost")
+	eq(d.boost_target_set("b"), -1, "a held Spell aims nothing")

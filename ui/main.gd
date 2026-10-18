@@ -411,7 +411,7 @@ func start_game(opts: Dictionary) -> void:
 	_save_marker()
 	_lost_at = ""
 	_undo.clear()
-	draft.reset(1)
+	_reset_draft()
 	play = PlayScreen.new()
 	play.flight = _flight
 	play.intent.connect(dispatch)
@@ -525,14 +525,13 @@ func dispatch(intent: Dictionary) -> void:
 			var g := GlossaryPopover.new()
 			_overlays.add_child(g)
 			g.show_entry(intent.id, anchor, plan.content)
+		"inspect_key":
+			_inspect_key()
 		"inspect":
 			_inspect(intent.id)
 		"card":
 			_last_card = intent.id
 			_on_card(intent.id)
-		"select_slot":
-			draft.select_slot(intent.set, intent.role)
-			_refresh()
 		"pick":
 			_last_card = intent.id
 			var err: String = draft.pick(intent.id)
@@ -555,18 +554,17 @@ func dispatch(intent: Dictionary) -> void:
 		"toggle_give_up_reserve":
 			draft.give_up_reserve = not draft.give_up_reserve
 			_refresh()
-		"take_back":
-			draft.take_back(intent.id)
-			_refresh()
-			_respond("take_back", null, intent.id)
 		"set_boost_to":
 			draft.set_boost_to(intent.set, intent.to)
 			_refresh()
 		"toggle_boost_to":
 			draft.toggle_boost_to(intent.set)
 			_refresh()
+		"aim_boost":
+			_aim_boost(intent.to)
 		"fuse_element":
 			draft.choose_fuse_element(intent.element)
+			draft.settle(game.hand)
 			_refresh(true)
 			_respond("fuse", intent.element)
 		"action":
@@ -618,11 +616,9 @@ func _on_card(id: String) -> void:
 				"fuse_element":
 					_refuse("Choose the Ether for the fused card.", id)
 				_:
-					# A card is picked up, then put in a place. Tapping a placed card
-					# while another is held swaps the two.
-					var place = draft.place_of(id, game.hand)
-					if draft.held != null and draft.held != id and place != null:
-						_put(place)
+					# A card is picked up, then another tapped: the two trade places.
+					if draft.held != null and draft.held != id:
+						_put({"card": id})
 						return
 					var err: String = draft.pick(id)
 					_refresh()
@@ -630,8 +626,8 @@ func _on_card(id: String) -> void:
 						_refuse(err, id)
 
 
-## Put the held card at `target` ([set, role], "reserve" or "floating") and answer
-## on the board: the card it displaced, if any, moves too.
+## Put the held card at `target` ([set, role], "reserve", or {"card": id} for that
+## card's place) and answer on the board: the card it displaced, if any, moves too.
 func _put(target: Variant) -> void:
 	var id = draft.held
 	if id == null or game == null:
@@ -649,13 +645,25 @@ func _put(target: Variant) -> void:
 		var now = draft.place_of(other, game.hand)
 		if typeof(now) == typeof(before[other]) and now == before[other]:
 			continue
-		var event := "take_back" if now == null else "place"
 		if moved == 0:
-			_respond(event, db.mage(other).element, other)
+			_respond("place", db.mage(other).element, other)
 		else:
 			var later: String = other
-			get_tree().create_timer(T.STAGGER).timeout.connect(func(): _respond(event, db.mage(later).element, later))
+			get_tree().create_timer(T.STAGGER).timeout.connect(func(): _respond("place", db.mage(later).element, later))
 		moved += 1
+
+
+## Aim a Boost at "attack" or "initiative" from the math box's row (specs/010 R4):
+## the held Boost card's, else the first one not yet aimed, else the only one.
+func _aim_boost(to: String) -> void:
+	var i: int = draft.boost_target_set(draft.held)
+	if i < 0:
+		_refuse("Pick up a Boost card, then tap where it goes.")
+		return
+	draft.set_boost_to(i, to)
+	if draft.held != null and draft.slot_of(draft.held) == [i, "boost"]:
+		draft.put_down()
+	_refresh()
 
 
 func _on_action(id: String) -> void:
@@ -663,10 +671,13 @@ func _on_action(id: String) -> void:
 		"fuse":
 			if draft.fuse != null or draft.mode.begins_with("fuse"):
 				draft.unfuse()
+				draft.settle(game.hand)
 			else:
 				draft.begin_mode("fuse_pick")
 		"divert", "regroup":
 			draft.begin_mode(id)
+		"give_up_reserve":
+			draft.give_up_reserve = not draft.give_up_reserve
 		"undo":
 			if not _undo.is_empty():
 				var entry: Dictionary = _undo.pop_back()
@@ -765,12 +776,13 @@ func _act(action: Dictionary, call: Callable) -> void:
 		"divert":
 			draft.drop(action.id)
 			draft.cancel_mode()
+			draft.settle(game.hand)
 		"upgrade":
 			pass
 		_:
-			draft.reset(2 if game.phase.begins_with("final") and game.phase != "final_soak" else 1, game.phase != "final_enemy")
+			_reset_draft()
 	if game.phase != phase_before and (game.phase == "challenge" or game.phase.begins_with("final")):
-		draft.reset(2 if game.phase == "final_journey" or game.phase == "final_enemy" else 1, game.phase != "final_enemy")
+		_reset_draft()
 	var steps := Sequencer.build(before, action, game.result, after)
 	_refresh(false, false)
 	if steps.is_empty():
@@ -778,6 +790,14 @@ func _act(action: Dictionary, call: Callable) -> void:
 		_tint_backdrop(vs)
 		return
 	animator.play(steps, play, vs)
+
+
+## A new draft for the game's current step. Building a set starts from the Hand dealt
+## into its places in draw order.
+func _reset_draft() -> void:
+	draft.reset(2 if game.phase == "final_journey" or game.phase == "final_enemy" else 1, game.phase != "final_enemy")
+	if game.phase == "challenge" or game.phase == "final_journey" or game.phase == "final_enemy":
+		draft.deal(game.hand)
 
 
 func _on_sequence_done() -> void:
@@ -854,6 +874,20 @@ func _banner(values: Dictionary, duration: float) -> void:
 			UI.art_crop(art_name, Art.head(art_name)), T.ether(d.early_damage.element), duration)
 	else:
 		b.show_banner("Region %d" % values.region, db.region(values.region).name, "sigil_region", T.GOLD, duration)
+
+
+## The Key Card that named the Encounter on show, at its Levels, its Key Card part
+## lifted: what pressing the Encounter face opens.
+func _inspect_key() -> void:
+	var enc = vs.get("encounter") if not vs.is_empty() else null
+	if enc == null or not enc.has("key_card") or not enc.key_card.has("id"):
+		return
+	var top := _top_overlay()
+	if top != null and top.get_script() == InspectOverlay:
+		return
+	var o := InspectOverlay.new()
+	_overlays.add_child(o)
+	o.setup(db, {"id": enc.key_card.id, "level": enc.key_card.level}, plan.content, true)
 
 
 func _inspect(id: String) -> void:
@@ -974,26 +1008,26 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	elif play == null or screen != play:
 		return
 	elif key >= KEY_1 and key <= KEY_9:
-		# Cards count as they sit on screen: the places from the left, then the
-		# floating row.
+		# Cards count as they sit on screen: the places from the left, then any card
+		# in no place (setup and Soak).
 		var order: Array = []
 		for p in vs.get("places", []):
 			if p.card_id != null:
 				order.append(p.card_id)
-		for id in vs.get("floating", vs.hand):
+		for id in vs.get("unplaced", vs.hand):
 			if not order.has(id):
 				order.append(id)
 		var i := key - KEY_1
 		if i < order.size():
 			dispatch({"type": "card", "id": order[i]})
 	elif key == KEY_TAB and draft.held != null:
-		# Move the target across the places that can take the held card, then the
-		# floating row.
+		# Move the target across the places that can take the held card.
 		var targets: Array = []
 		for p in vs.get("places", []):
-			if p.state == "target":
+			if p.state == "target" and p.tap != null and p.tap.type == "put":
 				targets.append(p.tap.target)
-		targets.append("floating")
+		if targets.is_empty():
+			return
 		var at: int = targets.find(_key_target)
 		var step := -1 if event.shift_pressed else 1
 		_key_target = targets[(at + step + targets.size()) % targets.size()] if at >= 0 else targets[0 if step > 0 else targets.size() - 1]
@@ -1001,24 +1035,19 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	elif key == KEY_SPACE and draft.held != null and _key_target != null:
 		dispatch({"type": "put", "target": _key_target})
 	elif key == KEY_R:
-		if not vs.get("places", []).is_empty() and vs.places[0].get("toggle_tap") != null and vs.places[0].toggle_tap.type == "toggle_give_up_reserve":
+		if vs.get("secondary", []).any(func(a): return a != null and a.id == "give_up_reserve"):
 			dispatch({"type": "toggle_give_up_reserve"})
 	elif key == KEY_ENTER or key == KEY_KP_ENTER:
 		dispatch({"type": "primary"})
-	elif key == KEY_TAB:
-		var slots: Array = draft.empty_slots() if not draft.empty_slots().is_empty() else []
-		if not vs.sets.is_empty():
-			var all := []
-			for i in vs.sets.size():
-				for role in Draft.ROLES:
-					all.append([i, role])
-			var at: int = all.find(draft.active)
-			var step := -1 if event.shift_pressed else 1
-			var next: Array = all[(at + step + all.size()) % all.size()]
-			dispatch({"type": "select_slot", "set": next[0], "role": next[1]})
 	elif key == KEY_B:
-		if not vs.sets.is_empty() and vs.sets[draft.active[0]].show_boost_to:
-			dispatch({"type": "toggle_boost_to", "set": draft.active[0]})
+		# The keyboard's aim: the held Boost's set, else the first unaimed, Attack
+		# first and then back and forth.
+		var i: int = draft.boost_target_set(draft.held)
+		if not vs.sets.is_empty() and vs.sets[0].show_boost_to:
+			if i < 0:
+				_refuse("Pick up a Boost card, then press B.")
+			else:
+				dispatch({"type": "toggle_boost_to", "set": i})
 	elif key == KEY_I:
 		var id: String = _last_card if vs.cards.has(_last_card) else (vs.hand[0] if not vs.hand.is_empty() else "")
 		if id != "":

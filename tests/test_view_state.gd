@@ -117,7 +117,7 @@ func test_each_action_keeps_its_cell() -> void:
 	eq(_ids(ViewState.build(g, d, db)), ["fuse", "cancel"], "Cancel in Divert's cell")
 
 
-func test_giving_up_the_reserve_is_the_reserve_places_switch() -> void:
+func test_giving_up_the_reserve_joins_the_action_row() -> void:
 	for game_seed in range(1, 400):
 		var g = _game(game_seed)
 		g.region = 2  # Region 2's first Enemy is Ranged
@@ -125,18 +125,32 @@ func test_giving_up_the_reserve_is_the_reserve_places_switch() -> void:
 		if enc.kind != "enemy" or enc.data.ability != "ranged":
 			continue
 		var d = Draft.new()
+		d.deal(g.hand)
 		var vs: Dictionary = ViewState.build(g, d, db)
-		ok(not _ids(vs).has("give_up_reserve"), "not in the action row")
-		eq(vs.places[0].toggle_tap, {"type": "toggle_give_up_reserve"}, "the Reserve place has the switch")
-		for pair in [[0, "element"], [1, "spell"], [2, "boost"]]:
-			d.pick(g.hand[pair[0]])
-			d.put([0, pair[1]], g.hand)
+		eq(_ids(vs), ["fuse", "divert", "give_up_reserve"], "a third action after Fuse and Divert")
+		eq(vs.action_cells, 4, "so the row has four cells")
 		d.give_up_reserve = true
 		vs = ViewState.build(g, d, db)
-		eq(vs.places[0].state, "given_up", "shown as given up")
-		eq(d.to_action().ranged_discard, true, "and sent to the engine as before")
+		eq(vs.places[0].state, "given_up", "the Reserve shows as given up")
+		ok(vs.secondary[2].active, "and the switch as on")
+		eq(d.to_action().ranged_discard, true, "sent to the engine as before")
+		var gone: String = g.hand[1]
+		g.hand.erase(gone)
+		d.drop(gone)
+		d.settle(g.hand)
+		vs = ViewState.build(g, d, db)
+		ok(not _ids(vs).has("give_up_reserve"), "with no Reserve left, the switch goes")
 		return
 	ok(false, "no seed opened on a Ranged enemy")
+
+
+func test_a_plain_encounter_keeps_three_cells() -> void:
+	var g = _game()
+	var d = Draft.new()
+	d.deal(g.hand)
+	var vs: Dictionary = ViewState.build(g, d, db)
+	ok(not _ids(vs).has("give_up_reserve"), "no Give up Reserve")
+	eq(vs.action_cells, 3, "Play keeps its half")
 
 
 func test_incomplete_preview_names_the_empty_slots() -> void:
@@ -491,29 +505,46 @@ func _sum(vs: Dictionary, id: String) -> Dictionary:
 	return {}
 
 
-func test_the_boost_target_starts_unchosen_against_an_enemy() -> void:
+func test_the_boost_is_aimed_from_the_math_box() -> void:
 	for game_seed in range(1, 40):
 		var g = _game(game_seed)
 		if g.encounter().kind != "enemy":
 			continue
 		var d = Draft.new()
-		for id in g.hand.slice(0, 3):
-			d.tap(id)
+		d.deal(g.hand)
 		var vs: Dictionary = ViewState.build(g, d, db)
 		eq(d.boost_to[0], null, "neither Attack nor Initiative is chosen")
-		eq(vs.preview.status, "incomplete", "so there is no outcome yet")
-		eq(vs.preview.missing, ["Boost target"], "and it is what is missing")
+		eq(vs.preview.missing, ["Boost target"], "it is what is missing")
 		ok(not vs.prompt.primary.enabled, "Play waits for it")
 		eq(vs.prompt.primary.reason, "Choose whether the Boost adds to Attack or to Initiative.", "and says why")
-		var boost: Dictionary = vs.places.filter(func(p): return p.role == "boost")[0]
-		eq(boost.choices.map(func(c): return [c.to, c.on]), [["attack", false], ["initiative", false]], "two choices, neither lit")
-		d.set_boost_to(0, "initiative")
+		var attack := _sum(vs, "attack")
+		eq(attack.aim, {"to": "attack", "on": [], "open": true}, "the Attack row invites the Boost")
+		eq(_sum(vs, "initiative").aim, {"to": "initiative", "on": [], "open": true}, "so does Initiative")
+		d.set_boost_to(d.boost_target_set(null), "initiative")
 		vs = ViewState.build(g, d, db)
-		ok(vs.prompt.primary.enabled, "once chosen, Play is ready")
-		boost = vs.places.filter(func(p): return p.role == "boost")[0]
-		eq(boost.choices.map(func(c): return c.on), [false, true], "the choice is lit")
+		ok(vs.prompt.primary.enabled or vs.preview.status != "incomplete", "once aimed, nothing is missing")
+		eq(_sum(vs, "initiative").aim, {"to": "initiative", "on": [0], "open": false}, "aimed at Initiative")
+		eq(_sum(vs, "attack").aim.on, [], "not at Attack")
+		d.begin_mode("divert")
+		vs = ViewState.build(g, d, db)
+		for s in vs.math.get("sums", []):
+			eq(s.get("aim"), null, "no aiming during a Divert")
 		return
 	ok(false, "no seed opened on an Enemy")
+
+
+func test_a_journey_has_no_aim() -> void:
+	for game_seed in range(1, 40):
+		var g = _game(game_seed)
+		if g.encounter().kind != "journey":
+			continue
+		var d = Draft.new()
+		d.deal(g.hand)
+		var vs: Dictionary = ViewState.build(g, d, db)
+		for s in vs.math.sums:
+			eq(s.aim, null, "the Move row aims nothing")
+		return
+	ok(false, "no seed opened on a Journey")
 
 
 func test_the_math_box_sums_come_from_the_engine() -> void:

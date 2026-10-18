@@ -13,14 +13,17 @@ const COLUMN_GAP := 24
 ## How far a picked-up card rises out of its row; less than GAP, so it never
 ## reaches the band above.
 const HELD_LIFT := 10.0
-## The role strip across the top of the card side: one tap target tall, half the
-## two-row slot band it replaced (feature 009, research R4).
-const STRIP_H := 88.0
-## The least height an empty place's outline keeps, under its badge, when the
-## floating cards need the rest of the band (a full Final Enemy Hand).
-const PLACE_EMPTY_H := 56.0
-## The action row at the foot of the card side: two secondary cells a quarter of
-## the row each, then Play across the right half (research R5).
+## The label over each place of the Hand: its Role's icon and name, in text no
+## smaller than T.TEXT_MIN (feature 010, research R6).
+const LABEL_H := 36.0
+## The Hand's well is drawn this far round its places; they sit this far below the
+## top of the Hand's region (and above its foot), so the well's top is level with the
+## left side's. Across, the places keep the region's full width, as cards are bound
+## by it; the well reaches this far past it on each side.
+const HAND_PAD := 10.0
+## The action row at the foot of the card side. Up to three cells: the secondary
+## actions a quarter each, Play the right half; more cells share the row evenly, Play
+## always last (feature 010, research R5).
 const ACTION_ROW_H := float(T.TAP_MIN)
 ## In the Final Battle the left side narrows to this, so every card fits (R6).
 const FINAL_LEFT_W := 380.0
@@ -132,8 +135,8 @@ static func is_final(vs: Dictionary) -> bool:
 
 
 ## view: the viewport in design units. safe: the part clear of notches, in design
-## units. hand_count: cards in the Hand. place_count: the ordered places (0 in setup
-## and Soak, which have no role strip). points_per_unit: how large a design unit is
+## units. hand_count: cards in the Hand. place_count: the labelled places (0 in setup
+## and Soak, which show no labels). points_per_unit: how large a design unit is
 ## on this screen. preview_needed: the height the preview asks for; 0 keeps the
 ## fixed split. encounter_min: the least height the face on show needs
 ## (T.ENCOUNTER_MIN, or T.DRAGON_MIN in the Final Battle); the preview never takes
@@ -141,9 +144,11 @@ static func is_final(vs: Dictionary) -> bool:
 ## a thin strip and the layout is undersized. final: the Final Battle, where the left
 ## side narrows to FINAL_LEFT_W.
 ##
-## The card side, top to bottom: the role strip ("slots"), the band of cards (the
-## places under the strip, the floating cards at its foot), and the action row.
-static func solve(view: Vector2, safe: Rect2, hand_count := 4, place_count := 4, points_per_unit := 0.5, preview_needed := 0.0, encounter_min: int = T.ENCOUNTER_MIN, upright := false, final := false) -> Dictionary:
+## `action_cells`: how many cells the action row holds, Play included.
+##
+## The card side, top to bottom: the Hand, one labelled place per card in as few
+## rows as give the largest cards, then the action row.
+static func solve(view: Vector2, safe: Rect2, hand_count := 4, place_count := 4, points_per_unit := 0.5, preview_needed := 0.0, encounter_min: int = T.ENCOUNTER_MIN, upright := false, final := false, action_cells := 3) -> Dictionary:
 	var left := maxf(safe.position.x, T.M)
 	var top := maxf(safe.position.y, T.M)
 	var right := minf(safe.end.x, view.x - T.M)
@@ -171,116 +176,137 @@ static func solve(view: Vector2, safe: Rect2, hand_count := 4, place_count := 4,
 	var right_x := c.position.x + left_w + COLUMN_GAP
 	var right_w := c.end.x - right_x
 
-	# The action row: a quarter each for the two secondary actions, Play the rest.
 	var actions := Rect2(right_x, c.end.y - ACTION_ROW_H, right_w, ACTION_ROW_H)
-	var quarter := floorf((right_w - 2 * T.S) / 4.0)
-	var secondary := [Rect2(right_x, actions.position.y, quarter, ACTION_ROW_H),
-		Rect2(right_x + quarter + T.S, actions.position.y, quarter, ACTION_ROW_H)]
-	var commit_x: float = right_x + 2 * (quarter + T.S)
-	var commit := Rect2(commit_x, actions.position.y, c.end.x - commit_x, ACTION_ROW_H)
-	var strip_h := STRIP_H if place_count > 0 else 0.0
-	var strip := Rect2(right_x, body_y, right_w, strip_h)
-	var cards_y: float = body_y + (strip_h + GAP if place_count > 0 else 0.0)
-	var cards := Rect2(right_x, cards_y, right_w, actions.position.y - GAP - cards_y)
+	var row := action_cells_for(actions, action_cells)
+	var hand := Rect2(right_x, body_y, right_w, actions.position.y - GAP - body_y)
 	var regions := {
 		"header": Rect2(c.position.x, c.position.y, c.size.x, HEADER_H),
 		"encounter": Rect2(c.position.x, body_y, left_w, encounter_h),
 		"preview": Rect2(c.position.x, body_y + encounter_h + GAP, left_w, preview_h),
-		"slots": strip,
-		"hand": cards,
+		"hand": hand,
 		"actions": actions,
-		"commit": commit,
-		"secondary": secondary,
+		"commit": row.commit,
+		"secondary": row.secondary,
 	}
-	var card := card_size_for(cards.size, hand_count, place_count)
+	# Every card has a place: the ordered places, then the Final Enemy's extras; in
+	# setup and Soak the cards alone, without labels.
+	var n := maxi(maxi(hand_count, place_count), 1)
+	var label_h := LABEL_H if place_count > 0 else 0.0
+	var band := hand.grow_individual(0, -HAND_PAD, 0, -HAND_PAD)
+	var laid: Dictionary
+	if final and (place_count == 6 or place_count == 7):
+		# The Final Battle's two sets, one row each, under one row of labels.
+		laid = _set_grid(band, place_count, n, label_h)
+	else:
+		# Building a Region set keeps one row (FR-001); setup and Soak may wrap when
+		# that gives larger cards.
+		laid = _positions(band, n, label_h, 1 if place_count > 0 else 3)
 	return {
 		"view": view, "content": c, "regions": regions,
 		# What the screens other than the play screen have, under the header.
 		"body": Rect2(c.position.x, body_y, c.size.x, body_h),
-		"card_size": card, "hand_count": hand_count, "place_count": place_count,
+		"card_size": laid.card, "hand_count": hand_count, "place_count": place_count,
+		"action_cells": action_cells,
 		"left_w": left_w,
-		"place_rects": _row(cards, card, place_count, cards.position.y),
+		"positions": laid.positions,
+		"label_h": label_h,
+		"set_rows": laid.get("set_rows", false),
 		"points_per_unit": points_per_unit,
 		"undersized": upright or points_per_unit < LEGIBLE_SCALE,
 	}
 
 
-## The largest card for `hand_count` cards and `place_count` places in a band of
-## `band` size such that every stage of building fits at once: with k cards placed,
-## the places row (an outline row while none is), then the rest floating in as many
-## rows as they need. Fixed for the Hand, so the cards never resize while placing.
-static func card_size_for(band: Vector2, hand_count: int, place_count: int) -> Vector2:
-	var n := maxi(hand_count, 1)
-	var across := maxi(place_count, 1)
-	var w := floorf(minf(CARD_MAX_W, (band.x - (across - 1) * _gap_min(across)) / across))
-	while w > 8.0:
+## The action row's cells (research R5): up to three, the secondary actions a quarter
+## each and Play the right half; four, a quarter each; five, a fifth each. Play is
+## always the last cell, on the right.
+static func action_cells_for(actions: Rect2, cells: int) -> Dictionary:
+	var parts := 4 if cells <= 4 else cells
+	var each := floorf((actions.size.x - (parts - 1) * T.S) / parts)
+	var secondary := []
+	for i in maxi(2, cells - 1):
+		secondary.append(Rect2(actions.position.x + i * (each + T.S), actions.position.y, each, actions.size.y))
+	var commit_x: float = secondary[-1].end.x + T.S
+	return {"secondary": secondary, "commit": Rect2(commit_x, actions.position.y, actions.end.x - commit_x, actions.size.y)}
+
+
+## The Final Battle's places as a grid: one row per Action Set, its Element, Spell and
+## Boost in the same columns, so one row of labels names both (the cards say which
+## set). The Final Journey's Reserve leads Set 1's row; the Final Enemy's extras
+## fill columns after the Boosts, top to bottom. Only the first row has labels.
+static func _set_grid(band: Rect2, place_count: int, n: int, label_h: float) -> Dictionary:
+	var lead := 1 if place_count == 7 else 0
+	var extras := maxi(0, n - place_count)
+	var cols := lead + 3 + ceili(extras / 2.0)
+	var cells := []
+	if lead == 1:
+		cells.append([0, 0])
+	for row in 2:
+		for c in 3:
+			cells.append([row, lead + c])
+	for k in extras:
+		cells.append([k % 2, lead + 3 + k / 2])
+	var w := floorf(minf(CARD_MAX_W, (band.size.x - (cols - 1) * _gap_min(cols)) / cols))
+	var h := floorf(w / T.CARD_ASPECT)
+	var tallest := floorf((band.size.y - label_h - GAP) / 2.0)
+	if h > tallest:
+		h = tallest
+		w = floorf(h * T.CARD_ASPECT)
+	var gap := _card_gap(band.size.x, w, cols)
+	var x0 := band.position.x + (band.size.x - (cols * w + (cols - 1) * gap)) / 2.0
+	var out := []
+	for cell in cells:
+		var x: float = roundf(x0 + cell[1] * (w + gap))
+		var y: float = band.position.y + label_h + cell[0] * (h + GAP)
+		out.append({"label": Rect2(x, band.position.y if cell[0] == 0 else y, w, label_h if cell[0] == 0 else 0.0),
+			"card": Rect2(x, y, w, h)})
+	return {"card": Vector2(w, h), "positions": out, "set_rows": true}
+
+
+## `n` labelled places in `band`: in up to `most_rows` rows, as many as give the widest
+## card, each row centred across the band, from its top. Every place is a label
+## `label_h` tall over a card.
+static func _positions(band: Rect2, n: int, label_h: float, most_rows: int) -> Dictionary:
+	var best := {}
+	for rows in range(1, most_rows + 1):
+		if rows > n:
+			break
+		var cols := ceili(n / float(rows))
+		var w := floorf(minf(CARD_MAX_W, (band.size.x - (cols - 1) * _gap_min(cols)) / cols))
 		var h := floorf(w / T.CARD_ASPECT)
-		if _stages_fit(band, Vector2(w, h), n, place_count):
-			return Vector2(w, h)
-		w -= 1.0
-	return Vector2(8, floorf(8 / T.CARD_ASPECT))
+		var tallest := floorf((band.size.y - (rows - 1) * GAP) / rows - label_h)
+		if h > tallest:
+			h = tallest
+			w = floorf(h * T.CARD_ASPECT)
+		if w < 8.0:
+			continue
+		if best.is_empty() or w > best.card.x:
+			best = {"card": Vector2(w, h), "rows": rows, "cols": cols}
+	if best.is_empty():
+		best = {"card": Vector2(8, floorf(8 / T.CARD_ASPECT)), "rows": 1, "cols": n}
+	var card: Vector2 = best.card
+	var cell_h: float = label_h + card.y
+	# The first row's labels line up with the top of the left side.
+	var y0 := band.position.y
+	var out := []
+	for r in best.rows:
+		var in_row := mini(best.cols, n - r * best.cols)
+		for rect in _row(band, Vector2(card.x, cell_h), in_row, y0 + r * (cell_h + GAP)):
+			out.append({"label": Rect2(rect.position, Vector2(card.x, label_h)),
+				"card": Rect2(rect.position + Vector2(0, label_h), card)})
+	return {"card": card, "positions": out}
 
 
-static func _stages_fit(band: Vector2, card: Vector2, n: int, place_count: int) -> bool:
-	var cols := _cols(band.x, card.x)
-	if cols < 1:
-		return false
-	for k in range(0, mini(place_count, n) + 1):
-		var rows := ceili((n - k) / float(cols))
-		var need := rows * card.y + maxi(0, rows - 1) * GAP
-		if place_count > 0:
-			need += (card.y if k > 0 else PLACE_EMPTY_H) + (GAP if rows > 0 else 0)
-		if need > band.y:
-			return false
-	return true
-
-
-## How many cards of width `w` fit side by side across `width`.
-static func _cols(width: float, w: float) -> int:
-	var cols := 0
-	while (cols + 1) * w + cols * _gap_min(cols + 1) <= width:
-		cols += 1
-	return cols
-
-
-## `count` cards of `card` size in one row centred across `band`, at `y`.
-static func _row(band: Rect2, card: Vector2, count: int, y: float) -> Array:
+## `count` cells of `cell` size in one row centred across `band`, at `y`.
+static func _row(band: Rect2, cell: Vector2, count: int, y: float) -> Array:
 	var out := []
 	if count <= 0:
 		return out
-	var gap := _card_gap(band.size.x, card.x, count)
-	var row_w := count * card.x + (count - 1) * gap
+	var gap := _card_gap(band.size.x, cell.x, count)
+	var row_w := count * cell.x + (count - 1) * gap
 	var x0 := band.position.x + (band.size.x - row_w) / 2.0
 	for i in count:
-		out.append(Rect2(Vector2(x0 + i * (card.x + gap), y).round(), card))
+		out.append(Rect2(Vector2(x0 + i * (cell.x + gap), y).round(), cell))
 	return out
-
-
-## Where `count` floating cards sit: at the foot of the band of cards, centred, in as
-## few rows as hold them, filled from the top row down.
-static func floating_rects(plan: Dictionary, count: int) -> Array:
-	var out := []
-	if count <= 0:
-		return out
-	var band: Rect2 = plan.regions.hand
-	var card: Vector2 = plan.card_size
-	var cols := maxi(1, _cols(band.size.x, card.x))
-	var rows := ceili(count / float(cols))
-	var y0 := band.end.y - rows * card.y - (rows - 1) * GAP
-	for r in rows:
-		var in_row := mini(cols, count - r * cols)
-		out.append_array(_row(band, card, in_row, y0 + r * (card.y + GAP)))
-	return out
-
-
-## The height an empty place's outline takes while `floating` cards are unplaced:
-## the card's height, or what the floating rows leave above them.
-static func outline_height(plan: Dictionary, floating: int) -> float:
-	var band: Rect2 = plan.regions.hand
-	var card: Vector2 = plan.card_size
-	var rects := floating_rects(plan, floating)
-	var top: float = rects[0].position.y if not rects.is_empty() else band.end.y + GAP
-	return clampf(top - GAP - band.position.y, PLACE_EMPTY_H, card.y)
 
 
 static func _card_gap(width: float, card_w: float, in_row: int) -> float:

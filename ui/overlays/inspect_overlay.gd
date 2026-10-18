@@ -2,16 +2,18 @@ extends "res://ui/overlays/overlay.gd"
 ## A card shown large at every one of its Levels, side by side: each Level is its
 ## own card in this game. The current Level is raised and marked; the ones either
 ## side say what a Downgrade would leave and what an Upgrade gives and costs.
+## Opened from the Encounter face (`key`) it shows only the Key Card that named the
+## Encounter, at its current Level, its Key Card part lifted.
 
 const CardFace = preload("res://ui/widgets/card_face.gd")
 const Glossary = preload("res://ui/model/glossary.gd")
 
 
-func setup(db, model: Dictionary, content: Rect2) -> void:
+func setup(db, model: Dictionary, content: Rect2, key := false) -> void:
 	var id: String = model.id
 	var m: Dictionary = db.mage(id)
 	var level: int = model.level
-	var count: int = m.levels.size()
+	var count: int = 1 if key else m.levels.size()
 	set_dim(0.93)
 	var row := UI.hbox(T.L)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -23,8 +25,10 @@ func setup(db, model: Dictionary, content: Rect2) -> void:
 	var by_width := (content.size.x - (count - 1) * T.L - count * 24) / count / T.CARD_ASPECT
 	var h := minf(minf(content.size.y - 190, 440.0), by_width)
 	var sz := Vector2(roundf(h * T.CARD_ASPECT), roundf(h))
-	for lv in range(1, count + 1):
+	for lv in ([level] if key else range(1, count + 1)):
 		var face = _face(db, m, lv, sz)
+		if key:
+			face.set_focus({"regions": ["key"]})
 		var title := "LEVEL %d" % lv
 		var colour := T.INK_MUTED
 		var caption := ""
@@ -32,7 +36,10 @@ func setup(db, model: Dictionary, content: Rect2) -> void:
 			title = "CURRENT · LEVEL %d" % lv
 			colour = T.GOLD
 			caption = m.name
-			if lv == 1:
+			if key:
+				title = "KEY CARD · LEVEL %d" % lv
+				caption = "%s, on top of the Deck, names this Encounter." % m.name
+			elif lv == 1:
 				caption = "A Level 1 card is Trashed and scores nothing if Downgraded."
 		elif lv == level - 1:
 			title = "IF DOWNGRADED"

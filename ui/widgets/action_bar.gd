@@ -1,9 +1,10 @@
 extends Control
-## The action row under the Hand (specs/009 contracts/board-layout.md): two
-## secondary cells a quarter of the row each (Fuse or Undo Upgrade, then Divert or
-## Regroup, or Cancel in place of the one under way), and the one primary action,
-## Play, across the right half, under the right thumb. Play never moves; a cell with
-## nothing on offer is left blank.
+## The action row under the Hand (specs/010 contracts/board-layout.md): the
+## secondary cells (Fuse or Undo Upgrade, then Divert or Regroup, then Give up
+## Reserve against a Ranged Enemy, or Cancel in place of the one under way), and the
+## one primary action, Play, last, under the right thumb. Up to three cells Play
+## takes the right half and a cell with nothing on offer is left blank; a fourth
+## cell makes every cell a quarter (layout_solver.action_cells_for).
 
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
@@ -40,7 +41,7 @@ func _init() -> void:
 	add_child(_why)
 
 
-## actions: the whole row; commit: Play's half of it; secondary: the two quarter cells.
+## actions: the whole row; commit: Play's cell; secondary: the cells before it.
 func apply_layout(actions: Rect2, commit: Rect2, secondary: Array = []) -> void:
 	_area = actions
 	_commit = commit

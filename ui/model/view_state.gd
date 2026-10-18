@@ -71,6 +71,7 @@ static func build(game, draft, db, extra := {}) -> Dictionary:
 		vs.explain = explain(game, draft)
 		vs.math = math(game, vs.preview, vs.explain)
 		vs.sets = _sets(game, draft)
+		_aim(vs, game, draft)
 	if SOAK_PHASES.has(phase):
 		var total := 0
 		for id in draft.picks:
@@ -91,19 +92,20 @@ static func build(game, draft, db, extra := {}) -> Dictionary:
 				if vs.played.roles[role] == id:
 					vs.cards[id]["played_role"] = [0, role]
 	vs["held"] = draft.held
-	vs["floating"] = draft.floating(vs.hand) if playing else []
 	vs["places"] = places(vs, game, draft)
 	for id in vs.hand:
 		vs.cards[id]["place"] = null
 	for pl in vs.places:
 		if pl.card_id != null and vs.cards.has(pl.card_id):
 			vs.cards[pl.card_id]["place"] = pl.key
-	if not playing and vs.places.is_empty():
-		vs.floating = vs.hand.duplicate()
-	elif not playing:
-		vs.floating = vs.hand.filter(func(id): return vs.cards[id].place == null)
+	# The cards in no place, in Hand order: every card in setup and Soak, which have
+	# no places; while building only a Fuse's tucked card, which sits behind its partner.
+	vs["unplaced"] = vs.hand.filter(func(id): return vs.cards[id].place == null)
 	vs["prompt"] = _prompt(game, draft, vs)
 	vs["secondary"] = _secondary(game, draft, vs)
+	# The action row's cells, Play's included (research R5): never fewer than three,
+	# so Play keeps the right half until a third action joins.
+	vs["action_cells"] = maxi(3, vs.secondary.size() + 1)
 	vs["input_region"] = _input_region(game, draft, vs)
 	return vs
 
@@ -331,6 +333,23 @@ static func explain(game, draft) -> Dictionary:
 	return {} if e.has("error") else e
 
 
+## Against an Enemy, the Attack and Initiative sums are where the Boost is aimed
+## (specs/010 research R4): each carries `aim`, the value it stands for, which sets'
+## Boosts are aimed there, and whether a Boost still waits for its aim. Null on the
+## other sums, on a Journey, and during a Fuse, Divert or Regroup.
+static func _aim(vs: Dictionary, game, draft) -> void:
+	var enemy: bool = _boost_has_target(game) and draft.mode == "none"
+	var open: bool = not draft.boost_unchosen().is_empty()
+	for s in vs.math.get("sums", []):
+		s["aim"] = null
+		if enemy and (s.id == "attack" or s.id == "initiative"):
+			var on := []
+			for i in draft.set_count:
+				if draft.boost_to[i] == s.id:
+					on.append(i)
+			s["aim"] = {"to": s.id, "on": on, "open": open}
+
+
 ## The math box (contracts/math-box.md): the result as sums of the engine's terms,
 ## each set against its target. No arithmetic here: totals and term values are
 ## copied from `explain`, outcomes from the preview. Empty when the engine refuses
@@ -384,55 +403,49 @@ static func _math_target(game, e: Dictionary, id: String, cmp: Dictionary, targe
 
 
 ## The places of the Hand, in the rulebook's order from the left: the Reserve, then
-## each Action Set's Element, Spell and Boost (contracts/board-layout.md). Each shows
-## the number its card gives there; a place never carries a card's name, only its
-## tooltip does. After a battle the same places recap what was played and whether
-## the Reserve stays. The Final Enemy keeps no Reserve.
+## each Action Set's Element, Spell and Boost, then the Final Enemy's extras, which
+## have no Role (contracts/board-layout.md). Every card has one. A place is labelled
+## with its Role and state, never a number: the math box shows what each card gives.
+## After a battle the same places recap what was played and whether the Reserve
+## stays. The Final Enemy keeps no Reserve.
 static func places(vs: Dictionary, game = null, draft = null) -> Array:
 	var out := []
 	if vs.sets.is_empty():
 		var p = vs.played
 		if p == null:
 			return out
-		var terms: Array = game.result.get("terms", []) if game != null else []
 		var r = p.reserve
-		out.append(_place("reserve", 0, "reserve", "kept" if r != null and p.reserve_kept else "discarded", r, null, "",
-			null, null, {"type": "inspect", "id": r} if r != null else null, _tip(vs, 0, "reserve", r, false)))
+		out.append(_place("reserve", 0, "reserve", "kept" if r != null and p.reserve_kept else "discarded", r,
+			{"type": "inspect", "id": r} if r != null else null, _tip(vs, 0, "reserve", r)))
 		for role in ORDER:
 			var id = p.roles.get(role)
-			var n = _term_value(terms, ROLE_NAMES[role]) if id != null else null
-			out.append(_place("0/" + role, 0, role, "played" if id != null else "discarded", id, n, "", null, null,
-				{"type": "inspect", "id": id} if id != null else null, _tip(vs, 0, role, id, false)))
-		return out
-	var two: bool = vs.sets.size() > 1
-	var enemy: bool = vs.sets[0].show_boost_to
-	var terms: Array = vs.explain.get("terms", [])
+			out.append(_place("0/" + role, 0, role, "played" if id != null else "discarded", id,
+				{"type": "inspect", "id": id} if id != null else null, _tip(vs, 0, role, id)))
+		return _indexed(out)
 	var held = draft.held if draft != null else null
 	var idle: bool = held == null and vs.mode == "none"
+	# With a card held, every other place takes it: a place with a card trades with it.
+	var tap_for := func(id, target) -> Variant:
+		if held != null:
+			if id == held:
+				return {"type": "put_down"}
+			return {"type": "put", "target": {"card": id} if id != null else target}
+		return {"type": "pick", "id": id} if id != null and idle else null
+	var state_for := func(id, filled: bool) -> String:
+		if held != null and id != held:
+			return "target"
+		return "filled" if filled else "empty"
 	if draft == null or draft.with_reserve:
 		var offered: bool = draft == null or draft.reserve_offered(vs.hand)
 		var r = draft.reserve_card(vs.hand) if draft != null else null
-		var state := "inactive"
-		if offered:
-			state = "filled" if r != null else "empty"
-			if held != null and held != r:
-				state = "target"
 		var given_up: bool = r != null and draft != null and draft.give_up_reserve
+		var state: String = "inactive"
+		if offered:
+			state = state_for.call(r, r != null)
 		if given_up:
 			state = "given_up"
-		var n = null
-		if r != null and vs.cards.has(r) and vs.cards[r].reserve_boosts:
-			n = vs.cards[r].stats.boost
-		var tap = null
-		if offered and held != null:
-			tap = {"type": "put", "target": "reserve"}
-		elif r != null and idle:
-			tap = {"type": "pick", "id": r}
-		var ranged: bool = vs.encounter != null and vs.encounter.kind == "enemy" and vs.encounter.data.get("ability") == "ranged"
-		var toggle = {"type": "toggle_give_up_reserve"} if ranged and offered else null
-		var place := _place("reserve", 0, "reserve", state, r, n, "move" if n != null else "",
-			vs.cards[r].element if r != null and vs.cards.has(r) else null, null, tap,
-			_tip(vs, 0, "reserve", r, two), toggle)
+		var place := _place("reserve", 0, "reserve", state, r, tap_for.call(r, "reserve") if offered else null,
+			_tip(vs, 0, "reserve", r))
 		place["given_up"] = given_up
 		# A rule of this Encounter that reads the Reserve: Steep raises the MP by its
 		# Boost, Freeze can take it away. The place shows that rule's mark.
@@ -441,70 +454,34 @@ static func places(vs: Dictionary, game = null, draft = null) -> Array:
 			if effects.has(rule):
 				place["rule"] = rule
 		out.append(place)
+	var two: bool = vs.sets.size() > 1
 	for i in vs.sets.size():
 		var st: Dictionary = vs.sets[i]
 		for role in ORDER:
 			var id = st.roles.get(role)
-			var counts := ""
-			match role:
-				"spell":
-					counts = "attack" if enemy else "move"
-				"element":
-					counts = "initiative"
-				"boost":
-					counts = ("" if st.boost_to == null else st.boost_to) if enemy else "move"
-			var boost_to = st.boost_to if role == "boost" and enemy else null
-			var toggle = null
-			var choices := []
-			if role == "boost" and enemy:
-				for to in ["attack", "initiative"]:
-					choices.append({"to": to, "on": st.boost_to == to, "tap": {"type": "set_boost_to", "set": i, "to": to}})
-			var key := "%d/%s" % [i, role]
-			var put = {"type": "put", "target": [i, role]} if held != null else null
-			var place: Dictionary
-			if id == null:
-				var next: bool = idle and vs.active_slot == [i, role]
-				var state := "target" if held != null else ("next" if next else "empty")
-				place = _place(key, i, role, state, null, null, counts, null, boost_to,
-					put if put != null else {"type": "select_slot", "set": i, "role": role},
-					_tip(vs, i, role, null, two), toggle)
-			else:
-				var c: Dictionary = vs.cards.get(id, {})
-				var n = null
-				match role:
-					"spell":
-						n = _term_value(terms, "Spell %d" % (i + 1) if two else "Spell")
-					"element":
-						n = c.stats.initiative if c.has("stats") else null
-					"boost":
-						n = c.stats.boost if c.has("stats") else null
-				var tap = put
-				if tap == null:
-					tap = {"type": "pick", "id": id} if idle else {"type": "take_back", "id": id}
-				place = _place(key, i, role, "target" if held != null and held != id else "filled", id, n, counts,
-					c.get("element"), boost_to, tap, _tip(vs, i, role, id, two), toggle)
+			var place := _place("%d/%s" % [i, role], i, role, state_for.call(id, id != null), id,
+				tap_for.call(id, [i, role]), _tip(vs, i, role, id))
 			place["set_start"] = two and i == 1 and role == ORDER[0]
-			place["choices"] = choices
 			out.append(place)
-	return out
+	if draft != null:
+		for id in draft.extras(vs.hand):
+			out.append(_place("extra/" + id, -1, "extra", state_for.call(id, true), id, tap_for.call(id, null),
+				vs.cards[id].name if vs.cards.has(id) else ""))
+	return _indexed(out)
 
 
-static func _place(key: String, set_index: int, role: String, state: String, id, number, counts_to: String, ether, boost_to, tap, tooltip: String, toggle_tap = null) -> Dictionary:
-	return {"key": key, "set": set_index, "role": role, "state": state, "card_id": id, "number": number,
-		"counts_to": counts_to, "ether": ether, "boost_to": boost_to, "tap": tap,
-		"toggle_tap": toggle_tap, "tooltip": tooltip, "set_start": false, "given_up": false, "rule": "", "choices": []}
+static func _indexed(places: Array) -> Array:
+	for i in places.size():
+		places[i]["index"] = i
+	return places
 
 
-## The value of the first term labelled `label`, or 0 when the engine left it out
-## (a zero contribution).
-static func _term_value(terms: Array, label: String) -> int:
-	for t in terms:
-		if t.label == label:
-			return t.value
-	return 0
+static func _place(key: String, set_index: int, role: String, state: String, id, tap, tooltip: String) -> Dictionary:
+	return {"key": key, "set": set_index, "role": role, "state": state, "card_id": id, "tap": tap,
+		"tooltip": tooltip, "set_start": false, "given_up": false, "rule": "", "index": -1}
 
 
-static func _tip(vs: Dictionary, set_index: int, role: String, id, _two: bool) -> String:
+static func _tip(vs: Dictionary, set_index: int, role: String, id) -> String:
 	var name: String = "Reserve" if role == "reserve" else ROLE_NAMES[role] + " %d" % (set_index + 1)
 	if id != null and vs.cards.has(id):
 		return "%s: %s" % [name, vs.cards[id].name]
@@ -719,10 +696,10 @@ static func _prompt(game, draft, vs: Dictionary) -> Dictionary:
 	return p
 
 
-## The secondary actions for the action row, one per cell (research R5): the first
-## quarter holds Fuse (or Undo Upgrade), the second Divert or Regroup. A null entry
-## leaves its cell blank, so nothing moves when an action is not on offer. Giving up
-## the Reserve is the Reserve place's own switch, not an action here.
+## The secondary actions for the action row, one per cell (specs/010 research R5,
+## R8): Fuse (or Undo Upgrade), then Divert or Regroup, then, against a Ranged Enemy
+## while the Reserve holds a card, Give up Reserve. A null entry leaves its cell
+## blank, so Play keeps its half when an action is not on offer.
 static func _secondary(game, draft, vs: Dictionary) -> Array:
 	var out := []
 	var cavalier: bool = game.options.get("cavalier", false)
@@ -744,6 +721,16 @@ static func _secondary(game, draft, vs: Dictionary) -> Array:
 					"active": draft.mode == "regroup", "reason": "" if not game._regrouped else "Already used"})
 	if game.phase == "upgrade" and vs.undo > 0:
 		out.append({"id": "undo", "label": "Undo Upgrade", "icon": "undo", "enabled": true, "active": false, "reason": ""})
+	var enc = vs.encounter
+	if game.phase == "challenge" and enc != null and enc.kind == "enemy" and enc.data.get("ability") == "ranged" \
+			and draft.reserve_card(game.hand) != null:
+		while out.size() < 2:
+			out.append(null)
+		var on: bool = draft.give_up_reserve
+		out.append({"id": "give_up_reserve", "label": "Give up Reserve", "icon": "ranged",
+			"enabled": true, "active": on, "reason": "",
+			"tooltip": ("Your Reserve is given up: this enemy's Ranged strike is ignored. Tap to keep it." if on
+				else "Give up your Reserve to ignore this enemy's Ranged strike.")})
 	# While a step is under way, the action that started it becomes its Cancel, in
 	# its own cell, so the row never needs a button more than the actions themselves.
 	if draft.mode != "none":

@@ -19,6 +19,13 @@ const HELP_W := 64.0
 ## smaller: the dragon's face leaves the box less room (T.DRAGON_MIN).
 const ROW_H := 64.0
 const ROW_H_FINAL := 52.0
+## A row the Boost is aimed from (Attack or Initiative against an Enemy) is a tap
+## target, so never shorter than this (specs/010 research R4).
+const ROW_H_AIM := float(T.TAP_MIN)
+## The verdict's type: bold body text at the subhead's size.
+const VERDICT := ["body_bold", 24]
+## How the Hand is arranged (specs/010): a card's place is its Role.
+const HINT := "Tap two cards to swap their Roles. Hold a card to inspect it."
 const TERM := T.NUMERAL_S
 const TOTAL := T.NUMERAL
 const MINUS := "\u2212"
@@ -34,6 +41,8 @@ var _needed := {}
 var _key := ""
 var _kind := ""
 var _phase := ""
+## Whether the Attack and Initiative rows aim the Boost in this step.
+var _aiming := false
 
 
 func _init() -> void:
@@ -61,29 +70,34 @@ func render(vs: Dictionary) -> void:
 		_shown_totals = {}
 		_prompt(vs, p, prompt)
 		return
+	_aiming = m.sums.any(func(s): return s.get("aim") != null)
 	for s in m.sums:
-		_box.add_child(_row(s))
-		if s.note != "" and not _final():
-			_box.add_child(_note(s))
+		if s.get("aim") != null:
+			_box.add_child(_aim_row(s))
+		else:
+			_box.add_child(_row(s))
+			if s.note != "" and not _final():
+				_box.add_child(_note(s))
 		if s.target.terms.size() > 1:
 			_box.add_child(_target_sum(s))
 	if not m.complete:
 		_box.add_child(UI.spacer())
-		_box.add_child(UI.label(prompt.text, T.BODY, T.INK, true))
-		# By the Final Battle the player knows how to place a card, and its box is short.
-		if not _final():
-			_box.add_child(UI.label("Tap a card, then the place it goes in. Hold a card to inspect it.", T.LABEL, T.INK_MUTED, true))
+		if _aiming and m.missing.all(func(x): return x.begins_with("Boost target")):
+			# All that is left is the Boost's aim, which the rows' "Add Boost" cells ask
+			# for: no more words, so the rows keep their room (specs/010 research R4).
+			pass
+		else:
+			_box.add_child(UI.label(prompt.text, T.BODY, T.INK, true))
+			# By the Final Battle the player knows how to swap cards, and its box is short.
+			if not _final():
+				_box.add_child(UI.label(HINT, T.LABEL, T.INK_MUTED, true))
 		_shown_totals = {}
 		return
 	_box.add_child(UI.spacer())
 	_verdict = _outcome_row(p, m, fatal)
 	_box.add_child(_verdict)
-	# In the Final Battle the red edge, verdict and Play already say it; the box has
-	# no room for the line (T.DRAGON_MIN).
-	if fatal and not _final():
-		var warn := UI.label("Playing this ends the game in defeat.", T.LABEL_BOLD, T.BAD)
-		warn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		_box.add_child(warn)
+	# A set that ends the game is said by the red edge, the verdict and Play's warning
+	# look; the box keeps its room for the rows that aim the Boost (specs/010 R4).
 	if p.changed.has("verdict"):
 		UI.flash(_verdict, T.INK)
 	_count_changed()
@@ -97,17 +111,18 @@ func needed_height(width: float) -> float:
 	var margins: Vector2 = get_theme_stylebox("panel").get_minimum_size()
 	var sep: int = _box.get_theme_constant("separation")
 	var h: float = UI.stack_height(_box, width - margins.x)
-	# Fullest look: the rows, the Initiative note (Region Enemies), a spacer and the
-	# outcome row, plus the warning when playing would end the game (Region) or a
-	# second line of outcome when the verdict and its cost do not share one (Final).
+	# Fullest look: the rows, the Initiative note (Region Enemies; inside its row
+	# while the Boost is aimed from it), a spacer and the outcome row, plus a second
+	# line of outcome when the verdict and its cost do not share one (Final Enemy).
 	var r := _row_h()
 	var rows: Array = {"enemy": [r, r, 26.0], "journey": [r, 26.0],
 		"final_journey": [r], "final_enemy": [r, r]}.get(_kind, [r])
+	if _aiming:
+		# Two aim rows; the Initiative note sits inside its row.
+		rows = [ROW_H_AIM, ROW_H_AIM]
 	var full: float = rows.reduce(func(a, b): return a + b, 0.0) + 44.0 + rows.size() * sep
 	if _kind == "final_enemy":
 		full += 44.0 + 4.0
-	elif not _final():
-		full += 26.0 + sep
 	h = maxf(h, full) + margins.y
 	h = maxf(h, _needed.get(_key, 0.0))
 	_needed[_key] = h
@@ -186,6 +201,9 @@ func _row(s: Dictionary) -> Control:
 	row.tooltip_text = s.label
 	for i in s.terms.size():
 		row.add_child(_term(s.terms[i], i == 0))
+	if s.total == null and s.missing.is_empty():
+		# Only the Boost's aim is missing, which its own cell asks for.
+		return row
 	if s.total == null:
 		# With nothing placed, the sum's icon and name lead the list, rather than an
 		# empty cell whose caption runs on into it.
@@ -273,6 +291,63 @@ func _sign(text: String) -> Control:
 	return l
 
 
+## Inside an aim row, the Initiative note's line: the row's cells give it this much of
+## the row's 88, so the row stays one tap target tall.
+const NOTE_H := 28.0
+## Inner room each side of an aim row, so its terms stand clear of its edge.
+const AIM_PAD := 10
+
+
+## A row the Boost is aimed from: the sum's row as a button, lit while the Boost is
+## aimed here, inviting the tap with a "Boost?" cell while a Boost waits for its aim.
+## The Initiative row carries its note inside it.
+func _aim_row(s: Dictionary) -> Control:
+	var aim: Dictionary = s.aim
+	var b := Button.new()
+	b.focus_mode = Control.FOCUS_NONE
+	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	b.tooltip_text = "Add the Boost to %s." % s.label
+	var lit: bool = not aim.on.is_empty()
+	var edge: Color = T.GOLD if aim.open else (T.FOCUS if lit else Color(T.LINE_SOFT, 0.6))
+	for st in ["normal", "hover", "pressed", "hover_pressed", "disabled"]:
+		var fill := Color(T.FOCUS, 0.10 if lit else 0.0)
+		if st != "normal" and st != "disabled":
+			fill = Color(T.FOCUS, 0.18)
+		b.add_theme_stylebox_override(st, UI.box(fill, edge, 2, T.RADIUS_S, 0))
+	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	var col := UI.vbox(0)
+	col.alignment = BoxContainer.ALIGNMENT_CENTER
+	# The "Add Boost" cell asks for the aim itself: the row lists only what else is missing.
+	var shown := s.duplicate()
+	shown.missing = s.missing.filter(func(x): return not x.begins_with("Boost target"))
+	var row := _row(shown)
+	if aim.open:
+		var ask := _cell("?", "Add Boost", T.GOLD, TERM)
+		ask.modulate.a = 0.75
+		row.add_child(ask)
+	col.add_child(row)
+	if s.note != "" and not _final():
+		# The note shares the row's 88: the cells give up its line.
+		for c in row.get_children():
+			if c.custom_minimum_size.y == _row_h():
+				c.custom_minimum_size.y = ROW_H_AIM - NOTE_H
+		col.add_child(_note(s))
+	UI.ignore_mouse(col)
+	var m := MarginContainer.new()
+	for side in ["left", "right"]:
+		m.add_theme_constant_override("margin_" + side, AIM_PAD)
+	m.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	m.add_child(col)
+	m.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	b.add_child(m)
+	# A tap target both ways from the start, before the box has laid it out full width.
+	b.custom_minimum_size = Vector2(ROW_H_AIM, maxf(ROW_H_AIM, m.get_combined_minimum_size().y))
+	m.minimum_size_changed.connect(func(): b.custom_minimum_size.y = maxf(ROW_H_AIM, m.get_combined_minimum_size().y))
+	var to: String = aim.to
+	b.pressed.connect(func(): intent.emit({"type": "aim_boost", "to": to}))
+	return b
+
+
 ## Under the Initiative row: who strikes first, and why when it is not Initiative.
 func _note(s: Dictionary) -> Control:
 	var look: Dictionary = T.VERDICT.get(s.result, T.VERDICT.loss)
@@ -326,7 +401,7 @@ func _prompt(vs: Dictionary, p, prompt: Dictionary) -> void:
 	if vs.phase == "setup":
 		_box.add_child(UI.label("Hold a card to see its other Levels.", T.LABEL, T.INK_MUTED, true))
 	elif p != null and vs.mode == "none":
-		_box.add_child(UI.label("Tap a card, then the place it goes in. Hold a card to inspect it.", T.LABEL, T.INK_MUTED, true))
+		_box.add_child(UI.label(HINT, T.LABEL, T.INK_MUTED, true))
 
 
 ## The verdict and its consequences on one line: rewards, then each cost. Each
@@ -341,7 +416,9 @@ func _outcome_row(p: Dictionary, m: Dictionary, fatal: bool) -> Control:
 	var verdict := UI.hbox(6)
 	verdict.custom_minimum_size.y = 44
 	verdict.add_child(UI.icon_rect(look.icon, 30, colour))
-	var text := UI.label(p.verdict_text if _final() else p.verdict_text.to_upper(), T.SUBHEAD, colour)
+	# In the body face, narrower than the display one, so the verdict and its rewards
+	# and costs share one line in the left side's width.
+	var text := UI.label(p.verdict_text, VERDICT, colour)
 	text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	verdict.add_child(text)
 	row.add_child(verdict)

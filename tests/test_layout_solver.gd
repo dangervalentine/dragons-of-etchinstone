@@ -4,11 +4,24 @@ extends "res://tests/base.gd"
 const Solver = preload("res://ui/model/layout_solver.gd")
 const T = preload("res://ui/theme/tokens.gd")
 
-func _plan(name: String, hand := 4, places := 4, final := false) -> Dictionary:
+## The card sizes of the 009 layout, measured before feature 010 replaced it: no
+## card may be smaller now (FR-013).
+const SIZE_009 := {
+	"phone-16x9": {"region": Vector2(149, 208), "final_journey": Vector2(112, 156), "final_enemy": Vector2(96, 134)},
+	"phone-tall": {"region": Vector2(140, 196), "final_journey": Vector2(131, 183), "final_enemy": Vector2(113, 158)},
+	"phone-tall-flipped": {"region": Vector2(140, 196), "final_journey": Vector2(131, 183), "final_enemy": Vector2(113, 158)},
+	"phone-small": {"region": Vector2(149, 208), "final_journey": Vector2(112, 156), "final_enemy": Vector2(96, 134)},
+	"tablet": {"region": Vector2(197, 275), "final_journey": Vector2(112, 156), "final_enemy": Vector2(132, 184)},
+	"desktop": {"region": Vector2(149, 208), "final_journey": Vector2(112, 156), "final_enemy": Vector2(96, 134)},
+	"desktop-ultrawide": {"region": Vector2(149, 208), "final_journey": Vector2(112, 156), "final_enemy": Vector2(96, 134)},
+	"upright-browser": {"region": Vector2(149, 208), "final_journey": Vector2(112, 156), "final_enemy": Vector2(96, 134)},
+}
+
+func _plan(name: String, hand := 4, places := 4, final := false, cells := 3) -> Dictionary:
 	var m: Array = Solver.MATRIX[name]
 	var view := Solver.matrix_view(name)
 	var k: float = Solver.stage_for_window(m[0], view).size.x / view.x
-	return Solver.solve(view, _safe(name), hand, places, m[2] * k, 0.0, T.ENCOUNTER_MIN, m[0].y > m[0].x, final)
+	return Solver.solve(view, _safe(name), hand, places, m[2] * k, 0.0, T.ENCOUNTER_MIN, m[0].y > m[0].x, final, cells)
 
 
 func _safe(name: String) -> Rect2:
@@ -84,12 +97,14 @@ func test_screens_that_fill_use_the_room() -> void:
 	ok(tall.content.size.x > _locked("phone-tall").content.size.x, "a tall phone's layout is wider than locked")
 	var tablet := _plan("tablet")
 	ok(tablet.content.size.y > _locked("tablet").content.size.y, "a tablet's layout is taller than locked")
-	ok(tablet.card_size.x > _locked("tablet").card_size.x, "with bigger cards")
+	# Since feature 010 a Region's cards are as wide as the card side allows, so a
+	# taller screen gives them no more room; they are never smaller.
+	ok(tablet.card_size.x >= _locked("tablet").card_size.x, "with cards no smaller")
 	for name in Solver.MATRIX:
 		ok(_plan(name).card_size.x >= _locked(name).card_size.x, "%s: cards no smaller than locked" % name)
 	for name in Solver.MATRIX:
 		var p := _plan(name)
-		for key in ["header", "encounter", "preview", "slots", "hand", "actions", "commit"]:
+		for key in ["header", "encounter", "preview", "hand", "actions", "commit"]:
 			ok(_safe(name).grow(0.5).encloses(p.regions[key]),
 				"%s: %s inside the safe area" % [name, key])
 
@@ -127,7 +142,7 @@ func test_soak_and_upgrade_keep_the_same_regions() -> void:
 	for name in Solver.MATRIX:
 		var building := _plan(name, 4, 4)
 		var recap := _plan(name, 4, 4)
-		for key in ["slots", "actions", "commit"]:
+		for key in ["hand", "actions", "commit"]:
 			eq(recap.regions[key], building.regions[key], "%s: %s stays put in Soak and Upgrade" % [name, key])
 
 
@@ -147,90 +162,112 @@ func test_preview_takes_what_it_needs() -> void:
 		eq(p.regions.encounter.end.y + Solver.GAP, p.regions.preview.position.y, "the Encounter fills the rest (%d)" % needed)
 
 
-# Feature 009: the card side is the role strip, the band of cards and the action row.
+# Feature 010: the card side is the Hand, one labelled place per card, over the
+# action row, whose cells share its width by how many there are.
 
-func test_the_card_side_runs_strip_cards_actions() -> void:
+func test_the_card_side_runs_hand_then_actions() -> void:
 	var p := _plan("phone-16x9")
 	var r: Dictionary = p.regions
 	var c: Rect2 = p.content
-	for key in ["slots", "hand", "actions"]:
-		eq(r[key].position.x, r.slots.position.x, key + " starts at the card side's left")
+	ok(not r.has("slots"), "no role strip")
+	for key in ["hand", "actions"]:
 		eq(r[key].end.x, c.end.x, key + " runs to the right edge")
-	eq(r.slots.size.y, 88.0, "the strip is one tap target tall")
-	ok(r.slots.size.y <= 184.0 / 2.0, "at most half the old slot band (FR-018)")
-	eq(r.slots.position.y, p.body.position.y, "the strip is at the top")
-	ok(r.slots.end.y < r.hand.position.y, "the cards are under the strip")
-	ok(r.hand.end.y < r.actions.position.y, "the actions are under the cards")
+	eq(r.hand.position.x, r.actions.position.x, "the Hand and the actions share the card side")
+	eq(r.hand.position.y, p.body.position.y, "the Hand starts at the top")
+	eq(r.hand.end.y + Solver.GAP, r.actions.position.y, "the actions are just under it")
 	eq(r.actions.size.y, 88.0, "the action row is one tap target tall")
 	eq(r.actions.end.y, c.end.y, "at the foot of the screen")
-	ok(r.encounter.end.x < r.slots.position.x, "the left side is apart")
+	ok(r.encounter.end.x < r.hand.position.x, "the left side is apart")
 
 
-func test_the_action_row_is_quarter_quarter_half() -> void:
+func test_every_place_is_a_label_over_a_card() -> void:
 	for name in Solver.MATRIX:
-		var r: Dictionary = _plan(name).regions
-		var w: float = r.actions.size.x - 2 * T.S
-		for i in 2:
-			ok(absf(r.secondary[i].size.x - w / 4.0) <= w * 0.02, "%s: cell %d is a quarter" % [name, i])
-			eq(r.secondary[i].size.y, r.actions.size.y, "%s: cell %d fills the row's height" % [name, i])
-		ok(absf(r.commit.size.x - w / 2.0) <= w * 0.02, "%s: Play is a half" % name)
-		eq(r.commit.end.x, r.actions.end.x, "%s: Play is on the right" % name)
-		ok(r.secondary[0].end.x < r.secondary[1].position.x and r.secondary[1].end.x < r.commit.position.x,
-			"%s: the cells sit apart, in order" % name)
+		var p := _plan(name)
+		eq(p.positions.size(), 4, "%s: four places" % name)
+		for i in p.positions.size():
+			var pos: Dictionary = p.positions[i]
+			eq(pos.label.size.y, Solver.LABEL_H, "%s: label %d is 36 tall" % [name, i])
+			eq(pos.label.end.y, pos.card.position.y, "%s: label %d sits on its card" % [name, i])
+			eq(pos.card.size, p.card_size, "%s: card %d the Hand's size" % [name, i])
+			ok(p.regions.hand.grow_individual(0.5, -Solver.HAND_PAD + 0.5, 0.5, -Solver.HAND_PAD + 0.5).encloses(pos.label.merge(pos.card)), "%s: place %d inside the Hand's well" % [name, i])
+			if i == 0:
+				eq(pos.label.position.y, p.regions.hand.position.y + Solver.HAND_PAD, "%s: the well's top is level with the left side" % name)
+			if i > 0:
+				ok(p.positions[i - 1].card.end.x < pos.card.position.x, "%s: places %d and %d apart, in order" % [name, i - 1, i])
+				eq(p.positions[i - 1].card.position.y, pos.card.position.y, "%s: one row" % name)
 
 
-func test_setup_and_soak_have_no_strip() -> void:
+func test_region_cards_are_larger_than_before() -> void:
+	var tall := _plan("phone-tall")
+	eq(tall.card_size, Vector2(220, 308), "phone-tall: 220 x 308")
+	ok(tall.card_size.y >= 1.5 * SIZE_009["phone-tall"].region.y, "at least half again as tall (SC-001)")
+	eq(_plan("phone-16x9").card_size, Vector2(197, 275), "baseline: 197 x 275")
+	for name in Solver.MATRIX:
+		var cases := {"region": _plan(name), "final_journey": _plan(name, 7, 7, true), "final_enemy": _plan(name, 9, 6, true)}
+		for stage in cases:
+			var size: Vector2 = cases[stage].card_size
+			ok(size.x >= SIZE_009[name][stage].x, "%s %s: %s no smaller than 009's %s (FR-013)" % [name, stage, str(size), str(SIZE_009[name][stage])])
+
+
+func test_setup_and_soak_have_no_labels() -> void:
 	var p := _plan("phone-16x9", 5, 0)
-	eq(p.regions.slots.size.y, 0.0, "no strip")
-	eq(p.place_rects, [], "no places")
-	eq(p.regions.hand.position.y, p.body.position.y, "the cards take the room")
+	eq(p.label_h, 0.0, "no labels")
+	eq(p.positions.size(), 5, "a place for each card")
+	for pos in p.positions:
+		eq(pos.label.size.y, 0.0, "the card is its whole place")
 
 
-func test_a_region_card_size() -> void:
-	var p := _plan("phone-16x9")
-	ok(absf(p.card_size.x - 148.0) <= 3.0, "about 148 wide, got %s" % str(p.card_size))
-	eq(p.left_w, 400.0, "the left side as before")
+func test_the_final_journey_breaks_between_the_sets() -> void:
+	var p := _plan("phone-16x9", 7, 7, true)
+	eq(p.left_w, Solver.FINAL_LEFT_W, "the left side narrows")
+	var tops := {}
+	for pos in p.positions:
+		tops[pos.card.position.y] = tops.get(pos.card.position.y, 0) + 1
+	eq(tops.values(), [4, 3], "two rows: the Reserve and Set 1, then Set 2")
 
 
-## Every stage of placing: k cards in places, the rest floating. All inside the
-## content, none overlapping, the outlines above the floating cards.
-func _check_stages(where: String, p: Dictionary, hand: int, places: int) -> void:
-	var c: Rect2 = p.content
-	for k in range(0, mini(places, hand) + 1):
-		var rects: Array = []
-		for i in k:
-			rects.append(p.place_rects[i])
-		var floating: Array = Solver.floating_rects(p, hand - k)
-		rects.append_array(floating)
-		if k == 0 and places > 0:
-			var h := Solver.outline_height(p, hand)
-			ok(h >= Solver.PLACE_EMPTY_H, "%s: outlines keep their least height" % where)
-		for i in rects.size():
-			ok(c.grow(0.5).encloses(rects[i]), "%s k=%d: card %d inside, got %s" % [where, k, i, str(rects[i])])
-			ok(p.regions.hand.grow(0.5).encloses(rects[i]), "%s k=%d: card %d in the band of cards" % [where, k, i])
-			for j in range(i + 1, rects.size()):
-				ok(not rects[i].grow(-1).intersects(rects[j].grow(-1)), "%s k=%d: cards %d and %d apart" % [where, k, i, j])
-
-
-func test_every_stage_fits_in_a_region() -> void:
-	for name in Solver.MATRIX:
-		if name == "upright-browser":
-			continue
-		for hand in [1, 2, 3, 4]:
-			_check_stages("%s %d cards" % [name, hand], _plan(name, hand, 4), hand, 4)
-
-
-func test_the_final_battle_narrows_the_left_and_fits_every_card() -> void:
+func test_the_final_battle_fits_every_card() -> void:
 	for name in Solver.MATRIX:
 		if name == "upright-browser":
 			continue
 		for case in [[7, 7], [8, 6], [9, 6], [6, 6]]:
 			var p := _plan(name, case[0], case[1], true)
-			eq(p.left_w, Solver.FINAL_LEFT_W, "%s: the left side narrows" % name)
-			_check_stages("%s final %s" % [name, str(case)], p, case[0], case[1])
+			eq(p.positions.size(), case[0], "%s %s: a place per card" % [name, str(case)])
+			for i in p.positions.size():
+				var a: Dictionary = p.positions[i]
+				ok(p.content.grow(0.5).encloses(a.label.merge(a.card)), "%s %s: place %d on screen" % [name, str(case), i])
+				for j in range(i + 1, p.positions.size()):
+					var b: Dictionary = p.positions[j]
+					ok(not a.label.merge(a.card).grow(-1).intersects(b.label.merge(b.card).grow(-1)),
+						"%s %s: places %d and %d apart" % [name, str(case), i, j])
+
+
+func test_the_action_row_shares_its_width_by_cell_count() -> void:
+	for name in Solver.MATRIX:
+		for case in [[3, 2, 0.5], [4, 3, 0.25], [5, 4, 0.2]]:
+			var r: Dictionary = _plan(name, 4, 4, false, case[0]).regions
+			var w: float = r.actions.size.x
+			var each: float = 0.25 if case[0] <= 4 else 0.2
+			eq(r.secondary.size(), case[1], "%s, %d cells: %d secondary" % [name, case[0], case[1]])
+			for i in r.secondary.size():
+				ok(absf(r.secondary[i].size.x - w * each) <= w * 0.02, "%s, %d cells: cell %d is %.2f of the row" % [name, case[0], i, each])
+				eq(r.secondary[i].size.y, r.actions.size.y, "%s: cell %d fills the row's height" % [name, i])
+			ok(absf(r.commit.size.x - w * case[2]) <= w * 0.02, "%s, %d cells: Play is %.2f of the row" % [name, case[0], case[2]])
+			eq(r.commit.end.x, r.actions.end.x, "%s: Play is on the right" % name)
+			ok(r.secondary[-1].end.x < r.commit.position.x, "%s: Play comes last" % name)
+
+
+func test_the_final_battle_shares_one_row_of_labels() -> void:
+	for case in [[7, 7, 1], [6, 6, 0], [9, 6, 0]]:
+		var p := _plan("phone-16x9", case[0], case[1], true)
+		ok(p.set_rows, "%s: the sets are rows" % str(case))
+		var lead: int = case[2]
+		for c in 3:
+			var top: Dictionary = p.positions[lead + c]
+			var under: Dictionary = p.positions[lead + 3 + c]
+			eq(top.card.position.x, under.card.position.x, "%s: Set 2's place %d is under Set 1's" % [str(case), c])
+			eq(top.label.size.y, Solver.LABEL_H, "%s: Set 1's place %d is labelled" % [str(case), c])
+			eq(under.label.size.y, 0.0, "%s: Set 2's place %d shares that label" % [str(case), c])
+			ok(under.card.position.y > top.card.end.y, "%s: Set 2 is below" % str(case))
 	var journey := _plan("phone-16x9", 7, 7, true)
-	ok(absf(journey.card_size.x - 112.0) <= 3.0, "Final Journey cards about 112 wide, got %s" % str(journey.card_size))
-	var eight := _plan("phone-16x9", 8, 6, true)
-	ok(absf(eight.card_size.x - 112.0) <= 3.0, "8-card Final Enemy about 112, got %s" % str(eight.card_size))
-	var nine := _plan("phone-16x9", 9, 6, true)
-	ok(absf(nine.card_size.x - 96.0) <= 3.0, "9-card Final Enemy about 96, got %s" % str(nine.card_size))
+	ok(journey.card_size.x >= 160.0, "Final Journey cards larger than with a label per row, got %s" % str(journey.card_size))

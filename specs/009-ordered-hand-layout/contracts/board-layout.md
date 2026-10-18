@@ -1,5 +1,7 @@
 # Contract: Card Side of the Play Board
 
+> **Superseded in part by feature 010.** The role strip, the separate places and floating rows, and the fixed ¼ · ¼ · ½ action row are replaced by labelled places in one row and an action row shared by cell count. See [010 board-layout](../../010-legible-hand-cards/contracts/board-layout.md).
+
 This replaces the slot band and action column in [006 role-slots](../../006-etched-stone-polish/contracts/role-slots.md). Data shapes are in [data-model.md](../data-model.md). Figures are design units at 1280 × 720.
 
 ## Bands (top to bottom, full card-side width)

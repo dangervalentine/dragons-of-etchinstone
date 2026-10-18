@@ -137,7 +137,7 @@ const SECTIONS := [
 			{"p": "The card left out is your [[reserve|Reserve]]. It stays in your Hand for the next Encounter."},
 		]},
 		{"text": [
-			{"p": "Your Hand is held in the rulebook's order, from the left: Reserve, Element, Spell, Boost. Tap a card, then its place, or drag it there."},
+			{"p": "Your Hand is held in the rulebook's order, from the left: Reserve, Element, Spell, Boost. The Hand is dealt into those places in the order it was drawn; tap two cards, or drag one onto another, to swap their Roles. Against an Enemy, tap Attack or Initiative in the box under the Encounter to add the Boost there."},
 			{"p": "A Spell whose actions do not suit the Encounter still counts, at a value of 1. Actions marked with both the Attack and the Move icon work as either."},
 			{"p": "With fewer than three cards in your Hand, as after a Divert, fill the Roles you can; one of them must be the Spell."},
 			{"p": "Without an Element your Initiative is 0, apart from any Boost you put into it."},

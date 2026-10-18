@@ -7,6 +7,7 @@ extends SceneTree
 
 const Solver = preload("res://ui/model/layout_solver.gd")
 const T = preload("res://ui/theme/tokens.gd")
+const InspectOverlay = preload("res://ui/overlays/inspect_overlay.gd")
 const Game = preload("res://engine/game.gd")
 const CardDB = preload("res://engine/card_db.gd")
 const CardView = preload("res://ui/widgets/card_view.gd")
@@ -142,8 +143,6 @@ func _check_space(where: String) -> void:
 	for panel in [play.preview, play.soak_meter, play.xp_purse]:
 		if panel.visible:
 			zones["preview"] = [panel.get_global_rect(), panel]
-	if play._regions.slots.size.y > 0.0:
-		zones["slots"] = [play._regions.slots.get_global_rect(), play._regions.slots]
 	space_checks += 1
 	for key in zones:
 		var e: float = Solver.empty_fraction(zones[key][0], zones[key][1])
@@ -210,6 +209,8 @@ func _inspect_screen(where: String) -> void:
 func _name(c: Control) -> String:
 	if c is CardView:
 		return "card " + c.id
+	if c is Button and c.text == "":
+		return "button at %s" % str(c.get_path()).get_slice("/", str(c.get_path()).get_slice_count("/") - 2) + "/" + c.get_parent().get_class()
 	if c is Button:
 		return "button '%s'" % c.text
 	return str(c.get_path()).get_file()
@@ -255,7 +256,7 @@ func _play(where: String, game_seed: int, difficulty: String, animated: bool) ->
 				for i in mini(3, hand.size()):
 					await _place(hand[i], [0, roles[i]], animated, where)
 				if hand.size() > 2:
-					await _press({"type": "set_boost_to", "set": 0, "to": "attack"}, animated)
+					await _press({"type": "aim_boost", "to": "attack"}, animated)
 				var a := {"spell": hand[0]}
 				if hand.size() > 1:
 					a["element"] = hand[1]
@@ -265,6 +266,10 @@ func _play(where: String, game_seed: int, difficulty: String, animated: bool) ->
 				a["ranged_discard"] = false
 				if not animated:
 					_inspect_screen("%s challenge, placed" % where)
+					# On a long phone a Region's cards are half again as tall as 009's 196
+					# (specs/010 SC-001).
+					if current_size.begins_with("phone-tall") and hand.size() == 4:
+						_ok(ui.play.plan.card_size.y >= 294.0, "%s: cards %s, at least 294 tall" % [where, str(ui.play.plan.card_size)])
 				await _press({"type": "primary"}, animated)
 				shadow.play(a)
 			"penalty", "poison", "final_soak":
@@ -298,7 +303,7 @@ func _play(where: String, game_seed: int, difficulty: String, animated: bool) ->
 				for i in mini(6, hand.size()):
 					await _place(hand[i], [i / 3, order[i % 3]], animated, where)
 				for i in 2:
-					await _press({"type": "set_boost_to", "set": i, "to": "attack"}, animated)
+					await _press({"type": "aim_boost", "to": "attack"}, animated)
 				if not animated:
 					_inspect_screen("%s %s, placed" % [where, g.phase])
 				var sets := [{}, {}]
@@ -923,35 +928,63 @@ func _arrange_walk(where: String) -> void:
 	await _settle()
 	var g = ui.game
 	var hand: Array = g.hand.duplicate()
-	_ok(ui.vs.floating == hand and ui.vs.preview.status == "incomplete", "%s: a dealt Hand floats and shows no outcome" % where)
-	ui.dispatch({"type": "card", "id": hand[0]})
-	ui.dispatch({"type": "put", "target": [0, "spell"]})
-	ui.dispatch({"type": "card", "id": hand[1]})
-	ui.dispatch({"type": "put", "target": [0, "element"]})
-	ui.dispatch({"type": "card", "id": hand[2]})
-	ui.dispatch({"type": "put", "target": [0, "boost"]})
+	var enemy: bool = g.encounter().kind == "enemy"
+	_ok(ui.vs.places.map(func(p): return p.card_id) == hand and ui.vs.unplaced.is_empty(),
+		"%s: the Hand is dealt into Reserve, Element, Spell, Boost in draw order" % where)
+	_ok(ui.vs.preview.status == ("incomplete" if enemy else "ready"), "%s: an outcome shows at once, but for the Boost's aim" % where)
+	_ok(ui.play.labels.get_child_count() == 4, "%s: a label over each card" % where)
+	_cards_on_screen(where + " dealt")
+	# Pressing the Encounter face shows the Key Card that named it, its Key Card part lifted.
+	var face: Control = ui.play.encounter_face
+	var up := InputEventMouseButton.new()
+	up.button_index = MOUSE_BUTTON_LEFT
+	up.pressed = false
+	face.gui_input.emit(up)
+	var top = ui._top_overlay()
+	_ok(top != null and top.get_script() == InspectOverlay, "%s: pressing the Encounter opens its Key Card" % where)
+	if top != null:
+		_ok(top.find_children("*", "Label", true, false).any(func(l): return l.text.begins_with("KEY CARD")), "%s: and says it is the Key Card" % where)
+		await _settle()
+		_inspect_screen(where + " key card")
+	ui._close_overlays()
 	await _settle()
-	_ok(ui.vs.places.map(func(p): return p.card_id) == [hand[3], hand[1], hand[0], hand[2]],
-		"%s: the Hand reads Reserve, Element, Spell, Boost" % where)
-	_cards_on_screen(where + " arranged")
-	if g.encounter().kind == "enemy":
+	_ok(not ui.play.encounter_face.find_children("*", "Label", true, false).any(func(l): return l.text.contains("Key Card")), "%s: the face has no Key Card line" % where)
+	if enemy:
 		# Play before the Boost has a target: nothing is played, and the board says why.
 		ui.dispatch({"type": "primary"})
 		await _settle()
-		_ok(g.phase == "challenge", "%s: Play waits for the Boost's target" % where)
+		_ok(g.phase == "challenge", "%s: Play waits for the Boost's aim" % where)
 		_ok(ui.play._toast.modulate.a > 0.5 and ui.play._toast_label.text.contains("Boost"), "%s: and says what is missing" % where)
-	# Tap the Boost, then the Element: they swap.
-	ui.dispatch({"type": "card", "id": hand[2]})
+		# The math box's Initiative row aims it, its Attack row brings it back.
+		var rows: Array = ui.play.preview.find_children("*", "Button", true, false).filter(func(b): return b.tooltip_text.begins_with("Add the Boost"))
+		_ok(rows.size() == 2, "%s: two rows aim the Boost (%d)" % [where, rows.size()])
+		for b in rows:
+			_ok(b.size.y >= T.TAP_MIN - 0.5, "%s: the %s row is a tap target, %s" % [where, b.tooltip_text, str(b.size)])
+		if rows.size() == 2:
+			rows[1].pressed.emit()
+			_ok(ui.draft.boost_to[0] == "initiative", "%s: the Initiative row aims the Boost there" % where)
+			await _settle()
+			rows = ui.play.preview.find_children("*", "Button", true, false).filter(func(b): return b.tooltip_text.begins_with("Add the Boost"))
+			rows[0].pressed.emit()
+			_ok(ui.draft.boost_to[0] == "attack", "%s: and the Attack row brings it back" % where)
+	# Tap the Element, then the Boost: they swap.
 	ui.dispatch({"type": "card", "id": hand[1]})
-	_ok(ui.draft.sets[0].element == hand[2] and ui.draft.sets[0].boost == hand[1], "%s: tapping a placed card swaps it with the held one" % where)
-	# Drag the Reserve onto the Spell's column.
+	ui.dispatch({"type": "card", "id": hand[3]})
+	_ok(ui.draft.sets[0].element == hand[3] and ui.draft.sets[0].boost == hand[1], "%s: tapping two cards swaps them" % where)
+	# Drag the Reserve onto the Spell.
 	await _settle()
 	var tray = ui.play.hand
-	var spell_rect: Rect2 = ui.play.plan.place_rects[2]
-	tray._on_drag_started(hand[3])
-	tray._on_dragged(hand[3], spell_rect.get_center())
-	tray._on_dropped(hand[3], spell_rect.get_center())
-	_ok(ui.draft.sets[0].spell == hand[3] and ui.draft.reserve_card(g.hand) == hand[0], "%s: dragging the Reserve onto the Spell swaps them" % where)
+	var spell_rect: Rect2 = ui.play.plan.positions[2].card
+	tray._on_drag_started(hand[0])
+	tray._on_dragged(hand[0], spell_rect.get_center())
+	tray._on_dropped(hand[0], spell_rect.get_center())
+	_ok(ui.draft.sets[0].spell == hand[0] and ui.draft.reserve_card(g.hand) == hand[2], "%s: dragging the Reserve onto the Spell swaps them" % where)
+	# Dropped on a label, the card goes to that place too.
+	await _settle()
+	var label_rect: Rect2 = ui.play.plan.positions[0].label
+	tray._on_drag_started(hand[0])
+	tray._on_dropped(hand[0], label_rect.get_center())
+	_ok(ui.draft.reserve_card(g.hand) == hand[0], "%s: a card dropped on the Reserve's label takes the Reserve" % where)
 	# A drag let go away from any place changes nothing.
 	await _settle()
 	var before: Dictionary = ui.draft.to_action()
@@ -966,7 +999,7 @@ func _arrange_walk(where: String) -> void:
 	ui._unhandled_key_input(_key(KEY_TAB))
 	var aim = ui._key_target
 	ui._unhandled_key_input(_key(KEY_SPACE))
-	_ok(ui.draft.held == null and typeof(ui.draft.place_of(first, g.hand)) == TYPE_ARRAY, "%s: Space puts it where Tab aimed (%s)" % [where, str(aim)])
+	_ok(ui.draft.held == null and typeof(ui.draft.place_of(first, g.hand)) == TYPE_ARRAY, "%s: Space swaps it where Tab aimed (%s)" % [where, str(aim)])
 	ui._unhandled_key_input(_key(KEY_2))
 	ui._unhandled_key_input(_key(KEY_ESCAPE))
 	_ok(ui.draft.held == null, "%s: Escape puts the card down" % where)

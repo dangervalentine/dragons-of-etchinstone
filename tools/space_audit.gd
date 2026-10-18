@@ -123,10 +123,7 @@ func _zones() -> Dictionary:
 	for panel in [play.preview, play.soak_meter, play.xp_purse]:
 		if panel.visible:
 			out["preview"] = [panel.get_global_rect(), panel]
-	var role_key := "rail" if play._regions.has("rail") else "slots"
-	var role: Control = play._regions[role_key]
-	if role.size.x > 0.0 and role.size.y > 0.0:
-		out[role_key] = [role.get_global_rect(), role]
+	# Since feature 010 the Roles are labels on the places, inside the Hand's zone.
 	out["hand"] = [play._hand_panel.get_global_rect(), play.hand]
 	return out
 
@@ -134,9 +131,11 @@ func _zones() -> Dictionary:
 func _measure(size: String, state: String) -> void:
 	var play = ui.play
 	var content: Rect2 = play.plan.content
-	var role_key := "rail" if play._regions.has("rail") else "slots"
-	var role: Control = play._regions[role_key]
-	var role_area: float = role.size.x * role.size.y if role.is_visible_in_tree() else 0.0
+	# The role display: the labels over the places (feature 010).
+	var role := Rect2()
+	for pos in play.plan.get("positions", []):
+		role = pos.label if role.size == Vector2.ZERO else role.merge(pos.label)
+	var role_area: float = role.size.x * role.size.y
 	var zones := {}
 	var worst := ["", 0.0]
 	var all := _zones()

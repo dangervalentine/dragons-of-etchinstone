@@ -24,7 +24,8 @@ static func context(game, draft) -> Dictionary:
 	if not BUILDING.has(phase):
 		return ctx
 	var a: Array = draft.active
-	# The hint points the floating cards at the next Role, except while one is held.
+	# The hint points the cards with no place (an extra, a short Hand's) at an empty
+	# Role, except while a card is held.
 	if draft.mode == "none" and draft.held == null and a[0] < draft.set_count and not draft.sets[a[0]].has(a[1]):
 		ctx.next_role = a[1]
 	match phase:

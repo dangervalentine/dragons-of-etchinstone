@@ -82,6 +82,7 @@ static func _encounter(db, kind: String, size: Vector2, on_help: Callable) -> Co
 	# Badges a little smaller than play's, and never less height than they need, so
 	# the face fits above the page's terms with its caption inside the frame.
 	face.badge_min = 48.0
+	face.show_key_line = true
 	face.custom_minimum_size = Vector2(size.x, clampf(size.y, T.ENCOUNTER_MIN - 16, 360.0))
 	face.intent.connect(func(d): on_help.call(d))
 	face.render(ViewState.encounter_model(db, 1, kind, 1, null, key))

@@ -82,7 +82,10 @@ const BRONZE_LIGHT := Color("a88a63")
 # Layout
 ## The least height a face needs at the 400-unit left column, with its content 4
 ## units clear of the edge (measured for feature 006, T009): a Region Enemy with four
-## badge rows at their 52-unit minimum and the Key Card line (a Journey needs 206);
+## badge rows (each at least 54, the least its figure and icon take, though
+## badge_min asks 52); since feature 010 the board's face has no Key Card line
+## (pressing it shows the card), which is what clipped at this height before (a
+## Journey needs 206);
 ## the dragon's face with its tiers (332 on the Final Journey, 384 for Grimroch's
 ## Final Enemy). Since feature 009 the Final Battle's left side is narrower and its
 ## math box taller, so the face may drop its heading and caption to fit: what is
