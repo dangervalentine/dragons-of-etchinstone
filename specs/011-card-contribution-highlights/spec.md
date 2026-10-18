@@ -177,6 +177,7 @@ The XP purse keeps showing the XP to spend as a number. Each time the player lev
   - the Element's Ether, and its Initiative against an Enemy;
   - each Boost card's Boost;
   - the Reserve's Boost when it counts toward Move.
+- **FR-007a** *(owner, 2026-10-17)*: On each placed card, the stat-column figures that neither count nor carry a mark MUST step back slightly (fill and figure part of the way toward muted), so the counted and marked ones stand out. Nothing steps back during a Fuse, Divert or Regroup, or outside building.
 - **FR-008**: The lifted parts MUST be derived from the same count the game uses to resolve the Encounter, taking the arrangement, the Boost aim, the Encounter type, the Hardship and the Enemy ability into account. They MUST update after every swap, aim change, Fuse and Reserve choice.
 - **FR-009**: Lifted parts MUST be distinguishable without relying on colour alone.
 - **FR-010**: Lifting MUST NOT reveal a predicted total or outcome.
@@ -209,6 +210,7 @@ The XP purse keeps showing the XP to spend as a number. Each time the player lev
 
 **Retiring the box's animations**
 
+- **FR-022a** *(owner, 2026-10-17)*: In the Final Battle the dragon's face MUST keep the height it needs to show every tier; the box under it takes what is left, and its after-Play sum is clipped to the box rather than spilling. No tier is lit before Play.
 - **FR-023**: When Play is pressed, a summary MUST appear on screen showing the numbers added up: each sum's terms, its total against its target, and the verdict. The numbers MUST NOT fly from the cards; the number flights that land on the box are retired. The summary MUST appear only after Play, never before. It MAY use the box's space during resolution, since it is not a prediction. The post-Play recap MUST still appear.
 
 **Unchanged**

@@ -325,7 +325,11 @@ func _replan(p: Dictionary, state: Dictionary) -> Dictionary:
 	# changes between steps and Encounters, not as cards are placed.
 	var needed := roundi(_preview_widget().needed_height(p.regions.preview.size.x))
 	var enc = state.get("encounter")
-	var least: int = T.DRAGON_MIN if enc != null and enc.kind.begins_with("final") else T.ENCOUNTER_MIN
+	var least: int = T.ENCOUNTER_MIN
+	if enc != null and enc.kind.begins_with("final"):
+		# The dragon's whole ladder shows: the box under it takes only what is left.
+		dragon_face.render(enc)
+		least = maxi(T.DRAGON_MIN, roundi(dragon_face.needed_height(p.regions.encounter.size.x)))
 	var cells: int = state.get("action_cells", 3)
 	if p.get("for", []) == [count, places, final, needed, least, cells]:
 		return p
@@ -353,8 +357,8 @@ func _render_encounter() -> void:
 		encounter_face.render(enc)
 	elif dragon_face.visible:
 		dragon_face.render(enc)
-		var p = vs.preview
-		dragon_face.set_reached(p.tier if p != null and p.status == "ready" else -1)
+		# No tier is lit before Play: the cards show what counts (specs/011 FR-001).
+		dragon_face.set_reached(-1)
 	else:
 		_render_setup_face()
 

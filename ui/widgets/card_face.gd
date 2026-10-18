@@ -18,6 +18,8 @@ const FIELD_SHADER = preload("res://ui/fx/shaders/ether_card.gdshader")
 
 ## How far a quietened plate's fill moves toward the band colour; tests/test_card_contrast.gd checks it.
 const QUIET := 0.75
+## How far a placed card's unused figures step back: part of the way to quiet.
+const HUSH := 0.6
 const STEEL := Color("8f8aa0")
 ## The widest line any Mage Card name needs in capitals, a single unbreakable word;
 ## every name is set at the size that fits it.
@@ -77,7 +79,8 @@ func set_motion(value: bool) -> void:
 ## An empty focus draws the card normally. A change fades over a moment.
 func set_focus(f: Dictionary) -> void:
 	var next := {"regions": f.get("regions", []), "mark": f.get("mark", ""),
-		"damage_element": f.get("damage_element", ""), "impacts": f.get("impacts", []), "aim": f.get("aim")}
+		"damage_element": f.get("damage_element", ""), "impacts": f.get("impacts", []), "aim": f.get("aim"),
+		"quiet": f.get("quiet", [])}
 	if next == _focus:
 		return
 	_focus_from = _focus
@@ -105,10 +108,14 @@ func _lift(key: String) -> float:
 	return lerpf(_has(_focus_from, key), _has(_focus, key), _focus_t)
 
 
-## How strongly a region is quietened (0 to 1): never, now. The parts a step uses
-## are lifted; the others keep their brightness.
-func _hush(_key: String) -> float:
-	return 0.0
+## How strongly a region is quietened (0 to 1), through any fade in progress: a
+## placed card's figures that play no part step back a little (owner, specs/011),
+## so the lifted and marked ones stand out.
+func _hush(key: String) -> float:
+	if dimmed:
+		return 0.0
+	var q := func(f: Dictionary) -> float: return 1.0 if f.get("quiet", []).has(key) else 0.0
+	return HUSH * lerpf(q.call(_focus_from), q.call(_focus), _focus_t)
 
 
 static func _has(f: Dictionary, key: String) -> float:

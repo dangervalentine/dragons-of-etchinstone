@@ -43,6 +43,9 @@ var _preview = null
 
 
 func _init() -> void:
+	# The sum after Play never spills past the box (the Final Battle's dragon face
+	# keeps its whole ladder, so the box may be shorter than the sum wants).
+	clip_contents = true
 	add_theme_stylebox_override("panel", UI.stone_zone())
 	for b in [_box, _sum]:
 		b.add_theme_constant_override("separation", 6)

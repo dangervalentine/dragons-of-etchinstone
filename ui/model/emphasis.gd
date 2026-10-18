@@ -9,6 +9,8 @@ const Rules = preload("res://engine/rules.gd")
 
 const BUILDING := ["challenge", "final_journey", "final_enemy"]
 const SOAKING := ["penalty", "poison", "final_soak"]
+## The figures of the stat column, the ones a placed card can quieten.
+const STAT_REGIONS := ["initiative", "basic", "enhanced", "boost", "armor"]
 const ROLE_REGIONS := {"spell": ["basic", "enhanced"], "element": ["ether", "initiative"], "boost": ["boost"]}
 ## Figures an Upgrade changes, named as card regions.
 const CHANGED_REGIONS := {"upgrade_cost": "cost", "encounter": "key", "hardship": "key"}
@@ -67,7 +69,7 @@ static func context(game, draft, e := {}, effects := []) -> Dictionary:
 ## "impacts": [{region, icon}], "aim": null or {"to": ...}}. `c` is the card model
 ## ViewState has built so far; `lv` its current Level's figures.
 static func focus(c: Dictionary, lv: Dictionary, ctx: Dictionary) -> Dictionary:
-	var out := {"regions": [], "mark": "", "damage_element": "", "impacts": [], "aim": null}
+	var out := {"regions": [], "mark": "", "damage_element": "", "impacts": [], "aim": null, "quiet": []}
 	var phase: String = ctx.phase
 	if BUILDING.has(phase):
 		out.regions = _building(c, lv, ctx)
@@ -76,6 +78,10 @@ static func focus(c: Dictionary, lv: Dictionary, ctx: Dictionary) -> Dictionary:
 			out.aim = {"to": ctx.boost_to[role[0]]}
 		if ctx.mode == "none":
 			out.impacts = _impacts(c, ctx)
+			# A placed card's other figures play no part: they step back a little.
+			if c.get("role") != null or c.get("reserve", false):
+				var marked: Array = out.impacts.map(func(m): return m.region)
+				out.quiet = STAT_REGIONS.filter(func(r): return not out.regions.has(r) and not marked.has(r))
 	elif SOAKING.has(phase):
 		if not c.get("downgraded", false):
 			out.regions = ["armor"]

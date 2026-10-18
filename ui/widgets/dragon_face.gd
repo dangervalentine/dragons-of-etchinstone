@@ -270,3 +270,22 @@ func _chip(opts: Dictionary) -> Control:
 	var c: Control = StatChip.make(opts)
 	c.help.connect(func(id, source): intent.emit({"type": "help", "id": id, "source": source}))
 	return c
+
+
+## The height this face needs at `width` to show everything: the band, the
+## figures, their names and every rung. The play screen keeps at least this much
+## for it, so the box under it never cuts a tier off.
+func needed_height(width: float) -> float:
+	if _panel.get_child_count() == 0:
+		return 0.0
+	var w := width - 2 * (T.M - 4)
+	var panel_w := w - roundf(w * (SCENE_SHARE if _kind == "final_journey" else BATTLE_SHARE)) - T.S
+	var shown := []
+	for c in _spare:
+		if not c.visible:
+			c.visible = true
+			shown.append(c)
+	var h: float = UI.stack_height(_panel, panel_w)
+	for c in shown:
+		c.visible = false
+	return ceilf(BAND_H + T.S + h + T.M + EDGE)

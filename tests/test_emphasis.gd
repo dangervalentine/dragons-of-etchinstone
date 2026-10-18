@@ -472,3 +472,24 @@ func test_armor_marks_the_enhanced_attack_it_reduces() -> void:
 		if marked > 0 and unmarked > 0:
 			break
 	ok(marked > 0 and unmarked > 0, "both cases seen (%d marked, %d not)" % [marked, unmarked])
+
+
+## On a placed card every figure of the stat column is lit, marked, or stepped back:
+## exactly one of them (owner, specs/011). Unplaced cards and other steps step none.
+func test_unused_figures_step_back() -> void:
+	var g = _game_facing("enemy")
+	var d = Draft.new()
+	d.deal(g.hand)
+	var vs: Dictionary = ViewState.build(g, d, db)
+	for id in g.hand:
+		var f: Dictionary = vs.cards[id].focus
+		var marked: Array = f.impacts.map(func(m): return m.region)
+		for r in Emphasis.STAT_REGIONS:
+			var n := int(f.regions.has(r)) + int(marked.has(r)) + int(f.quiet.has(r))
+			ok(n >= 1, "%s: %s is lit, marked or stepped back" % [id, r])
+			ok(not (f.quiet.has(r) and (f.regions.has(r) or marked.has(r))), "%s: %s is not stepped back while it counts" % [id, r])
+		ok(f.quiet.has("armor"), "%s: Armor plays no part while building" % id)
+	d.begin_mode("divert")
+	vs = ViewState.build(g, d, db)
+	for id in g.hand:
+		eq(vs.cards[id].focus.quiet, [], "nothing steps back during a Divert")
