@@ -61,6 +61,7 @@ func _run() -> void:
 	await _resize_mid_turn()
 	await _open("phone-16x9")
 	await _arrange_walk("phone-16x9")
+	await _overlay_over_lifted_cards("phone-16x9")
 	await _unspent_xp_walk("phone-16x9")
 	print("ui check: %d checks, %d failed (%d space checks)" % [checks, failures, space_checks])
 	ui.free()
@@ -837,6 +838,43 @@ func _place(id: String, target: Array, animated: bool, where: String) -> void:
 	_ok(ui.draft.slot_of(id) == target, "%s: %s is put in %s" % [where, id, str(target)])
 	if not animated:
 		_cards_on_screen("%s %s" % [where, ui.game.phase])
+
+
+## A card lifted out of the Hand (held, or picked up to drag, as a long press does
+## on its way to the inspect panel) is drawn above the other cards, but an open
+## overlay still covers it.
+func _overlay_over_lifted_cards(where: String) -> void:
+	ui._close_overlays()
+	ui.start_game({"seed": 4, "dragon": "rodving", "difficulty": "normal", "cavalier": false, "glass_cannon": false})
+	await _settle()
+	var id: String = ui.game.hand[0]
+	ui.dispatch({"type": "card", "id": id})
+	await _settle()
+	_ok(ui.draft.held == id, "%s: the card is held" % where)
+	for how in ["held", "dragged"]:
+		if how == "dragged":
+			ui.play.hand._on_drag_started(id)
+		ui.dispatch({"type": "inspect", "id": id})
+		await _settle()
+		var overlay: CanvasItem = ui._overlays.get_child(-1)
+		for node in ui.screen.find_children("*", "CanvasItem", true, false):
+			var c := node as CanvasItem
+			if c.is_visible_in_tree() and _drawn_z(c) > _drawn_z(overlay):
+				_fail("%s: the %s card draws above the inspect panel (z %d over %d)" % [where, how, _drawn_z(c), _drawn_z(overlay)])
+				break
+		checks += 1
+		ui._close_overlays()
+		await process_frame
+	ui.play.hand._on_dropped(id, ui.play.plan.regions.encounter.get_center())
+
+
+## The z a node is drawn at: its own, plus its parents' while it is relative to them.
+func _drawn_z(c: CanvasItem) -> int:
+	var z := c.z_index
+	while c.z_as_relative and c.get_parent() is CanvasItem:
+		c = c.get_parent()
+		z += c.z_index
+	return z
 
 
 func _cards_on_screen(where: String) -> void:

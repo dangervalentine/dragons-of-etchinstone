@@ -124,6 +124,9 @@ func _ready() -> void:
 		add_child(layer)
 		if layer == _screen_host:
 			add_child(title_bar)
+	# Cards rise over the rest of the screen by z_index (held 1, dragged 2, played 5),
+	# which outranks the order the layers are added in, so the overlays sit higher still.
+	_overlays.z_index = 10
 	title_bar.intent.connect(dispatch)
 	# Cards under an overlay hold still, so only what can be seen is animated.
 	_overlays.child_entered_tree.connect(func(_n):
