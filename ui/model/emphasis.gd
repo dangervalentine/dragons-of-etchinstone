@@ -12,8 +12,6 @@ const SOAKING := ["penalty", "poison", "final_soak"]
 ## The figures of the stat column, the ones a placed card can quieten.
 const STAT_REGIONS := ["initiative", "basic", "enhanced", "boost", "armor"]
 const ROLE_REGIONS := {"spell": ["basic", "enhanced"], "element": ["ether", "initiative"], "boost": ["boost"]}
-## Figures an Upgrade changes, named as card regions.
-const CHANGED_REGIONS := {"upgrade_cost": "cost", "encounter": "key", "hardship": "key"}
 
 
 ## What every card's focus depends on, worked out once per view state. `e` is the
@@ -94,13 +92,9 @@ static func focus(c: Dictionary, lv: Dictionary, ctx: Dictionary) -> Dictionary:
 		elif lv.upgrade_cost > ctx.xp:
 			out.mark = "unaffordable"
 		else:
+			# Only the cost is lifted: the card is otherwise shown as it is (owner,
+			# specs/011); what an Upgrade would change shows when the card is pressed.
 			out.mark = "affordable"
-			var alt = c.get("alt")
-			if alt != null:
-				for key in alt.changed:
-					var region: String = CHANGED_REGIONS.get(key, key)
-					if not out.regions.has(region):
-						out.regions.append(region)
 	return out
 
 
