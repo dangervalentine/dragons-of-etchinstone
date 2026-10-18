@@ -18,8 +18,12 @@ const FIELD_SHADER = preload("res://ui/fx/shaders/ether_card.gdshader")
 
 ## How far a quietened plate's fill moves toward the band colour; tests/test_card_contrast.gd checks it.
 const QUIET := 0.75
-## How far a placed card's unused figures step back: part of the way to quiet.
+## How far a placed card's unused figures step back: part of the way to quiet,
+## and a little see-through, so even the near-black plates recede.
 const HUSH := 0.6
+const FADE := 0.6
+## How far a dark plate in focus warms toward the focus colour.
+const LIT := 0.3
 const STEEL := Color("8f8aa0")
 ## The widest line any Mage Card name needs in capitals, a single unbreakable word;
 ## every name is set at the size that fits it.
@@ -585,13 +589,24 @@ func _split(pts: PackedVector2Array, width: float) -> void:
 func _fill_for(key: String, fill: Color) -> Color:
 	if dimmed:
 		return fill if fill == T.BG_BAND else T.INK_MUTED.darkened(0.55)
-	return fill.lerp(T.BG_BAND, QUIET * _hush(key))
+	# A dark plate in focus takes a warm glow of its own: on the near-black plates a
+	# rim alone barely shows (owner, specs/011).
+	var lift := _lift(key)
+	if lift > 0.0 and fill.get_luminance() < 0.2:
+		fill = fill.lerp(T.FOCUS, LIT * lift)
+	var hush := _hush(key)
+	var out := fill.lerp(T.BG_BAND, QUIET * hush)
+	out.a = 1.0 - FADE * hush
+	return out
 
 
 func _ink_for(key: String, ink: Color) -> Color:
 	if dimmed:
 		return T.INK_MUTED
-	return ink.lerp(T.INK_MUTED, _hush(key))
+	var hush := _hush(key)
+	var out := ink.lerp(T.INK_MUTED, hush)
+	out.a = 1.0 - FADE * hush
+	return out
 
 
 ## A raised piece lit from the top: shadow, focus glow, body, top highlight, bottom
@@ -602,7 +617,7 @@ func _raised(pts: PackedVector2Array, fill: Color, key: String) -> void:
 	var shadow := PackedVector2Array()
 	for p in pts:
 		shadow.append(p + Vector2(0, drop))
-	_ink.draw_colored_polygon(shadow, Color(0, 0, 0, 0.4))
+	_ink.draw_colored_polygon(shadow, Color(0, 0, 0, 0.4 * fill.a))
 	var body := pts
 	if lift > 0.0:
 		body = PackedVector2Array()
@@ -631,7 +646,9 @@ func _glow_rim(pts: PackedVector2Array, amount: float) -> void:
 		return
 	var closed := pts.duplicate()
 	closed.append(pts[0])
-	_ink.draw_polyline(closed, Color(T.muted(T.FOCUS), amount), maxf(2.0, size.x * 0.012), true)
+	# A soft halo outside, then the rim itself at full focus colour.
+	_ink.draw_polyline(closed, Color(T.FOCUS, 0.22 * amount), maxf(6.0, size.x * 0.045), true)
+	_ink.draw_polyline(closed, Color(T.FOCUS, amount), maxf(2.0, size.x * 0.016), true)
 
 
 ## Marks a figure that would change. The outline follows the figure's own shape and
