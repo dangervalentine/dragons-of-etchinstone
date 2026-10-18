@@ -6,6 +6,7 @@ const UI = preload("res://ui/theme/theme.gd")
 
 var _box := VBoxContainer.new()
 var amount: Label
+var _icon: Control
 
 
 func _init() -> void:
@@ -41,7 +42,8 @@ func render(vs: Dictionary) -> void:
 		if not notes.is_empty():
 			_box.add_child(UI.label("Cost: " + ", ".join(notes), T.LABEL, T.INK_MUTED))
 	var purse := UI.hbox(T.S)
-	purse.add_child(UI.icon_rect("xp", 56, T.GOLD))
+	_icon = UI.icon_rect("xp", 56, T.GOLD)
+	purse.add_child(_icon)
 	amount = UI.label(str(vs.xp), T.NUMERAL_L, T.GOLD)
 	purse.add_child(amount)
 	var cap := UI.label("XP to spend", T.BODY, T.INK)
@@ -54,3 +56,25 @@ func render(vs: Dictionary) -> void:
 ## Global centre of the XP figure, where XP flies to.
 func point() -> Vector2:
 	return amount.global_position + amount.size / 2.0 if amount != null else global_position + size / 2.0
+
+
+## Count the XP figure down (or up) to `n` while stars fly from it (specs/011 R7).
+func count_to(n: int, duration: float) -> void:
+	if amount == null:
+		return
+	var from := int(amount.text)
+	if UI.reduced_motion or not amount.is_inside_tree():
+		amount.text = str(n)
+		return
+	var l := amount
+	var show := func(v: float) -> void:
+		if is_instance_valid(l):
+			l.text = str(roundi(v))
+	l.create_tween().tween_method(show, float(from), float(n), duration).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+
+
+## The XP left unspent fades away as the Upgrade step ends: it is lost.
+func fade_out(duration: float) -> void:
+	for c in [amount, _icon]:
+		if c != null and c.is_inside_tree():
+			c.create_tween().tween_property(c, "modulate:a", 0.0, duration)

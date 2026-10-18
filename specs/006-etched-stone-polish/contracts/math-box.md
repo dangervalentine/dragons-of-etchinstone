@@ -1,5 +1,7 @@
 # Contract: The Math Box (US2)
 
+> **Superseded in part by 011 (2026-10-17)**: before Play the box shows only a tip for the step; these rows and the verdict appear only once Play is pressed, as the summary of the set just played. The Boost is aimed on its card, not from the rows. See `specs/011-card-contribution-highlights/contracts/left-box.md`.
+
 Replaces the preview's comparison bars in the challenge and Final Battle steps. Data
 shapes: [data-model.md § Term, Explanation, Sum](../data-model.md).
 

@@ -77,7 +77,7 @@ func set_motion(value: bool) -> void:
 ## An empty focus draws the card normally. A change fades over a moment.
 func set_focus(f: Dictionary) -> void:
 	var next := {"regions": f.get("regions", []), "mark": f.get("mark", ""),
-		"damage_element": f.get("damage_element", "")}
+		"damage_element": f.get("damage_element", ""), "impacts": f.get("impacts", []), "aim": f.get("aim")}
 	if next == _focus:
 		return
 	_focus_from = _focus
@@ -194,6 +194,37 @@ func sigil_ethers() -> Array:
 	return out
 
 
+## Where `count` marks sit beside a part of the stat column (specs/011 research R3):
+## squares a little smaller than the row, centred on the part's height, set left to
+## right just past its plate (and past the enhanced plate's corner sigil).
+func mark_rects(region: String, count: int) -> Array:
+	var g := _geo()
+	var r: Rect2 = g[region]
+	var side := roundf(g.row * 0.72)
+	var gap := maxf(3.0, roundf(g.row * 0.2))
+	var x := r.end.x + gap
+	var out := []
+	for i in count:
+		out.append(Rect2(x, r.get_center().y - side / 2.0, side, side))
+		x += side + gap
+	return out
+
+
+## The marks beside each part: the Boost's aim first, then each effect working
+## against the figure (specs/011 contracts/card-marks.md), as {region: [mark]} where a
+## mark is {"icon": name} or {"glyph": text, "colour": c}.
+func marks() -> Dictionary:
+	var out := {}
+	var aim = _focus.get("aim")
+	if aim != null:
+		out["boost"] = [{"icon": aim.to} if aim.to != null else {"glyph": "?", "colour": T.GOLD}]
+	for m in _focus.get("impacts", []):
+		if not out.has(m.region):
+			out[m.region] = []
+		out[m.region].append({"icon": m.icon})
+	return out
+
+
 static func _square(centre: Vector2, d: float) -> Rect2:
 	return Rect2(centre - Vector2(d, d) / 2.0, Vector2(d, d))
 
@@ -306,6 +337,7 @@ func _draw_ink() -> void:
 		_chip("×2", Vector2(r.position.x + r.size.y * (1.2 if armored else 1.05) + 3, shield.get_center().y),
 			shield.size.y * 0.62, T.ether_shade(_focus.get("damage_element", ""), "lit"), _focus_t)
 
+	_draw_marks()
 	_draw_top_band(g, e)
 	# The strip's glows go over the torn edge and the band, which would hide their top.
 	for sg in _strip_glows:
@@ -608,6 +640,26 @@ func _draw_rings() -> void:
 		var closed: PackedVector2Array = pts.duplicate()
 		closed.append(pts[0])
 		_ink.draw_polyline(closed, glow, wd, true)
+
+
+## Each mark on a dark disc, so it reads over any Ether's field: the effect's or the
+## aim's icon, or the unaimed Boost's "?" (a glyph, not a colour alone).
+func _draw_marks() -> void:
+	if dimmed:
+		return
+	var all := marks()
+	for region in all:
+		var list: Array = all[region]
+		var rects := mark_rects(region, list.size())
+		for i in list.size():
+			var r: Rect2 = rects[i]
+			var m: Dictionary = list[i]
+			_ink.draw_circle(r.get_center(), r.size.x / 2.0, Color(T.BG_BASE, 0.85))
+			_ink.draw_arc(r.get_center(), r.size.x / 2.0, 0.0, TAU, 24, Color(T.LINE_SOFT, 0.6), 1.0, true)
+			if m.has("glyph"):
+				_number(r, m.glyph, r.size.y * 0.72, m.colour)
+			else:
+				_icon(m.icon, Rect2(r.get_center() - r.size * 0.35, r.size * 0.7), T.INK)
 
 
 ## A small round mark with text, fading in with the focus.

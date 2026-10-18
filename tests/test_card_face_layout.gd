@@ -99,3 +99,20 @@ func test_names_are_legible_on_a_long_phone() -> void:
 		ok(fs >= 17, "%s drawn at %d, at least 17" % [name, fs])
 		eq(CardFace.name_lines(name, fs, text_w).size() <= 2, true, "%s fits in two lines" % name)
 		f.free()
+
+
+## The marks beside a figure (specs/011 research R3): two beside the Boost (an aim and
+## an effect), one beside the Initiative and one beside the enhanced action, inside
+## the card and clear of every part of the stat column, at every Hand card size.
+func test_marks_sit_beside_their_figure() -> void:
+	var column := ["initiative", "basic", "enhanced", "boost", "armor"]
+	for sz in SIZES:
+		var f = _face(_one_of_each_ether()[0], sz)
+		var card := Rect2(Vector2.ZERO, sz)
+		var rects: Array = f.mark_rects("boost", 2) + f.mark_rects("initiative", 1) + f.mark_rects("enhanced", 1)
+		for r in rects:
+			ok(card.encloses(r), "mark %s inside a %s card" % [str(r), str(sz)])
+			ok(r.size.x >= 12.0, "mark %.0f wide on a %s card, at least 12" % [r.size.x, str(sz)])
+			for key in column:
+				ok(not r.intersects(f.region_rect(key)), "mark %s clear of %s on a %s card" % [str(r), key, str(sz)])
+		f.free()

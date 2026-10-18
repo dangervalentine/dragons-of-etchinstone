@@ -84,7 +84,9 @@ func _run(st: Dictionary, d: float) -> void:
 		"play_cards":
 			_strike(st.cards, d)
 		"tally":
+			# The sum of the set just played takes the tip's place (specs/011 FR-023).
 			if screen.preview.visible:
+				screen.preview.reveal()
 				screen.preview.play_tally(d)
 		"verdict":
 			if screen.preview.visible:
@@ -126,6 +128,14 @@ func _run(st: Dictionary, d: float) -> void:
 		"downgrade", "upgrade":
 			for id in st.cards:
 				_level(id, st, d)
+			if st.kind == "upgrade" and st.values.get("spent", 0) > 0:
+				_stars(st.cards[0], st.values.spent, d)
+		"soak_damage":
+			_soak_damage(st.cards, st.values.due, d)
+		"xp_lost":
+			if screen.xp_purse.visible:
+				screen.xp_purse.fade_out(d)
+				_keep(flight.float_text("\u2212%d XP" % st.values.amount, screen.xp_purse.point(), T.INK_MUTED, 30, d * 2.0, "xp"))
 		"trash":
 			for id in st.cards:
 				_away(id, "trash", d, true)
@@ -189,6 +199,43 @@ func _level(id: String, st: Dictionary, d: float) -> void:
 	var c: Color = T.GOLD if up else T.BAD
 	_keep(flight.float_text("Level %d" % st.values.level, v.global_position + Vector2(v.size.x / 2.0, v.size.y * 0.2), c, 30, d * 2.0,
 		"crown" if up else "down_arrow"))
+
+
+## The XP an Upgrade spent leaves the purse as that many stars, one per XP, and
+## lands on the card; the purse's figure counts down as they go (specs/011 R7).
+func _stars(id: String, spent: int, d: float) -> void:
+	var v: Control = screen.hand.card(id)
+	if v == null or not screen.xp_purse.visible:
+		return
+	var from: Vector2 = screen.xp_purse.point()
+	var to: Vector2 = v.global_position + v.size / 2.0
+	for i in spent:
+		_keep(flight.ghost("xp", from, to, d, T.GOLD, 28, i * d * 0.08))
+	screen.xp_purse.count_to(int(screen.vs.xp) - spent, d)
+
+
+## The damage due leaves the Soak meter for the cards chosen to take it: each card
+## gets one mark per point it Soaks, in the order chosen, until the damage is all
+## taken, as the XP an Upgrade spends flies to its card.
+func _soak_damage(ids: Array, due: int, d: float) -> void:
+	if not screen.soak_meter.visible:
+		return
+	var soak: Dictionary = screen.vs.get("soak", {}) if screen.vs.get("soak") != null else {}
+	var element: String = soak.get("element", "")
+	var icon: String = "poison" if soak.get("poison", false) else (element if element != "" else "hp")
+	var from: Vector2 = screen.soak_meter.point()
+	var left := due
+	var k := 0
+	for id in ids:
+		var v: Control = screen.hand.card(id)
+		var n: int = mini(left, int(screen.vs.cards.get(id, {}).get("soaks", 0)))
+		left -= n
+		if v == null:
+			continue
+		var to: Vector2 = v.global_position + v.size / 2.0
+		for i in n:
+			_keep(flight.ghost(icon, from, to, d, T.BAD, 28, k * d * minf(0.08, 0.6 / maxf(1.0, due))))
+			k += 1
 
 
 ## A card leaves the Hand for a pile.

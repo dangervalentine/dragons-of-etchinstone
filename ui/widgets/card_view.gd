@@ -18,6 +18,8 @@ const ROLE_NAMES := {"spell": "Spell", "element": "Element", "boost": "Boost"}
 const TAG_LONGEST := "Element · Discarded after"
 
 signal tapped(id: String)
+## A tap on the Boost card's aim zone (specs/011 research R4): aim it, don't pick it up.
+signal aim_tapped(id: String)
 signal held(id: String)
 ## The pointer has come to rest on the card, or left it (mouse only).
 signal hovered(id: String, on: bool)
@@ -45,6 +47,9 @@ var _held := false
 var _hover := false
 var _press_at := Vector2.ZERO
 var _dragging := false
+var _press_in_aim := false
+## What a tap in the aim zone does, said when the pointer rests there.
+const AIM_HELP := "Tap here to aim the Boost at Attack or Initiative."
 
 
 func _init() -> void:
@@ -126,6 +131,7 @@ func _gui_input(event: InputEvent) -> void:
 				_held = false
 				_dragging = false
 				_press_at = event.position
+				_press_in_aim = aim_rect().has_point(event.position)
 				_hold.start()
 				UI.pulse_scale(self, 0.96)
 			elif _pressing:
@@ -135,6 +141,9 @@ func _gui_input(event: InputEvent) -> void:
 				if _dragging:
 					_dragging = false
 					dropped.emit(id, get_global_transform() * event.position)
+				elif not _held and _press_in_aim and aim_rect().has_point(event.position):
+					Haptics.tap()
+					aim_tapped.emit(id)
 				elif not _held and Rect2(Vector2.ZERO, size).has_point(event.position):
 					hovered.emit(id, false)
 					Haptics.tap()
@@ -150,6 +159,27 @@ func _on_hold() -> void:
 		held.emit(id)
 
 
+## Against an Enemy, a Boost card's lower band aims its Boost: the full width and one
+## tap target tall, along the bottom edge, over the Boost and Armor rows. Empty on
+## any other card.
+func aim_rect() -> Rect2:
+	if model.get("focus", {}).get("aim") == null:
+		return Rect2()
+	var h := minf(float(T.TAP_MIN), size.y)
+	return Rect2(0, size.y - h, size.x, h)
+
+
+## The mark under `at` beside a figure (an effect's icon, or the Boost's aim), or "".
+func _mark_at(at: Vector2) -> String:
+	var all: Dictionary = _face.marks()
+	for region in all:
+		var rects: Array = _face.mark_rects(region, all[region].size())
+		for i in rects.size():
+			if rects[i].grow(2).has_point(at - _face.position):
+				return all[region][i].get("icon", "aim")
+	return ""
+
+
 ## Hovering a part of the card explains just that part: what the term means, not
 ## its figures, which the card itself shows (and may be previewing at another Level).
 func part_help(at: Vector2) -> String:
@@ -159,12 +189,19 @@ func part_help(at: Vector2) -> String:
 	var h = _face.model.get("stats", {}).get("hardship")
 	if h != null and _face.hardship_rect().grow(3).has_point(at - _face.position):
 		return hardship_help(h)
+	var mark := _mark_at(at)
+	if mark == "aim" or mark == "attack" or mark == "initiative":
+		return AIM_HELP
+	if mark != "":
+		return HelpTip.text(mark)
 	# A sigil explains the Ether it shows, as the Glossary does.
 	var ethers: Array = _face.sigil_ethers()
 	var rects: Array = _face.sigil_rects()
 	for i in rects.size():
 		if rects[i].grow(3).has_point(at - _face.position):
 			return HelpTip.text(str(ethers[i]))
+	if aim_rect().has_point(at):
+		return AIM_HELP
 	for key in PART_ORDER:
 		if _face.region_rect(key).grow(2).has_point(at - _face.position):
 			if key == "basic" or key == "enhanced":
@@ -185,6 +222,9 @@ func part_icon(at: Vector2) -> String:
 	var h = stats.get("hardship")
 	if h != null and _face.hardship_rect().grow(3).has_point(at - _face.position):
 		return h
+	var mark := _mark_at(at)
+	if mark != "":
+		return "boost" if mark == "aim" else mark
 	var ethers: Array = _face.sigil_ethers()
 	var rects: Array = _face.sigil_rects()
 	for i in rects.size():

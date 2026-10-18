@@ -560,8 +560,14 @@ func dispatch(intent: Dictionary) -> void:
 		"toggle_boost_to":
 			draft.toggle_boost_to(intent.set)
 			_refresh()
-		"aim_boost":
-			_aim_boost(intent.to)
+		"aim_card":
+			# A tap on a Boost card's aim zone (specs/011 research R4): that set's Boost
+			# goes to Attack, then back and forth with Initiative.
+			var slot = draft.slot_of(intent.id)
+			if slot != null and slot[1] == "boost":
+				draft.cycle_boost_to(slot[0])
+				draft.put_down()
+				_refresh()
 		"fuse_element":
 			draft.choose_fuse_element(intent.element)
 			draft.settle(game.hand)
@@ -651,19 +657,6 @@ func _put(target: Variant) -> void:
 			var later: String = other
 			get_tree().create_timer(T.STAGGER).timeout.connect(func(): _respond("place", db.mage(later).element, later))
 		moved += 1
-
-
-## Aim a Boost at "attack" or "initiative" from the math box's row (specs/010 R4):
-## the held Boost card's, else the first one not yet aimed, else the only one.
-func _aim_boost(to: String) -> void:
-	var i: int = draft.boost_target_set(draft.held)
-	if i < 0:
-		_refuse("Pick up a Boost card, then tap where it goes.")
-		return
-	draft.set_boost_to(i, to)
-	if draft.held != null and draft.slot_of(draft.held) == [i, "boost"]:
-		draft.put_down()
-	_refresh()
 
 
 func _on_action(id: String) -> void:

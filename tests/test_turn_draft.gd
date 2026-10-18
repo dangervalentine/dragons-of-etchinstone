@@ -421,7 +421,24 @@ func test_a_swap_keeps_the_boost_aim() -> void:
 	eq(d.boost_to[0], "initiative", "still aimed at Initiative")
 
 
-func test_which_boost_a_row_tap_aims() -> void:
+func test_cycle_boost_to() -> void:
+	var d = Draft.new()
+	var nine := ["a", "b", "c", "d", "e", "f", "g", "h", "i"]
+	d.reset(2, false)
+	d.deal(nine)
+	eq(d.boost_to, [null, null], "both unaimed at first")
+	d.cycle_boost_to(1)
+	eq(d.boost_to, [null, "attack"], "one tap: Attack, that set only")
+	d.cycle_boost_to(1)
+	eq(d.boost_to[1], "initiative", "another: Initiative")
+	d.cycle_boost_to(1)
+	eq(d.boost_to[1], "attack", "and back to Attack")
+	eq(d.boost_to[0], null, "the other set is untouched")
+	d.toggle_boost_to(0)
+	eq(d.boost_to[0], "attack", "the keyboard's toggle cycles too, Attack first")
+
+
+func test_keyboard_aims_the_held_or_first_unaimed_boost() -> void:
 	var d = Draft.new()
 	d.deal(HAND)
 	eq(d.boost_target_set(null), 0, "one set: always that one")

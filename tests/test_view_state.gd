@@ -235,7 +235,7 @@ func test_final_battle_preview_matches_engine_and_flags_defeat() -> void:
 		eq(vs.preview.comparisons[0].value, r.move, "total Move")
 		eq(vs.preview.tier, r.tier, "tier")
 		eq(vs.preview.fatal, r.tier < 0, "fatal exactly when below the first tier")
-		eq(vs.prompt.primary.kind, "warning" if r.tier < 0 else "primary", "the primary action warns")
+		eq(vs.prompt.primary.kind, "primary", "Play never warns of the outcome (specs/011 FR-002)")
 		ok(vs.prompt.primary.enabled, "losing on purpose is allowed")
 		fatal_seen = fatal_seen or r.tier < 0
 	ok(fatal_seen, "at least one seed fell below the first tier")
@@ -505,7 +505,7 @@ func _sum(vs: Dictionary, id: String) -> Dictionary:
 	return {}
 
 
-func test_the_boost_is_aimed_from_the_math_box() -> void:
+func test_the_boost_is_aimed_on_its_card() -> void:
 	for game_seed in range(1, 40):
 		var g = _game(game_seed)
 		if g.encounter().kind != "enemy":
@@ -517,23 +517,18 @@ func test_the_boost_is_aimed_from_the_math_box() -> void:
 		eq(vs.preview.missing, ["Boost target"], "it is what is missing")
 		ok(not vs.prompt.primary.enabled, "Play waits for it")
 		eq(vs.prompt.primary.reason, "Choose whether the Boost adds to Attack or to Initiative.", "and says why")
-		var attack := _sum(vs, "attack")
-		eq(attack.aim, {"to": "attack", "on": [], "open": true}, "the Attack row invites the Boost")
-		eq(_sum(vs, "initiative").aim, {"to": "initiative", "on": [], "open": true}, "so does Initiative")
-		d.set_boost_to(d.boost_target_set(null), "initiative")
+		eq(vs.prompt.text, ViewState.TIP_AIM, "the tip says where to aim it")
+		for s in vs.math.sums:
+			ok(not s.has("aim"), "the math box aims nothing (specs/011 FR-006)")
+		d.cycle_boost_to(0)
 		vs = ViewState.build(g, d, db)
 		ok(vs.prompt.primary.enabled or vs.preview.status != "incomplete", "once aimed, nothing is missing")
-		eq(_sum(vs, "initiative").aim, {"to": "initiative", "on": [0], "open": false}, "aimed at Initiative")
-		eq(_sum(vs, "attack").aim.on, [], "not at Attack")
-		d.begin_mode("divert")
-		vs = ViewState.build(g, d, db)
-		for s in vs.math.get("sums", []):
-			eq(s.get("aim"), null, "no aiming during a Divert")
+		eq(vs.prompt.text, ViewState.TIP_REAIM, "and the tip says how to re-aim it")
 		return
 	ok(false, "no seed opened on an Enemy")
 
 
-func test_a_journey_has_no_aim() -> void:
+func test_a_journey_tip_has_no_aim() -> void:
 	for game_seed in range(1, 40):
 		var g = _game(game_seed)
 		if g.encounter().kind != "journey":
@@ -541,10 +536,22 @@ func test_a_journey_has_no_aim() -> void:
 		var d = Draft.new()
 		d.deal(g.hand)
 		var vs: Dictionary = ViewState.build(g, d, db)
+		eq(vs.prompt.text, ViewState.TIP_SWAP, "the Journey's tip is only about swapping")
 		for s in vs.math.sums:
-			eq(s.aim, null, "the Move row aims nothing")
+			ok(not s.has("aim"), "the Move row aims nothing")
 		return
 	ok(false, "no seed opened on a Journey")
+
+
+## Play's look never gives the outcome away (specs/011 FR-002): not for a set that
+## Knocks Out the dragon, nor for one below the Final Enemy's first tier.
+func test_play_never_warns() -> void:
+	for game_seed in range(1, 60):
+		var g = _game(game_seed)
+		if g.phase != "challenge":
+			continue
+		var vs: Dictionary = ViewState.build(g, _filled(g), db)
+		eq(vs.prompt.primary.kind, "primary", "seed %d: Play looks the same whatever the outcome" % game_seed)
 
 
 func test_the_math_box_sums_come_from_the_engine() -> void:

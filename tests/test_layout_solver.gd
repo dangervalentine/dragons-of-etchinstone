@@ -271,3 +271,12 @@ func test_the_final_battle_shares_one_row_of_labels() -> void:
 			ok(under.card.position.y > top.card.end.y, "%s: Set 2 is below" % str(case))
 	var journey := _plan("phone-16x9", 7, 7, true)
 	ok(journey.card_size.x >= 160.0, "Final Journey cards larger than with a label per row, got %s" % str(journey.card_size))
+
+
+## A Boost card's aim zone is one tap target tall along its bottom edge (specs/011
+## research R4); on every shape it stays within half the card, so the rest still
+## picks the card up.
+func test_the_aim_zone_leaves_half_the_card() -> void:
+	for name in Solver.MATRIX:
+		for c in [_plan(name), _plan(name, 9, 6, true)]:
+			ok(T.TAP_MIN <= c.card_size.y * 0.5, "%s: an aim zone of %d on a %s card" % [name, T.TAP_MIN, str(c.card_size)])

@@ -28,9 +28,36 @@ func _run() -> void:
 	ui = load("res://scenes/main.tscn").instantiate()
 	root.add_child(ui)
 	await _game()
+	await _marks()
 	await _records()
 	await _ethers()
 	quit()
+
+
+## The marks each effect puts beside the figures it works against (specs/011
+## contracts/card-marks.md): an opening Hand facing each, in whichever Region has it.
+func _marks() -> void:
+	var Game = load("res://engine/game.gd")
+	for effect in ["night_travel", "steep", "ranged", "freeze"]:
+		var found := []
+		for game_seed in range(1, 200):
+			var g = Game.new(ui.db, {"seed": game_seed, "dragon": "rodving", "difficulty": "normal"})
+			if g.phase != "challenge":
+				continue
+			for region in range(1, 4):
+				g.region = region
+				var enc: Dictionary = g.encounter()
+				if found.is_empty() and [enc.hardship, enc.data.get("ability"), enc.data.get("peril")].has(effect):
+					found = [game_seed, region]
+			if not found.is_empty():
+				break
+		if found.is_empty():
+			continue
+		ui.start_game({"seed": found[0], "dragon": "rodving", "difficulty": "normal", "cavalier": false, "glass_cannon": false})
+		ui.animator.skip()
+		ui.game.region = found[1]
+		ui._refresh(false)
+		await _shot("marks_" + effect)
 
 
 ## One Mage Card of each Ether at Hand size, held still, and the same in greyscale:
@@ -260,13 +287,25 @@ func _game() -> void:
 
 	_place_set(_best_single(), 1, false)
 	await _shot("enemy_boost_unchosen")
+	# The Boost is aimed on its card (specs/011): Attack, then Initiative.
+	var boost = ui.draft.sets[0].get("boost")
+	if boost != null:
+		_press({"type": "aim_card", "id": boost})
+		await _shot("aim_attack")
+		_press({"type": "aim_card", "id": boost})
+		await _shot("aim_initiative")
 	_press({"type": "set_boost_to", "set": 0, "to": "attack"})
-	await _shot("enemy_ready_with_preview")
+	await _shot("enemy_ready_tip_only")
 	ui.dispatch({"type": "primary"})
 	for i in 25:
 		await process_frame
 	n += 1
 	root.get_texture().get_image().save_png("%s/%02d_battle_animation.png" % [out, n])
+	# Once the totals have counted up: the sum and the verdict in the box (specs/011).
+	for i in 45:
+		await process_frame
+	n += 1
+	root.get_texture().get_image().save_png("%s/%02d_battle_summary.png" % [out, n])
 	ui.animator.skip()
 	if g.phase == "penalty":
 		await _shot("soak_choose")
@@ -283,7 +322,13 @@ func _game() -> void:
 			if not ui.vs.soak.covered and ui.vs.cards[id].eligible:
 				_press({"type": "card", "id": id})
 		await _shot("soak_covered")
-		_press({"type": "primary"})
+		# The damage flies from the Soak meter to the cards taking it.
+		ui.dispatch({"type": "primary"})
+		for i in 12:
+			await process_frame
+		n += 1
+		root.get_texture().get_image().save_png("%s/%02d_soak_damage_flight.png" % [out, n])
+		ui.animator.skip()
 	if g.phase == "upgrade":
 		await _shot("after_battle_upgrade")
 		var up: String = g.hand[0]
@@ -295,7 +340,13 @@ func _game() -> void:
 		await create_timer(0.4).timeout
 		await _shot("upgrade_hover_preview")
 		_unhover(up)
-		_press({"type": "card", "id": up})
+		# The XP spent flies from the purse to the card as stars (specs/011 R7).
+		ui.dispatch({"type": "card", "id": up})
+		for i in 8:
+			await process_frame
+		n += 1
+		root.get_texture().get_image().save_png("%s/%02d_upgrade_stars.png" % [out, n])
+		ui.animator.skip()
 		await _shot("upgraded_with_undo")
 		_press({"type": "inspect", "id": g.hand[0]})
 		await _shot("inspect_card")

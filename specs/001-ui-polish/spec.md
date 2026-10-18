@@ -35,6 +35,8 @@ it. It does not change the rules.
 
 ### User Story 1 - Read the turn at a glance (Priority: P1)
 
+> **Superseded in part by 011 (2026-10-17)**: the predicted outcome is no longer shown before Play. The cards lift the parts that count and mark what an Encounter works against; the sum and verdict show once Play is pressed. See `specs/011-card-contribution-highlights/spec.md`.
+
 A player facing an Encounter can see, without scrolling and without reading
 sentences, what they are up against, what they have assigned so far, and what would
 happen if they committed right now. The Encounter, the Action Set being built, the
@@ -440,7 +442,7 @@ outside help.
 
 - **SC-001**: On a phone in landscape, every Region Encounter and both stages of the
   Final Battle can be played from first look to commit without scrolling.
-- **SC-002**: A player who knows the rules can state the predicted outcome of a
+- **SC-002** *(superseded by 011, 2026-10-17: no predicted outcome is shown before Play)*: A player who knows the rules can state the predicted outcome of a
   complete Action Set (win, narrow win or loss, and what it will cost) within 3
   seconds of looking at the screen.
 - **SC-003**: An observer who sees only the resolution sequence, not the preview,

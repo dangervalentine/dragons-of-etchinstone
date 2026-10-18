@@ -37,6 +37,11 @@ static func snapshot(game) -> Dictionary:
 	}
 
 
+## The box's tip while an Action Set is built (specs/011 contracts/left-box.md).
+const TIP_SWAP := "Tap two cards to swap their Roles. Hold a card to inspect it."
+const TIP_AIM := "Tap the bottom of the Boost card to aim it at Attack or Initiative."
+const TIP_REAIM := "Tap two cards to swap their Roles. Tap the bottom of a Boost card to re-aim it."
+
 ## extra: message (a refusal to show), previous_preview, lost_at (where the game was lost).
 static func build(game, draft, db, extra := {}) -> Dictionary:
 	var phase: String = game.phase
@@ -70,14 +75,14 @@ static func build(game, draft, db, extra := {}) -> Dictionary:
 		vs.explain = explain(game, draft)
 		vs.math = math(game, vs.preview, vs.explain)
 		vs.sets = _sets(game, draft)
-		_aim(vs, game, draft)
 	if SOAK_PHASES.has(phase):
 		var total := 0
 		for id in draft.picks:
 			total += game._soak_value(id)
 		vs.soak = {"due": game.damage_due, "element": game.damage_element, "total": total,
 			"covered": total >= game.damage_due, "poison": phase == "poison"}
-	var ctx := Emphasis.context(game, draft)
+	var ctx := Emphasis.context(game, draft, vs.explain,
+		vs.encounter.get("effects", []) if vs.encounter != null else [])
 	vs["next_role"] = ctx.next_role
 	for id in vs.hand:
 		vs.cards[id] = _card(game, draft, db, id, vs)
@@ -332,23 +337,6 @@ static func explain(game, draft) -> Dictionary:
 	return {} if e.has("error") else e
 
 
-## Against an Enemy, the Attack and Initiative sums are where the Boost is aimed
-## (specs/010 research R4): each carries `aim`, the value it stands for, which sets'
-## Boosts are aimed there, and whether a Boost still waits for its aim. Null on the
-## other sums, on a Journey, and during a Fuse, Divert or Regroup.
-static func _aim(vs: Dictionary, game, draft) -> void:
-	var enemy: bool = _boost_has_target(game) and draft.mode == "none"
-	var open: bool = not draft.boost_unchosen().is_empty()
-	for s in vs.math.get("sums", []):
-		s["aim"] = null
-		if enemy and (s.id == "attack" or s.id == "initiative"):
-			var on := []
-			for i in draft.set_count:
-				if draft.boost_to[i] == s.id:
-					on.append(i)
-			s["aim"] = {"to": s.id, "on": on, "open": open}
-
-
 ## The math box (contracts/math-box.md): the result as sums of the engine's terms,
 ## each set against its target. No arithmetic here: totals and term values are
 ## copied from `explain`, outcomes from the preview. Empty when the engine refuses
@@ -541,6 +529,7 @@ static func _card(game, draft, db, id: String, vs: Dictionary) -> Dictionary:
 			var armor = lv.armor
 			c.match = armor.element != null and armor.element == game.damage_element
 			c.note = "Soaks %d" % value
+			c["soaks"] = value
 			c.note_icon = "armor"
 			c.selection_order = draft.picks.find(id)
 			if c.level > 1:
@@ -641,7 +630,11 @@ static func _prompt(game, draft, vs: Dictionary) -> Dictionary:
 			p.primary.enabled = n == game.setup_picks
 			p.primary.reason = "Choose %d more" % (game.setup_picks - n)
 		"challenge", "final_journey", "final_enemy":
-			p.text = "Build two Action Sets." if draft.set_count > 1 else "Build your Action Set."
+			# The box under the Encounter says only what to do next (specs/011
+			# contracts/left-box.md); the cards show what each gives.
+			p.text = TIP_SWAP
+			if _boost_has_target(game):
+				p.text = TIP_AIM if not draft.boost_unchosen().is_empty() else TIP_REAIM
 			match draft.mode:
 				"divert":
 					p.step = "Divert"
@@ -670,8 +663,6 @@ static func _prompt(game, draft, vs: Dictionary) -> Dictionary:
 				p.primary.reason = pv.reason
 			elif draft.mode != "none":
 				p.primary.reason = "Finish or cancel " + p.step.get_slice(" ", 0)
-			if pv.fatal:
-				p.primary.kind = "warning"
 		"penalty", "poison", "final_soak":
 			var s: Dictionary = vs.soak
 			p.step = "Poison" if s.poison else "Soak"

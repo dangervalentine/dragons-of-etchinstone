@@ -26,9 +26,12 @@ Battle:
   game in progress, with labelled example cards and links into the Glossary
 
 The play screen keeps everything for a turn in view: the Encounter, your Action
-Set, a preview of the outcome (your totals against the targets, the verdict, and
-what it will earn and cost), your Hand and the controls. Committing plays a short
-sequence showing what happened, which a tap skips. Cards are drawn in their Ether
+Set, your Hand and the controls. Each card lifts the parts that will count when you
+play it, and an Encounter's Hardship or ability shows its mark beside each figure it
+works against; against an Enemy you aim the Boost at Attack or Initiative on the
+Boost card itself. Committing plays a short sequence showing what happened (the
+sum against its target and the verdict, then what it earned and cost), which a tap
+skips. Spending XP sends it to the card as stars. Cards are drawn in their Ether
 colours with their numbers and icons in the same arrangement as the printed cards.
 Each Encounter has a name of this project's own (the cards only number them) and is
 shown by a silhouette that idles (breathing, hovering, swaying,

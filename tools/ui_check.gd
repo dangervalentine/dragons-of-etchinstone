@@ -51,6 +51,7 @@ func _run() -> void:
 	for name in Solver.MATRIX:
 		await _open(name)
 		await _screens_and_overlays(name)
+		await _marks_walk(name)
 		await _play(name, 11, "casual", false)
 	await _open("phone-16x9")
 	await _play("phone-16x9 animated", 5, "normal", true)
@@ -140,13 +141,28 @@ func _check_space(where: String) -> void:
 	var play = ui.play
 	var zones := {"encounter": [play._regions.encounter.get_global_rect(), play.encounter_node()],
 		"hand": [play._hand_panel.get_global_rect(), play.hand]}
-	for panel in [play.preview, play.soak_meter, play.xp_purse]:
+	for panel in [play.soak_meter, play.xp_purse]:
 		if panel.visible:
 			zones["preview"] = [panel.get_global_rect(), panel]
+	# The box under the Encounter holds only a tip before Play; its room is for the
+	# sum it shows once Play is pressed, so that is what fills it (specs/011 R6).
+	var revealed := false
+	if play.preview.visible and play.preview.has_sum():
+		play.preview.reveal()
+		revealed = true
+		await process_frame
+		zones["preview"] = [play.preview.get_global_rect(), play.preview]
 	space_checks += 1
 	for key in zones:
 		var e: float = Solver.empty_fraction(zones[key][0], zones[key][1])
 		_ok(e <= MAX_EMPTY, "%s: %s is %d%% empty" % [where, key, int(e * 100.0)])
+	if revealed:
+		play.preview.conceal()
+		await process_frame
+		# Before Play the box shows no figure of the sum (specs/011 FR-001).
+		var shown: Array = play.preview.find_children("*", "Label", true, false).filter(func(l): return l.is_visible_in_tree())
+		for s in ui.vs.math.get("sums", []):
+			_ok(not shown.any(func(l): return l.text == s.label), "%s: no %s row before Play" % [where, s.label])
 
 
 func _settle() -> void:
@@ -154,7 +170,7 @@ func _settle() -> void:
 	await process_frame
 	await process_frame
 	if ui.game != null:
-		_check_space("%s %s" % [current_size, ui.game.phase])
+		await _check_space("%s %s" % [current_size, ui.game.phase])
 
 
 ## Everything a player can press or must read, checked against the screen.
@@ -255,8 +271,8 @@ func _play(where: String, game_seed: int, difficulty: String, animated: bool) ->
 				var roles := ["spell", "element", "boost"]
 				for i in mini(3, hand.size()):
 					await _place(hand[i], [0, roles[i]], animated, where)
-				if hand.size() > 2:
-					await _press({"type": "aim_boost", "to": "attack"}, animated)
+				if hand.size() > 2 and g.encounter().kind == "enemy":
+					await _press({"type": "aim_card", "id": hand[2]}, animated)
 				var a := {"spell": hand[0]}
 				if hand.size() > 1:
 					a["element"] = hand[1]
@@ -302,10 +318,14 @@ func _play(where: String, game_seed: int, difficulty: String, animated: bool) ->
 				var order := ["spell", "element", "boost"]
 				for i in mini(6, hand.size()):
 					await _place(hand[i], [i / 3, order[i % 3]], animated, where)
-				for i in 2:
-					await _press({"type": "aim_boost", "to": "attack"}, animated)
+				if g.phase == "final_enemy":
+					for i in 2:
+						await _press({"type": "aim_card", "id": hand[i * 3 + 2]}, animated)
 				if not animated:
 					_inspect_screen("%s %s, placed" % [where, g.phase])
+					if g.phase == "final_enemy":
+						for i in 2:
+							_check_aim_zone(ui.play.hand.card(hand[i * 3 + 2]), "%s Final Enemy Boost %d" % [where, i + 1])
 				var sets := [{}, {}]
 				var roles := ["spell", "element", "boost"]
 				for i in mini(6, hand.size()):
@@ -922,6 +942,77 @@ func _unspent_xp_walk(where: String) -> void:
 	Settings.warn_unspent_xp = true
 
 
+## A seed and Region whose opening Encounter has this effect (Hardship, ability or
+## peril), as [seed, region], or [] when none does.
+func _seed_with(effect: String) -> Array:
+	for game_seed in range(1, 200):
+		var g = Game.new(db, {"seed": game_seed, "dragon": "rodving", "difficulty": "normal"})
+		if g.phase != "challenge":
+			continue
+		for region in range(1, 4):
+			g.region = region
+			var enc: Dictionary = g.encounter()
+			if [enc.hardship, enc.data.get("ability"), enc.data.get("peril")].has(effect):
+				return [game_seed, region]
+	return []
+
+
+## Each effect that works against a card's figure shows its mark beside it, inside
+## the card and clear of every figure (specs/011 contracts/card-marks.md).
+func _marks_walk(where: String) -> void:
+	for effect in ["night_travel", "steep", "ranged", "freeze"]:
+		var found := _seed_with(effect)
+		if found.is_empty():
+			_ok(false, "%s: a seed opens on %s" % [where, effect])
+			continue
+		ui._close_overlays()
+		ui.start_game({"seed": found[0], "dragon": "rodving", "difficulty": "normal", "cavalier": false, "glass_cannon": false})
+		# The deal's animation ends by drawing the state it began from: end it first.
+		ui.animator.skip()
+		ui.game.region = found[1]
+		ui._refresh()
+		await _settle()
+		var marked := 0
+		for id in ui.game.hand:
+			var view: Control = ui.play.hand.card(id)
+			var face = view._face
+			var all: Dictionary = face.marks()
+			for region in all:
+				for r in face.mark_rects(region, all[region].size()):
+					marked += 1
+					_ok(Rect2(Vector2.ZERO, view.size).encloses(r), "%s %s: a mark inside its card" % [where, effect])
+					for key in ["initiative", "basic", "enhanced", "boost", "armor"]:
+						_ok(not r.intersects(face.region_rect(key)), "%s %s: a mark clear of the %s" % [where, effect, key])
+			# An Enemy's Armor may mark the Spell as well.
+			for m in ui.vs.cards[id].focus.impacts:
+				_ok(m.icon == effect or m.icon == "armor", "%s %s: only its own mark, not %s" % [where, effect, m.icon])
+		_ok(marked > 0, "%s %s: the Hand shows its mark" % [where, effect])
+		_inspect_screen("%s %s marks" % [where, effect])
+
+
+## A Boost card's aim zone against an Enemy (specs/011 contracts/card-marks.md): one
+## tap target tall, inside the card, no more than half of it, over the Boost plate.
+func _check_aim_zone(view: Control, where: String) -> void:
+	if view == null:
+		_ok(false, "%s: the card is on screen" % where)
+		return
+	var zone: Rect2 = view.aim_rect()
+	_ok(zone.size.y >= T.TAP_MIN - 0.5, "%s: the aim zone is a tap target, %s" % [where, str(zone.size)])
+	_ok(Rect2(Vector2.ZERO, view.size).grow(0.5).encloses(zone), "%s: the aim zone is inside the card" % where)
+	_ok(zone.size.y <= view.size.y * 0.5 + 0.5, "%s: the aim zone is at most half the card (%s of %s)" % [where, str(zone.size.y), str(view.size.y)])
+	_ok(zone.has_point(view._face.region_rect("boost").get_center()), "%s: the aim zone covers the Boost" % where)
+
+
+## A press and release at a point on a card, as a finger or mouse would.
+func _tap_card(view: Control, at: Vector2) -> void:
+	for down in [true, false]:
+		var e := InputEventMouseButton.new()
+		e.button_index = MOUSE_BUTTON_LEFT
+		e.pressed = down
+		e.position = at
+		view._gui_input(e)
+
+
 func _arrange_walk(where: String) -> void:
 	ui._close_overlays()
 	ui.start_game({"seed": 4, "dragon": "rodving", "difficulty": "normal", "cavalier": false, "glass_cannon": false})
@@ -955,18 +1046,24 @@ func _arrange_walk(where: String) -> void:
 		await _settle()
 		_ok(g.phase == "challenge", "%s: Play waits for the Boost's aim" % where)
 		_ok(ui.play._toast.modulate.a > 0.5 and ui.play._toast_label.text.contains("Boost"), "%s: and says what is missing" % where)
-		# The math box's Initiative row aims it, its Attack row brings it back.
-		var rows: Array = ui.play.preview.find_children("*", "Button", true, false).filter(func(b): return b.tooltip_text.begins_with("Add the Boost"))
-		_ok(rows.size() == 2, "%s: two rows aim the Boost (%d)" % [where, rows.size()])
-		for b in rows:
-			_ok(b.size.y >= T.TAP_MIN - 0.5, "%s: the %s row is a tap target, %s" % [where, b.tooltip_text, str(b.size)])
-		if rows.size() == 2:
-			rows[1].pressed.emit()
-			_ok(ui.draft.boost_to[0] == "initiative", "%s: the Initiative row aims the Boost there" % where)
-			await _settle()
-			rows = ui.play.preview.find_children("*", "Button", true, false).filter(func(b): return b.tooltip_text.begins_with("Add the Boost"))
-			rows[0].pressed.emit()
-			_ok(ui.draft.boost_to[0] == "attack", "%s: and the Attack row brings it back" % where)
+		# The Boost card's lower band aims it (specs/011 research R4): Attack, then
+		# Initiative. A tap above the band picks the card up and leaves the aim alone.
+		var view: Control = ui.play.hand.card(hand[3])
+		_check_aim_zone(view, where + " Boost")
+		var zone: Rect2 = view.aim_rect()
+		_tap_card(view, zone.get_center())
+		await _settle()
+		_ok(ui.draft.boost_to[0] == "attack", "%s: a tap on the Boost's band aims it at Attack" % where)
+		_ok(ui.draft.held == null, "%s: and does not pick the card up" % where)
+		_tap_card(view, zone.get_center())
+		await _settle()
+		_ok(ui.draft.boost_to[0] == "initiative", "%s: another tap aims it at Initiative" % where)
+		_tap_card(view, Vector2(view.size.x / 2.0, (view.size.y - zone.size.y) / 2.0))
+		await _settle()
+		_ok(ui.draft.held == hand[3] and ui.draft.boost_to[0] == "initiative", "%s: a tap above the band picks it up, the aim unchanged" % where)
+		_tap_card(view, Vector2(view.size.x / 2.0, (view.size.y - zone.size.y) / 2.0))
+		await _settle()
+		_ok(ui.draft.held == null, "%s: and a second tap puts it down" % where)
 	# Tap the Element, then the Boost: they swap.
 	ui.dispatch({"type": "card", "id": hand[1]})
 	ui.dispatch({"type": "card", "id": hand[3]})

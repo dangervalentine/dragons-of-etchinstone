@@ -60,3 +60,8 @@ func _draw_meter() -> void:
 	var text := "%d / %d" % [_total, _due]
 	var sz := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 24)
 	_meter.draw_string(font, Vector2((r.size.x - sz.x) / 2.0, r.size.y / 2.0 + 9), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 24, T.INK)
+
+
+## Global centre of the meter, where the damage leaves from as cards Soak it.
+func point() -> Vector2:
+	return _meter.global_position + _meter.size / 2.0 if _meter.is_inside_tree() else global_position + size / 2.0

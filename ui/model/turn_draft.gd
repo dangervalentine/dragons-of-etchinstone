@@ -298,9 +298,15 @@ func set_boost_to(set_index: int, to: String) -> void:
 	boost_to[set_index] = to
 
 
-## The keyboard's switch: Attack first, then back and forth.
-func toggle_boost_to(set_index: int) -> void:
+## A tap on the Boost card's aim (specs/011 research R4): Attack first, then back and
+## forth between Initiative and Attack.
+func cycle_boost_to(set_index: int) -> void:
 	boost_to[set_index] = "initiative" if boost_to[set_index] == "attack" else "attack"
+
+
+## The keyboard's switch, the same cycle as a tap on the card.
+func toggle_boost_to(set_index: int) -> void:
+	cycle_boost_to(set_index)
 
 
 ## The sets whose Boost is placed but not yet sent anywhere, as indexes.

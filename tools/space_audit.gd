@@ -131,6 +131,10 @@ func _zones() -> Dictionary:
 func _measure(size: String, state: String) -> void:
 	var play = ui.play
 	var content: Rect2 = play.plan.content
+	# The box's room is for the sum it shows once Play is pressed (specs/011 R6).
+	if play.preview.visible and play.preview.has_sum():
+		play.preview.reveal()
+		await process_frame
 	# The role display: the labels over the places (feature 010).
 	var role := Rect2()
 	for pos in play.plan.get("positions", []):

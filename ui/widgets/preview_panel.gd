@@ -1,10 +1,10 @@
 extends PanelContainer
-## The math box (contracts/math-box.md): the sum the game is doing for this Action
-## Set. One equation row per sum (Attack and Initiative against an Enemy, Move on a
-## Journey), each term the engine's own, signed and named, then the total set
-## against its target; under them the verdict and its consequences. While a role is
-## empty the rows show the terms so far and what is still needed. During a
-## multi-step action it shows that step's instruction instead.
+## The box under the Encounter face (specs/011 contracts/left-box.md). Before Play it
+## says only what to do next: the cards show what each gives. Once Play is pressed,
+## reveal() shows the sum the game did (contracts/math-box.md): one equation row per
+## sum (Attack and Initiative against an Enemy, Move on a Journey), each term the
+## engine's own, signed and named, then the total set against its target; under
+## them the verdict and its consequences.
 
 const T = preload("res://ui/theme/tokens.gd")
 const HelpTip = preload("res://ui/widgets/help_tip.gd")
@@ -19,21 +19,18 @@ const HELP_W := 64.0
 ## smaller: the dragon's face leaves the box less room (T.DRAGON_MIN).
 const ROW_H := 64.0
 const ROW_H_FINAL := 52.0
-## A row the Boost is aimed from (Attack or Initiative against an Enemy) is a tap
-## target, so never shorter than this (specs/010 research R4).
-const ROW_H_AIM := float(T.TAP_MIN)
 ## The verdict's type: bold body text at the subhead's size.
 const VERDICT := ["body_bold", 24]
-## How the Hand is arranged (specs/010): a card's place is its Role.
-const HINT := "Tap two cards to swap their Roles. Hold a card to inspect it."
 const TERM := T.NUMERAL_S
 const TOTAL := T.NUMERAL
 const MINUS := "\u2212"
 
+## The step's tip, shown until Play; and the sum, built with it but shown only once
+## Play is pressed, so the box is sized for it from the start.
 var _box := VBoxContainer.new()
-## The total labels on show, by sum id, with the value each shows when settled.
+var _sum := VBoxContainer.new()
+## The total labels in the sum, by sum id, with the value each shows when settled.
 var _totals := {}
-var _shown_totals := {}
 var _verdict: Control = null
 ## The height asked for so far for each Encounter and step, so the panel does not
 ## change size as cards are placed: it is sized for its fullest look at once.
@@ -41,85 +38,106 @@ var _needed := {}
 var _key := ""
 var _kind := ""
 var _phase := ""
-## Whether the Attack and Initiative rows aim the Boost in this step.
-var _aiming := false
+var _math := {}
+var _preview = null
 
 
 func _init() -> void:
 	add_theme_stylebox_override("panel", UI.stone_zone())
-	_box.add_theme_constant_override("separation", 6)
-	add_child(_box)
+	for b in [_box, _sum]:
+		b.add_theme_constant_override("separation", 6)
+		add_child(b)
+	_sum.visible = false
 
 
 func render(vs: Dictionary) -> void:
-	for c in _box.get_children():
-		_box.remove_child(c)
-		c.queue_free()
+	for b in [_box, _sum]:
+		for c in b.get_children():
+			b.remove_child(c)
+			c.queue_free()
+	_box.visible = true
+	_sum.visible = false
 	_totals = {}
 	_verdict = null
 	var p = vs.preview
-	var prompt: Dictionary = vs.prompt
 	var enc = vs.encounter
 	_kind = enc.kind if enc != null else ""
 	_phase = vs.phase
 	_key = "%s|%s|%s" % [enc.get("title", "") if enc != null else "", vs.phase, vs.mode]
-	var fatal: bool = p != null and p.fatal and vs.mode == "none"
-	add_theme_stylebox_override("panel", UI.stone_zone(T.BAD if fatal else Color(0, 0, 0, 0), 12, 3.0 if fatal else 2.0))
-	var m: Dictionary = vs.get("math", {})
-	if p == null or vs.mode != "none" or p.status == "blocked" or m.is_empty():
-		_shown_totals = {}
-		_prompt(vs, p, prompt)
+	_math = vs.get("math", {})
+	_preview = p
+	_prompt(vs, p, vs.prompt)
+	if p != null and p.status == "ready" and vs.mode == "none" and not _math.is_empty() and _math.complete:
+		_build_sum(p, _math)
+	_lay_out()
+
+
+## Lay the tip out at once rather than at the end of the frame: its wrapped lines
+## take their width now, so nothing reads the box half laid out.
+func _lay_out() -> void:
+	if not is_inside_tree():
 		return
-	_aiming = m.sums.any(func(s): return s.get("aim") != null)
+	# Twice: the first pass gives the wrapped lines their width, the second the height
+	# that width needs.
+	for i in 2:
+		for b in [_box, _sum]:
+			for c in b.get_children():
+				if c is Label:
+					c.update_minimum_size()
+			b.update_minimum_size()
+		for c in [self, _box, _sum]:
+			c.notification(Container.NOTIFICATION_SORT_CHILDREN)
+
+
+## Show the sum of the set just played in place of the tip: called by the animator
+## as the totals count up. Built from the state before Play, which the screen keeps
+## until the sequence ends.
+func reveal() -> void:
+	if _sum.get_child_count() == 0:
+		return
+	_box.visible = false
+	_sum.visible = true
+	_lay_out()
+
+
+## Back to the tip, as before Play (the UI check measures the box both ways).
+func conceal() -> void:
+	_box.visible = true
+	_sum.visible = false
+	_lay_out()
+
+
+## Whether there is a sum to reveal: a complete set the engine accepts.
+func has_sum() -> bool:
+	return _sum.get_child_count() > 0
+
+
+func _build_sum(p: Dictionary, m: Dictionary) -> void:
+	var fatal: bool = p.fatal
 	for s in m.sums:
-		if s.get("aim") != null:
-			_box.add_child(_aim_row(s))
-		else:
-			_box.add_child(_row(s))
-			if s.note != "" and not _final():
-				_box.add_child(_note(s))
+		_sum.add_child(_row(s))
+		if s.note != "" and not _final():
+			_sum.add_child(_note(s))
 		if s.target.terms.size() > 1:
-			_box.add_child(_target_sum(s))
-	if not m.complete:
-		_box.add_child(UI.spacer())
-		if _aiming and m.missing.all(func(x): return x.begins_with("Boost target")):
-			# All that is left is the Boost's aim, which the rows' "Add Boost" cells ask
-			# for: no more words, so the rows keep their room (specs/010 research R4).
-			pass
-		else:
-			_box.add_child(UI.label(prompt.text, T.BODY, T.INK, true))
-			# By the Final Battle the player knows how to swap cards, and its box is short.
-			if not _final():
-				_box.add_child(UI.label(HINT, T.LABEL, T.INK_MUTED, true))
-		_shown_totals = {}
-		return
-	_box.add_child(UI.spacer())
+			_sum.add_child(_target_sum(s))
+	_sum.add_child(UI.spacer())
 	_verdict = _outcome_row(p, m, fatal)
-	_box.add_child(_verdict)
-	# A set that ends the game is said by the red edge, the verdict and Play's warning
-	# look; the box keeps its room for the rows that aim the Boost (specs/010 R4).
-	if p.changed.has("verdict"):
-		UI.flash(_verdict, T.INK)
-	_count_changed()
+	_sum.add_child(_verdict)
 
 
-## The height this panel needs at `width`: the larger of what it shows now and its
-## fullest look for this Encounter and step (every row, the notes, the outcome and
-## the warning), and never less than it asked for earlier in the same Encounter and
-## step.
+## The height this panel needs at `width`: the larger of its tip and its sum, and of
+## the sum's fullest look for this Encounter and step (every row, the notes and the
+## outcome), and never less than it asked for earlier in the same Encounter and step.
 func needed_height(width: float) -> float:
 	var margins: Vector2 = get_theme_stylebox("panel").get_minimum_size()
-	var sep: int = _box.get_theme_constant("separation")
-	var h: float = UI.stack_height(_box, width - margins.x)
-	# Fullest look: the rows, the Initiative note (Region Enemies; inside its row
-	# while the Boost is aimed from it), a spacer and the outcome row, plus a second
-	# line of outcome when the verdict and its cost do not share one (Final Enemy).
+	var sep: int = _sum.get_theme_constant("separation")
+	var h: float = maxf(UI.stack_height(_box, width - margins.x), UI.stack_height(_sum, width - margins.x))
+	# Fullest look: the rows, the Initiative note (Region Enemies), a spacer and the
+	# outcome row, plus a second line of outcome when the verdict and its cost do not
+	# share one (Final Enemy).
 	var r := _row_h()
 	var rows: Array = {"enemy": [r, r, 26.0], "journey": [r, 26.0],
 		"final_journey": [r], "final_enemy": [r, r]}.get(_kind, [r])
-	if _aiming:
-		# Two aim rows; the Initiative note sits inside its row.
-		rows = [ROW_H_AIM, ROW_H_AIM]
 	var full: float = rows.reduce(func(a, b): return a + b, 0.0) + 44.0 + rows.size() * sep
 	if _kind == "final_enemy":
 		full += 44.0 + 4.0
@@ -164,17 +182,6 @@ func _final() -> bool:
 
 func _row_h() -> float:
 	return ROW_H_FINAL if _final() else ROW_H
-
-
-## A total that changed since the last render counts to its new value.
-func _count_changed() -> void:
-	var now := {}
-	for id in _totals:
-		var v: int = _totals[id].get_meta("value")
-		now[id] = v
-		if _shown_totals.has(id) and _shown_totals[id] != v:
-			_count(_totals[id], _shown_totals[id], v, T.COUNT)
-	_shown_totals = now
 
 
 func _count(l: Label, from: int, to: int, duration: float) -> void:
@@ -291,63 +298,6 @@ func _sign(text: String) -> Control:
 	return l
 
 
-## Inside an aim row, the Initiative note's line: the row's cells give it this much of
-## the row's 88, so the row stays one tap target tall.
-const NOTE_H := 28.0
-## Inner room each side of an aim row, so its terms stand clear of its edge.
-const AIM_PAD := 10
-
-
-## A row the Boost is aimed from: the sum's row as a button, lit while the Boost is
-## aimed here, inviting the tap with a "Boost?" cell while a Boost waits for its aim.
-## The Initiative row carries its note inside it.
-func _aim_row(s: Dictionary) -> Control:
-	var aim: Dictionary = s.aim
-	var b := Button.new()
-	b.focus_mode = Control.FOCUS_NONE
-	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	b.tooltip_text = "Add the Boost to %s." % s.label
-	var lit: bool = not aim.on.is_empty()
-	var edge: Color = T.GOLD if aim.open else (T.FOCUS if lit else Color(T.LINE_SOFT, 0.6))
-	for st in ["normal", "hover", "pressed", "hover_pressed", "disabled"]:
-		var fill := Color(T.FOCUS, 0.10 if lit else 0.0)
-		if st != "normal" and st != "disabled":
-			fill = Color(T.FOCUS, 0.18)
-		b.add_theme_stylebox_override(st, UI.box(fill, edge, 2, T.RADIUS_S, 0))
-	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-	var col := UI.vbox(0)
-	col.alignment = BoxContainer.ALIGNMENT_CENTER
-	# The "Add Boost" cell asks for the aim itself: the row lists only what else is missing.
-	var shown := s.duplicate()
-	shown.missing = s.missing.filter(func(x): return not x.begins_with("Boost target"))
-	var row := _row(shown)
-	if aim.open:
-		var ask := _cell("?", "Add Boost", T.GOLD, TERM)
-		ask.modulate.a = 0.75
-		row.add_child(ask)
-	col.add_child(row)
-	if s.note != "" and not _final():
-		# The note shares the row's 88: the cells give up its line.
-		for c in row.get_children():
-			if c.custom_minimum_size.y == _row_h():
-				c.custom_minimum_size.y = ROW_H_AIM - NOTE_H
-		col.add_child(_note(s))
-	UI.ignore_mouse(col)
-	var m := MarginContainer.new()
-	for side in ["left", "right"]:
-		m.add_theme_constant_override("margin_" + side, AIM_PAD)
-	m.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	m.add_child(col)
-	m.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	b.add_child(m)
-	# A tap target both ways from the start, before the box has laid it out full width.
-	b.custom_minimum_size = Vector2(ROW_H_AIM, maxf(ROW_H_AIM, m.get_combined_minimum_size().y))
-	m.minimum_size_changed.connect(func(): b.custom_minimum_size.y = maxf(ROW_H_AIM, m.get_combined_minimum_size().y))
-	var to: String = aim.to
-	b.pressed.connect(func(): intent.emit({"type": "aim_boost", "to": to}))
-	return b
-
-
 ## Under the Initiative row: who strikes first, and why when it is not Initiative.
 func _note(s: Dictionary) -> Control:
 	var look: Dictionary = T.VERDICT.get(s.result, T.VERDICT.loss)
@@ -376,32 +326,16 @@ func _target_sum(s: Dictionary) -> Control:
 	return l
 
 
+## The step and what to do next. Never a figure: a set the engine refuses says why.
 func _prompt(vs: Dictionary, p, prompt: Dictionary) -> void:
 	if prompt.step != "":
 		_box.add_child(UI.label(prompt.step.to_upper(), T.EYEBROW, T.GOLD))
 	_box.add_child(UI.label(prompt.text, T.BODY, T.INK, true))
-	if p != null and vs.mode == "none":
-		if p.status == "incomplete":
-			_box.add_child(UI.label("Still needed", T.LABEL, T.INK_MUTED))
-			var flow := HFlowContainer.new()
-			flow.add_theme_constant_override("h_separation", 6)
-			flow.add_theme_constant_override("v_separation", 6)
-			for name in p.missing:
-				var pill := UI.stone_panel("inset", 0.4)
-				var inset: StyleBox = pill.get_theme_stylebox("panel")
-				inset.edge = T.GOLD
-				inset.edge_width = 1.0
-				var l := UI.label("  %s  " % name, T.LABEL, T.INK)
-				pill.add_child(l)
-				flow.add_child(pill)
-			_box.add_child(flow)
-		elif p.status == "blocked":
-			_box.add_child(UI.label(p.reason, T.BODY, T.BAD, true))
-	_box.add_child(UI.spacer())
+	if p != null and vs.mode == "none" and p.status == "blocked":
+		_box.add_child(UI.label(p.reason, T.BODY, T.BAD, true))
 	if vs.phase == "setup":
+		_box.add_child(UI.spacer())
 		_box.add_child(UI.label("Hold a card to see its other Levels.", T.LABEL, T.INK_MUTED, true))
-	elif p != null and vs.mode == "none":
-		_box.add_child(UI.label(HINT, T.LABEL, T.INK_MUTED, true))
 
 
 ## The verdict and its consequences on one line: rewards, then each cost. Each

@@ -12,7 +12,7 @@ const DURATION := {
 	"play_cards": 0.35, "tally": 0.6, "verdict": 0.4, "gain_xp": 0.35, "damage": 0.35,
 	"pay_time": 0.2, "poison_pending": 0.3, "knock_out": 0.45, "downgrade": 0.3, "trash": 0.3,
 	"upgrade": 0.35, "discard": 0.35, "gather_shuffle": 0.45, "stage_banner": 1.2, "draw": 0.35,
-	"ending": 0.4,
+	"ending": 0.4, "xp_lost": 0.5, "soak_damage": 0.5,
 }
 
 
@@ -50,10 +50,16 @@ static func build(before: Dictionary, action: Dictionary, result: Dictionary, af
 			elif after.phase == "final_soak":
 				steps.append(_step("damage", [], {"amount": after.damage_due, "early": 0, "element": ""}, "hand"))
 		"soak":
+			# The damage leaves the Soak meter for the cards that take it, in the order
+			# chosen, before they Downgrade (specs/011 follow-up).
+			steps.append(_step("soak_damage", action.cards.duplicate(), {"due": before.get("damage_due", 0)}, "soak"))
 			_level_steps(steps, before, after, before.hand)
 		"upgrade":
 			_level_steps(steps, before, after, before.hand)
 		"finish":
+			# XP not spent by the end of the Upgrade step is lost (rulebook): say so first.
+			if before.phase == "upgrade" and before.get("xp", 0) > 0:
+				steps.append(_step("xp_lost", [], {"amount": before.xp}, "xp"))
 			var spent := []
 			for id in before.hand:
 				if not after.hand.has(id) or after.region != before.region or after.phase == "final_journey":
@@ -159,7 +165,11 @@ static func _level_steps(steps: Array, before: Dictionary, after: Dictionary, id
 		elif now < was:
 			steps.append(_step("downgrade", [id], {"level": now, "from": was}, "hand"))
 		elif now > was:
-			steps.append(_step("upgrade", [id], {"level": now, "from": was}, "hand"))
+			var st := _step("upgrade", [id], {"level": now, "from": was}, "hand")
+			# The XP it cost, which flies from the purse to the card (specs/011 R7).
+			if before.get("xp", 0) > after.get("xp", 0):
+				st.values["spent"] = before.xp - after.xp
+			steps.append(st)
 
 
 static func _draw_step(steps: Array, ids: Array) -> void:

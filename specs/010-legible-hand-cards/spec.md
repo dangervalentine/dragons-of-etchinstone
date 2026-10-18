@@ -141,7 +141,7 @@ In the Final Journey and the Final Enemy, the Hand follows the same scheme: labe
 - **FR-001**: The Hand MUST sit in one row of positions. Only in the Final Battle MAY it wrap onto a second (or third) row, and only when that gives larger cards; a wrap SHOULD fall where Set 1 ends. There MUST be no separate role strip and no separate area for unplaced cards.
 - **FR-002**: In the Regions the positions MUST read, left to right, Reserve, Element, Spell, Boost (rulebook p. 15). A card's position MUST be its role.
 - **FR-003**: When a Hand is dealt, its cards MUST fill the positions in the order drawn, so every card has a role at once. When there are fewer cards than positions, they MUST fill the Spell first, then the Element, the Boost and the Reserve.
-- **FR-004**: The preview panel MUST show the outcome of the current arrangement from the moment the Hand is dealt, and MUST update after every swap.
+- **FR-004** *(superseded by 011: the preview shows no outcome before Play)*: The preview panel MUST show the outcome of the current arrangement from the moment the Hand is dealt, and MUST update after every swap.
 - **FR-005**: The player MUST be able to swap any two cards (and so their roles) by tapping one and then the other, by dragging one onto the other, and by keyboard. Moving a card onto an empty position moves it there. Tapping the picked-up card again, or empty board, MUST put it down unchanged. Releasing a drag away from any card or position MUST change nothing.
 - **FR-006**: Cards MUST glide between positions rather than jump, and MUST move without animation when reduced motion is on.
 
@@ -150,7 +150,7 @@ In the Final Journey and the Final Enemy, the Hand follows the same scheme: labe
 - **FR-007**: Each position MUST carry its role label in a header joined to its card, so label and card read as one cell.
 - **FR-008**: A label MUST show the role's icon and name and the position's state (empty, inactive, target for the held card, given up, and the recap marks played, kept and discarded). It MUST NOT show the card's value.
 - **FR-009**: A label MUST be tall enough for the game's minimum text size and no taller than it needs to be. Tapping or dropping on a label MUST act as tapping or dropping on its position.
-- **FR-010**: The preview panel under the Encounter face MUST stay where the player reads the Attack, Initiative and Move values, including the Reserve's Boost when it counts toward Move.
+- **FR-010** *(superseded by 011: the cards show which values count; the sum shows once Play is pressed)*: The preview panel under the Encounter face MUST stay where the player reads the Attack, Initiative and Move values, including the Reserve's Boost when it counts toward Move.
 - **FR-011**: In the Final Battle the labels MUST mark where Set 1 ends and Set 2 begins. Final Enemy cards beyond the role positions MUST carry no role label.
 
 **Card size**
@@ -167,7 +167,7 @@ In the Final Journey and the Final Enemy, the Hand follows the same scheme: labe
 
 **Boost target**
 
-- **FR-018**: Against an Enemy, the preview panel's Attack and Initiative rows MUST each be a tap target that aims the Boost at that value. The Boost's icon MUST sit on the row it is aimed at, and that row's value MUST include the Boost. Tapping the other row MUST move the Boost there without swapping cards.
+- **FR-018** *(superseded by 011, with FR-018a–c: the Boost is aimed on its card)*: Against an Enemy, the preview panel's Attack and Initiative rows MUST each be a tap target that aims the Boost at that value. The Boost's icon MUST sit on the row it is aimed at, and that row's value MUST include the Boost. Tapping the other row MUST move the Boost there without swapping cards.
 - **FR-018a**: Each of those rows MUST be at least the minimum tap-target size on its shorter side. Instruction text MUST NOT take the height the rows need.
 - **FR-018c**: When a Boost card is picked up, tapping a row aims that card's Boost. When none is, a tap aims the first Boost not yet aimed (Set 1, then Set 2); in a Region, with one Boost, it re-aims that Boost. In the Final Enemy, re-aiming a Boost already aimed means picking up its card first; tapping a row with both aimed and no Boost card picked up says so.
 - **FR-018b**: Until the Boost is aimed, both rows MUST invite it and Play MUST stay disabled, as today. A swap that brings a different card into the Boost position keeps the current aim.
@@ -201,6 +201,6 @@ In the Final Journey and the Final Enemy, the Hand follows the same scheme: labe
 - The phone-tall shape (2532 × 1170 with side notches, a 1558 × 720 design view) is the reference phone, because it matches the screenshot that prompted this feature.
 - The card face is not redesigned. Names grow because the cards grow.
 - Showing an outcome as soon as the Hand is dealt is acceptable. The draw-order arrangement is a starting point the player can see and change, not a choice made for them, and every card is already visible.
-- Removing the strip's values is safe because the preview panel already shows Attack, Initiative and Move, including the Reserve's Boost toward Move.
+- *(Superseded by 011: the values are read from the cards' lifted parts, and the sum after Play.)* Removing the strip's values is safe because the preview panel already shows Attack, Initiative and Move, including the Reserve's Boost toward Move.
 - The header stays where it is. It already sits at the top of the safe area, and its margin is worth only a few units.
 - This feature replaces 009's role strip, its separate places and floating row, its "dealt cards wait unplaced" rule, and its fixed ¼ · ¼ · ½ action row. 009's rulebook order, tap/drag/keyboard interaction and Final Battle narrowing of the left side stay.
