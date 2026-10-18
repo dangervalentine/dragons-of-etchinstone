@@ -183,7 +183,7 @@ void fragment() {
 	vec2 uv = (UV - pad) / (1.0 - 2.0 * pad);
 	if (mode == 1) {
 		// Breathe: rise and fall about the feet, more in height than width.
-		float s = 1.0 + 0.03 * a * sin(t * 1.5);
+		float s = 1.0 + 0.01 * a * sin(t * 1.5);
 		vec2 feet = vec2(0.5, 0.95);
 		uv = (uv - feet) / vec2(1.0 + (s - 1.0) * 0.45, s) + feet;
 	} else if (mode == 2) {
