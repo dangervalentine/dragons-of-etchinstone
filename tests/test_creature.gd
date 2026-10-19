@@ -50,7 +50,9 @@ func test_a_crop_is_centred_when_its_aspect_differs_from_the_widget() -> void:
 
 func test_moving_parts_are_drawn_in_the_same_pass_as_the_body() -> void:
 	# Layers each faded by the tint would read darker where the jaw overlaps the
-	# throat; the shader draws every layer together and fades them once.
+	# throat; the shader draws every layer together and fades them once. The rig, not
+	# a painted picture that stands in for it.
+	UI.painted_art = false
 	var c := Creature.new()
 	var tint := Color(0.8, 0.5, 0.2, 0.55)
 	c.setup("grimroch", tint)
@@ -69,6 +71,7 @@ func test_moving_parts_are_drawn_in_the_same_pass_as_the_body() -> void:
 	eq(m.get_shader_parameter("layers"), 0, "art in one piece has no layers")
 	eq(m.get_shader_parameter("layer0"), null, "and no layer textures")
 	c.free()
+	UI.painted_art = true
 
 
 func test_the_shader_keeps_the_fade_of_the_nodes_above_it() -> void:

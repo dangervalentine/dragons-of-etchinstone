@@ -7,6 +7,9 @@ const Haptics = preload("res://ui/fx/haptics.gd")
 
 ## Set from the settings; travel and shake are replaced by fades when true.
 static var reduced_motion := false
+## Off, every creature shows its silhouette even where it has a painted picture (the
+## tests of the rigged silhouettes turn it off).
+static var painted_art := true
 
 static var _fonts := {}
 static var _icons := {}
@@ -42,7 +45,7 @@ static func art(name: String) -> Texture2D:
 
 ## Whether the art has a painted picture in art/painted/, drawn in its own colours.
 static func is_painted(name: String) -> bool:
-	return ResourceLoader.exists("res://art/painted/%s.png" % name)
+	return painted_art and ResourceLoader.exists("res://art/painted/%s.png" % name)
 
 
 static func art_rect(name: String, side: float, color: Color = T.INK) -> TextureRect:
