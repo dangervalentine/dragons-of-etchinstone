@@ -58,6 +58,23 @@ func test_numerals_are_no_smaller_than_before() -> void:
 	f.free()
 
 
+func test_numbers_sit_in_the_middle_of_their_figures() -> void:
+	# Each figure's number is centred on its window by its own ink and fits inside it
+	# with its edge, at every card size (ui/theme/numerals.gd).
+	var Numerals = load("res://ui/theme/numerals.gd")
+	for sz in SIZES:
+		var f = _face(_one_of_each_ether()[0], sz)
+		var windows: Dictionary = f.number_windows()
+		for key in windows:
+			var w: Rect2 = windows[key]
+			for n in range(0, 20):
+				var text := ("+%d" % n) if key == "boost" else str(n)
+				var fit: Dictionary = Numerals.fit(text, w)
+				ok(fit.ink.get_center().distance_to(w.get_center()) <= 1.0, "%s %s centred on a %s card" % [key, text, str(sz)])
+				ok(w.grow(1.0).encloses(fit.ink.grow(fit.fs * Numerals.OUTLINE)), "%s %s inside its figure on a %s card" % [key, text, str(sz)])
+		f.free()
+
+
 func test_reduced_motion_holds_the_field_still() -> void:
 	var Settings = load("res://ui/model/settings.gd")
 	var before: String = Settings.motion

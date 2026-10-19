@@ -13,6 +13,7 @@ extends Control
 
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
+const Numerals = preload("res://ui/theme/numerals.gd")
 const Settings = preload("res://ui/model/settings.gd")
 const FIELD_SHADER = preload("res://ui/fx/shaders/ether_card.gdshader")
 
@@ -28,6 +29,13 @@ const STEEL := Color("8f8aa0")
 ## The widest line any Mage Card name needs in capitals, a single unbreakable word;
 ## every name is set at the size that fits it.
 const LONGEST_LINE := "DESTRUCTION"
+## Where each figure's number belongs inside its shape, as shares of the shape's
+## rectangle: the pennant above its notch, the plate's left octagon inside its cut
+## corners, the Boost block inside its steps, the shield above its point, the crown
+## between its points and band. Numbers are centred on these by their own ink.
+const WINDOW := {"initiative": Rect2(0.06, 0.03, 0.88, 0.75), "action": Rect2(0.06, 0.1, 0.88, 0.8),
+	"boost": Rect2(0.08, 0.1, 0.84, 0.8), "armor": Rect2(0.1, 0.09, 0.8, 0.68),
+	"level": Rect2(0.21, 0.37, 0.58, 0.38)}
 
 var model := {}
 ## Greyed out, for a card that cannot be chosen.
@@ -240,9 +248,24 @@ static func _square(centre: Vector2, d: float) -> Rect2:
 	return Rect2(centre - Vector2(d, d) / 2.0, Vector2(d, d))
 
 
-## The size of the main stat numerals on this card.
+## The size of the main stat numerals on this card: a one-digit action value, as
+## large as its plate's window holds.
 func numeral_size() -> float:
-	return minf(_geo().row * 0.88, T.NUMERAL[1] * 1.15)
+	var b: Rect2 = _geo().basic
+	return Numerals.fit("8", window("action", Rect2(b.position, Vector2(b.size.x / 2.0, b.size.y)))).fs
+
+
+## Each figure's number window on this card, by region.
+func number_windows() -> Dictionary:
+	var g := _geo()
+	var b: Rect2 = g.basic
+	var e: Rect2 = g.enhanced
+	var a: Rect2 = g.armor
+	return {"initiative": window("initiative", g.initiative),
+		"basic": window("action", Rect2(b.position, Vector2(b.size.x / 2.0, b.size.y))),
+		"enhanced": window("action", Rect2(e.position, Vector2(e.size.x / 2.0, e.size.y))),
+		"boost": window("boost", g.boost), "armor": window("armor", Rect2(a.position, Vector2(a.size.y, a.size.y))),
+		"level": window("level", g.level)}
 
 
 func _layout() -> void:
@@ -293,7 +316,6 @@ func _draw_ink() -> void:
 	var g := _geo()
 	var lv: Dictionary = model.stats
 	var e = model.element
-	var num := numeral_size()
 
 	_strip_glows.clear()
 	_rings.clear()
@@ -307,13 +329,13 @@ func _draw_ink() -> void:
 	_ring("initiative", _pennant(r))
 	var ink := _ink_for("initiative", T.INK)
 	_raised(_pennant(r), _fill_for("initiative", T.BG_BAND), "initiative")
-	_number(Rect2(r.position.x, r.position.y - r.size.y * 0.07, r.size.x, r.size.y), str(lv.initiative), num * 0.8, ink)
+	_number(window("initiative", r), str(lv.initiative), 0, ink, _fill_for("initiative", T.BG_BAND))
 
 	# The basic action, the arrow down to the enhanced action, and the enhanced action.
 	r = g.basic
 	_ring("basic", _twin_octagon(r))
 	_raised(_twin_octagon(r), _fill_for("basic", T.BG_BAND), "basic")
-	_action(r, lv.basic, _ink_for("basic", T.INK), num)
+	_action(r, lv.basic, _ink_for("basic", T.INK), _fill_for("basic", T.BG_BAND))
 	r = g.enhanced
 	var enh = lv.enhanced.element
 	_ring("enhanced", _twin_octagon(r))
@@ -323,7 +345,7 @@ func _draw_ink() -> void:
 		enh_fill = T.INK_MUTED.darkened(0.55)
 		enh_ink = T.INK_MUTED
 	_raised(_twin_octagon(r), _fill_for("enhanced", enh_fill), "enhanced")
-	_action(r, lv.enhanced, _ink_for("enhanced", enh_ink), num)
+	_action(r, lv.enhanced, _ink_for("enhanced", enh_ink), _fill_for("enhanced", enh_fill))
 	_corner_sigil(enh, Vector2(r.end.x - r.size.y * 0.06, r.end.y - r.size.y * 0.06), r.size.y * 0.42)
 	_down_arrow(g)
 
@@ -331,7 +353,7 @@ func _draw_ink() -> void:
 	r = g.boost
 	_ring("boost", _notched(r))
 	_raised(_notched(r), _fill_for("boost", T.BG_BAND), "boost")
-	_number(r, "+%d" % lv.boost, num, _ink_for("boost", T.INK))
+	_number(window("boost", r), "+%d" % lv.boost, 0, _ink_for("boost", T.INK), _fill_for("boost", T.BG_BAND))
 
 	# Armor, on its shield: filled with the Armor's Ether when it has one.
 	r = g.armor
@@ -340,8 +362,8 @@ func _draw_ink() -> void:
 	_ring("armor", _shield(shield))
 	var shield_fill := T.ether_shade(lv.armor.element, "plate") if armored and not dimmed else T.BG_BAND
 	_raised(_shield(shield), _fill_for("armor", shield_fill), "armor")
-	_number(Rect2(shield.position.x, shield.position.y - shield.size.y * 0.06, shield.size.x, shield.size.y),
-		str(lv.armor.value), num * 0.8, _ink_for("armor", UI.best_ink(shield_fill) if armored and not dimmed else T.INK))
+	_number(window("armor", shield), str(lv.armor.value), 0,
+		_ink_for("armor", UI.best_ink(shield_fill) if armored and not dimmed else T.INK), _fill_for("armor", shield_fill))
 	if armored:
 		_corner_sigil(lv.armor.element, Vector2(shield.end.x - shield.size.x * 0.12, shield.end.y - shield.size.y * 0.1), shield.size.y * 0.42)
 	if _focus.get("mark", "") == "soaks_more" and not dimmed:
@@ -374,7 +396,7 @@ func _draw_top_band(g: Dictionary, e) -> void:
 	_ring("level", _rect_pts(c.grow(1), c.size.y * 0.2))
 	_glow_rim(_rect_pts(c.grow(1), c.size.y * 0.2), _lift("level"))
 	_icon("crown", c, _ink_for("level", T.INK) if not dimmed else T.INK_MUTED)
-	_number(Rect2(c.position + Vector2(0, c.size.y * 0.06), c.size), str(model.level), c.size.y * 0.5, T.BG_BASE)
+	_number(window("level", c), str(model.level), c.size.y * 0.5, T.BG_BASE, T.INK)
 	if model.get("downgraded", false):
 		var a: float = c.size.y * 0.5
 		_icon("down_arrow", Rect2(c.end - Vector2(a * 0.8, a * 0.8), Vector2(a, a)), T.BAD)
@@ -401,7 +423,7 @@ func hardship_rect() -> Rect2:
 	var si := roundf(strip * 0.72)
 	var fs := int(strip * 0.8)
 	var x: float = g.b + strip * 0.45 + g.pad * 0.2 + si + 2
-	x += UI.font("display_bold").get_string_size(str(model.stats.encounter.index), HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + g.pad * 0.5
+	x += Numerals.width(str(model.stats.encounter.index), fs) + g.pad * 0.5
 	return Rect2(x, g.band + (strip - si) / 2.0, si, si)
 
 
@@ -430,7 +452,7 @@ func _draw_strip(g: Dictionary, lv: Dictionary) -> void:
 	var x: float = b + tab + g.pad * 0.2
 	_icon(key.type, Rect2(x, band + (strip - si) / 2.0, si, si), ink)
 	x += si + 2
-	x += _text(Vector2(x, band), strip, str(key.index), strip * 0.8, ink) + g.pad * 0.5
+	x += Numerals.draw_left(_ink, x, band, strip, str(key.index), int(strip * 0.8), ink, bronze) + g.pad * 0.5
 	if lv.hardship != null:
 		_icon(lv.hardship, hardship_rect(), _ink_for("key", T.INK) if not dimmed else T.INK_MUTED)
 
@@ -448,8 +470,7 @@ func _draw_strip(g: Dictionary, lv: Dictionary) -> void:
 		colour = T.INK_MUTED
 	colour = colour.lerp(T.INK_MUTED, _hush("cost"))
 	var cr: Rect2 = g.cost
-	var font := UI.font("display_bold")
-	var cost_w := font.get_string_size(cost, HORIZONTAL_ALIGNMENT_LEFT, -1, int(strip * 0.8)).x
+	var cost_w := Numerals.width(cost, int(strip * 0.8))
 	var cx: float = cr.end.x - g.pad * 0.4 - si
 	# Wide enough that the rim's cut corners clear the number.
 	var rim_rect := Rect2(cx - cost_w - 3 - strip * 0.42, band + 2, cost_w + si + 6 + strip * 0.42, strip - 4)
@@ -457,7 +478,7 @@ func _draw_strip(g: Dictionary, lv: Dictionary) -> void:
 	if mark == "" or mark == "affordable":
 		_strip_glows.append([_rect_pts(rim_rect, rim_rect.size.y * 0.4), _lift("cost")])
 	_icon("upgrade", Rect2(cx, band + (strip - si) / 2.0, si, si), colour)
-	_text(Vector2(cx - cost_w - 3, band), strip, cost, strip * 0.8, colour)
+	Numerals.draw_left(_ink, cx - cost_w - 3, band, strip, cost, int(strip * 0.8), colour, bronze)
 	# The thin rule running from the cost to the card's edge, as printed.
 	_ink.draw_line(Vector2(cx + si + 2, band + strip / 2.0), Vector2(w - b, band + strip / 2.0), Color(T.BRONZE_LIGHT, 0.7), 1.0)
 
@@ -681,16 +702,15 @@ func _draw_marks() -> void:
 			_ink.draw_circle(r.get_center(), r.size.x / 2.0, Color(T.BG_BASE, 0.85))
 			_ink.draw_arc(r.get_center(), r.size.x / 2.0, 0.0, TAU, 24, Color(T.LINE_SOFT, 0.6), 1.0, true)
 			if m.has("glyph"):
-				_number(r, m.glyph, r.size.y * 0.72, m.colour)
+				_number(r.grow(-r.size.x * 0.2), m.glyph, r.size.y * 0.72, m.colour, T.BG_BASE)
 			else:
 				_icon(m.icon, Rect2(r.get_center() - r.size * 0.35, r.size * 0.7), T.INK)
 
 
 ## A small round mark with text, fading in with the focus.
 func _chip(text: String, centre: Vector2, h: float, bg: Color, alpha: float) -> void:
-	var font := UI.font("display_bold")
 	var fs := int(h * 0.72)
-	var tw := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+	var tw := Numerals.width(text, fs)
 	var rect := Rect2(centre.x, centre.y - h / 2.0, tw + h * 0.6, h)
 	var s := StyleBoxFlat.new()
 	s.bg_color = Color(bg, alpha)
@@ -698,7 +718,7 @@ func _chip(text: String, centre: Vector2, h: float, bg: Color, alpha: float) -> 
 	s.border_color = Color(0, 0, 0, 0.5 * alpha)
 	s.set_border_width_all(1)
 	_ink.draw_style_box(s, rect)
-	_number(rect, text, fs, Color(UI.best_ink(bg), alpha))
+	_number(rect.grow(-h * 0.12), text, fs, Color(UI.best_ink(bg), alpha), Color(bg, alpha))
 
 
 ## A bare Ether icon, a shade brighter than its plate, on a soft drop shadow that lifts it off
@@ -807,9 +827,9 @@ func _shape(r: Rect2, uv: Array) -> PackedVector2Array:
 
 ## A number with the icons for its action type; `element` adds its Ether icon.
 ## The number in the plate's left octagon and the action in its right, as printed.
-func _action(rect: Rect2, action: Dictionary, ink: Color, num: float) -> void:
+func _action(rect: Rect2, action: Dictionary, ink: Color, fill: Color) -> void:
 	var half := Vector2(rect.size.x / 2.0, rect.size.y)
-	_number(Rect2(rect.position, half), str(action.value), num, ink)
+	_number(window("action", Rect2(rect.position, half)), str(action.value), 0, ink, fill)
 	var right := Rect2(rect.position + Vector2(half.x, 0), half)
 	if action.type == "attack" or action.type == "move":
 		var i := rect.size.y * 0.6
@@ -828,22 +848,16 @@ func _icon(name: String, rect: Rect2, color: Color) -> void:
 	_ink.draw_texture_rect(UI.icon(name), rect, false, color)
 
 
-## Text centred in a rectangle.
-func _number(rect: Rect2, text: String, font_size: float, color: Color) -> void:
-	var font := UI.font("display_bold")
-	var fs := int(font_size)
-	var sz := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs)
-	var base := rect.get_center().y + (font.get_ascent(fs) - font.get_descent(fs)) / 2.0
-	_ink.draw_string(font, Vector2(rect.get_center().x - sz.x / 2.0, base), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, color)
+## A number in its shape's window, as large as the window holds (or at most
+## `font_size`, when that is above 0), centred by its own ink, with a dark edge on `fill` under light digits.
+func _number(win: Rect2, text: String, font_size: float, color: Color, fill: Color) -> void:
+	Numerals.draw(_ink, win, text, color, fill, int(font_size))
 
 
-## Left-aligned text centred vertically in a row; returns its width.
-func _text(pos: Vector2, row_h: float, text: String, font_size: float, color: Color) -> float:
-	var font := UI.font("display_bold")
-	var fs := int(font_size)
-	var base := pos.y + row_h / 2.0 + (font.get_ascent(fs) - font.get_descent(fs)) / 2.0
-	_ink.draw_string(font, Vector2(pos.x, base), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, color)
-	return font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+## The window for a figure's number inside the shape drawn in `r`.
+static func window(key: String, r: Rect2) -> Rect2:
+	var w: Rect2 = WINDOW[key]
+	return Rect2(r.position + w.position * r.size, w.size * r.size)
 
 
 ## The name on one or two lines, at the largest size that fits.
