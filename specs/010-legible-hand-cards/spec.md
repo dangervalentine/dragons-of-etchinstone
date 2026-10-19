@@ -157,6 +157,7 @@ In the Final Journey and the Final Enemy, the Hand follows the same scheme: labe
 
 - **FR-012**: Hand cards MUST take the largest size at which the whole row (and its labels) fits the card side, the same for every card, and MUST NOT change size while cards are swapped.
 - **FR-013**: At every checked window shape, Hand cards MUST be no smaller than in the 009 layout at the same shape.
+  > Superseded for Region hands on the tablet (2026-10-19): the Boost's aim column after the row of places takes width from a Region's one row, so tablet Region cards are 175 wide against 009's 197. Every other shape and stage still meets it.
 
 **Actions**
 
@@ -188,6 +189,7 @@ In the Final Journey and the Final Enemy, the Hand follows the same scheme: labe
 ### Measurable Outcomes
 
 - **SC-001**: At the phone-tall shape, Hand cards in a Region Encounter are at least 50% taller than in the 009 layout (194 design units today).
+  > Superseded (2026-10-19): the Boost's aim column takes width from a Region's one row; phone-tall Region cards are 198 × 277, about 40% taller than 009's.
 - **SC-002**: At the phone-tall shape, in a Region Hand, every card name in the game, including the longest ("Motivated Flight", "Determined March"), is drawn at least 17 design units tall (about 11 today). In the Final Battle, names are no smaller than in the 009 layout.
 - **SC-003**: A player on a phone can read the names of all four Hand cards without zooming or holding a card to inspect it.
 - **SC-004**: At every checked window shape, every card and every label is fully visible, nothing overlaps, and no tap target is below the minimum size.
