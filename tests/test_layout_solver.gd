@@ -265,3 +265,16 @@ func test_the_aim_zone_leaves_half_the_card() -> void:
 	for name in Solver.MATRIX:
 		for c in [_plan(name), _plan(name, 9, 6, true)]:
 			ok(T.TAP_MIN <= c.card_size.y * 0.5, "%s: an aim zone of %d on a %s card" % [name, T.TAP_MIN, str(c.card_size)])
+
+
+func test_the_final_enemys_extras_are_not_counted_as_places() -> void:
+	# One card over the two sets: seven places in the view, but only six with a Role,
+	# so the grid keeps no Reserve column and Set 2 stays under Set 1.
+	var places := []
+	for i in 2:
+		for role in ["element", "spell", "boost"]:
+			places.append({"role": role})
+	places.append({"role": "extra"})
+	eq(Solver.place_count({"places": places}), 6, "the extra has no place of its own")
+	places.push_front({"role": "reserve"})
+	eq(Solver.place_count({"places": places}), 7, "the Reserve does")

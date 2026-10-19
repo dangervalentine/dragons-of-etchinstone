@@ -122,11 +122,13 @@ static func clear_corners(safe: Rect2, window: Vector2, radii: Array) -> Rect2:
 
 
 ## How many places the card side shows for a view state: the ordered places while
-## building or in the recap after a battle, none in setup and Soak.
+## building or in the recap after a battle, none in setup and Soak. The Final
+## Enemy's extras are not counted: they have no Role, so no column of their own in
+## the sets' grid, and are laid out after it (hand_count covers them).
 static func place_count(vs: Dictionary) -> int:
 	if vs.is_empty():
 		return 4
-	return vs.get("places", []).size()
+	return vs.get("places", []).filter(func(pl): return pl.get("role") != "extra").size()
 
 
 ## Whether a view state is in the Final Battle, where the left side narrows.
