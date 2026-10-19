@@ -35,7 +35,11 @@ static func build(before: Dictionary, action: Dictionary, result: Dictionary, af
 			_reveal(steps, after)
 		"setup":
 			_level_steps(steps, before, after, before.offer)
-			steps.append(_step("gather_shuffle", before.offer.duplicate(), {"deck": after.hand + after.deck}, "deck"))
+			# The offer goes back to the Deck as a Hand is drawn, in reverse: the last
+			# card first, each growing into the Region Card's place.
+			var back := _step("gather_shuffle", before.offer.duplicate(), {"deck": after.hand + after.deck, "undraw": true}, "deck")
+			back.duration = minf(T.DRAW_FLY + T.STAGGER * (before.offer.size() - 1), 1.2)
+			steps.append(back)
 			# The Region Card is laid on top of the Deck (rulebook Setup, step 4).
 			steps.append(_step("turn_card", [], {"from": 0, "to": after.region}, "deck"))
 			steps.append(_step("stage_banner", [], {"region": after.region, "phase": after.phase}, "screen"))

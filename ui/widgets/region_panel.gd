@@ -29,6 +29,8 @@ var hardship = null
 ## on the whole card, which takes no input.
 var interactive := false
 var _creature := Creature.new()
+## A Journey's painted map, or null.
+var _map: Texture2D
 var _chips := {}
 var _discs := []
 ## The number plate's text size as last laid out.
@@ -61,7 +63,11 @@ func render(p: Dictionary, hardship_id = null, live_badges := false) -> void:
 	_chips = {}
 	_discs = []
 	var tint: Color = T.ether(p.element)
-	_creature.visible = p.art != ""
+	# A Journey with a painted map (art/painted/journeys/, a preview of the feature 008
+	# art) shows it, drawn under the frame, in place of its silhouette.
+	var map_path := "res://art/painted/journeys/%s.png" % p.art
+	_map = load(map_path) if p.kind == "journey" and p.art != "" and ResourceLoader.exists(map_path) else null
+	_creature.visible = p.art != "" and _map == null
 	if p.art != "" and _creature.art_name != p.art:
 		_creature.setup(p.art, Color(tint.lightened(0.45), 0.55), p.element, false)
 	if p.kind == "enemy":
@@ -210,6 +216,13 @@ func _crop(art: Vector2) -> Rect2:
 	return Rect2(0, full.get_center().y - h / 2.0, full.size.x, h)
 
 
+## The part of a texture of `tex` size that covers `area`, centred, the rest cut off.
+static func cover_region(tex: Vector2, area: Vector2) -> Rect2:
+	var k := maxf(area.x / tex.x, area.y / tex.y)
+	var shown := area / k
+	return Rect2((tex - shown) / 2.0, shown)
+
+
 func _draw() -> void:
 	if panel.is_empty():
 		return
@@ -221,6 +234,8 @@ func _draw() -> void:
 	if panel.kind == "journey":
 		# The printed strip along the top, in the dark of the card's band.
 		draw_rect(Rect2(0, 0, size.x, at.art.position.y), Color(T.BG_BAND, 0.92))
+		if _map != null:
+			draw_texture_rect_region(_map, at.art, cover_region(_map.get_size(), at.art.size))
 	draw_rect(at.frame.grow(-edge / 2.0), T.muted(tint), false, edge)
 	if number_alpha <= 0.0:
 		return

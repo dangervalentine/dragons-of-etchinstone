@@ -258,6 +258,9 @@ func _run(st: Dictionary, d: float) -> void:
 				else:
 					_away(id, "discard", d, false)
 		"gather_shuffle":
+			if st.values.get("undraw", false):
+				_undraw(st, d)
+				return
 			for id in st.cards:
 				var v: Control = screen.hand.card(id)
 				if v != null:
@@ -311,7 +314,24 @@ func _pay_time(st: Dictionary, d: float) -> void:
 			_keep(_later(delay + fly, land))
 
 
-## Played cards lunge at the Encounter and come back.
+## The starting cards go back to the Deck as a Hand is drawn, in reverse: the last
+## card first, each moving and growing from its place to where the Region Card will
+## lie, gone as it lands; the Deck fills up to them as the last arrives.
+func _undraw(st: Dictionary, d: float) -> void:
+	var ids: Array = st.cards.duplicate()
+	ids.reverse()
+	var n: int = ids.size()
+	var fly := minf(T.DRAW_FLY, d)
+	var gap: float = 0.0 if n < 2 else minf(T.STAGGER, maxf(0.0, d - fly) / (n - 1))
+	var to: Rect2 = screen.deck.rest_rect(_after.top_card)
+	var gathered: int = st.values.deck.size()
+	# Each goes in under the note lying on the Deck, as a drawn card comes from under the top card.
+	screen.deck.cover_pass(gap * (n - 1) + fly)
+	for i in n:
+		var land := func(): pass
+		if i == n - 1:
+			land = func(): screen.deck.set_count(gathered)
+		screen.hand.undraw(ids[i], to, gap * i, fly, land)
 func _strike(ids: Array, d: float) -> void:
 	var target: Vector2 = screen.point("encounter")
 	for i in ids.size():

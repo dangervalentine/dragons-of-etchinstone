@@ -217,6 +217,30 @@ func pass_to(m: Dictionary, from: Rect2, to: Rect2, delay: float, d: float, land
 	_tweens.append(tw)
 
 
+## A card in the Hand goes back to the Deck as a drawn one came, in reverse: after
+## `delay` it moves and grows together from its place to `to` (a global rect, the
+## top card's), and is gone as it lands; `landed` is called then. It leaves the
+## Hand at once, so a Hand drawn after it comes from the Deck afresh. In reduced
+## motion it fades where it is.
+func undraw(id: String, to: Rect2, delay: float, d: float, landed: Callable) -> void:
+	var view: Control = _cards.get(id)
+	if view == null:
+		return
+	_cards.erase(id)
+	_passing.append(view)
+	var tw := create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+	if UI.reduced_motion:
+		tw.tween_property(view, "modulate:a", 0.0, d).set_delay(delay)
+	else:
+		tw.tween_property(view, "position", to.position - global_position, d).set_delay(delay)
+		tw.tween_property(view, "size", to.size, d).set_delay(delay)
+	tw.chain().tween_callback(func():
+		landed.call()
+		_passing.erase(view)
+		view.queue_free())
+	_tweens.append(tw)
+
+
 ## Where a card belongs, in global units: its place's card rect, or (in setup and
 ## Soak) the position of its turn in Hand order. The tucked half of a Fuse has
 ## neither; it starts at the first position and sync() tucks it behind its partner.

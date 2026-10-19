@@ -442,6 +442,13 @@ func top_rect() -> Rect2:
 	return Rect2(global_position + r.position, r.size)
 
 
+## The global rect the top card `m` will rest at once laid on the Deck, zoomed out:
+## where cards go back to before there is a top card to go under.
+func rest_rect(m) -> Rect2:
+	var r := card_rect(size, "card", m != null and m.kind == "region")
+	return Rect2(global_position + r.position, r.size)
+
+
 func _show_top(m) -> void:
 	_shown_top = m.duplicate(true) if m != null else null
 	_render_top()
@@ -563,8 +570,9 @@ func _place() -> void:
 		face.size = f.size
 		face.pivot_offset = f.size / 2.0
 	landed.lay_out(_landing(Rect2(Vector2.ZERO, f.size)))
-	note.position = f.position
-	note.size = f.size
+	var nr := _note_rect()
+	note.position = nr.position
+	note.size = nr.size
 	_render_top()
 	# While the Key Card is up, the card and its edges stay dipped under it.
 	if view == "card":
@@ -584,8 +592,21 @@ func _place() -> void:
 	else:
 		for face in [landed, dragon_face]:
 			face.visible = false
-	_stack_rect = f if showing_face else cr
+	# While the Deck is prepared, its edges hang from the note lying in the card's place.
+	_stack_rect = (nr if _preparing() else f) if showing_face else cr
 	_edges.queue_redraw()
+
+
+## Whether the Deck is being prepared: no card on it yet, the note lying where the
+## Region Card will.
+func _preparing() -> bool:
+	return vs.get("phase", "") == "setup"
+
+
+## Where the note lies: the face, or while the Deck is prepared, the Region Card's
+## own place, so the starting cards go back under it at its size.
+func _note_rect() -> Rect2:
+	return card_rect(size, "card", true) if _preparing() else face_rect(size)
 
 
 ## The Deck seen from the side, face up (specs/014 contracts/deck-pile.md): a soft
@@ -708,7 +729,7 @@ func clear_refusal() -> void:
 
 func _slide_note(on: bool, animate: bool, d: float = T.BASE) -> void:
 	note_on = on
-	var f := face_rect(size)
+	var f := _note_rect()
 	if _note_tween != null and _note_tween.is_valid():
 		_note_tween.kill()
 	if not animate:
@@ -744,7 +765,7 @@ func _note_to(at: Vector2, alpha: float, d: float) -> void:
 func _lift_note(on: bool) -> void:
 	if not note_on:
 		return
-	var f := face_rect(size)
+	var f := _note_rect()
 	if on:
 		var aside := f.position + Vector2(f.size.x * 0.6, 0)
 		_note_to(f.position if UI.reduced_motion else aside, 0.15 if UI.reduced_motion else 0.25, T.FAST)

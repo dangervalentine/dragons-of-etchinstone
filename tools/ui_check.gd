@@ -207,7 +207,11 @@ func _check_deck_settled(where: String) -> void:
 	var region: Rect2 = ui.play._regions.encounter.get_global_rect()
 	# Allowing for a shake still settling (UI.shake runs on after a skip).
 	_ok(region.grow(16).encloses(deck.face_node().get_global_rect()), "%s: the face %s is on the Deck %s" % [where, deck.face_node().get_global_rect(), region])
-	_ok(deck.face_node().size == DeckStack.face_rect(region.size).size, "%s: the face leaves the stack its margin" % where)
+	if ui.vs.phase == "setup":
+		# The Deck being prepared: the note lies where the Region Card will, at its size.
+		_ok(deck.face_node().size == deck.rest_rect({"kind": "region"}).size, "%s: the note lies in the Region Card's place, at its size" % where)
+	else:
+		_ok(deck.face_node().size == DeckStack.face_rect(region.size).size, "%s: the face leaves the stack its margin" % where)
 	# Zoomed in on a Region Encounter, the card lies exactly where the zoom brought it
 	# (specs/013 research R3), so nothing jumps as the landed face takes over.
 	if deck.landed.visible:
