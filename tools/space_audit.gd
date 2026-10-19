@@ -136,7 +136,7 @@ func _measure(size: String, state: String) -> void:
 	if play.vs.get("math", {}).get("complete", false):
 		play.deck.show_result()
 		await process_frame
-		var n = play.deck.note
+		var n = play.deck.pile.card("result")
 		note = {"height": n.size.y, "content": n.content_height(), "roomy": n.preview.roomy}
 		print("%s/%s note %d of %d (%s)" % [size, state, int(note.content), int(note.height), "lines" if note.roomy else "one row"])
 		play.deck.clear_result(0.0)

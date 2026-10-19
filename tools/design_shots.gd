@@ -21,6 +21,9 @@ func _initialize() -> void:
 	if args.size() > 1 and args[1] == "scan":
 		_scan()
 		return
+	if args.size() > 1 and args[1] == "notes":
+		_run_notes()
+		return
 	_run(args.size() > 1 and args[1] == "deck")
 
 
@@ -170,6 +173,7 @@ func _deck() -> void:
 	await create_timer(T.ZOOM * 0.4).timeout
 	_grab("deck_zooming_in")
 	await _shot("deck_settled")
+	await _notes()
 	# A Divert: out to the card, the Key Card leaving, the next one rising.
 	var id: String = ui.game.hand[0]
 	ui._act({"kind": "divert", "cards": [id], "id": id}, func(): return ui.game.divert(id))
@@ -211,6 +215,43 @@ func _deck() -> void:
 
 
 const T_TURN := 0.5
+
+
+## With "notes" after the out dir, only the notes' shots (specs/015): a game is
+## started and its reveal skipped, so no shot waits on the player.
+func _run_notes() -> void:
+	DisplayServer.window_set_size(WINDOW)
+	for i in 5:
+		await process_frame
+	ui = load("res://scenes/main.tscn").instantiate()
+	root.add_child(ui)
+	for i in 5:
+		await process_frame
+	ui.start_game({"seed": 5, "dragon": "rodving", "difficulty": "normal", "cavalier": false, "glass_cannon": false})
+	await create_timer(0.5).timeout
+	ui.animator.skip()
+	await _shot("deck_settled")
+	await _notes()
+	quit()
+
+
+## The notes as cards (specs/015): a result, a step and a refused move dealt on one
+## over another from the left, piled up askew, and the pile thrown off together.
+func _notes() -> void:
+	var deck = ui.play.deck
+	deck.show_result()
+	deck.pile.deal("mode", ui.vs, {}, true)
+	deck.show_refusal("Choose where the Boost goes before you Play.")
+	await create_timer(T.NOTE_DEAL * 0.5).timeout
+	_grab("deck_note_dealt_mid")
+	await create_timer(T.NOTE_DEAL).timeout
+	_grab("deck_notes_piled")
+	deck.pile.throw_all(true)
+	await create_timer(T.NOTE_DISCARD * 0.5).timeout
+	_grab("deck_notes_thrown_mid")
+	deck.pile.finish()
+	deck.clear_result(0.0)
+	ui._refresh(false)
 const T = preload("res://ui/theme/tokens.gd")
 
 

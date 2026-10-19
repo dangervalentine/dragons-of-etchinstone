@@ -23,13 +23,21 @@ signal intent(data: Dictionary)
 
 var header := HeaderBar.new()
 var deck := DeckStack.new()
-## The faces on the Deck and what its note holds, kept here by name for the
-## screen's other users.
+## The faces on the Deck and what its notes hold, kept here by name for the
+## screen's other users. Each note is a card of its own, dealt and thrown (specs/015),
+## so the panels are asked for as they are needed: with no note showing one, a
+## hidden one stands in.
 var landed: Control = deck.landed
 var dragon_face: Control = deck.dragon_face
-var preview: Control = deck.note.preview
-var soak_meter: Control = deck.note.soak_meter
-var xp_purse: Control = deck.note.xp_purse
+var preview: Control:
+	get:
+		return deck.panel("preview")
+var soak_meter: Control:
+	get:
+		return deck.panel("soak_meter")
+var xp_purse: Control:
+	get:
+		return deck.panel("xp_purse")
 var labels := PlaceLabels.new()
 ## Where each set's Boost goes, in the column after its row of places.
 var aims := BoostAim.new()

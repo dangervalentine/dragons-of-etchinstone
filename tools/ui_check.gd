@@ -26,6 +26,7 @@ const HistoryStore = preload("res://ui/model/history_store.gd")
 const RecordsScreen = preload("res://ui/screens/records_screen.gd")
 const MenuOverlay = preload("res://ui/overlays/menu_overlay.gd")
 const WindowSizer = preload("res://ui/model/window_sizer.gd")
+const NotePile = preload("res://ui/widgets/note_pile.gd")
 
 ## Games played here are recorded in their own folder, never the player's records.
 const HISTORY_DIR := "user://tool_history/"
@@ -38,6 +39,11 @@ var host: SubViewport
 var checks := 0
 var ui
 var db = CardDB.new()
+## The notes last seen lying on the Deck at rest, bottom to top, and how many times a
+## pile of three was seen (specs/015: within an interaction, notes only pile up).
+var _last_notes: Array = []
+var _last_note_key := ""
+var _piles_of_three := 0
 
 
 func _initialize() -> void:
@@ -50,6 +56,7 @@ func _clear_history() -> void:
 
 
 func _run() -> void:
+	await _note_motion()
 	for name in Solver.MATRIX:
 		await _open(name)
 		await _screens_and_overlays(name)
@@ -77,9 +84,74 @@ func _run() -> void:
 	await _arrange_walk("phone-16x9")
 	await _overlay_over_lifted_cards("phone-16x9")
 	await _unspent_xp_walk("phone-16x9")
+	_ok(_piles_of_three > 0, "a result, a Soak and the XP to spend were seen piled up on the Deck")
 	print("ui check: %d checks, %d failed (%d space checks)" % [checks, failures, space_checks])
 	ui.free()
 	quit(1 if failures > 0 else 0)
+
+
+## The notes as cards (specs/015 contracts/note-pile.md), on a pile of their own in
+## the tree: each dealt from off the left, whole and turned, landing square; thrown
+## off to the left whole, the pile together, top first; those under the top askew;
+## held, the pile lifts aside as one; with reduced motion, all of it in place.
+func _note_motion() -> void:
+	var rest := Rect2(20, 30, 300, 420)
+	var p = NotePile.new()
+	p.fill = func(_c, _k, _vs, _rv): pass
+	get_root().add_child(p)
+	p.position = Vector2(60, 0)
+	p.size = Vector2(400, 600)
+	p.lay_out(rest)
+	await process_frame
+	p.deal("result", {}, {}, true)
+	var c = p.top()
+	_ok(c.position == NotePile.off_table(rest, p.global_position.x), "a note is dealt from off the left (%s)" % c.position)
+	_ok(c.global_position.x + c.size.x < 0.0, "out past the left of the screen")
+	_ok(is_equal_approx(c.rotation, -deg_to_rad(T.NOTE_TURN)), "turned as a dealt card is")
+	await process_frame
+	await process_frame
+	_ok(c.modulate.a == 1.0 and p._moving(c), "whole, not faded, on its way")
+	_ok(c.position.x > NotePile.off_table(rest, p.global_position.x).x and c.position.x < rest.position.x, "coming in from the left")
+	p.finish()
+	_ok(c.position == rest.position and c.rotation == 0.0, "landing square in the card's place")
+	for k in ["soak", "upgrade"]:
+		p.deal(k, {}, {}, true)
+	p.finish()
+	_ok(is_equal_approx(p.card("upgrade").rotation, NotePile.tilt(0)), "the top note lies square")
+	_ok(is_equal_approx(p.card("soak").rotation, NotePile.tilt(1)), "the one under it askew")
+	_ok(is_equal_approx(p.card("result").rotation, NotePile.tilt(2)), "and the one under that the other way")
+	p.lift(true)
+	p.finish()
+	p.lifted = true
+	for n in p.cards:
+		p._pose(n)
+	_ok(p.cards.all(func(n): return n.position == rest.position + Vector2(rest.size.x * 0.6, 0) and n.modulate.a == 0.25),
+		"held, the whole pile lifts aside")
+	p.lift(false)
+	p.finish()
+	_ok(p.cards.all(func(n): return n.position == rest.position and n.modulate.a == 1.0), "let go, it lies back down")
+	var order: Array = p.cards.duplicate()
+	order.reverse()
+	p.throw_all(true)
+	_ok(p.leaving == order and p.kinds().is_empty(), "the pile is thrown together, top first")
+	await process_frame
+	await process_frame
+	_ok(p.leaving.all(func(n): return n.modulate.a == 1.0 and p._moving(n)), "whole as they go")
+	_ok(p.leaving[0].position.x < rest.position.x, "off to the left")
+	var gone: Array = p.leaving.duplicate()
+	p.finish()
+	_ok(p.leaving.is_empty() and gone.all(func(n): return n.is_queued_for_deletion()), "and gone once landed")
+	UI.reduced_motion = true
+	p.deal("result", {}, {}, true)
+	c = p.top()
+	_ok(c.position == rest.position and c.rotation == 0.0 and c.modulate.a == 0.0, "reduced motion: dealt in place, fading in")
+	p.finish()
+	p.throw_all(true)
+	_ok(c.position == rest.position, "reduced motion: thrown in place")
+	p.finish()
+	_ok(c.is_queued_for_deletion(), "reduced motion: gone")
+	UI.reduced_motion = false
+	p.free()
 
 
 func _fail(what: String) -> void:
@@ -94,6 +166,7 @@ func _ok(cond: bool, what: String) -> void:
 
 
 func _open(name: String) -> void:
+	_last_notes = []
 	var m: Array = Solver.MATRIX[name]
 	var view: Vector2 = Solver.matrix_view(name)
 	# The game runs in a viewport of exactly this size, in design units, as the
@@ -159,30 +232,67 @@ func _check_space(where: String) -> void:
 		_ok(e <= MAX_EMPTY, "%s: %s is %d%% empty" % [where, key, int(e * 100.0)])
 
 
-## The note laid on the Deck in the card's place (specs/013 contracts/left-column.md):
-## on the Deck, its content inside it, every word at least TEXT_MIN; and before Play
-## it shows no figure of the sum (specs/011 FR-001).
+## The notes laid on the Deck in the card's place, each a card of its own (specs/015
+## contracts/note-pile.md): the kinds the state wants lie there, the last of them on
+## top; nothing is in flight at rest; each lies on the Deck, its content inside it,
+## every word at least TEXT_MIN; and before Play none shows a figure of the sum
+## (specs/011 FR-001).
 func _check_note(where: String) -> void:
 	if ui.screen == null or ui.screen != ui.play or ui.vs.is_empty() or ui.animator.is_playing():
 		return
 	var deck = ui.play.deck
-	var want: bool = ui.vs.get("note") != null or deck.result_held or deck.note.refusal != ""
-	_ok(deck.note_on == want, "%s: a note lies on the Deck only when there is one (%s, %s)" % [where, deck.note_on, ui.vs.get("note")])
+	var pile = deck.pile
+	var wanted: Array = deck.note_kinds(ui.vs.get("note"), deck.result_held)
+	var want: bool = not wanted.is_empty() or pile.refusal_text() != ""
+	_ok(deck.note_on == want, "%s: a note lies on the Deck only when there is one (%s, %s)" % [where, pile.kinds(), wanted])
+	_ok(pile.leaving.is_empty(), "%s: no note is still being thrown off at rest" % where)
+	_ok(deck._table.clip_contents and not deck.clip_contents and not pile.clip_contents,
+		"%s: the Deck's cards are clipped to it, its notes are not" % where)
+	for k in wanted:
+		_ok(pile.kinds().has(k), "%s: the %s note lies on the Deck (%s)" % [where, k, pile.kinds()])
+	if not wanted.is_empty():
+		_ok(pile.kinds().back() == wanted.back(), "%s: the %s note is on top (%s)" % [where, wanted.back(), pile.kinds()])
+	# Within an Encounter each new note is laid on those already there; they go only
+	# all together. The next Encounter's, or a new game's, start a pile of their own.
+	var now: Array = pile.kinds()
+	if ui.vs.phase == "setup" or DeckStack.note_key(ui.vs) != _last_note_key:
+		_last_notes = []
+	_last_note_key = DeckStack.note_key(ui.vs)
+	if not now.is_empty() and not _last_notes.is_empty():
+		_ok(now.slice(0, _last_notes.size()) == _last_notes, "%s: the notes piled up on %s (now %s)" % [where, _last_notes, now])
+	_last_notes = now
+	if now.size() >= 3:
+		_piles_of_three += 1
 	if not deck.note_on:
 		return
-	var region: Rect2 = ui.play._regions.encounter.get_global_rect().grow(1)
-	_ok(region.encloses(deck.note.get_global_rect()), "%s: the note is on the Deck" % where)
-	_ok(deck.note.content_height() <= deck.note.size.y - 2.0 * deck.note.PAD + 1.0,
-		"%s: the note's %s fits it (%d of %d)" % [where, str(deck.note.kinds), int(deck.note.content_height()), int(deck.note.size.y)])
-	if not deck.result_held:
-		var shown: Array = deck.note.find_children("*", "Label", true, false).filter(func(l): return l.is_visible_in_tree())
-		for s in ui.vs.get("math", {}).get("sums", []):
-			_ok(not shown.any(func(l): return l.text == s.label), "%s: no %s row before Play" % [where, s.label])
+	# A card under the top one lies a little askew: its turned corners may stand out
+	# of the Deck by up to half its margin.
+	var region: Rect2 = ui.play._regions.encounter.get_global_rect().grow(T.DECK_EDGE * 0.5)
+	var lying: Array = pile.cards.duplicate()
+	if pile.refusal_card != null:
+		lying.append(pile.refusal_card)
+	for n in lying:
+		_ok(not pile._moving(n), "%s: the %s note lies still at rest" % [where, n.get_meta("kind")])
+		var xf: Transform2D = n.get_global_transform()
+		var turned := Rect2(xf * Vector2.ZERO, Vector2.ZERO)
+		for corner in [Vector2(n.size.x, 0), n.size, Vector2(0, n.size.y)]:
+			turned = turned.expand(xf * corner)
+		_ok(region.encloses(turned), "%s: the %s note is on the Deck (%s in %s)" % [where, n.get_meta("kind"), turned, region])
+		_ok(n.content_height() <= n.size.y - 2.0 * n.PAD + 1.0,
+			"%s: the %s note fits it (%d of %d)" % [where, n.get_meta("kind"), int(n.content_height()), int(n.size.y)])
+		if not deck.result_held:
+			var shown: Array = n.find_children("*", "Label", true, false).filter(func(l): return l.is_visible_in_tree())
+			for s in ui.vs.get("math", {}).get("sums", []):
+				_ok(not shown.any(func(l): return l.text == s.label), "%s: no %s row before Play" % [where, s.label])
 
 
 func _settle() -> void:
 	ui.animator.skip()
 	await process_frame
+	# Notes dealt and thrown fly for a moment after the state is shown (specs/015):
+	# at rest they have landed.
+	if ui.play != null:
+		ui.play.deck.pile.finish()
 	await process_frame
 	if ui.game != null:
 		_check_deck_settled("%s %s" % [current_size, ui.game.phase])
@@ -1371,7 +1481,7 @@ func _arrange_walk(where: String) -> void:
 		await _settle()
 		_ok(g.phase == "challenge", "%s: Play waits for the Boost's aim" % where)
 		# The reason lies on the Deck in the card's place (specs/013 FR-011).
-		_ok(ui.play.deck.note_on and ui.play.deck.note.refusal.contains("Boost"), "%s: and says what is missing" % where)
+		_ok(ui.play.deck.note_on and ui.play.deck.pile.refusal_text().contains("Boost"), "%s: and says what is missing" % where)
 		ui.play.deck.clear_refusal()
 		# The Boost is aimed in its own column after the row: Attack, then Initiative;
 		# a tap on the Boost card only picks it up, as on any other card.

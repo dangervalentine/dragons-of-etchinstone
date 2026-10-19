@@ -93,6 +93,20 @@ const LEFT_MIN_W := 400
 const NOTE_HOLD := 2.4
 ## The least height of a note on the Deck that sets the result out line by line.
 const NOTE_ROOMY_H := 360
+## A note's flight in from off the left of the screen to its place on the Deck, and
+## its flight off to the left again as a discard (feature 015).
+const NOTE_DEAL := 0.35
+const NOTE_DISCARD := 0.35
+## How far, in degrees, a note is turned off the table, as a dealt or thrown card is.
+const NOTE_TURN := 14.0
+## The tilt, in degrees, each note lies at by its depth under the top one, so the
+## corners of those under it show; deeper ones repeat the last.
+const NOTE_TILT := [0.0, -1.2, 0.9, -0.6]
+## How much later each note under the top one leaves when the pile is thrown.
+const NOTE_PILE_STAGGER := 0.04
+## The soft shadow under a card on the table: how much each layer grows, and how
+## dark it is.
+const CARD_SHADOW := [[2.0, 0.10], [4.0, 0.07], [6.0, 0.05], [8.0, 0.03]]
 
 # Stone
 ## The luminance band the stone grain is remapped into. The top stays no lighter

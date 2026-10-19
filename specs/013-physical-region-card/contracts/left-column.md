@@ -33,6 +33,8 @@ This replaces `specs/012-deck-region-card/contracts/deck-stack.md`'s "Layers", "
 
 ## The note
 
+> **Superseded in part by `specs/015-dealt-table-notes/contracts/note-pile.md`**: In, Out, Swap, Hold and Refusal below. Each kind of note is now a card of its own, dealt on from the left and piled up, and the pile is thrown off to the left together.
+
 - **Size and shape**: the face rect, with the card outline and `StoneStyle("well")` of a face.
 - **Content**: centred vertically when short and top-aligned when long. It clips nothing: `ui_check` asserts content height ≤ note height for every kind at every shape.
 - **In**: from `x + T.DECK_EDGE` to rest, alpha 0 → 1, over `T.BASE`, `TRANS_CUBIC` ease out. In reduced motion: alpha only.

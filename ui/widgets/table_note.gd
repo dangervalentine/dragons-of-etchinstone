@@ -1,14 +1,14 @@
 extends Control
-## A note laid on the Deck in the card's place (specs/013 research R6,
-## contracts/left-column.md): for as long as it is needed it covers the Encounter
-## with what the player must read instead, then is taken off again. It holds, top
-## to bottom, the sum and verdict of the set just played (the result); the step to
-## follow (a Fuse, Divert or Regroup, or the Deck being prepared); and the Soak
-## meter or the XP to spend. A refused move's reason shows alone for a moment.
-## Pressed and held, the note lifts aside to show the card under it (deck_stack.gd).
+## A note laid on the Deck in the card's place (specs/013 research R6, specs/015):
+## a card of its own, dealt over the Encounter for as long as it is needed and
+## thrown off again with the rest of the pile (note_pile.gd). It holds one thing to
+## read: the sum and verdict of the set just played (the result); the step to
+## follow (a Fuse, Divert or Regroup, or the Deck being prepared); the Soak meter;
+## the XP to spend; or a refused move's reason. Pressed and held, it lifts aside
+## with the pile to show the card under it.
 
 signal intent(data: Dictionary)
-## A press on the note begins or ends (deck_stack.gd lifts it aside while held).
+## A press on the note begins or ends (note_pile.gd lifts the pile aside while held).
 signal held(on: bool)
 
 const T = preload("res://ui/theme/tokens.gd")
@@ -31,6 +31,9 @@ var refusal := ""
 ## The state the set just played was played in: the result is always built from it.
 var result_vs := {}
 
+## What the card holds, clipped to it; the card itself does not clip, so its shadow
+## falls outside it.
+var _body := Control.new()
 var _box := VBoxContainer.new()
 var _setup := VBoxContainer.new()
 var _setup_key := ""
@@ -41,14 +44,16 @@ var _pressed_at := -1.0
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	clip_contents = true
+	_body.clip_contents = true
+	_body.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_body)
 	_creature.held = true
 	_creature.visible = false
 	_creature.modulate.a = 0.35
-	add_child(_creature)
+	_body.add_child(_creature)
 	_box.add_theme_constant_override("separation", T.M)
 	_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_box)
+	_body.add_child(_box)
 	_setup.add_theme_constant_override("separation", T.S)
 	_box.add_child(_setup)
 	# On the note the hosted panels draw no stone of their own: the note is the card.
@@ -83,8 +88,9 @@ func show_kinds(what: Array, vs: Dictionary) -> void:
 	if soak_meter.visible:
 		soak_meter.render(vs)
 	if xp_purse.visible:
-		# With the result above it, the purse need not say again how it went.
-		xp_purse.render(_without_recap(vs) if what.has("result") else vs)
+		# On a note of its own over the result (specs/015), the purse says again how
+		# it went.
+		xp_purse.render(vs)
 	if _setup.visible:
 		_render_setup(vs)
 	_creature.visible = _setup.visible and _creature.art_name != ""
@@ -102,12 +108,6 @@ func _render_result() -> void:
 	preview.render(result_vs)
 	preview.reveal()
 	preview.settle()
-
-
-static func _without_recap(vs: Dictionary) -> Dictionary:
-	var out := vs.duplicate()
-	out["recap"] = {}
-	return out
 
 
 ## A refused move's reason, alone on the note; "" to go back to what it showed.
@@ -159,6 +159,8 @@ func _render_setup(vs: Dictionary) -> void:
 
 func _fit() -> void:
 	queue_redraw()
+	_body.position = Vector2.ZERO
+	_body.size = size
 	var inner := Rect2(Vector2(PAD, PAD), size - Vector2(PAD, PAD) * 2.0)
 	_box.position = inner.position
 	_box.size = Vector2(inner.size.x, 0)
@@ -198,9 +200,18 @@ func _gui_input(event: InputEvent) -> void:
 		accept_event()
 
 
-## The card's own stone and rounded corners, so the note reads as the Region Card
-## showing something else for a moment, not a panel laid over it (specs/014).
+## The card's own stone and rounded corners, with a card's edge and the shadow of
+## a card lying on the table: a card laid over the Encounter (specs/015).
 func _draw() -> void:
 	# As the zoomed face draws itself (deck_stack.gd LandedFace), so the one gives way
 	# to the other with nothing round the edge changing.
-	draw_style_box(UI.box(T.BG_RAISED, Color.TRANSPARENT, 0, UI.card_radius(size.x), 0), Rect2(Vector2.ZERO, size))
+	var radius: int = UI.card_radius(size.x)
+	# Lying on the table, a card casts a soft shadow under it (specs/015).
+	for layer in T.CARD_SHADOW:
+		var sh := StyleBoxFlat.new()
+		sh.bg_color = Color(0, 0, 0, layer[1])
+		sh.set_corner_radius_all(radius + int(layer[0]))
+		draw_style_box(sh, Rect2(Vector2(2, 4), size).grow(layer[0]))
+	# Its edge in card stock, as the Deck's cards have, so each note laid on another
+	# reads as a card of its own.
+	draw_style_box(UI.box(T.BG_RAISED, T.CARD_EDGE_LINE, 2, radius, 0), Rect2(Vector2.ZERO, size))

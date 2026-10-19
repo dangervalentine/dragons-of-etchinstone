@@ -13,9 +13,10 @@ extends Control
 ##   the face being played against: the top card's panel for that Encounter, grown
 ##     to fill the left side with a few lines under it saying what its marks mean
 ##     (the landed face), or in the Final Battle the dragon's face;
-##   a note laid over it all in the card's place while there is something else to
-##     read: a step to follow, the result of a Play, the Soak, the XP to spend, a
-##     refused move (table_note.gd).
+##   the notes laid over it all in the card's place while there is something else
+##     to read, each a card of its own dealt on from the left and piled up: the
+##     result of a Play, a step to follow, the Soak, the XP to spend, a refused move;
+##     thrown off to the left together once done with (note_pile.gd, specs/015).
 ## The settled view is always the face; the whole top card shows only while a
 ## sequence plays, which holds the view (hold_card) until its zoom_in lands.
 
@@ -31,7 +32,7 @@ const RegionCard = preload("res://ui/widgets/region_card.gd")
 const RegionPanel = preload("res://ui/widgets/region_panel.gd")
 const DragonCard = preload("res://ui/widgets/dragon_card.gd")
 const CardFace = preload("res://ui/widgets/card_face.gd")
-const TableNote = preload("res://ui/widgets/table_note.gd")
+const NotePile = preload("res://ui/widgets/note_pile.gd")
 const StatChip = preload("res://ui/widgets/stat_chip.gd")
 const StoneStyle = preload("res://ui/theme/stone_style.gd")
 const Glossary = preload("res://ui/model/glossary.gd")
@@ -45,8 +46,6 @@ const EDGES_MAX := 8
 ## keeps inside the margin.
 const JITTER := [Vector2(0, 0), Vector2(1, 0), Vector2(-1, 1), Vector2(0, 1), Vector2(1, 1), Vector2(-1, 0),
 	Vector2(0, 1), Vector2(-1, 0)]
-## The soft shadow under the pile: how much each layer grows, and how dark it is.
-const SHADOW := [[2.0, 0.10], [4.0, 0.07], [6.0, 0.05], [8.0, 0.03]]
 ## One line of the reading strip under the landed panel: a 44-unit disc, or a line
 ## of body text, and the gap after it.
 const STRIP_LINE := 52.0
@@ -160,7 +159,8 @@ var landed := LandedFace.new()
 var dragon_face := DragonFace.new()
 var region_card := RegionCard.new()
 var dragon_card := DragonCard.new()
-var note := TableNote.new()
+## The notes lying on the Deck (specs/015).
+var pile := NotePile.new()
 
 ## "face" (zoomed in on `zoomed`) or "card" (the whole top card).
 var view := "face"
@@ -173,9 +173,14 @@ var vs := {}
 ## The sum and verdict of the set just played stay on the note from the tally until
 ## the next Encounter is being played (contracts/left-column.md).
 var result_held := false
-## Whether the note lies on the Deck, as last laid out.
-var note_on := false
+## Whether a note lies on the Deck.
+var note_on: bool:
+	get:
+		return pile.is_showing()
 
+## The Deck's own cards, clipped to it; the notes lie outside it, so a note is seen
+## crossing the Deck's edge as it is dealt or thrown (specs/015 research R3).
+var _table := Control.new()
 var _edges := Control.new()
 var _peek_clip := Control.new()
 var _peek := CardFace.new()
@@ -187,7 +192,13 @@ var zoomed := ""
 ## The rect the stack's edges hang from: the face's, or the top card's when zoomed out.
 var _stack_rect := Rect2()
 var _tweens: Array = []
-var _note_tween: Tween
+## The state the set just played was played in: the result is built from it.
+var _result_vs := {}
+## Which Encounter the notes lying on the Deck belong to; and the Encounter and
+## phase whose notes were thrown as the Deck zoomed out of it, done with until play
+## moves on.
+var _note_key := ""
+var _closed_key := ""
 ## While the card grows into a panel or back: what else settles meanwhile (the Key
 ## Card sliding home) leaves it be.
 var _zooming := false
@@ -200,11 +211,14 @@ var _strip_key := []
 
 
 func _init() -> void:
-	clip_contents = true
+	clip_contents = false
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_table.clip_contents = true
+	_table.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_table)
 	for c in [_edges, _peek_clip, _tops, _faces]:
 		c.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		add_child(c)
+		_table.add_child(c)
 	_edges.draw.connect(_draw_edges)
 	_tops.draw.connect(_draw_tops_mask)
 	# Only what has risen above the top card shows; the rest of the Key Card is under it.
@@ -219,10 +233,8 @@ func _init() -> void:
 		face.visible = false
 	landed.intent.connect(func(data): intent.emit(data))
 	dragon_face.intent.connect(func(data): intent.emit(data))
-	add_child(note)
-	note.visible = false
-	note.intent.connect(func(data): intent.emit(data))
-	note.held.connect(_lift_note)
+	add_child(pile)
+	pile.intent.connect(func(data): intent.emit(data))
 	_refusal_timer.one_shot = true
 	_refusal_timer.timeout.connect(func(): clear_refusal())
 	add_child(_refusal_timer)
@@ -433,6 +445,7 @@ func finish() -> void:
 		c.scale = Vector2.ONE
 		c.modulate.a = 1.0
 	_peek.visible = false
+	pile.finish()
 	if not vs.is_empty():
 		render(vs)
 
@@ -443,7 +456,7 @@ func face_node() -> Control:
 	for face in [landed, dragon_face]:
 		if face.visible:
 			return face
-	return note if note_on else self
+	return pile.top() if pile.top() != null else self
 
 
 func top_node() -> Control:
@@ -469,7 +482,13 @@ func back_point() -> Vector2:
 
 ## The note's centre, where numbers fly to and from it.
 func note_point() -> Vector2:
-	return note.global_position + note.size / 2.0
+	return global_position + _note_rect().get_center()
+
+
+## The panel `name` ("preview", "soak_meter", "xp_purse") on the note that shows it,
+## or a hidden one with none (note_pile.gd).
+func panel(name: String) -> Control:
+	return pile.panel(name)
 
 
 ## Whether a Key Card rises from under the top card: a Region Card's, not the
@@ -599,7 +618,7 @@ func _landing(f: Rect2) -> Dictionary:
 ## Lay every layer out for the current view, with nothing in motion.
 func _place() -> void:
 	var f := face_rect(size)
-	for c in [_edges, _tops, _faces]:
+	for c in [_table, _edges, _tops, _faces, pile]:
 		c.position = Vector2.ZERO
 		c.size = size
 	# While the card grows in or out of a panel it is clipped to the face, as the
@@ -616,10 +635,7 @@ func _place() -> void:
 		face.pivot_offset = f.size / 2.0
 	landed.lay_out(_landing(Rect2(Vector2.ZERO, f.size)))
 	var nr := _note_rect()
-	note.size = nr.size
-	# A note on its way on or off keeps to its own path.
-	if _note_tween == null or not _note_tween.is_running():
-		note.position = nr.position
+	pile.lay_out(nr)
 	_render_top()
 	# While the Key Card is up, the card and its edges stay dipped under it.
 	if view == "card":
@@ -666,7 +682,7 @@ func _draw_edges() -> void:
 		return
 	var radius := card_radius(_stack_rect.size.x)
 	var deepest: Rect2 = rects[0]
-	for layer in SHADOW:
+	for layer in T.CARD_SHADOW:
 		var sh := StyleBoxFlat.new()
 		sh.bg_color = Color(0, 0, 0, layer[1])
 		sh.set_corner_radius_all(radius + int(layer[0]))
@@ -711,141 +727,63 @@ func _target_rect(target: String, cr: Rect2) -> Rect2:
 
 # ---------------------------------------------------------------- the note
 
-## Lay the note on the Deck, take it off, or change what it says, for the state on
-## show (contracts/left-column.md "The note").
+## Deal the notes the state on show wants onto the Deck, and throw off those done
+## with (specs/015 contracts/note-pile.md).
 func _update_note(animate: bool) -> void:
 	if vs.is_empty():
 		return
-	var kinds := note_kinds(vs.get("note"), result_held)
-	var showing := note.refusal != "" or not kinds.is_empty()
-	var changed: bool = kinds != note.kinds
-	if not kinds.is_empty() or note.refusal != "":
-		note.show_kinds(kinds, vs)
-	else:
-		note.kinds = []
-	if showing != note_on:
-		_slide_note(showing, animate)
-	elif showing and changed and animate and not UI.reduced_motion:
-		note.modulate.a = 0.6
-		_note_to(note.position, 1.0, T.FAST)
+	# The notes of one Encounter are all thrown together before the next one's are
+	# dealt, though the last of them is still wanted as the Deck zooms out of it.
+	var key := note_key(vs)
+	if key != _note_key:
+		pile.throw_all(animate)
+		_note_key = key
+	var closed: bool = key + "|" + str(vs.get("phase", "")) == _closed_key
+	var wanted := [] if closed else note_kinds(vs.get("note"), result_held)
+	pile.sync(wanted, vs, _result_vs, animate)
 
 
-## The sum of the set just played comes onto the note (the animator's tally).
+## Which Encounter a state's notes belong to: the Region and where the Deck is
+## zoomed into (none while the Deck is prepared).
+static func note_key(state: Dictionary) -> String:
+	return "%s|%s" % [state.get("region", ""), state.get("zoom", "")]
+
+
+## The sum of the set just played comes onto the Deck on a note of its own (the
+## animator's tally).
 func show_result() -> void:
 	result_held = true
 	if vs.is_empty():
 		return
-	note.result_vs = vs
-	note.show_kinds(note_kinds(vs.get("note"), true), vs)
-	if not note_on:
-		_slide_note(true, is_inside_tree())
+	_result_vs = vs
+	_update_note(is_inside_tree())
 
 
-## Done with the result before the Deck zooms out to the next Encounter.
-func clear_result(d: float) -> void:
+## Done with the result before the Deck zooms out to the next Encounter: with
+## nothing else wanted, the notes are thrown off together.
+func clear_result(_d: float) -> void:
 	if not result_held:
 		return
 	result_held = false
-	var kinds := note_kinds(vs.get("note"), false)
-	if kinds.is_empty() and note.refusal == "":
-		_slide_note(false, is_inside_tree(), d)
-	else:
-		note.show_kinds(kinds, vs)
+	if not vs.is_empty():
+		_closed_key = note_key(vs) + "|" + str(vs.get("phase", ""))
+	_update_note(is_inside_tree())
 
 
-## A refused move's reason lies on the Deck for a moment (T.NOTE_HOLD), or until
-## the player does something else.
+## A refused move's reason lies on the Deck on a note of its own for a moment
+## (T.NOTE_HOLD), or until the player does something else.
 func show_refusal(text: String) -> void:
 	if text == "":
 		return
-	note.set_refusal(text)
-	if not note_on:
-		_slide_note(true, is_inside_tree())
+	pile.show_refusal(text, is_inside_tree())
 	_refusal_timer.start(T.NOTE_HOLD)
 
 
 func clear_refusal() -> void:
-	if note.refusal == "":
+	if pile.refusal_text() == "":
 		return
 	_refusal_timer.stop()
-	note.set_refusal("")
-	if not vs.is_empty():
-		note.show_kinds(note_kinds(vs.get("note"), result_held), vs)
-	if note.kinds.is_empty():
-		_slide_note(false, is_inside_tree())
-
-
-func _slide_note(on: bool, animate: bool, d: float = T.BASE) -> void:
-	note_on = on
-	var f := _note_rect()
-	if _note_tween != null and _note_tween.is_valid():
-		_note_tween.kill()
-	if not animate:
-		note.visible = on
-		note.position = f.position
-		note.modulate.a = 1.0
-		return
-	note.visible = true
-	var away := f.position + Vector2(T.DECK_EDGE, 0)
-	if on:
-		note.position = f.position if UI.reduced_motion else away
-		note.modulate.a = 0.0
-		_note_to(f.position, 1.0, d)
-	else:
-		_note_to(f.position if UI.reduced_motion else away, 0.0, d)
-		_note_tween.tween_callback(func():
-			if not note_on:
-				note.visible = false
-				note.position = f.position
-				note.modulate.a = 1.0)
-
-
-## The note preparing the Deck thrown off it to the left, turning a little as a
-## discarded card does, out past the Deck's edge (which stops clipping meanwhile).
-## In reduced motion it fades where it lies.
-func _discard_note(d: float) -> void:
-	note_on = false
-	if _note_tween != null and _note_tween.is_valid():
-		_note_tween.kill()
-	var home := note.position
-	_note_tween = create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
-	if UI.reduced_motion:
-		_note_tween.tween_property(note, "modulate:a", 0.0, d)
-	else:
-		clip_contents = false
-		note.pivot_offset = note.size / 2.0
-		var away := -global_position.x - note.size.x * 1.2
-		_note_tween.tween_property(note, "position:x", away, d)
-		_note_tween.tween_property(note, "rotation", deg_to_rad(-14.0), d)
-		_note_tween.tween_property(note, "modulate:a", 0.0, d * 0.3).set_delay(d * 0.7)
-	_note_tween.chain().tween_callback(func():
-		clip_contents = true
-		note.rotation = 0.0
-		if not note_on:
-			note.visible = false
-			note.position = home
-			note.modulate.a = 1.0)
-
-
-func _note_to(at: Vector2, alpha: float, d: float) -> void:
-	_note_tween = create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	if not UI.reduced_motion:
-		_note_tween.tween_property(note, "position", at, d)
-	_note_tween.tween_property(note, "modulate:a", alpha, d)
-	_note_tween.set_parallel(false)
-
-
-## Pressed and held, the note lifts aside to show the card under it; let go, it
-## lies back down. Never a move in the game.
-func _lift_note(on: bool) -> void:
-	if not note_on:
-		return
-	var f := _note_rect()
-	if on:
-		var aside := f.position + Vector2(f.size.x * 0.6, 0)
-		_note_to(f.position if UI.reduced_motion else aside, 0.15 if UI.reduced_motion else 0.25, T.FAST)
-	else:
-		_note_to(f.position, 1.0, T.FAST)
+	pile.clear_refusal(is_inside_tree())
 
 
 # ---------------------------------------------------------------- motion
@@ -1093,7 +1031,7 @@ func turn_to(m, d: float) -> void:
 		# The note preparing the Deck lies on it as a card would: thrown off to the
 		# left as a discard, it shows the Region Card already under it.
 		if was == null and note_on and _preparing():
-			_discard_note(d)
+			pile.throw_all(true)
 			if not UI.reduced_motion:
 				return
 		var top: Control = top_node()
