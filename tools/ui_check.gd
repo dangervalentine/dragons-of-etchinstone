@@ -491,10 +491,11 @@ func _inspect_screen(where: String) -> void:
 	var bar: Control = ui.play.header if ui.play != null and ui.screen == ui.play else ui.title_bar
 	var header: Rect2 = ui.plan.regions.header
 	var menu_rect: Rect2 = bar.menu_button.get_global_rect()
-	_ok(bar.is_visible_in_tree() and menu_rect.position.is_equal_approx(Vector2(header.end.x - menu_rect.size.x, header.position.y)),
+	var inset := Vector2(bar.PAD_X, bar.lift())
+	_ok(bar.is_visible_in_tree() and menu_rect.position.is_equal_approx(Vector2(header.end.x - menu_rect.size.x - inset.x, header.position.y + inset.y)),
 		"%s: the menu button is not at the title bar's right" % where)
 	if bar == ui.title_bar and bar.back_button.visible:
-		_ok(bar.back_button.get_global_rect().position.is_equal_approx(header.position), "%s: Back is not at the title bar's left" % where)
+		_ok(bar.back_button.get_global_rect().position.is_equal_approx(header.position + inset), "%s: Back is not at the title bar's left" % where)
 	for node in nodes:
 		var c := node as Control
 		if not c.is_visible_in_tree() or c.is_queued_for_deletion() or c.modulate.a < 0.5:

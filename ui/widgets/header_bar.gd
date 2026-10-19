@@ -18,6 +18,8 @@ const PILES := ["deck", "discard", "trash"]
 const PILE_NAMES := {"deck": "Deck", "discard": "Discard", "trash": "Trash"}
 ## The width of Back's tap target.
 const BACK_W := 150
+## How far Back, the heading and the menu button stand in from the band's ends.
+const PAD_X := T.M
 
 var menu_button := Button.new()
 var back_button := Button.new()
@@ -113,6 +115,7 @@ func _init() -> void:
 	resized.connect(_fit)
 	# The band follows the screen's edges, so it is redrawn when the bar moves.
 	item_rect_changed.connect(queue_redraw)
+	item_rect_changed.connect(_fit)
 	_lintel.changed.connect(queue_redraw)
 
 
@@ -163,16 +166,25 @@ func pile_point(pile: String) -> Vector2:
 	return icon.global_position + icon.size / 2.0
 
 
+## How far the bar's contents are raised, so they sit level with the middle of the
+## band that shows, which runs from the screen's top (or the margin under a notch)
+## to just under the bar.
+func lift() -> float:
+	var view_top := (get_global_transform().affine_inverse() * get_viewport_rect()).position.y
+	return roundf((4.0 - minf(-view_top, T.M)) / 2.0)
+
+
 func _fit() -> void:
+	var lift := lift()
 	menu_button.size = Vector2(T.TAP_MIN, T.TAP_MIN)
-	menu_button.position = Vector2(size.x - T.TAP_MIN, 0)
+	menu_button.position = Vector2(size.x - PAD_X - T.TAP_MIN, lift)
 	back_button.size = Vector2(BACK_W, T.TAP_MIN)
-	back_button.position = Vector2.ZERO
+	back_button.position = Vector2(PAD_X, lift)
 	# A name alone is centred on the bar, clear of Back and the menu button alike;
-	# on the play screen the row runs from the left edge, level with the body below,
-	# to the menu button.
-	var left: float = maxf(BACK_W, T.TAP_MIN) if _titled else 0.0
-	var right: float = maxf(BACK_W, T.TAP_MIN) if _titled else float(T.TAP_MIN)
-	_row.position = Vector2(left, 0)
+	# on the play screen the row runs from the left end, past the padding, to the
+	# menu button.
+	var left: float = PAD_X + (maxf(BACK_W, T.TAP_MIN) if _titled else 0.0)
+	var right: float = PAD_X + (maxf(BACK_W, T.TAP_MIN) if _titled else float(T.TAP_MIN))
+	_row.position = Vector2(left, lift)
 	_row.size = Vector2(maxf(0.0, size.x - left - right), size.y)
 
