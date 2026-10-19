@@ -16,7 +16,7 @@ static func font(name: String) -> Font:
 	if _fonts.is_empty():
 		var ts := TextServerManager.get_primary_interface()
 		var cinzel: Font = load("res://art/fonts/Cinzel.ttf")
-		for entry in [["display", 600], ["display_bold", 800]]:
+		for entry in [["display", 600], ["display_bold", 800], ["numeral", 900]]:
 			var v := FontVariation.new()
 			v.base_font = cinzel
 			v.variation_opentype = {ts.name_to_tag("wght"): entry[1]}

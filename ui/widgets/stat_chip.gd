@@ -26,13 +26,19 @@ var inset := Color.TRANSPARENT
 
 var _hover := false
 
-## How far a number sits below the middle of its shape, as a share of its size, so
-## it lands in the shape's body.
-const LIFT := {"crown": 0.08, "hp": 0.06, "mp": 0.08, "attack_badge": 0.14, "mp_badge": 0.2,
-	"initiative": -0.05, "armor": -0.02}
-## The number's size as a share of the shape, where the shape leaves less room.
-const NUMBER := {"mp_badge": 0.4, "time_badge": 0.42}
+## Where the number belongs inside each shape, in the icons' 48-unit view box: the
+## widest calm part of its body (the heart between its lobes and point, the shield
+## above its point, the flame's round base, the dark hourglass between its bars).
+## The number is sized to fit this window and centred on it by its own ink.
+const WINDOW := {"hp": Rect2(8, 10, 32, 23), "initiative": Rect2(9, 5, 30, 29),
+	"attack_badge": Rect2(11, 20, 26, 23), "armor": Rect2(8, 8, 32, 28),
+	"mp_badge": Rect2(10, 27, 28, 16), "time_badge": Rect2(14.5, 12, 19, 24),
+	"xp": Rect2(13, 13, 22, 22), "crown": Rect2(10, 18, 28, 18), "mp": Rect2(11, 29, 24, 13)}
+const WINDOW_DEFAULT := Rect2(9, 9, 30, 30)
+## The dark edge drawn under light digits, as a share of the font size.
+const OUTLINE := 0.06
 
+static var _inks := {}
 
 static func make(opts: Dictionary) -> Control:
 	var c = load("res://ui/widgets/stat_chip.gd").new()
@@ -100,12 +106,7 @@ func _draw() -> void:
 		draw_texture_rect(UI.icon(icon), rect, false, color)
 		if inset.a > 0.0:
 			draw_texture_rect(UI.icon(icon), rect.grow(-side * 0.1), false, inset)
-		var scale: float = NUMBER.get(icon, 0.5)
-		var fs := int(side * scale)
-		var sz := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs)
-		var lift: float = LIFT.get(icon, 0.0)
-		var base := rect.get_center().y + side * lift + (font.get_ascent(fs) - font.get_descent(fs)) / 2.0
-		draw_string(font, Vector2(rect.get_center().x - sz.x / 2.0, base), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, ink)
+		_number(window_rect(icon, rect), text, color, ink)
 		if element != "":
 			_corner_sigil(element, box.end - Vector2(side * 0.14, side * 0.12), side * 0.36)
 	if caption != "":
@@ -115,6 +116,69 @@ func _draw() -> void:
 			cs -= 1
 		var cw := cf.get_string_size(caption, HORIZONTAL_ALIGNMENT_LEFT, -1, cs).x
 		draw_string(cf, Vector2((size.x - cw) / 2.0, size.y - 5), caption, HORIZONTAL_ALIGNMENT_LEFT, -1, cs, T.INK_MUTED)
+
+
+## The window for `name`'s number when its shape is drawn in `rect`.
+static func window_rect(name: String, rect: Rect2) -> Rect2:
+	var w: Rect2 = WINDOW.get(name, WINDOW_DEFAULT)
+	var k := rect.size / 48.0
+	return Rect2(rect.position + w.position * k, w.size * k)
+
+
+## The digits' ink at `fs`, relative to where the string is drawn (its baseline
+## start): the outline of the glyphs themselves, not the font's line box, so a
+## number can be centred by what the eye sees.
+static func ink_rect(text: String, fs: int) -> Rect2:
+	var key := "%s|%d" % [text, fs]
+	if _inks.has(key):
+		return _inks[key]
+	var ts := TextServerManager.get_primary_interface()
+	var line := TextLine.new()
+	line.add_string(text, UI.font("numeral"), fs)
+	var lo := Vector2(INF, INF)
+	var hi := Vector2(-INF, -INF)
+	var x := 0.0
+	for g in ts.shaped_text_get_glyphs(line.get_rid()):
+		var c: Dictionary = ts.font_get_glyph_contours(g.font_rid, fs, g.index)
+		for p in c.get("points", PackedVector3Array()):
+			var q := Vector2(x + g.offset.x + p.x, g.offset.y + p.y)
+			lo = lo.min(q)
+			hi = hi.max(q)
+		x += g.advance
+	var r := Rect2(lo, hi - lo) if lo.x != INF else Rect2()
+	_inks[key] = r
+	return r
+
+
+## The size and baseline start that fit `text`'s ink, with its outline, inside
+## `window` and put the ink's centre on the window's centre.
+static func fit(text: String, window: Rect2) -> Dictionary:
+	var ref := ink_rect(text, 100)
+	if ref.size.x <= 0.0 or ref.size.y <= 0.0:
+		return {"fs": 1, "pos": window.get_center(), "ink": Rect2()}
+	# The outline grows the ink by OUTLINE * fs all round.
+	var fs := int(minf(window.size.x / (ref.size.x / 100.0 + OUTLINE), window.size.y / (ref.size.y / 100.0 + OUTLINE)))
+	# Hinting changes the outline from size to size, so the estimate is checked at
+	# its own size and stepped down until it truly fits.
+	var ink := ink_rect(text, fs)
+	while fs > 6 and (ink.size.x + 2.0 * OUTLINE * fs > window.size.x or ink.size.y + 2.0 * OUTLINE * fs > window.size.y):
+		fs -= 1
+		ink = ink_rect(text, fs)
+	var pos := window.get_center() - ink.get_center()
+	return {"fs": fs, "pos": pos, "ink": Rect2(ink.position + pos, ink.size)}
+
+
+## The number in its window: light digits get a dark edge in a deep shade of the
+## badge, so they read on any fill; dark digits stand on a light fill by themselves.
+func _number(window: Rect2, value: String, fill: Color, colour: Color) -> void:
+	if value == "":
+		return
+	var font := UI.font("numeral")
+	var f := fit(value, window)
+	if colour.get_luminance() > 0.5:
+		var edge := maxi(2, int(f.fs * OUTLINE * 2.0))
+		draw_string_outline(font, f.pos, value, HORIZONTAL_ALIGNMENT_LEFT, -1, f.fs, edge, Color(fill.darkened(0.7), 0.95))
+	draw_string(font, f.pos, value, HORIZONTAL_ALIGNMENT_LEFT, -1, f.fs, colour)
 
 
 ## The Ether as a bare sigil on the badge's corner, a shade brighter than its colour,
