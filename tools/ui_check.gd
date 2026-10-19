@@ -209,7 +209,7 @@ func _check_deck_settled(where: String) -> void:
 	_ok(region.grow(16).encloses(deck.face_node().get_global_rect()), "%s: the face %s is on the Deck %s" % [where, deck.face_node().get_global_rect(), region])
 	if ui.vs.phase == "setup":
 		# The Deck being prepared: the note lies where the Region Card will, at its size.
-		_ok(deck.face_node().size == deck.rest_rect({"kind": "region"}).size, "%s: the note lies in the Region Card's place, at its size" % where)
+		_ok(deck.face_node().size.is_equal_approx(deck.raised_rect().size), "%s: the note lies in the Region Card's place, at its size" % where)
 	else:
 		_ok(deck.face_node().size == DeckStack.face_rect(region.size).size, "%s: the face leaves the stack its margin" % where)
 	# Zoomed in on a Region Encounter, the card lies exactly where the zoom brought it

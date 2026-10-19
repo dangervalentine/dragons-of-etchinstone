@@ -356,7 +356,15 @@ func show_card() -> void:
 	held = true
 	view = "card"
 	_hold_faces(true)
+	if _peeks():
+		_raise()
 	_place()
+
+
+## The Deck raised to where the Key Card rises to, as it starts a game: the first
+## reveal brings it down as the Key Card comes up (peek()).
+func _raise() -> void:
+	_dip = -rise_room(card_rect(size, "card", true).size)
 
 
 func hold_card(on: bool) -> void:
@@ -414,6 +422,8 @@ func top_node() -> Control:
 ## the Key Card sits and the Hand is drawn from; and the back of the Deck.
 func top_point() -> Vector2:
 	var r := card_rect(size, view, _peeks())
+	if view == "card":
+		r.position.y += _dip
 	return global_position + Vector2(r.get_center().x, r.position.y + 8.0)
 
 
@@ -436,16 +446,17 @@ func _peeks() -> bool:
 
 
 ## The global rect of the whole top card resting on the Deck, zoomed out whatever
-## the view: where every drawn card starts (specs/014 research R1).
+## the view, raised or dipped as it is: where every drawn card starts (specs/014
+## research R1).
 func top_rect() -> Rect2:
 	var r := card_rect(size, "card", _peeks())
-	return Rect2(global_position + r.position, r.size)
+	return Rect2(global_position + r.position + Vector2(0, _dip), r.size)
 
 
-## The global rect the top card `m` will rest at once laid on the Deck, zoomed out:
-## where cards go back to before there is a top card to go under.
-func rest_rect(m) -> Rect2:
-	var r := card_rect(size, "card", m != null and m.kind == "region")
+## The global rect of the Key Card risen, where the Deck starts a game: the note
+## lies there while the Deck is prepared, and the starting cards go back under it.
+func raised_rect() -> Rect2:
+	var r := key_rect(size, true)
 	return Rect2(global_position + r.position, r.size)
 
 
@@ -564,15 +575,17 @@ func _place() -> void:
 	var cr := card_rect(size, view, _peeks())
 	# The Key Card never shows below the top card, which covers the rest of it.
 	_peek_clip.position = Vector2.ZERO
-	_peek_clip.size = Vector2(size.x, maxf(cr.end.y, 0.0))
+	_clip_peek(cr.end.y + (minf(_dip, 0.0) if view == "card" else 0.0))
 	for face in [landed, dragon_face]:
 		face.position = f.position
 		face.size = f.size
 		face.pivot_offset = f.size / 2.0
 	landed.lay_out(_landing(Rect2(Vector2.ZERO, f.size)))
 	var nr := _note_rect()
-	note.position = nr.position
 	note.size = nr.size
+	# A note on its way on or off keeps to its own path.
+	if _note_tween == null or not _note_tween.is_running():
+		note.position = nr.position
 	_render_top()
 	# While the Key Card is up, the card and its edges stay dipped under it.
 	if view == "card":
@@ -603,10 +616,11 @@ func _preparing() -> bool:
 	return vs.get("phase", "") == "setup"
 
 
-## Where the note lies: the face, or while the Deck is prepared, the Region Card's
-## own place, so the starting cards go back under it at its size.
+## Where the note lies: the face, or while the Deck is prepared, where the Region
+## Card will first lie, raised (raised_rect()), so the starting cards go back under
+## it at its size.
 func _note_rect() -> Rect2:
-	return card_rect(size, "card", true) if _preparing() else face_rect(size)
+	return key_rect(size, true) if _preparing() else face_rect(size)
 
 
 ## The Deck seen from the side, face up (specs/014 contracts/deck-pile.md): a soft
@@ -750,6 +764,33 @@ func _slide_note(on: bool, animate: bool, d: float = T.BASE) -> void:
 				note.visible = false
 				note.position = f.position
 				note.modulate.a = 1.0)
+
+
+## The note preparing the Deck thrown off it to the left, turning a little as a
+## discarded card does, out past the Deck's edge (which stops clipping meanwhile).
+## In reduced motion it fades where it lies.
+func _discard_note(d: float) -> void:
+	note_on = false
+	if _note_tween != null and _note_tween.is_valid():
+		_note_tween.kill()
+	var home := note.position
+	_note_tween = create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	if UI.reduced_motion:
+		_note_tween.tween_property(note, "modulate:a", 0.0, d)
+	else:
+		clip_contents = false
+		note.pivot_offset = note.size / 2.0
+		var away := -global_position.x - note.size.x * 1.2
+		_note_tween.tween_property(note, "position:x", away, d)
+		_note_tween.tween_property(note, "rotation", deg_to_rad(-14.0), d)
+		_note_tween.tween_property(note, "modulate:a", 0.0, d * 0.3).set_delay(d * 0.7)
+	_note_tween.chain().tween_callback(func():
+		clip_contents = true
+		note.rotation = 0.0
+		if not note_on:
+			note.visible = false
+			note.position = home
+			note.modulate.a = 1.0)
 
 
 func _note_to(at: Vector2, alpha: float, d: float) -> void:
@@ -1006,8 +1047,19 @@ func turn_to(m, d: float) -> void:
 	view = "card"
 	var cr := card_rect(size, "card", m.kind == "region")
 	if UI.reduced_motion or was == null:
+		# Laid on the Deck at the start, a Region Card lies raised where the note
+		# preparing the Deck lay, until the first reveal brings it down.
+		if was == null and m.kind == "region":
+			_raise()
+		cr.position.y += _dip
 		_show_top(m)
 		_place()
+		# The note preparing the Deck lies on it as a card would: thrown off to the
+		# left as a discard, it shows the Region Card already under it.
+		if was == null and note_on and _preparing():
+			_discard_note(d)
+			if not UI.reduced_motion:
+				return
 		var top: Control = top_node()
 		top.modulate.a = 0.0
 		var tw := _keep(create_tween().set_parallel(true))
@@ -1081,7 +1133,9 @@ func peek(face_model, target: String, d: float) -> void:
 		_peek.position = rest
 		_peek.modulate.a = 1.0
 		tw.tween_property(_peek, "position", up, rise).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-		tw.tween_method(_dip_to.bind(cr), 0.0, down, rise).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		# From where it lies: at rest, or raised at the start of a game, when it comes
+		# down the whole way the Key Card rises.
+		tw.tween_method(_dip_to.bind(cr), _dip, down, rise).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	tw.tween_callback(func():
 		_peek_up = true
 		reveal_beat.emit("key_lit")).set_delay(rise)
@@ -1118,9 +1172,15 @@ func show_reveal(face_model, target: String) -> void:
 	_place()
 
 
-## The top card and the edges under it, `by` below where they rest.
+func _clip_peek(bottom: float) -> void:
+	_peek_clip.size = Vector2(size.x, maxf(bottom, 0.0))
+
+
+## The top card and the edges under it, `by` below where they rest (above, when
+## negative: raised).
 func _dip_to(by: float, cr: Rect2) -> void:
 	_dip = by
+	_clip_peek(cr.end.y + minf(by, 0.0))
 	var top: Control = top_node()
 	if top != null:
 		top.position = cr.position + Vector2(0, by)

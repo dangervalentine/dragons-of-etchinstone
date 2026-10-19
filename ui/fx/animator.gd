@@ -316,14 +316,15 @@ func _pay_time(st: Dictionary, d: float) -> void:
 
 ## The starting cards go back to the Deck as a Hand is drawn, in reverse: the last
 ## card first, each moving and growing from its place to where the Region Card will
-## lie, gone as it lands; the Deck fills up to them as the last arrives.
+## first lie, raised (deck_stack.gd raised_rect()), gone as it lands under the note
+## preparing the Deck; the Deck fills up to them as the last arrives.
 func _undraw(st: Dictionary, d: float) -> void:
 	var ids: Array = st.cards.duplicate()
 	ids.reverse()
 	var n: int = ids.size()
 	var fly := minf(T.DRAW_FLY, d)
 	var gap: float = 0.0 if n < 2 else minf(T.STAGGER, maxf(0.0, d - fly) / (n - 1))
-	var to: Rect2 = screen.deck.rest_rect(_after.top_card)
+	var to: Rect2 = screen.deck.raised_rect()
 	var gathered: int = st.values.deck.size()
 	# Each goes in under the note lying on the Deck, as a drawn card comes from under the top card.
 	screen.deck.cover_pass(gap * (n - 1) + fly)
