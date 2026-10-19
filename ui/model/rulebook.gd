@@ -244,7 +244,7 @@ const SECTIONS := [
 				"XP cannot be saved: whatever you leave unspent is lost.",
 			]},
 			{"p": "Then Cleanup. Your Action Set is discarded, and your Reserve stays in your Hand unless Freeze or Ranged took it."},
-			{"note": "The game draws you back up to {n:HAND_SIZE} cards. Until you finish, Undo takes back an Upgrade."},
+			{"note": "The game draws you back up to {n:HAND_SIZE} cards. Tap a card to Upgrade it and again to take the Upgrade back; no XP is spent until you confirm."},
 		]},
 	]},
 	{"id": "region_end", "title": "End of a Region", "pages": [

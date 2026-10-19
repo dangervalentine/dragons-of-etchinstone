@@ -385,6 +385,7 @@ func finish() -> void:
 	region_card.set_rim(0.0)
 	region_card.set_numbers(1.0)
 	_tops.z_index = 0
+	z_index = 0
 	_put_peek_away()
 	for c in [region_card, dragon_card, landed, dragon_face, _peek]:
 		c.scale = Vector2.ONE
@@ -927,6 +928,16 @@ func cover_draw(t: float) -> void:
 	var tw := _keep(create_tween())
 	tw.tween_interval(t)
 	tw.tween_callback(func(): _tops.z_index = 0)
+
+
+## The whole Deck over the cards for `t`, whatever its view: a Time Penalty's
+## cards leave from under the top card or the face zoomed into on it, and the
+## note on it.
+func cover_pass(t: float) -> void:
+	z_index = 3
+	var tw := _keep(create_tween())
+	tw.tween_interval(t)
+	tw.tween_callback(func(): z_index = 0)
 
 
 static func _lerp_rect(a: Rect2, b: Rect2, v: float) -> Rect2:

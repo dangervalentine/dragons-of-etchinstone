@@ -3,6 +3,7 @@ extends "res://tests/base.gd"
 
 const Game = preload("res://engine/game.gd")
 const Draft = preload("res://ui/model/turn_draft.gd")
+const CardViewScript = preload("res://ui/widgets/card_view.gd")
 const ViewState = preload("res://ui/model/view_state.gd")
 const Glossary = preload("res://ui/model/glossary.gd")
 
@@ -276,6 +277,73 @@ func test_upgrade_step_explains_what_cannot_be_upgraded() -> void:
 	ok(vs.prompt.primary.enabled, "can always continue")
 
 
+## An Upgrade chosen but not confirmed turns its card to the next Level and takes
+## its cost from the XP left; the rest are judged on what is left.
+func test_upgrades_chosen_take_from_the_xp_left_until_confirmed() -> void:
+	var g = _game()
+	g.phase = "upgrade"
+	g.xp = 20
+	var d = Draft.new()
+	var id: String = g.hand[0]
+	var cost: int = g.level_data(id).upgrade_cost
+	var vs: Dictionary = ViewState.build(g, d, db)
+	ok(not vs.cards[id].turned, "not turned before it is chosen")
+	eq(vs.prompt.primary.label, "Continue", "nothing chosen: Continue")
+	d.toggle_pick(id)
+	vs = ViewState.build(g, d, db)
+	ok(vs.cards[id].turned, "chosen, it shows its next Level")
+	eq(vs.cards[id].state, "selected", "and is marked chosen")
+	ok(vs.cards[id].eligible, "and can be tapped again")
+	eq(CardViewScript.shown_level(vs.cards[id]), g.cards[id].level + 1, "the next Level")
+	eq(vs.xp, 20 - cost, "its cost is taken from the XP left")
+	eq(g.xp, 20, "but not spent")
+	eq(vs.prompt.primary.label, "Confirm", "Confirm")
+	g.xp = cost
+	vs = ViewState.build(g, d, db)
+	for other in g.hand.slice(1):
+		if g.level_data(other).upgrade_cost != null and not vs.cards[other].reason == "Downgraded":
+			ok(not vs.cards[other].eligible, "nothing left for another")
+	d.toggle_pick(id)
+	vs = ViewState.build(g, d, db)
+	ok(not vs.cards[id].turned, "chosen again, it turns back")
+	eq(vs.xp, cost, "and its XP is given back")
+
+
+## A card chosen to Soak shows the Level it will be Downgraded to, or 0 if Trashed.
+func test_soak_picks_show_the_level_they_fall_to() -> void:
+	var g = _game()
+	g.phase = "penalty"
+	g.damage_due = 99
+	var d = Draft.new()
+	var id: String = g.hand[0]
+	d.toggle_pick(id)
+	var c: Dictionary = ViewState.build(g, d, db).cards[id]
+	ok(c.turned, "turned")
+	eq(CardViewScript.shown_level(c), g.cards[id].level - 1, "one Level lower, 0 if Trashed")
+
+
+## A Level 1 card chosen to Soak turns to the shared Trashed back: no face, no
+## figures, no tags.
+func test_a_card_to_be_trashed_shows_the_trashed_back() -> void:
+	var g = _game()
+	g.phase = "penalty"
+	g.damage_due = 99
+	var id: String = g.hand[0]
+	g.cards[id].level = 1
+	var d = Draft.new()
+	d.toggle_pick(id)
+	var v = CardViewScript.new()
+	v.size = Vector2(197, 275)
+	v.set_model(ViewState.build(g, d, db).cards[id])
+	v._fit()
+	ok(v._back.visible, "the Trashed back")
+	ok(not v._face.visible, "and not the face")
+	d.toggle_pick(id)
+	v.set_model(ViewState.build(g, d, db).cards[id])
+	ok(v._face.visible and not v._back.visible, "chosen again, the face")
+	v.free()
+
+
 func test_ending_score_breakdown_adds_up() -> void:
 	var g = _game()
 	g.trash.append(g.deck.pop_back())
@@ -412,9 +480,8 @@ func test_a_previewed_hardship_explains_itself() -> void:
 			var v = CardView.new()
 			v.size = Vector2(197, 275)
 			v.set_model({"id": id, "name": m.name, "element": m.element, "level": level, "max_level": 4, "stats": now,
-				"alt": {"trashed": false, "label": "If chosen", "level": level + 1, "stats": then, "changed": []}})
+				"turned": true, "alt": {"trashed": false, "label": "If Upgraded", "level": level + 1, "stats": then, "changed": []}})
 			v._fit()
-			v._show_alt(true)
 			var tip: String = v.part_help(v._face.hardship_rect().get_center())
 			ok(tip.begins_with(Glossary.entry(then.hardship).name + ":"), "previewed hardship: " + tip)
 			v.free()

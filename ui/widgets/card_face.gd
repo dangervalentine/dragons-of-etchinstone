@@ -403,8 +403,6 @@ func _draw_ink() -> void:
 	rim.set_border_width_all(1)
 	rim.set_corner_radius_all(int(size.x * 0.075) - int(g.b))
 	_ink.draw_style_box(rim, Rect2(Vector2.ZERO, size).grow(-g.b))
-	if model.get("downgraded", false):
-		_crack()
 
 
 ## The Level crown, the Ether pip and the name, on the black top band.
@@ -416,9 +414,6 @@ func _draw_top_band(g: Dictionary, e) -> void:
 	_glow_rim(_rect_pts(c.grow(1), c.size.y * 0.2), _lift("level"))
 	_icon("crown", c, _ink_for("level", T.INK) if not dimmed else T.INK_MUTED)
 	_number(window("level", c), str(model.level), c.size.y * 0.5, T.BG_BASE, T.INK)
-	if model.get("downgraded", false):
-		var a: float = c.size.y * 0.5
-		_icon("down_arrow", Rect2(c.end - Vector2(a * 0.8, a * 0.8), Vector2(a, a)), T.BAD)
 	var n: Rect2 = g.name
 	var pip: float = band * 0.3
 	var pip_c := Vector2(n.position.x + pip * 0.5, band / 2.0)
@@ -547,82 +542,6 @@ func _draw_sword(g: Dictionary) -> void:
 	_ink.draw_line(Vector2(cx - blade / 2.0 + 0.5, top), Vector2(cx - blade / 2.0 + 0.5, bottom), steel.lightened(0.35), 1.0)
 	_ink.draw_circle(Vector2(cx, bottom), blade * 1.5, steel.darkened(0.2))
 	_ink.draw_circle(Vector2(cx, bottom - blade * 0.4), blade * 0.7, steel.lightened(0.3))
-
-
-## The card is broken: it was Downgraded this Encounter. A point of impact near the
-## top right, a spider of short cracks round it, and one fissure that runs down and
-## across the face, tapering, with two thinner branches. Each crack is a dark split
-## with a lit edge on one side and a faint ember core, so it reads as cut into the
-## card rather than scribbled on it. The pattern follows from the card's id, so each
-## card breaks its own way and always the same way.
-func _crack() -> void:
-	var w := size.x
-	var h := size.y
-	var rng := RandomNumberGenerator.new()
-	rng.seed = hash(str(model.get("id", "")))
-	var hit := Vector2(w * rng.randf_range(0.66, 0.8), h * rng.randf_range(0.27, 0.33))
-	# The fissure keeps to the art, right of the number plates, so every figure stays
-	# readable through it.
-	var main := _fissure(rng, hit, Vector2(w * rng.randf_range(0.5, 0.6), h * rng.randf_range(0.84, 0.92)), 7, w * 0.05)
-	var cracks := [[main, w * 0.06]]
-	# Branches leave the fissure partway down and thin out sooner.
-	cracks.append([_fissure(rng, main[2], Vector2(w * 0.97, h * rng.randf_range(0.42, 0.52)), 4, w * 0.03), w * 0.03])
-	cracks.append([_fissure(rng, main[4], Vector2(w * rng.randf_range(0.5, 0.56), h * rng.randf_range(0.58, 0.66)), 3, w * 0.02), w * 0.026])
-	# The spider round the point of impact.
-	for i in 5:
-		var a := TAU * i / 5.0 + rng.randf_range(-0.35, 0.35)
-		var reach := w * rng.randf_range(0.06, 0.12)
-		cracks.append([_fissure(rng, hit, hit + Vector2.from_angle(a) * reach, 2, w * 0.012), w * 0.014])
-	for c in cracks:
-		_split(c[0], c[1])
-	# Chips knocked out at the point of impact.
-	for i in 3:
-		var at := hit + Vector2(rng.randf_range(-1, 1), rng.randf_range(-1, 1)) * w * 0.025
-		var r := w * rng.randf_range(0.008, 0.016)
-		var chip := PackedVector2Array()
-		for k in 3:
-			chip.append(at + Vector2.from_angle(TAU * k / 3.0 + rng.randf() * 1.5) * r)
-		_ink.draw_colored_polygon(chip, Color(0.02, 0.01, 0.03, 0.85))
-	_ink.draw_circle(hit, w * 0.014, Color(T.BAD, 0.55))
-
-
-## A jagged path from `from` to `to` in `steps` legs, each bend pushed aside by up to
-## `jitter`, the bends nearer the start pushed less so the crack fans out.
-func _fissure(rng: RandomNumberGenerator, from: Vector2, to: Vector2, steps: int, jitter: float) -> PackedVector2Array:
-	var pts := PackedVector2Array([from])
-	var side := (to - from).orthogonal().normalized()
-	for i in range(1, steps):
-		var t := float(i) / steps
-		var along := from.lerp(to, t + rng.randf_range(-0.3, 0.3) / steps)
-		pts.append(along + side * rng.randf_range(-1.0, 1.0) * jitter * (0.4 + t))
-	pts.append(to)
-	return pts
-
-
-## One crack along `pts`, `width` wide at its start and tapering to a hair: the dark
-## split, its lit lower edge, and a thin ember core.
-func _split(pts: PackedVector2Array, width: float) -> void:
-	var n := pts.size()
-	if n < 2:
-		return
-	var left := PackedVector2Array()
-	var right := PackedVector2Array()
-	for i in n:
-		var dir := (pts[mini(i + 1, n - 1)] - pts[maxi(i - 1, 0)]).normalized()
-		var half := maxf(0.4, width * (1.0 - float(i) / (n - 1)) * 0.5)
-		left.append(pts[i] + dir.orthogonal() * half)
-		right.append(pts[i] - dir.orthogonal() * half)
-	var body := left.duplicate()
-	for i in range(n - 1, -1, -1):
-		body.append(right[i])
-	if Geometry2D.triangulate_polygon(body).is_empty():
-		_ink.draw_polyline(pts, Color(0.02, 0.01, 0.03, 0.9), maxf(1.5, width))
-	else:
-		_ink.draw_colored_polygon(body, Color(0.02, 0.01, 0.03, 0.9))
-	# Light catches the lower lip of the break.
-	_ink.draw_polyline(right, Color(1, 1, 1, 0.38), maxf(1.0, width * 0.2), true)
-	if width > size.x * 0.018:
-		_ink.draw_polyline(pts, Color(T.BAD, 0.45), maxf(1.0, width * 0.14), true)
 
 
 # ---------------------------------------------------------------- treatments

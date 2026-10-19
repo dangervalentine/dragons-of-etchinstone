@@ -477,15 +477,6 @@ func _game() -> void:
 	ui.animator.skip()
 	if g.phase == "penalty":
 		await _shot("soak_choose")
-		var first: String = ""
-		for id in g.hand.duplicate():
-			if ui.vs.cards[id].eligible and first == "":
-				first = id
-		if first != "":
-			_hover(first)
-			await create_timer(0.4).timeout
-			await _shot("soak_hover_preview")
-			_unhover(first)
 		for id in g.hand.duplicate():
 			if not ui.vs.soak.covered and ui.vs.cards[id].eligible:
 				_press({"type": "card", "id": id})
@@ -504,18 +495,14 @@ func _game() -> void:
 			if ui.vs.cards[id].get("eligible", false):
 				up = id
 				break
-		_hover(up)
-		await create_timer(0.4).timeout
-		await _shot("upgrade_hover_preview")
-		_unhover(up)
-		# The XP spent flies from the purse to the card as stars (specs/011 R7).
+		# Chosen, the card turns to its next Level as the XP flies to it as stars.
 		ui.dispatch({"type": "card", "id": up})
 		for i in 8:
 			await process_frame
 		n += 1
 		root.get_texture().get_image().save_png("%s/%02d_upgrade_stars.png" % [out, n])
-		ui.animator.skip()
-		await _shot("upgraded_with_undo")
+		await create_timer(0.6).timeout
+		await _shot("upgrade_chosen")
 		_press({"type": "inspect", "id": g.hand[0]})
 		await _shot("inspect_card")
 		ui._close_overlays()

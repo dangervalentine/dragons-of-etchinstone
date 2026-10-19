@@ -13,7 +13,6 @@ const ViewState = preload("res://ui/model/view_state.gd")
 const Sequencer = preload("res://ui/model/sequencer.gd")
 const Solver = preload("res://ui/model/layout_solver.gd")
 const Settings = preload("res://ui/model/settings.gd")
-const Undo = preload("res://ui/model/upgrade_undo.gd")
 const Art = preload("res://ui/model/art.gd")
 const Haptics = preload("res://ui/fx/haptics.gd")
 const PlayClock = preload("res://ui/model/play_clock.gd")
@@ -67,8 +66,6 @@ var _lost_at := ""
 var _last_card := ""
 ## While a card is held, the place Tab has moved to and Space puts it in.
 var _key_target: Variant = null
-## Upgrades made in this Upgrade step, newest last, so they can be taken back.
-var _undo: Array = []
 ## For tools: pretend the device has these safe-area insets (design units).
 var safe_override := Rect2()
 ## For tools: pretend the window has this size in pixels.
@@ -410,7 +407,6 @@ func start_game(opts: Dictionary) -> void:
 	_placing = {}
 	_save_marker()
 	_lost_at = ""
-	_undo.clear()
 	_reset_draft()
 	play = PlayScreen.new()
 	play.flight = _flight
@@ -439,7 +435,7 @@ func _refresh(animate := true, show := true) -> void:
 	var placing: Array = PlayHistory.placing_lines(_placing, _last_record) if not _placing.is_empty() else []
 	if draft.held == null:
 		_key_target = null
-	vs = ViewState.build(game, draft, db, {"previous_preview": previous, "lost_at": _lost_at, "undo": _undo.size(), "placing": placing, "key_target": _key_target})
+	vs = ViewState.build(game, draft, db, {"previous_preview": previous, "lost_at": _lost_at, "placing": placing, "key_target": _key_target})
 	if show and play != null and screen == play and not animator.is_playing():
 		play.render(vs, animate)
 		_tint_backdrop(vs)
@@ -593,13 +589,16 @@ func _on_card(id: String) -> void:
 			else:
 				_refuse("That card cannot Soak: %s." % card.get("reason", "").to_lower(), id)
 		"upgrade":
-			var entry := Undo.record(game, id)
-			_undo.append(entry)
-			var level: int = game.cards[id].level
-			_act({"kind": "upgrade", "cards": [id], "id": id}, func(): return game.upgrade(id))
-			if game.cards[id].level == level:
-				_undo.erase(entry)
-				_refresh(false)
+			# Chosen, the card turns to show its next Level and its XP flies to it;
+			# chosen again, it turns back. Nothing is spent until Confirm.
+			var card: Dictionary = vs.cards.get(id, {})
+			if draft.picks.has(id) or card.get("eligible", false):
+				var xp_before: int = vs.xp
+				draft.toggle_pick(id)
+				_refresh()
+				animator.spend(play, id, xp_before, vs.xp)
+			else:
+				_refuse("That card cannot be Upgraded: %s." % card.get("reason", ""), id)
 		"challenge", "final_journey", "final_enemy":
 			match draft.mode:
 				"divert":
@@ -665,13 +664,6 @@ func _on_action(id: String) -> void:
 			draft.begin_mode(id)
 		"give_up_reserve":
 			draft.give_up_reserve = not draft.give_up_reserve
-		"undo":
-			if not _undo.is_empty():
-				var entry: Dictionary = _undo.pop_back()
-				_act({"kind": "upgrade", "cards": [entry.id], "id": entry.id}, func():
-					Undo.undo(game, entry)
-					return "")
-				return
 		"cancel":
 			draft.cancel_mode()
 	_refresh()
@@ -703,8 +695,8 @@ func _on_primary() -> void:
 		"upgrade":
 			var affordable := false
 			for id in vs.hand:
-				affordable = affordable or vs.cards[id].get("eligible", false)
-			if Settings.warn_unspent_xp and game.xp > 0 and affordable:
+				affordable = affordable or (vs.cards[id].get("eligible", false) and not draft.picks.has(id))
+			if Settings.warn_unspent_xp and vs.xp > 0 and affordable:
 				_confirm_unspent_xp()
 				return
 			_finish_upgrade()
@@ -715,7 +707,7 @@ func _on_primary() -> void:
 func _confirm_unspent_xp() -> void:
 	var c := ConfirmDialog.new()
 	_overlays.add_child(c)
-	c.setup("You have %d XP left, enough to Upgrade a card. Unspent XP is lost. Continue anyway?" % game.xp,
+	c.setup("You have %d XP left, enough to Upgrade a card. Unspent XP is lost. Continue anyway?" % vs.xp,
 		"Continue anyway", "Keep upgrading", "Don't show this again")
 	c.confirmed.connect(_finish_upgrade)
 	c.tree_exiting.connect(func():
@@ -724,9 +716,14 @@ func _confirm_unspent_xp() -> void:
 			Settings.save_all())
 
 
+## The Upgrades chosen are made, then the step ends. The cards already show their
+## new Levels, so the Upgrades themselves play nothing more.
 func _finish_upgrade() -> void:
 	if game == null or game.phase != "upgrade":
 		return
+	for id in draft.picks:
+		game.upgrade(id)
+	draft.picks.clear()
 	var spent: Array = game._action.cards.values()
 	if game._action.fuse != null:
 		spent.append(game._action.fuse.bottom)
@@ -757,20 +754,22 @@ func _act(action: Dictionary, call: Callable) -> void:
 	else:
 		_save_marker()
 	var after := ViewState.snapshot(game)
-	if game.phase != "upgrade":
-		_undo.clear()
 	match action.kind:
 		"divert":
 			draft.drop(action.id)
 			draft.cancel_mode()
 			draft.settle(game.hand)
-		"upgrade":
-			pass
 		_:
 			_reset_draft()
 	if game.phase != phase_before and (game.phase == "challenge" or game.phase.begins_with("final")):
 		_reset_draft()
 	var steps := Sequencer.build(before, action, game.result, after)
+	# A Time Penalty's cards show their faces as they go to the Discard.
+	for st in steps:
+		if st.kind == "pay_time":
+			st.values["models"] = {}
+			for id in st.cards:
+				st.values.models[id] = ViewState.plain_card(game, db, id)
 	_refresh(false, false)
 	if steps.is_empty():
 		play.render(vs, true)

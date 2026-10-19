@@ -8,6 +8,7 @@ extends Node
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
 const BoardResponse = preload("res://ui/model/board_response.gd")
+const Sequencer = preload("res://ui/model/sequencer.gd")
 
 signal started
 signal finished
@@ -138,10 +139,11 @@ func _to_wait() -> void:
 
 ## How long a step plays in reduced motion: a short fade, but the stage banner
 ## keeps its time to be read, and so does the Key Card, its number and its panel
-## lighting up one after the other (specs/012 FR-011, specs/014 FR-010).
+## lighting up one after the other (specs/012 FR-011, specs/014 FR-010), and a
+## Time Penalty, damage and XP, each card, mark or star seen as it goes.
 static func reduced_duration(st: Dictionary) -> float:
 	match st.kind:
-		"stage_banner", "key_peek":
+		"stage_banner", "key_peek", "pay_time", "damage", "soak_damage", "gain_xp", "upgrade", "xp_lost":
 			return st.duration
 	return minf(st.duration, T.FAST * 2.0)
 
@@ -206,28 +208,23 @@ func _run(st: Dictionary, d: float) -> void:
 				_keep(flight.float_text(look.text, screen.point("encounter"), look.color, 40, d * 2.2, look.icon))
 		"gain_xp":
 			var to: Vector2 = screen.point("preview")
-			for i in 5:
-				_keep(flight.ghost("xp", screen.point("encounter"), to, d, T.GOLD, 34, i * d * 0.08))
-			_keep(flight.float_text("+%d XP" % st.values.amount, to, T.GOLD, 36, d * 2.0))
+			var n: int = mini(st.values.amount, T.XP_STARS)
+			var pace := _pace(n, d)
+			for i in n:
+				_keep(flight.ghost("xp", screen.point("encounter"), to, pace.x, T.GOLD, 34, i * pace.y))
+			_keep(flight.float_text("+%d XP" % st.values.amount, to, T.GOLD, 36, d * 1.5))
 		"damage":
 			var amount: int = st.values.amount
 			if amount > 0:
 				var e: String = st.values.element
 				var icon := e if e != "" else "hp"
-				_keep(flight.float_text("−%d" % amount, screen.point("hand"), T.BAD, 52, d * 2.2, icon))
+				_keep(flight.float_text("−%d" % amount, screen.point("hand"), T.BAD, 52, d * 1.6, icon))
 			_keep(flight.tint(Color(T.BAD, 0.16), d))
 			for id in screen.hand.ids():
 				UI.shake(screen.hand.card(id), 10.0)
 		"pay_time":
-			var n: int = st.cards.size()
-			for i in n:
-				var delay := d * 0.6 * i / maxf(1.0, n)
-				_keep(flight.ghost("card_back", screen.point("deck"), screen.point("discard"), d * 0.5, T.INK_MUTED, 40, delay))
-				_keep(_later(delay + d * 0.4, func():
-					screen.header.bump("deck", -1)
-					screen.deck.bump(-1)
-					screen.header.bump("discard", 1)))
-			_keep(flight.float_text("−%d time" % n, screen.point("deck") + Vector2(0, 50), T.BAD, 30, d * 2.0, "time"))
+			_pay_time(st, d)
+			_keep(flight.float_text("−%d time" % st.cards.size(), screen.point("deck") + Vector2(0, 50), T.BAD, 30, d * 2.0, "time"))
 		"poison_pending":
 			_keep(flight.ghost("poison", screen.point("encounter"), screen.point("deck"), d, T.GOOD, 44))
 		"knock_out":
@@ -237,8 +234,9 @@ func _run(st: Dictionary, d: float) -> void:
 				if v != null:
 					UI.shake(v, 14.0)
 		"downgrade", "upgrade":
+			# The card turns in its own time while the XP it cost may still be flying.
 			for id in st.cards:
-				_level(id, st, d)
+				_level(id, st, minf(d, T.TURN))
 			if st.kind == "upgrade" and st.values.get("spent", 0) > 0:
 				_stars(st.cards[0], st.values.spent, d)
 		"soak_damage":
@@ -246,7 +244,7 @@ func _run(st: Dictionary, d: float) -> void:
 		"xp_lost":
 			if screen.xp_purse.visible:
 				screen.xp_purse.fade_out(d)
-				_keep(flight.float_text("\u2212%d XP" % st.values.amount, screen.xp_purse.point(), T.INK_MUTED, 30, d * 2.0, "xp"))
+				_keep(flight.float_text("\u2212%d XP" % st.values.amount, screen.xp_purse.point(), T.INK_MUTED, 30, d * 1.6, "xp"))
 		"trash":
 			for id in st.cards:
 				_away(id, "trash", d, true)
@@ -289,6 +287,30 @@ func _run(st: Dictionary, d: float) -> void:
 			_keep(flight.tint(Color(T.GOLD if st.values.won else T.BAD, 0.2), d))
 
 
+## A Time Penalty: each card leaves from under the top card on the Deck, at its
+## size and face up, one after another as a Hand is drawn but slower, so each is
+## seen to go, up to the Discard's icon in the header, shrinking into it.
+func _pay_time(st: Dictionary, d: float) -> void:
+	var n: int = st.cards.size()
+	var fly := minf(T.PAY_FLY, d)
+	var gap: float = 0.0 if n < 2 else minf(T.PAY_STAGGER, maxf(0.0, d - fly) / (n - 1))
+	var models: Dictionary = st.values.get("models", {})
+	var from: Rect2 = screen.deck.top_rect()
+	var to: Rect2 = screen.header.pile_rect("discard")
+	screen.deck.cover_pass(d)
+	for i in n:
+		var delay := gap * i
+		_keep(_later(delay, func():
+			screen.header.bump("deck", -1)
+			screen.deck.bump(-1)))
+		var land := func(): screen.header.bump("discard", 1)
+		if models.has(st.cards[i]):
+			screen.hand.pass_to(models[st.cards[i]], from, to, delay, fly, land)
+		else:
+			_keep(flight.ghost("card_back", screen.point("deck"), to.get_center(), fly, T.INK_MUTED, 40, delay))
+			_keep(_later(delay + fly, land))
+
+
 ## Played cards lunge at the Encounter and come back.
 func _strike(ids: Array, d: float) -> void:
 	var target: Vector2 = screen.point("encounter")
@@ -312,7 +334,8 @@ func _strike(ids: Array, d: float) -> void:
 	_keep(_later(d * 0.45, func(): UI.shake(face, 9.0)))
 
 
-## A card changes Level where it stands.
+## A card changes Level where it stands: given its new Level, it turns over to
+## show it (card_view.gd), unless it already shows it, turned when it was chosen.
 func _level(id: String, st: Dictionary, d: float) -> void:
 	var v: Control = screen.hand.card(id)
 	if v == null:
@@ -320,24 +343,48 @@ func _level(id: String, st: Dictionary, d: float) -> void:
 	var up: bool = st.kind == "upgrade"
 	var m: Dictionary = _after.cards.get(id, {}).duplicate(true)
 	if not m.is_empty():
-		_keep(_later(d * 0.35, func(): v.set_model(m)))
-	_keep(_pulse(v, d))
+		v.set_model(m)
+	if UI.reduced_motion:
+		_keep(_pulse(v, d))
 	var c: Color = T.GOLD if up else T.BAD
 	_keep(flight.float_text("Level %d" % st.values.level, v.global_position + Vector2(v.size.x / 2.0, v.size.y * 0.2), c, 30, d * 2.0,
 		"crown" if up else "down_arrow"))
 
 
-## The XP an Upgrade spent leaves the purse as that many stars, one per XP, and
-## lands on the card; the purse's figure counts down as they go (specs/011 R7).
+## The XP an Upgrade spent leaves the purse's big star as that many stars, one
+## per XP, and lands on the card; the purse's figure counts down as they go
+## (specs/011 R7).
 func _stars(id: String, spent: int, d: float) -> void:
 	var v: Control = screen.hand.card(id)
 	if v == null or not screen.xp_purse.visible:
 		return
-	var from: Vector2 = screen.xp_purse.point()
+	var from: Vector2 = screen.xp_purse.star_point()
 	var to: Vector2 = v.global_position + v.size / 2.0
+	var pace := _pace(spent, d)
 	for i in spent:
-		_keep(flight.ghost("xp", from, to, d, T.GOLD, 28, i * d * 0.08))
-	screen.xp_purse.count_to(int(screen.vs.xp) - spent, d)
+		_keep(flight.ghost("xp", from, to, pace.x, T.GOLD, 28, i * pace.y))
+	screen.xp_purse.count_to(int(screen.xp_purse.amount.text) - spent, d)
+
+
+## While Upgrades are chosen: the XP a card takes flies from the purse to it as
+## stars, and back to the purse when the Upgrade is taken back; the purse counts
+## from `from_xp` to what is left.
+func spend(play_screen: Control, id: String, from_xp: int, to_xp: int) -> void:
+	screen = play_screen
+	var v: Control = screen.hand.card(id)
+	if v == null or not screen.xp_purse.is_visible_in_tree() or from_xp == to_xp:
+		return
+	var purse: Vector2 = screen.xp_purse.star_point()
+	var card: Vector2 = v.global_position + v.size / 2.0
+	var a: Vector2 = purse if to_xp < from_xp else card
+	var b: Vector2 = card if to_xp < from_xp else purse
+	var n := absi(from_xp - to_xp)
+	var d := Sequencer.paced(n)
+	var pace := _pace(n, d)
+	for i in n:
+		flight.ghost("xp", a, b, pace.x, T.GOLD, 28, i * pace.y)
+	screen.xp_purse.amount.text = str(from_xp)
+	screen.xp_purse.count_to(to_xp, d)
 
 
 ## The damage due leaves the Soak meter for the cards chosen to take it: each card
@@ -350,6 +397,7 @@ func _soak_damage(ids: Array, due: int, d: float) -> void:
 	var element: String = soak.get("element", "")
 	var icon: String = "poison" if soak.get("poison", false) else (element if element != "" else "hp")
 	var from: Vector2 = screen.soak_meter.point()
+	var pace := _pace(due, d)
 	var left := due
 	var k := 0
 	for id in ids:
@@ -360,8 +408,16 @@ func _soak_damage(ids: Array, due: int, d: float) -> void:
 			continue
 		var to: Vector2 = v.global_position + v.size / 2.0
 		for i in n:
-			_keep(flight.ghost(icon, from, to, d, T.BAD, 28, k * d * minf(0.08, 0.6 / maxf(1.0, due))))
+			_keep(flight.ghost(icon, from, to, pace.x, T.BAD, 28, k * pace.y))
 			k += 1
+
+
+## How long each of `n` marks or stars flies, and the gap between one leaving and
+## the next, for all of them to land within `d`: slow enough each is seen to go.
+static func _pace(n: int, d: float) -> Vector2:
+	var fly := minf(T.MOTE_FLY, d)
+	var gap: float = 0.0 if n < 2 else minf(T.MOTE_STAGGER, maxf(0.0, d - fly) / (n - 1))
+	return Vector2(fly, gap)
 
 
 ## A card leaves the Hand for a pile.

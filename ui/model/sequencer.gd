@@ -10,15 +10,18 @@ const T = preload("res://ui/theme/tokens.gd")
 const ViewState = preload("res://ui/model/view_state.gd")
 
 const DURATION := {
-	"play_cards": 0.35, "tally": 0.6, "verdict": 0.4, "gain_xp": 0.35, "damage": 0.35,
-	"pay_time": 0.2, "poison_pending": 0.3, "knock_out": 0.45, "downgrade": 0.3, "trash": 0.3,
-	"upgrade": 0.35, "discard": 0.35, "gather_shuffle": 0.45, "stage_banner": 1.2, "draw": 0.35,
-	"ending": 0.4, "xp_lost": 0.5, "soak_damage": 0.5,
+	"play_cards": 0.35, "tally": 0.6, "verdict": 0.4, "gain_xp": 0.35, "damage": T.DAMAGE,
+	"pay_time": 0.2, "poison_pending": 0.3, "knock_out": 0.45, "downgrade": T.TURN, "trash": 0.3,
+	"upgrade": T.TURN, "discard": 0.35, "gather_shuffle": 0.45, "stage_banner": 1.2, "draw": 0.35,
+	"ending": 0.4, "xp_lost": 0.9, "soak_damage": 0.5,
 	"zoom_out": T.ZOOM, "zoom_in": T.ZOOM, "turn_card": T.TURN, "key_peek": T.KEY_PEEK,
 }
 ## The steps that reveal the next Encounter on the Deck (specs/012 research R8):
 ## they keep their own timing, so a long sequence never hurries the Key Card.
 const REVEAL := ["key_peek", "zoom_in"]
+## The steps a long sequence never hurries: the reveal, and what is to be seen
+## going: a Time Penalty's cards leaving the Deck, damage, and XP won, spent or lost.
+const OWN_TIME := REVEAL + ["pay_time", "damage", "soak_damage", "gain_xp", "upgrade", "xp_lost"]
 
 
 ## action: {kind, cards (the cards played or chosen), id (one card)}. kind is one of
@@ -63,7 +66,10 @@ static func build(before: Dictionary, action: Dictionary, result: Dictionary, af
 		"soak":
 			# The damage leaves the Soak meter for the cards that take it, in the order
 			# chosen, before they Downgrade (specs/011 follow-up).
-			steps.append(_step("soak_damage", action.cards.duplicate(), {"due": before.get("damage_due", 0)}, "soak"))
+			var due: int = before.get("damage_due", 0)
+			var st := _step("soak_damage", action.cards.duplicate(), {"due": due}, "soak")
+			st.duration = paced(due)
+			steps.append(st)
 			_level_steps(steps, before, after, before.hand)
 		"upgrade":
 			_level_steps(steps, before, after, before.hand)
@@ -168,7 +174,9 @@ static func _strike(steps: Array, action: Dictionary, result: Dictionary) -> voi
 	steps.append(_step("tally", [], {}, "preview"))
 	steps.append(_step("verdict", [], {"outcome": result.get("outcome", ""), "tier": result.get("tier", -1)}, "preview"))
 	if result.get("xp", 0) > 0:
-		steps.append(_step("gain_xp", [], {"amount": result.xp}, "xp"))
+		var st := _step("gain_xp", [], {"amount": result.xp}, "xp")
+		st.duration = paced(mini(result.xp, T.XP_STARS))
+		steps.append(st)
 
 
 ## Cards that went straight from the deck to the discard: a Time Penalty.
@@ -179,7 +187,8 @@ static func _pay_time(steps: Array, before: Dictionary, after: Dictionary, also_
 			paid.append(id)
 	if not paid.is_empty():
 		var st := _step("pay_time", paid, {"count": paid.size()}, "deck")
-		st.duration = minf(0.2 + 0.08 * paid.size(), 0.6)
+		# They leave the Deck one after another as a Hand is drawn, but slower.
+		st.duration = minf(T.PAY_FLY + T.PAY_STAGGER * (paid.size() - 1), T.PAY_MAX)
 		steps.append(st)
 
 
@@ -194,9 +203,11 @@ static func _level_steps(steps: Array, before: Dictionary, after: Dictionary, id
 			steps.append(_step("downgrade", [id], {"level": now, "from": was}, "hand"))
 		elif now > was:
 			var st := _step("upgrade", [id], {"level": now, "from": was}, "hand")
-			# The XP it cost, which flies from the purse to the card (specs/011 R7).
-			if before.get("xp", 0) > after.get("xp", 0):
-				st.values["spent"] = before.xp - after.xp
+			# The XP it cost, which flies from the purse to the card (specs/011 R7): its
+			# own cost, though other cards were Upgraded with it.
+			if before.get("xp", 0) > after.get("xp", 0) and before.get("costs", {}).has(id):
+				st.values["spent"] = before.costs[id]
+				st.duration = maxf(T.TURN, paced(st.values.spent))
 			steps.append(st)
 
 
@@ -212,6 +223,11 @@ static func _reveal(steps: Array, after: Dictionary) -> void:
 		steps.append(_step("key_peek", [after.deck[0]], {"key": after.deck[0], "kind": enc.kind, "index": enc.index, "target": target,
 			"hardship": enc.hardship}, "deck"))
 	steps.append(_step("zoom_in", [], {"target": target}, "deck"))
+
+
+## How long `n` damage marks or XP stars take, flying one after another.
+static func paced(n: int) -> float:
+	return minf(T.MOTE_FLY + T.MOTE_STAGGER * maxi(0, n - 1), T.MOTE_MAX)
 
 
 static func _draw_step(steps: Array, ids: Array) -> void:
@@ -239,14 +255,14 @@ static func _deck_before_draw(after: Dictionary, _unused: Array) -> Array:
 
 
 ## Keep a whole sequence within the time limit by shortening every step alike, all
-## but the reveal of the next Encounter, which keeps its own timing.
+## but the reveal of the next Encounter and a Time Penalty, which keep their own timing.
 static func _fit_time(steps: Array) -> void:
 	var total := 0.0
 	for st in steps:
-		if not REVEAL.has(st.kind):
+		if not OWN_TIME.has(st.kind):
 			total += st.duration
 	if total > T.SEQUENCE_MAX:
 		var k: float = T.SEQUENCE_MAX / total
 		for st in steps:
-			if not REVEAL.has(st.kind):
+			if not OWN_TIME.has(st.kind):
 				st.duration *= k

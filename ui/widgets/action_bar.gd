@@ -1,6 +1,6 @@
 extends Control
 ## The action row under the Hand (specs/010 contracts/board-layout.md): the
-## secondary cells (Fuse or Undo Upgrade, then Divert or Regroup, then Give up
+## secondary cells (Fuse, then Divert or Regroup, then Give up
 ## Reserve against a Ranged Enemy, or Cancel in place of the one under way), and the
 ## one primary action, Play, last, under the right thumb. Up to three cells Play
 ## takes the right half and a cell with nothing on offer is left blank; a fourth

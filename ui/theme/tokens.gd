@@ -130,6 +130,20 @@ const PEEK_FALL := 0.2
 ## A drawn card's flight from the top card, at its size, to its place in the Hand
 ## (feature 014).
 const DRAW_FLY := 0.45
+## A Time Penalty's cards leave the Deck for the Discard slower than a draw, one
+## well after another, so each is seen to go; the whole penalty within PAY_MAX.
+const PAY_FLY := 1.0
+const PAY_STAGGER := 0.4
+const PAY_MAX := 3.0
+## Damage and XP move the same way: each mark or star flies slowly enough to be
+## seen, one well after another, all of them within MOTE_MAX; damage's figure
+## stays up as long.
+const MOTE_FLY := 0.8
+const MOTE_STAGGER := 0.25
+const MOTE_MAX := 2.5
+const DAMAGE := 1.0
+## At most this many stars for XP won, one per XP up to it.
+const XP_STARS := 10
 ## The Key Card's Encounter number lighting up once it has risen.
 const KEY_LIT := 0.35
 ## The matching panel on the Region Card lighting up, from 60% of KEY_LIT.

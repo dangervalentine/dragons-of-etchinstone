@@ -5,7 +5,6 @@ const Game = preload("res://engine/game.gd")
 const ViewState = preload("res://ui/model/view_state.gd")
 const Sequencer = preload("res://ui/model/sequencer.gd")
 const T = preload("res://ui/theme/tokens.gd")
-const Undo = preload("res://ui/model/upgrade_undo.gd")
 
 var db = CardDB.new()
 var kinds_seen := {}
@@ -27,7 +26,7 @@ func _act(g, action: Dictionary, call: Callable) -> String:
 		# The reveal of the next Encounter keeps its own timing (specs/012 R8).
 		if Sequencer.REVEAL.has(st.kind):
 			reveal += st.duration
-		else:
+		elif not Sequencer.OWN_TIME.has(st.kind):
 			total += st.duration
 		kinds_seen[st.kind] = true
 	# The rise, the number and the panel lit, and the zoom (specs/014 FR-012).
@@ -35,6 +34,15 @@ func _act(g, action: Dictionary, call: Callable) -> String:
 	for st in steps:
 		if st.kind == "key_peek":
 			eq(st.duration, T.KEY_PEEK, "%s: the Key Card's reveal keeps its time" % action.kind)
+		if st.kind == "pay_time":
+			eq(st.duration, minf(T.PAY_FLY + T.PAY_STAGGER * (st.cards.size() - 1), T.PAY_MAX),
+				"%s: a Time Penalty keeps its time, each card seen to go" % action.kind)
+		if st.kind == "damage":
+			eq(st.duration, T.DAMAGE, "%s: damage keeps its time" % action.kind)
+		if st.kind == "soak_damage":
+			eq(st.duration, Sequencer.paced(st.values.due), "%s: each mark of damage seen to go" % action.kind)
+		if st.kind == "gain_xp":
+			eq(st.duration, Sequencer.paced(mini(st.values.amount, T.XP_STARS)), "%s: each XP star seen to go" % action.kind)
 		if st.kind == "draw":
 			# A long sequence is compressed (test_long_sequences_are_compressed...).
 			ok(st.duration <= minf(T.DRAW_FLY + T.STAGGER * (st.cards.size() - 1), 1.2) + 0.001,
@@ -157,7 +165,7 @@ func test_long_sequences_are_compressed_to_three_seconds() -> void:
 	var steps: Array = Sequencer.build(before, {"kind": "start", "cards": []}, {}, after)
 	var total := 0.0
 	for st in steps:
-		if not Sequencer.REVEAL.has(st.kind):
+		if not Sequencer.OWN_TIME.has(st.kind):
 			total += st.duration
 	ok(total <= 3.0, "within the limit, the reveal aside")
 
@@ -193,17 +201,22 @@ func test_an_upgrade_step_carries_the_xp_spent() -> void:
 	eq(up[0].values.get("spent"), cost, "it spent the card's Upgrade cost")
 
 
-## Undoing an Upgrade gives the XP back as a Downgrade step, with nothing spent.
-func test_undo_is_a_downgrade_with_no_spend() -> void:
-	var g = _upgrading(20)
-	var id := _upgradable(g)
-	var entry: Dictionary = Undo.record(g, id)
-	g.upgrade(id)
+## Cards Upgraded together each show their own cost, not what all of them took.
+func test_upgrades_together_each_carry_their_own_cost() -> void:
+	var g = _upgrading(99)
 	var before: Dictionary = ViewState.snapshot(g)
-	Undo.undo(g, entry)
-	var steps: Array = Sequencer.build(before, {"kind": "upgrade", "cards": [id], "id": id}, {}, ViewState.snapshot(g))
-	eq(steps.map(func(s): return s.kind), ["downgrade"], "one Downgrade step")
-	ok(not steps[0].values.has("spent"), "and no XP spent")
+	var ids := []
+	for id in g.hand:
+		if g.level_data(id).upgrade_cost != null and ids.size() < 2:
+			ids.append(id)
+	eq(ids.size(), 2, "two cards can be Upgraded")
+	for id in ids:
+		eq(g.upgrade(id), "", "the Upgrade goes through")
+	var steps: Array = Sequencer.build(before, {"kind": "upgrade", "cards": ids}, {}, ViewState.snapshot(g))
+	var up: Array = steps.filter(func(s): return s.kind == "upgrade")
+	eq(up.size(), 2, "one step for each")
+	for st in up:
+		eq(st.values.get("spent"), before.costs[st.cards[0]], "%s spent its own cost" % st.cards[0])
 
 
 ## XP left when the Upgrade step ends is lost, and the steps say how much.
