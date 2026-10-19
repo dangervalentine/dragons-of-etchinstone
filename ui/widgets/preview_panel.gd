@@ -1,6 +1,7 @@
 extends PanelContainer
-## The box under the Encounter face (specs/011 contracts/left-box.md). Before Play it
-## says only what to do next: the cards show what each gives. Once Play is pressed,
+## What a step says and what a Play did, on the note laid on the Deck in the card's
+## place (specs/013 contracts/left-column.md; before that the box under the face,
+## specs/011). Before Play it says only the step, if any: the cards show what each gives. Once Play is pressed,
 ## reveal() shows the sum the game did (contracts/math-box.md): one equation row per
 ## sum (Attack and Initiative against an Enemy, Move on a Journey), each term the
 ## engine's own, signed and named, then the total set against its target; under
@@ -16,7 +17,7 @@ signal intent(data: Dictionary)
 const HELP_W := 64.0
 ## One equation row: a term's number over its label. Every cell is this tall, so
 ## the box keeps one size as terms arrive. The Final Battle's rows are a little
-## smaller: the dragon's face leaves the box less room (T.DRAGON_MIN).
+## smaller, to keep the dragon's sums to their rows.
 const ROW_H := 64.0
 const ROW_H_FINAL := 52.0
 ## The verdict's type: bold body text at the subhead's size.
@@ -24,6 +25,9 @@ const VERDICT := ["body_bold", 24]
 const TERM := T.NUMERAL_S
 const TOTAL := T.NUMERAL
 const MINUS := "\u2212"
+## On a note with room to spare the outcome is set out a line per reward and cost
+## rather than as one row of pills (specs/013 research R7).
+var roomy := false
 
 ## The step's tip, shown until Play; and the sum, built with it but shown only once
 ## Play is pressed, so the box is sized for it from the start.
@@ -124,7 +128,7 @@ func _build_sum(p: Dictionary, m: Dictionary) -> void:
 		if s.target.terms.size() > 1:
 			_sum.add_child(_target_sum(s))
 	_sum.add_child(UI.spacer())
-	_verdict = _outcome_row(p, m, fatal)
+	_verdict = _outcome_lines(p, m, fatal) if roomy else _outcome_row(p, m, fatal)
 	_sum.add_child(_verdict)
 
 
@@ -329,16 +333,58 @@ func _target_sum(s: Dictionary) -> Control:
 	return l
 
 
-## The step and what to do next. Never a figure: a set the engine refuses says why.
-func _prompt(vs: Dictionary, p, prompt: Dictionary) -> void:
+## The step and what to do next, when there is a step: a Fuse, Divert or Regroup,
+## the Soak, the Upgrade, or the Deck being prepared. While a set is built there is
+## nothing to say (specs/013 FR-006); a set the engine refuses says why when Play
+## is pressed, on the Deck in the card's place.
+func _prompt(_vs: Dictionary, _p, prompt: Dictionary) -> void:
 	if prompt.step != "":
 		_box.add_child(UI.label(prompt.step.to_upper(), T.EYEBROW, T.GOLD))
-	_box.add_child(UI.label(prompt.text, T.BODY, T.INK, true))
-	if p != null and vs.mode == "none" and p.status == "blocked":
-		_box.add_child(UI.label(p.reason, T.BODY, T.BAD, true))
-	if vs.phase == "setup":
-		_box.add_child(UI.spacer())
-		_box.add_child(UI.label("Hold a card to see its other Levels.", T.LABEL, T.INK_MUTED, true))
+	if prompt.text != "":
+		_box.add_child(UI.label(prompt.text, T.BODY, T.INK, true))
+
+
+## With the room of a note on the Deck (specs/013 research R7): the verdict as a
+## headline, then each reward and cost on a line of its own, its figure and what
+## brought it about, in the engine's own terms.
+func _outcome_lines(p: Dictionary, m: Dictionary, fatal: bool) -> Control:
+	var box := UI.vbox(T.S)
+	var look: Dictionary = T.VERDICT.get(p.verdict, T.VERDICT.loss)
+	var colour: Color = T.BAD if fatal else look.color
+	var head := UI.hbox(T.S)
+	head.add_child(UI.icon_rect(look.icon, 34, colour))
+	var text := UI.label(p.verdict_text, T.SUBHEAD, colour, true)
+	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	head.add_child(text)
+	box.add_child(head)
+	if p.rewards.xp > 0:
+		box.add_child(_line(_pill("+%d" % p.rewards.xp, "xp", "", T.GOLD, "xp"), "XP gained, to spend on Upgrades"))
+	for c in p.costs:
+		var label: String = str(c.value) if c.value > 0 else c.text
+		var help: String = {"damage": "soak", "time": "time", "poison": "poison", "reserve": "reserve", "knock_out": "knock_out"}[c.id]
+		var why: Array = m.damage_terms if c.id == "damage" else (m.time_terms if c.id == "time" else [])
+		var said: String = c.text
+		if not why.is_empty():
+			said = "%s: %s" % [c.text, " + ".join(why.map(func(t): return "%s %d" % [t.label, t.value]))]
+		box.add_child(_line(_pill(label, c.icon, c.element, T.BAD, help), said if c.value > 0 else ""))
+	if p.rewards.xp <= 0 and p.costs.is_empty() and p.tier < 0 and not fatal:
+		box.add_child(UI.label("No reward, no cost", T.BODY, T.INK_MUTED))
+	return box
+
+
+## A pill and the words that go with it, wrapping beside it.
+func _line(pill: Control, words: String) -> Control:
+	var row := UI.hbox(T.S)
+	pill.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	row.add_child(pill)
+	if words != "":
+		var l := UI.label(words, T.BODY, T.INK, true)
+		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		l.custom_minimum_size.y = 44
+		row.add_child(l)
+	return row
 
 
 ## The verdict and its consequences on one line: rewards, then each cost. Each

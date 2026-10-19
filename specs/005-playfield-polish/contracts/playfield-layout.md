@@ -1,5 +1,9 @@
 # Contract: Playing Field Layout and Surfaces
 
+> **Superseded in part by feature 012**: the left side's Encounter region is now the
+> Deck, with the face inset by `T.DECK_EDGE` for the card edges and the Region Card
+> on top. See `specs/012-deck-region-card/contracts/deck-stack.md`.
+
 **Modules**: `ui/model/layout_solver.gd` (pure), `ui/screens/play_screen.gd`,
 `ui/widgets/header_bar.gd`, `ui/widgets/slot_row.gd`, `ui/theme/theme.gd`,
 `ui/overlays/inspect_overlay.gd`

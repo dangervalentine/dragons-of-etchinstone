@@ -1,7 +1,8 @@
 extends "res://ui/widgets/face_frame.gd"
 ## The face of the current Region Encounter: what the Key Card asks for.
 ## An enemy shows HP, Initiative, Attack and Armor; a Journey shows MP and its Time
-## Penalty; either may carry a Hardship, an Ability or a Peril.
+## Penalty; either may carry a Hardship, an Ability or a Peril. On the board it sits
+## on the Deck, reached by zooming into its tile on the Region Card (deck_stack.gd).
 
 const StatChip = preload("res://ui/widgets/stat_chip.gd")
 const Glossary = preload("res://ui/model/glossary.gd")

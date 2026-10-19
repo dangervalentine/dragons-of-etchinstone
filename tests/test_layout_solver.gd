@@ -21,7 +21,7 @@ func _plan(name: String, hand := 4, places := 4, final := false, cells := 3) -> 
 	var m: Array = Solver.MATRIX[name]
 	var view := Solver.matrix_view(name)
 	var k: float = Solver.stage_for_window(m[0], view).size.x / view.x
-	return Solver.solve(view, _safe(name), hand, places, m[2] * k, 0.0, T.ENCOUNTER_MIN, m[0].y > m[0].x, final, cells)
+	return Solver.solve(view, _safe(name), hand, places, m[2] * k, m[0].y > m[0].x, final, cells)
 
 
 func _safe(name: String) -> Rect2:
@@ -104,7 +104,7 @@ func test_screens_that_fill_use_the_room() -> void:
 		ok(_plan(name).card_size.x >= _locked(name).card_size.x, "%s: cards no smaller than locked" % name)
 	for name in Solver.MATRIX:
 		var p := _plan(name)
-		for key in ["header", "encounter", "preview", "hand", "actions", "commit"]:
+		for key in ["header", "encounter", "hand", "actions", "commit"]:
 			ok(_safe(name).grow(0.5).encloses(p.regions[key]),
 				"%s: %s inside the safe area" % [name, key])
 
@@ -119,21 +119,22 @@ func test_the_layout_stops_growing_at_the_maximum() -> void:
 
 func test_upright_is_undersized() -> void:
 	var all := Rect2(Vector2.ZERO, T.DESIGN_MIN)
-	ok(Solver.solve(T.DESIGN_MIN, all, 4, 1, 0.5, 0.0, T.ENCOUNTER_MIN, true).undersized, "an upright window is undersized")
-	ok(not Solver.solve(T.DESIGN_MIN, all, 4, 1, 0.5, 0.0, T.ENCOUNTER_MIN, false).undersized, "a landscape one is not")
+	ok(Solver.solve(T.DESIGN_MIN, all, 4, 1, 0.5, true).undersized, "an upright window is undersized")
+	ok(not Solver.solve(T.DESIGN_MIN, all, 4, 1, 0.5, false).undersized, "a landscape one is not")
 
 
-func test_the_encounter_keeps_its_height() -> void:
+func test_the_left_column_is_the_deck_alone() -> void:
+	# Feature 013: no box under the Deck; it takes the column's whole height.
 	for name in Solver.MATRIX:
-		if name == "upright-browser":
-			continue
-		var view := Solver.matrix_view(name)
-		# The largest preview the solver allows, beside an Encounter and the dragon.
-		for least in [T.ENCOUNTER_MIN, T.DRAGON_MIN]:
-			var plan := Solver.solve(view, _safe(name), 4, 1, 0.5, 5000.0, least)
-			ok(plan.regions.encounter.size.y >= least,
-				"%s: face %.0f tall, at least %d" % [name, plan.regions.encounter.size.y, least])
-			ok(plan.regions.preview.size.y >= T.PREVIEW_MIN, "%s: the box keeps its floor" % name)
+		for final in [false, true]:
+			var p := _plan(name, 7 if final else 4, 6 if final else 4, final)
+			var r: Dictionary = p.regions
+			ok(not r.has("preview"), "%s: no box under the Deck" % name)
+			eq(r.encounter.position.y, r.hand.position.y, "%s: the Deck starts level with the Hand" % name)
+			eq(r.encounter.end.y, r.actions.end.y, "%s: and runs to the foot of the action row" % name)
+			eq(r.encounter.position.x, p.content.position.x, "%s: at the left edge" % name)
+			if not final:
+				ok(r.encounter.size.x >= T.LEFT_MIN_W, "%s: no narrower than %d" % [name, T.LEFT_MIN_W])
 
 
 func test_soak_and_upgrade_keep_the_same_regions() -> void:
@@ -144,22 +145,6 @@ func test_soak_and_upgrade_keep_the_same_regions() -> void:
 		var recap := _plan(name, 4, 4)
 		for key in ["hand", "actions", "commit"]:
 			eq(recap.regions[key], building.regions[key], "%s: %s stays put in Soak and Upgrade" % [name, key])
-
-
-func test_preview_takes_what_it_needs() -> void:
-	var view: Vector2 = T.DESIGN_MIN
-	var safe := _safe("phone-16x9")
-	var at := func(needed: float) -> Dictionary:
-		return Solver.solve(view, safe, 4, 1, 0.5, needed)
-	eq(at.call(200.0).regions.preview.size.y, 200.0, "the preview takes the height it asks for")
-	eq(at.call(10.0).regions.preview.size.y, float(T.PREVIEW_MIN), "but never less than the floor")
-	var huge: Dictionary = at.call(5000.0)
-	var body_h: float = huge.regions.preview.end.y - huge.regions.encounter.position.y
-	ok(huge.regions.preview.size.y <= roundf(body_h * 0.56) + 1.0, "and never much more than half the column")
-	ok(huge.regions.encounter.size.y >= T.ENCOUNTER_MIN, "nor so much that the Encounter is cut")
-	for needed in [0.0, 10.0, 200.0, 5000.0]:
-		var p: Dictionary = at.call(needed)
-		eq(p.regions.encounter.end.y + Solver.GAP, p.regions.preview.position.y, "the Encounter fills the rest (%d)" % needed)
 
 
 # Feature 010: the card side is the Hand, one labelled place per card, over the

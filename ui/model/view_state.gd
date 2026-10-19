@@ -34,13 +34,21 @@ static func snapshot(game) -> Dictionary:
 		"deck": game.deck.duplicate(), "hand": game.hand.duplicate(),
 		"discard": game.discard.duplicate(), "trash": game.trash.duplicate(),
 		"levels": levels, "offer": game.setup_offer.duplicate() if game.phase == "setup" else [],
+		"encounter": _region_encounter(game),
 	}
 
 
-## The box's tip while an Action Set is built (specs/011 contracts/left-box.md).
-const TIP_SWAP := "Tap two cards to swap their Roles. Hold a card to inspect it."
-const TIP_AIM := "Tap the bottom of the Boost card to aim it at Attack or Initiative."
-const TIP_REAIM := "Tap two cards to swap their Roles. Tap the bottom of a Boost card to re-aim it."
+## The Region Encounter on the table, {kind, index, hardship}: the one the Key Card
+## names, or the one just played until the next Hand is drawn; null otherwise.
+static func _region_encounter(game) -> Variant:
+	match game.phase:
+		"challenge", "poison":
+			return game.encounter() if game.key_card() != null else null
+		"penalty", "upgrade":
+			return game.faced.encounter if not game.faced.is_empty() else null
+	return null
+
+
 
 ## extra: message (a refusal to show), previous_preview, lost_at (where the game was lost).
 static func build(game, draft, db, extra := {}) -> Dictionary:
@@ -111,7 +119,104 @@ static func build(game, draft, db, extra := {}) -> Dictionary:
 	# so Play keeps the right half until a third action joins.
 	vs["action_cells"] = maxi(3, vs.secondary.size() + 1)
 	vs["input_region"] = _input_region(game, draft, vs)
+	# The Deck on the left side (specs/012 data-model.md).
+	vs["top_card"] = _top_card(game, db)
+	vs["key_face"] = _key_face(game, draft, db, vs)
+	vs["note"] = note_for(draft, vs)
+	vs["zoom"] = zoom_for({"phase": phase, "encounter": _region_encounter(game)}, extra.get("lost_at", ""))
 	return vs
+
+
+## The card on top of the Deck: the Region Card turned to this Region, or the Dragon
+## Card in the Final Battle; none while the Deck is being prepared.
+static func _top_card(game, db) -> Variant:
+	if game.phase == "setup":
+		return null
+	if game.phase.begins_with("final") or game.phase == "won" or game.phase == "lost":
+		return dragon_card_model(game.dragon)
+	return region_card_model(db, game.region)
+
+
+## The Key Card under the Region Card, as a card face draws it. After the Cleanup
+## draw (poison included) it is the new top card; through Penalty and Upgrade, the
+## card that named the Encounter just played.
+static func _key_face(game, draft, db, vs: Dictionary) -> Variant:
+	var id = null
+	match game.phase:
+		"challenge", "poison":
+			id = game.key_card()
+		"penalty", "upgrade":
+			id = game.faced.get("key")
+	if id == null:
+		return null
+	return _card(game, draft, db, id, vs)
+
+
+## What lies on the Deck in the card's place (specs/013 data-model.md): a step to
+## follow, the Soak, the XP to spend, or the Deck being prepared; null for the card.
+## A Play's result and a refusal come and go with the sequence and the screen.
+static func note_for(draft, vs: Dictionary) -> Variant:
+	if draft.mode != "none":
+		return {"kind": "mode"}
+	if vs.get("soak") != null:
+		return {"kind": "soak"}
+	match vs.phase:
+		"upgrade":
+			return {"kind": "upgrade"}
+		"setup":
+			return {"kind": "setup"}
+	return null
+
+
+## Where the Deck's view rests in a state: on a Region Card tile ("enemy:2"), on the
+## Dragon Card's MP or HP Tiers, or "" with nothing to zoom into. `state` needs only
+## {phase, encounter}, so a snapshot answers too; `lost_at` says where a lost game
+## ended (the engine only loses in the Final Battle).
+static func zoom_for(state: Dictionary, lost_at := "") -> String:
+	var enc = state.get("encounter")
+	match state.phase:
+		"challenge", "poison", "penalty", "upgrade":
+			return "%s:%d" % [enc.kind, enc.index] if enc != null else ""
+		"final_journey":
+			return "mp"
+		"final_enemy", "final_soak", "won":
+			return "hp"
+		"lost":
+			return "mp" if lost_at == "the Final Journey" else "hp"
+	return ""
+
+
+## A Region Card, turned to `region` (specs/013 data-model.md): its name and
+## number, and its eight Encounters as printed panels, Enemies 1-4 then Journeys 1-4,
+## with every figure the panel shows. `pair` says which of the two physical cards it
+## is, so turning to the other side can be told from changing cards; it is never
+## shown. Hardships belong to the Key Card, so a panel carries only an Enemy's
+## Ability or a Journey's Peril.
+static func region_card_model(db, region: int) -> Dictionary:
+	var r: Dictionary = db.region(region)
+	var panels := []
+	for kind in ["enemy", "journey"]:
+		for index in range(1, 5):
+			var d: Dictionary = db.encounter(region, kind, index)
+			var enemy: bool = kind == "enemy"
+			var p := {"key": "%s:%d" % [kind, index], "kind": kind, "index": index,
+				"title": Art.encounter_name(region, kind, index), "art": Art.encounter(region, kind, index),
+				"element": d.attack.element if enemy else d.mp.element, "xp": d.xp,
+				"effect": d.ability if enemy else d.peril}
+			if enemy:
+				p["enemy"] = {"hp": d.hp, "initiative": d.initiative, "attack": d.attack.duplicate(), "armor": d.armor.duplicate(true)}
+			else:
+				p["journey"] = {"mp": d.mp.duplicate(), "time_penalty": d.time_penalty}
+			panels.append(p)
+	return {"kind": "region", "region": region, "name": r.name, "pair": r.card, "side": (region - 1) % 2, "panels": panels}
+
+
+## The Dragon Card on top of the Deck in the Final Battle: its MP Tiers and HP Tiers
+## are what the view zooms into.
+static func dragon_card_model(dragon: Dictionary) -> Dictionary:
+	return {"kind": "dragon", "id": dragon.id, "name": dragon.name, "title": dragon.title,
+		"element": dragon.early_damage.element, "dragon": dragon,
+		"art": Art.dragon(dragon.id), "targets": ["mp", "hp"]}
 
 
 ## The part of the play screen waiting on the player: the Hand while a card is
@@ -630,11 +735,8 @@ static func _prompt(game, draft, vs: Dictionary) -> Dictionary:
 			p.primary.enabled = n == game.setup_picks
 			p.primary.reason = "Choose %d more" % (game.setup_picks - n)
 		"challenge", "final_journey", "final_enemy":
-			# The box under the Encounter says only what to do next (specs/011
-			# contracts/left-box.md); the cards show what each gives.
-			p.text = TIP_SWAP
-			if _boost_has_target(game):
-				p.text = TIP_AIM if not draft.boost_unchosen().is_empty() else TIP_REAIM
+			# While a set is built nothing is said: the cards show what each gives
+			# (specs/013 FR-006). Fuse, Divert and Regroup say what each step asks.
 			match draft.mode:
 				"divert":
 					p.step = "Divert"

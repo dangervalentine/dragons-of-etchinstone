@@ -11,6 +11,8 @@ const BoardResponse = preload("res://ui/model/board_response.gd")
 
 signal started
 signal finished
+## Each step as it begins, for the checks that follow a sequence (tools/ui_check.gd).
+signal step_started(kind: String)
 
 var screen: Control
 var flight: Control
@@ -20,6 +22,9 @@ var show_banner: Callable
 var respond: Callable
 
 var _after := {}
+## Whether this sequence plays a set (it has a tally), so its result is laid on the
+## Deck even when the sequence is skipped before the tally.
+var _tallies := false
 var _master: Tween
 var _tweens: Array = []
 var _playing := false
@@ -35,16 +40,30 @@ func play(steps: Array, play_screen: Control, after_vs: Dictionary) -> void:
 	screen = play_screen
 	screen.detail.hide_card()
 	_after = after_vs
+	_tallies = steps.any(func(st): return st.kind == "tally")
 	_playing = true
 	started.emit()
+	# A sequence that reveals the next Encounter holds the Deck's view until its zoom
+	# lands, whatever renders on the way (specs/012 research R8).
+	if steps.any(func(st): return st.kind == "zoom_in"):
+		screen.deck.hold_card(true)
 	_master = create_tween()
 	for st in steps:
-		var d: float = st.duration
-		if UI.reduced_motion:
-			d = minf(d, T.FAST * 2.0) if st.kind != "stage_banner" else d
+		var d: float = reduced_duration(st) if UI.reduced_motion else st.duration
 		_master.tween_callback(_run.bind(st, d))
 		_master.tween_interval(d)
 	_master.tween_callback(_finish)
+
+
+## How long a step plays in reduced motion: a short fade, but the stage banner
+## keeps its time to be read, and so does the Key Card's strip (specs/012 FR-011).
+static func reduced_duration(st: Dictionary) -> float:
+	match st.kind:
+		"stage_banner":
+			return st.duration
+		"key_peek":
+			return maxf(0.6, T.FAST * 2.0)
+	return minf(st.duration, T.FAST * 2.0)
 
 
 func skip() -> void:
@@ -63,6 +82,12 @@ func _finish() -> void:
 			tw.kill()
 	_tweens = []
 	flight.clear()
+	screen.deck.finish()
+	# Skipped before its tally, a Play's result still comes onto the Deck, built from
+	# the state it was played in, which the screen still shows.
+	if _tallies and not screen.deck.result_held:
+		screen.deck.show_result()
+	_tallies = false
 	screen.render(_after)
 	screen.settle()
 	finished.emit()
@@ -74,6 +99,7 @@ func _keep(tw: Tween) -> Tween:
 
 
 func _run(st: Dictionary, d: float) -> void:
+	step_started.emit(st.kind)
 	if respond.is_valid():
 		var enc = screen.vs.get("encounter") if screen.vs != null else null
 		var event := BoardResponse.for_step(st.kind, st.get("values", {}), enc.kind if enc != null else "")
@@ -84,7 +110,9 @@ func _run(st: Dictionary, d: float) -> void:
 		"play_cards":
 			_strike(st.cards, d)
 		"tally":
-			# The sum of the set just played takes the tip's place (specs/011 FR-023).
+			# The sum of the set just played comes onto the note laid on the Deck in
+			# the card's place (specs/013 contracts/left-column.md).
+			screen.deck.show_result()
 			if screen.preview.visible:
 				screen.preview.reveal()
 				screen.preview.play_tally(d)
@@ -115,6 +143,7 @@ func _run(st: Dictionary, d: float) -> void:
 				_keep(flight.ghost("card_back", screen.point("deck"), screen.point("discard"), d * 0.5, T.INK_MUTED, 40, delay))
 				_keep(_later(delay + d * 0.4, func():
 					screen.header.bump("deck", -1)
+					screen.deck.bump(-1)
 					screen.header.bump("discard", 1)))
 			_keep(flight.float_text("−%d time" % n, screen.point("deck") + Vector2(0, 50), T.BAD, 30, d * 2.0, "time"))
 		"poison_pending":
@@ -144,6 +173,7 @@ func _run(st: Dictionary, d: float) -> void:
 				if st.values.from == "deck":
 					_keep(flight.ghost("card_back", screen.point("deck"), screen.point("discard"), d, T.INK_MUTED, 44))
 					screen.header.bump("deck", -1)
+					screen.deck.bump(-1)
 					screen.header.bump("discard", 1)
 				else:
 					_away(id, "discard", d, false)
@@ -154,11 +184,22 @@ func _run(st: Dictionary, d: float) -> void:
 					_fly(v, screen.point("deck"), d, 0.15)
 			if not UI.reduced_motion:
 				_keep(flight.ghost("deck", screen.point("deck"), screen.point("deck") + Vector2(0, 30), d, T.GOLD, 60))
+			# The Deck fills up to the reshuffled cards before the next Hand is drawn.
+			var gathered: int = st.values.deck.size()
+			_keep(_later(d * 0.8, func(): screen.deck.set_count(gathered)))
 		"stage_banner":
 			if show_banner.is_valid():
 				show_banner.call(st.values, d)
 		"draw":
 			screen.render(_after, true, screen.point("deck"))
+		"zoom_out":
+			screen.deck.zoom_out(d)
+		"turn_card":
+			screen.deck.turn_to(_after.top_card, d)
+		"key_peek":
+			screen.deck.peek(_after.key_face, d)
+		"zoom_in":
+			screen.deck.zoom_in(st.values.target, d)
 		"ending":
 			_keep(flight.tint(Color(T.GOLD if st.values.won else T.BAD, 0.2), d))
 

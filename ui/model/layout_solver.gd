@@ -137,10 +137,7 @@ static func is_final(vs: Dictionary) -> bool:
 ## view: the viewport in design units. safe: the part clear of notches, in design
 ## units. hand_count: cards in the Hand. place_count: the labelled places (0 in setup
 ## and Soak, which show no labels). points_per_unit: how large a design unit is
-## on this screen. preview_needed: the height the preview asks for; 0 keeps the
-## fixed split. encounter_min: the least height the face on show needs
-## (T.ENCOUNTER_MIN, or T.DRAGON_MIN in the Final Battle); the preview never takes
-## that from it. upright: the window is taller than it is wide, so the play area is
+## on this screen. upright: the window is taller than it is wide, so the play area is
 ## a thin strip and the layout is undersized. final: the Final Battle, where the left
 ## side narrows to FINAL_LEFT_W.
 ##
@@ -148,7 +145,7 @@ static func is_final(vs: Dictionary) -> bool:
 ##
 ## The card side, top to bottom: the Hand, one labelled place per card in as few
 ## rows as give the largest cards, then the action row.
-static func solve(view: Vector2, safe: Rect2, hand_count := 4, place_count := 4, points_per_unit := 0.5, preview_needed := 0.0, encounter_min: int = T.ENCOUNTER_MIN, upright := false, final := false, action_cells := 3) -> Dictionary:
+static func solve(view: Vector2, safe: Rect2, hand_count := 4, place_count := 4, points_per_unit := 0.5, upright := false, final := false, action_cells := 3) -> Dictionary:
 	var left := maxf(safe.position.x, T.M)
 	var top := maxf(safe.position.y, T.M)
 	var right := minf(safe.end.x, view.x - T.M)
@@ -166,13 +163,6 @@ static func solve(view: Vector2, safe: Rect2, hand_count := 4, place_count := 4,
 	var body_y := c.position.y + HEADER_H + GAP
 	var body_h := c.end.y - body_y
 	var left_w := FINAL_LEFT_W if final else clampf(roundf(c.size.x * 0.32), 400.0, 548.0)
-	# The preview takes what its state asks for, within limits; the Encounter the rest.
-	var preview_h := body_h - roundf(body_h * 0.56) - GAP
-	if preview_needed > 0.0:
-		# Never so tall that the Encounter face drops under its own minimum.
-		var most := minf(roundf(body_h * 0.56), body_h - GAP - encounter_min)
-		preview_h = clampf(roundf(preview_needed), T.PREVIEW_MIN, most)
-	var encounter_h := body_h - preview_h - GAP
 	var right_x := c.position.x + left_w + COLUMN_GAP
 	var right_w := c.end.x - right_x
 
@@ -181,8 +171,8 @@ static func solve(view: Vector2, safe: Rect2, hand_count := 4, place_count := 4,
 	var hand := Rect2(right_x, body_y, right_w, actions.position.y - GAP - body_y)
 	var regions := {
 		"header": Rect2(c.position.x, c.position.y, c.size.x, HEADER_H),
-		"encounter": Rect2(c.position.x, body_y, left_w, encounter_h),
-		"preview": Rect2(c.position.x, body_y + encounter_h + GAP, left_w, preview_h),
+		# The whole left column is the Deck (specs/013 research R5).
+		"encounter": Rect2(c.position.x, body_y, left_w, body_h),
 		"hand": hand,
 		"actions": actions,
 		"commit": row.commit,

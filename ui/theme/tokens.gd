@@ -80,20 +80,15 @@ const BRONZE_DARK := Color("3a2c1f")
 const BRONZE_LIGHT := Color("a88a63")
 
 # Layout
-## The least height a face needs at the 400-unit left column, with its content 4
-## units clear of the edge (measured for feature 006, T009): a Region Enemy with four
-## badge rows (each at least 54, the least its figure and icon take, though
-## badge_min asks 52); since feature 010 the board's face has no Key Card line
-## (pressing it shows the card), which is what clipped at this height before (a
-## Journey needs 206);
-## the dragon's face with its tiers (332 on the Final Journey, 384 for Grimroch's
-## Final Enemy). Since feature 009 the Final Battle's left side is narrower and its
-## math box taller, so the face may drop its heading and caption to fit: what is
-## left, the band, the figures and the three tiers, needs 276.
-const ENCOUNTER_MIN := 316
-const DRAGON_MIN := 276
-## The least height the preview takes in the left column; the Encounter gets the rest.
-const PREVIEW_MIN := 150
+## The margin the Deck's card edges take on the right and bottom of the left side.
+const DECK_EDGE := 24
+## The narrowest the left column gets (feature 013): it fixes the smallest whole
+## Region Card, whose figures must still read at TEXT_MIN.
+const LEFT_MIN_W := 400
+## How long a refused Play's reason lies on the Deck in the card's place (feature 013).
+const NOTE_HOLD := 2.4
+## The least height of a note on the Deck that sets the result out line by line.
+const NOTE_ROOMY_H := 360
 
 # Stone
 ## The luminance band the stone grain is remapped into. The top stays no lighter
@@ -121,6 +116,13 @@ const COUNT := 0.6
 const REVEAL := 0.4
 const STAGGER := 0.12
 const SEQUENCE_MAX := 3.0
+## The Deck (feature 012): zooming between the top card and a face, turning the
+## Region Card, and the Key Card rising from under it, holding, and sliding back.
+const ZOOM := 0.55
+const TURN := 0.5
+const PEEK_RISE := 0.25
+const PEEK_HOLD := 0.4
+const PEEK_FALL := 0.2
 
 # The landscape layout
 const DESIGN_MIN := Vector2(1280, 720)

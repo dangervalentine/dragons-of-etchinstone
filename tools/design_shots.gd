@@ -18,15 +18,26 @@ func _initialize() -> void:
 	if args.size() > 0:
 		out = args[0]
 	DirAccess.make_dir_recursive_absolute(out)
-	_run()
+	if args.size() > 1 and args[1] == "scan":
+		_scan()
+		return
+	_run(args.size() > 1 and args[1] == "deck")
 
 
-func _run() -> void:
+## With "deck" after the out dir, only the Deck's shots (specs/012).
+func _run(deck_only := false) -> void:
 	DisplayServer.window_set_size(WINDOW)
 	for i in 5:
 		await process_frame
 	ui = load("res://scenes/main.tscn").instantiate()
 	root.add_child(ui)
+	# Let the window take its size first: a layout change skips any sequence playing.
+	for i in 5:
+		await process_frame
+	await _deck()
+	if deck_only:
+		quit()
+		return
 	await _game()
 	await _marks()
 	await _records()
@@ -131,6 +142,132 @@ func _records() -> void:
 	ui._show_ending()
 	await create_timer(1.5).timeout
 	await _shot("ending_placing")
+
+
+## The Deck on the left side (specs/012 quickstart.md): the first reveal frame by
+## frame, a Divert's, the Region Card turned for each Region, the half-turn and the
+## swap mid-way, and the Dragon Card, zoomed out and zoomed in.
+func _deck() -> void:
+	var ViewState = load("res://ui/model/view_state.gd")
+	ui.start_game({"seed": 5, "dragon": "rodving", "difficulty": "normal", "cavalier": false, "glass_cannon": false})
+	# The start sequence: banner and draw over the whole Region Card, the Key Card
+	# rising, the zoom, and the face settled.
+	var t := 0.0
+	for at in [[0.8, "deck_zoomed_out"], [1.6, "deck_drawn"], [2.3, "deck_key_card_up"], [2.85, "deck_zooming_in"]]:
+		await create_timer(at[0] - t).timeout
+		t = at[0]
+		_grab(at[1])
+	await _shot("deck_settled")
+	# A Divert: out to the card, the Key Card leaving, the next one rising.
+	var id: String = ui.game.hand[0]
+	ui._act({"kind": "divert", "cards": [id], "id": id}, func(): return ui.game.divert(id))
+	await create_timer(0.7).timeout
+	_grab("deck_divert_zoomed_out")
+	await create_timer(0.9).timeout
+	_grab("deck_divert_next_key_card")
+	ui.animator.skip()
+	# Each Region's side of the cards, and the Dragon Card.
+	var deck = ui.play.deck
+	for region in range(1, 5):
+		deck.hold_card(true)
+		deck.view = "card"
+		deck._show_top(ViewState.region_card_model(ui.db, region))
+		deck._place()
+		await _shot("deck_region_%d" % region, false)
+	deck._show_top(ViewState.region_card_model(ui.db, 1))
+	deck._place()
+	deck.turn_to(ViewState.region_card_model(ui.db, 2), T_TURN)
+	await create_timer(T_TURN * 0.3).timeout
+	_grab("deck_half_turn")
+	await create_timer(T_TURN).timeout
+	deck.turn_to(ViewState.region_card_model(ui.db, 3), T_TURN)
+	await create_timer(T_TURN * 0.7).timeout
+	_grab("deck_card_swap")
+	await create_timer(T_TURN).timeout
+	deck.turn_to(ViewState.dragon_card_model(ui.game.dragon), T_TURN)
+	await create_timer(T_TURN * 1.5).timeout
+	await _shot("deck_dragon_card", false)
+	deck.finish()
+	ui._refresh(false)
+
+
+const T_TURN := 0.5
+
+
+## The printed cards laid over the drawn ones at half strength (specs/013 SC-001):
+## with "scan" after the out dir. Each card is drawn at the scan's own size so their
+## panels and badges can be lined up by eye.
+func _scan() -> void:
+	DisplayServer.window_set_size(WINDOW)
+	for i in 5:
+		await process_frame
+	var ViewState = load("res://ui/model/view_state.gd")
+	var RegionCard = load("res://ui/widgets/region_card.gd")
+	var db = load("res://engine/card_db.gd").new()
+	var sheet: Texture2D = load("res://reference/sheets-official/o5.png")
+	var back := ColorRect.new()
+	back.color = Color("100e17")
+	back.size = Vector2(WINDOW)
+	root.add_child(back)
+	# Jade Mountains is the top right card of the sheet, Burning Basin the top left.
+	for at in [[1, Rect2(512, 0, 498, 695)], [3, Rect2(4, 0, 498, 695)]]:
+		var card = RegionCard.new()
+		back.add_child(card)
+		card.position = Vector2(40, 40)
+		card.size = RegionCard.card_size(at[1].size.x)
+		card.render(ViewState.region_card_model(db, at[0]))
+		var over := TextureRect.new()
+		var crop := AtlasTexture.new()
+		crop.atlas = sheet
+		crop.region = at[1]
+		over.texture = crop
+		over.position = Vector2(40, 40)
+		over.size = at[1].size
+		over.modulate.a = 0.5
+		back.add_child(over)
+		# Side by side to the right: the drawn card alone.
+		var bare = RegionCard.new()
+		back.add_child(bare)
+		bare.position = Vector2(600, 40)
+		bare.size = card.size
+		bare.render(ViewState.region_card_model(db, at[0]))
+		for i in 30:
+			await process_frame
+		_grab("scan_region_%d" % at[0])
+		for c in [card, over, bare]:
+			c.queue_free()
+	# Grimroch is the bottom left card of the sheet.
+	var DragonCard = load("res://ui/widgets/dragon_card.gd")
+	var where := Rect2(4, 702, 498, 695)
+	var dcard = DragonCard.new()
+	var dbare = DragonCard.new()
+	for c in [dcard, dbare]:
+		back.add_child(c)
+		c.size = DragonCard.card_size(where.size.x)
+		c.render(ViewState.dragon_card_model(db.dragon("grimroch")))
+	dcard.position = Vector2(40, 40)
+	dbare.position = Vector2(600, 40)
+	var dover := TextureRect.new()
+	var dcrop := AtlasTexture.new()
+	dcrop.atlas = sheet
+	dcrop.region = where
+	dover.texture = dcrop
+	dover.position = Vector2(40, 40)
+	dover.size = where.size
+	dover.modulate.a = 0.5
+	back.add_child(dover)
+	for i in 30:
+		await process_frame
+	_grab("scan_dragon_grimroch")
+	quit()
+
+
+## A shot of this very frame, for something in motion.
+func _grab(name: String) -> void:
+	n += 1
+	var img := root.get_texture().get_image()
+	img.save_png("%s/%02d_%s.png" % [out, n, name])
+	print("%02d_%s %s" % [n, name, img.get_size()])
 
 
 func _shot(name: String, skip := true) -> void:
@@ -361,10 +498,10 @@ func _game() -> void:
 	ui.animator.skip()
 	ui._close_overlays()
 	ui._reset_draft()
-	ui.play._toast.modulate.a = 0.0
+	ui.play.deck.clear_refusal()
 	if _key_of_kind("journey"):
 		await _shot("journey_encounter")
-	_press({"type": "help", "id": "ambush", "source": ui.play.encounter_face})
+	_press({"type": "help", "id": "ambush", "source": ui.play.landed})
 	await _shot("glossary_entry")
 	ui._close_overlays()
 	_press({"type": "glossary"})
@@ -385,7 +522,7 @@ func _game() -> void:
 	g.hand = []
 	g.discard = []
 	g._draw(7)
-	ui.draft.reset(2)
+	ui._reset_draft()
 	ui._refresh(false)
 	await _shot("final_journey")
 	_place_set(_best_final(), 2)

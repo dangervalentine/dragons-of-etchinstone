@@ -1,5 +1,7 @@
 # Contract: The Left Box
 
+> **Superseded by `specs/013-physical-region-card`**: the box is removed. Its building tips are dropped; its step text, refusals, Play summary, Soak meter and XP purse now lie on the Deck as a note in the card's place ([left-column.md](../../013-physical-region-card/contracts/left-column.md)).
+
 The box under the Encounter face (`PreviewPanel`) in this interim, before the follow-up pass redesigns the column. The soak meter and the XP purse share its region, as today.
 
 ## Before Play: the step tip (FR-001 to FR-003)

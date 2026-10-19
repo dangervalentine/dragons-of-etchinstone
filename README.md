@@ -26,7 +26,19 @@ Battle:
   game in progress, with labelled example cards and links into the Glossary
 
 The play screen keeps everything for a turn in view: the Encounter, your Action
-Set, your Hand and the controls. Each card lifts the parts that will count when you
+Set, your Hand and the controls. The left side is the Deck and nothing else, as held
+in the physical game: a stack of Mage Cards as deep as the cards left in the Region,
+with the Region Card on top, drawn as the printed card (its four Enemies two by two,
+its four Journeys in a row beneath, each with its figures and XP star), or the
+printed Dragon Card in the Final Battle. Each Hand is drawn from under it; then the
+Key Card rises from beneath the Region Card just far enough to show the Encounter it
+names and any Hardship, slides back, and the view zooms into that Encounter's panel
+on the card, the rest of the card dimmed round it, with its name and what its
+Hardship, Ability or Peril does written along the foot. When there is something
+else to read (a Fuse, Divert or Regroup step, a refused move, the result of a Play
+set out line by line, the Soak or the XP to spend) a note is laid on the Deck in the
+card's place; hold it to look under it. At the end of a Region the card turns over
+to the next Region, or gives way to the other card. Each card lifts the parts that will count when you
 play it, and an Encounter's Hardship or ability shows its mark beside each figure it
 works against; against an Enemy you aim the Boost at Attack or Initiative on the
 Boost card itself. Committing plays a short sequence showing what happened (the

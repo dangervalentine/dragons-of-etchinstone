@@ -105,7 +105,7 @@ func _game(dir: String) -> void:
 	_press({"type": "primary"})
 	ui.animator.skip()
 	await _shot(dir + "/10_next")
-	_press({"type": "help", "id": "ambush", "source": ui.play.encounter_face})
+	_press({"type": "help", "id": "ambush", "source": ui.play.landed})
 	await _shot(dir + "/11_help")
 	ui._close_overlays()
 	# Jump to the Final Battle to check the two-set layout.

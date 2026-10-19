@@ -234,7 +234,7 @@ func _on_resize() -> void:
 		return
 	_layout_key = key
 	animator.skip()
-	plan = Solver.solve(view, safe, count, places, ppu, 0.0, T.ENCOUNTER_MIN, upright, final)
+	plan = Solver.solve(view, safe, count, places, ppu, upright, final)
 	plan["safe"] = safe
 	plan["undersized_upright"] = upright
 	plan["for"] = [count, places, final]
@@ -426,6 +426,8 @@ func start_game(opts: Dictionary) -> void:
 		var bare: Dictionary = vs.duplicate()
 		bare.hand = []
 		play.render(bare)
+		# The Deck starts zoomed out on the Region Card, for the first reveal.
+		play.deck.show_card()
 		animator.play(steps, play, vs)
 
 
@@ -801,7 +803,7 @@ func _on_sequence_done() -> void:
 func _refuse(text: String, card_id := "") -> void:
 	if play == null:
 		return
-	play.toast(text)
+	play.refuse(text)
 	Haptics.refuse()
 	var view: Control = play.hand.card(card_id) if card_id != "" else null
 	if view != null:

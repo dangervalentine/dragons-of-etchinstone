@@ -20,10 +20,17 @@ func _act(g, action: Dictionary, call: Callable) -> String:
 	var steps: Array = Sequencer.build(before, action, g.result, after)
 	var state := before
 	var total := 0.0
+	var reveal := 0.0
 	for st in steps:
 		state = Sequencer.apply(state, st)
-		total += st.duration
+		# The reveal of the next Encounter keeps its own timing (specs/012 R8).
+		if Sequencer.REVEAL.has(st.kind):
+			reveal += st.duration
+		else:
+			total += st.duration
 		kinds_seen[st.kind] = true
+	ok(reveal <= 1.4 + 0.001, "%s reveals its Encounter within 1.4 seconds (%.2f)" % [action.kind, reveal])
+	_check_deck_steps(action, before, after, steps)
 	for zone in ["hand", "discard", "trash"]:
 		var a: Array = state[zone].duplicate()
 		var b: Array = after[zone].duplicate()
@@ -111,7 +118,8 @@ func test_steps_replay_to_the_engine_state_for_whole_games() -> void:
 		games += 1
 	eq(games, 40, "games played")
 	for kind in ["play_cards", "tally", "verdict", "gain_xp", "damage", "pay_time", "downgrade", "trash",
-			"upgrade", "discard", "gather_shuffle", "stage_banner", "draw", "ending", "knock_out", "poison_pending"]:
+			"upgrade", "discard", "gather_shuffle", "stage_banner", "draw", "ending", "knock_out", "poison_pending",
+			"zoom_out", "zoom_in", "key_peek", "turn_card"]:
 		ok(kinds_seen.has(kind), "saw a %s step" % kind)
 
 
@@ -130,8 +138,9 @@ func test_long_sequences_are_compressed_to_three_seconds() -> void:
 	var steps: Array = Sequencer.build(before, {"kind": "start", "cards": []}, {}, after)
 	var total := 0.0
 	for st in steps:
-		total += st.duration
-	ok(total <= 3.0, "within the limit")
+		if not Sequencer.REVEAL.has(st.kind):
+			total += st.duration
+	ok(total <= 3.0, "within the limit, the reveal aside")
 
 
 ## A game stopped in the Upgrade step with this much XP to spend.
@@ -221,3 +230,46 @@ func test_soaking_sends_the_damage_to_the_chosen_cards() -> void:
 		ok(steps.slice(1).all(func(s): return s.kind == "downgrade" or s.kind == "trash"), "then they Downgrade")
 		return
 	ok(false, "no seed could Soak 2 damage")
+
+
+## The Deck's steps (specs/012 contracts/reveal-sequence.md): the next Encounter is
+## revealed after every draw that deals a Hand for one, the Key Card first in a
+## Region; the view zooms out before the Hand is refilled or a Key Card leaves.
+func _check_deck_steps(action: Dictionary, before: Dictionary, after: Dictionary, steps: Array) -> void:
+	var kinds: Array = steps.map(func(st): return st.kind)
+	var what: String = action.kind
+	var reveals: bool = (what in ["start", "setup", "divert", "regroup"]) or (what == "finish" and not (after.phase in ["won", "lost"])) \
+		or (what == "play_final" and before.phase == "final_journey" and after.phase == "final_enemy")
+	if not reveals:
+		ok(not kinds.has("zoom_in") and not kinds.has("key_peek") and not kinds.has("zoom_out"), "%s leaves the Deck as it is" % what)
+		return
+	ok(kinds.has("zoom_in"), "%s reveals the next Encounter" % what)
+	var zoom: Dictionary = steps[kinds.find("zoom_in")]
+	eq(zoom.values.target, ViewState.zoom_for(after), "%s zooms into what the after state shows" % what)
+	var region: bool = after.phase == "challenge" or after.phase == "poison"
+	if region:
+		var peek: int = kinds.find("key_peek")
+		ok(peek >= 0 and peek == kinds.find("zoom_in") - 1, "%s: the Key Card rises just before the zoom" % what)
+		var p: Dictionary = steps[peek]
+		eq(p.values.key, after.deck[0], "%s: the Key Card is the top of the Deck" % what)
+		eq([p.values.kind, p.values.index, p.values.hardship], [after.encounter.kind, after.encounter.index, after.encounter.hardship],
+			"%s: it names the engine's Encounter" % what)
+	else:
+		ok(not kinds.has("key_peek"), "%s: no Key Card in the Final Battle" % what)
+	if what in ["start", "setup"]:
+		ok(not kinds.has("zoom_out"), "%s starts zoomed out" % what)
+	else:
+		var out: int = kinds.find("zoom_out")
+		var first := kinds.size()
+		for k in ["discard", "gather_shuffle", "draw"]:
+			if kinds.has(k):
+				first = mini(first, kinds.find(k))
+		ok(out >= 0 and out < first, "%s zooms out before anything leaves or is drawn" % what)
+	if what == "setup":
+		var turn: int = kinds.find("turn_card")
+		ok(turn > kinds.find("gather_shuffle") and turn < kinds.find("stage_banner"), "setup lays the Region Card on top")
+		eq(steps[turn].values, {"from": 0, "to": after.region}, "setup: Region 1's card")
+	if what == "finish" and after.region != before.region or (what == "finish" and after.phase == "final_journey"):
+		var turn: int = kinds.find("turn_card")
+		ok(turn > kinds.find("gather_shuffle") and turn < kinds.find("stage_banner"), "a Region change turns the card")
+		eq(steps[turn].values.to, "dragon" if after.phase == "final_journey" else after.region, "to the next card")

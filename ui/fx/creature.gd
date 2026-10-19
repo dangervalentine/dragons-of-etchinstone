@@ -40,6 +40,9 @@ var _frame := Control.new()
 var _picture := _layer()
 var _particles: CPUParticles2D
 var _still := false
+## Kept still whatever the motion setting: a creature on the Region Card, or one
+## waiting for the Deck's zoom to land before it wakes (specs/012 research R7).
+var held := false: set = set_held
 
 
 
@@ -125,7 +128,7 @@ func setup(name: String, tint: Color, ether := "", particles := true) -> void:
 	if particles and ether != "" and not Art.DRAGONS.values().has(name):
 		_particles = _make_particles(ether)
 		add_child(_particles)
-	_still = not UI.reduced_motion
+	_still = not (UI.reduced_motion or held)
 	_apply_motion()
 	_fit()
 
@@ -140,13 +143,18 @@ static func _idle(layer: TextureRect, name: String, tint: Color) -> void:
 	m.set_shader_parameter("phase", float(hash(name) % 628) / 100.0)
 
 
+func set_held(on: bool) -> void:
+	held = on
+	_apply_motion()
+
+
 func _process(_delta: float) -> void:
-	if _still != UI.reduced_motion:
+	if _still != (UI.reduced_motion or held):
 		_apply_motion()
 
 
 func _apply_motion() -> void:
-	_still = UI.reduced_motion
+	_still = UI.reduced_motion or held
 	_picture.material.set_shader_parameter("amount", 0.0 if _still else 1.0)
 	if _particles != null:
 		_particles.emitting = not _still

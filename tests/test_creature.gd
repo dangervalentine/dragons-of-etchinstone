@@ -3,6 +3,7 @@ extends "res://tests/base.gd"
 
 const Creature = preload("res://ui/fx/creature.gd")
 const Art = preload("res://ui/model/art.gd")
+const UI = preload("res://ui/theme/theme.gd")
 
 
 func test_whole_art_fills_a_square_widget() -> void:
@@ -81,3 +82,21 @@ func test_the_shader_keeps_the_fade_of_the_nodes_above_it() -> void:
 	var fragment := src.substr(src.find("void fragment()"))
 	var last := fragment.substr(fragment.rfind("COLOR ="))
 	ok(last.contains("* modulate;"), "and the final COLOR is multiplied by it")
+
+
+func test_a_held_creature_is_still_until_it_is_let_go() -> void:
+	var c := Creature.new()
+	c.setup("antler-horror", Color.WHITE, "fire")
+	var was: bool = UI.reduced_motion
+	UI.reduced_motion = false
+	c.held = true
+	eq(c._picture.material.get_shader_parameter("amount"), 0.0, "held: no idle motion")
+	if c._particles != null:
+		ok(not c._particles.emitting, "held: no Ether drifting")
+	c.held = false
+	eq(c._picture.material.get_shader_parameter("amount"), 1.0, "let go: it moves")
+	UI.reduced_motion = true
+	c._apply_motion()
+	eq(c._picture.material.get_shader_parameter("amount"), 0.0, "reduced motion still keeps it still")
+	UI.reduced_motion = was
+	c.free()

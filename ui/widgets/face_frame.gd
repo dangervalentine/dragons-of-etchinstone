@@ -76,6 +76,11 @@ func set_look(ether, sigil_name: String, art_name := "", crop := Art.FULL) -> vo
 	_edge.queue_redraw()
 
 
+## Keep the creature still (or let it move again), whatever the motion setting.
+func set_held(on: bool) -> void:
+	_creature.held = on
+
+
 func clear() -> void:
 	for box in [band, body]:
 		for c in box.get_children():

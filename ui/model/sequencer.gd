@@ -7,13 +7,18 @@ extends RefCounted
 ## A step is {kind, cards, from, to, values, anchor, duration}.
 
 const T = preload("res://ui/theme/tokens.gd")
+const ViewState = preload("res://ui/model/view_state.gd")
 
 const DURATION := {
 	"play_cards": 0.35, "tally": 0.6, "verdict": 0.4, "gain_xp": 0.35, "damage": 0.35,
 	"pay_time": 0.2, "poison_pending": 0.3, "knock_out": 0.45, "downgrade": 0.3, "trash": 0.3,
 	"upgrade": 0.35, "discard": 0.35, "gather_shuffle": 0.45, "stage_banner": 1.2, "draw": 0.35,
 	"ending": 0.4, "xp_lost": 0.5, "soak_damage": 0.5,
+	"zoom_out": T.ZOOM, "zoom_in": T.ZOOM, "turn_card": T.TURN, "key_peek": T.PEEK_RISE + T.PEEK_HOLD + T.PEEK_FALL,
 }
+## The steps that reveal the next Encounter on the Deck (specs/012 research R8):
+## they keep their own timing, so a long sequence never hurries the Key Card.
+const REVEAL := ["key_peek", "zoom_in"]
 
 
 ## action: {kind, cards (the cards played or chosen), id (one card)}. kind is one of
@@ -24,11 +29,15 @@ static func build(before: Dictionary, action: Dictionary, result: Dictionary, af
 		"start":
 			steps.append(_step("stage_banner", [], {"region": after.region, "phase": after.phase}, "screen"))
 			_draw_step(steps, after.hand)
+			_reveal(steps, after)
 		"setup":
 			_level_steps(steps, before, after, before.offer)
 			steps.append(_step("gather_shuffle", before.offer.duplicate(), {"deck": after.hand + after.deck}, "deck"))
+			# The Region Card is laid on top of the Deck (rulebook Setup, step 4).
+			steps.append(_step("turn_card", [], {"from": 0, "to": after.region}, "deck"))
 			steps.append(_step("stage_banner", [], {"region": after.region, "phase": after.phase}, "screen"))
 			_draw_step(steps, after.hand)
+			_reveal(steps, after)
 		"play":
 			_strike(steps, action, result)
 			if result.damage > 0:
@@ -43,10 +52,12 @@ static func build(before: Dictionary, action: Dictionary, result: Dictionary, af
 		"play_final":
 			_strike(steps, action, result)
 			if before.phase == "final_journey" and after.phase == "final_enemy":
+				steps.append(_step("zoom_out", [], {}, "deck"))
 				steps.append(_step("discard", before.hand.duplicate(), {"from": "hand"}, "discard"))
 				_pay_time(steps, before, after, before.hand)
 				steps.append(_step("stage_banner", [], {"region": after.region, "phase": after.phase}, "screen"))
 				_draw_step(steps, after.hand)
+				_reveal(steps, after)
 			elif after.phase == "final_soak":
 				steps.append(_step("damage", [], {"amount": after.damage_due, "early": 0, "element": ""}, "hand"))
 		"soak":
@@ -60,6 +71,8 @@ static func build(before: Dictionary, action: Dictionary, result: Dictionary, af
 			# XP not spent by the end of the Upgrade step is lost (rulebook): say so first.
 			if before.phase == "upgrade" and before.get("xp", 0) > 0:
 				steps.append(_step("xp_lost", [], {"amount": before.xp}, "xp"))
+			# Back out to the whole Region Card before the Hand is refilled from under it.
+			steps.append(_step("zoom_out", [], {}, "deck"))
 			var spent := []
 			for id in before.hand:
 				if not after.hand.has(id) or after.region != before.region or after.phase == "final_journey":
@@ -70,27 +83,42 @@ static func build(before: Dictionary, action: Dictionary, result: Dictionary, af
 			if _gathered(before, after):
 				var all: Array = before.hand.filter(func(id): return not spent.has(id)) + spent + before.discard
 				steps.append(_step("gather_shuffle", all, {"deck": _deck_before_draw(after, [])}, "deck"))
+				# The next Region's side of the card, the other card, or the dragon's.
+				steps.append(_step("turn_card", [], {"from": before.region,
+					"to": "dragon" if after.phase == "final_journey" else after.region}, "deck"))
 				steps.append(_step("stage_banner", [], {"region": after.region, "phase": after.phase}, "screen"))
 				_draw_step(steps, after.hand)
+				_reveal(steps, after)
 			else:
 				var kept: Array = before.hand.filter(func(id): return not spent.has(id))
 				_draw_step(steps, after.hand.filter(func(id): return not kept.has(id)))
 				if after.phase == "poison":
+					# The new Encounter shows first; then the poison lands on the new Hand.
+					_reveal(steps, after)
 					steps.append(_step("damage", [], {"amount": after.damage_due, "early": 0, "element": "", "poison": true}, "hand"))
 				elif _levels_fell(before, after):
 					steps.append(_step("damage", [], {"amount": 0, "early": 0, "element": "", "poison": true}, "hand"))
 					_pay_time(steps, before, after, spent)
 					steps.append(_step("knock_out", after.hand.duplicate(), {}, "hand"))
 					_level_steps(steps, before, after, after.hand + after.trash)
+					# Knocked Out, time was paid from the top of the Deck: the Key Card is
+					# the one left there after it.
+					_reveal(steps, after)
+				else:
+					_reveal(steps, after)
 		"divert":
 			var key: String = before.deck[0]
+			steps.append(_step("zoom_out", [], {}, "deck"))
 			steps.append(_step("discard", [key], {"from": "deck"}, "discard"))
 			steps.append(_step("discard", [action.id], {"from": "hand"}, "discard"))
+			_reveal(steps, after)
 		"regroup":
+			steps.append(_step("zoom_out", [], {}, "deck"))
 			steps.append(_step("discard", [action.id], {"from": "hand"}, "discard"))
 			var rest: Array = before.hand.filter(func(id): return id != action.id)
 			steps.append(_step("gather_shuffle", rest, {"deck": _deck_before_draw(after, []), "keep_discard": true}, "deck"))
 			_draw_step(steps, after.hand)
+			_reveal(steps, after)
 	if after.phase == "won" or after.phase == "lost":
 		steps.append(_step("ending", [], {"won": after.phase == "won"}, "screen"))
 	_fit_time(steps)
@@ -172,6 +200,20 @@ static func _level_steps(steps: Array, before: Dictionary, after: Dictionary, id
 			steps.append(st)
 
 
+## The next Encounter revealed on the Deck: in a Region the Key Card rises to show
+## what it names, then the view zooms into that tile; in the Final Battle it zooms
+## into the Dragon Card's MP or HP Tiers.
+static func _reveal(steps: Array, after: Dictionary) -> void:
+	var target := ViewState.zoom_for(after)
+	if target == "" or after.phase == "won" or after.phase == "lost":
+		return
+	var enc = after.get("encounter")
+	if enc != null and not after.deck.is_empty():
+		steps.append(_step("key_peek", [after.deck[0]], {"key": after.deck[0], "kind": enc.kind, "index": enc.index,
+			"hardship": enc.hardship}, "deck"))
+	steps.append(_step("zoom_in", [], {"target": target}, "deck"))
+
+
 static func _draw_step(steps: Array, ids: Array) -> void:
 	if ids.is_empty():
 		return
@@ -196,12 +238,15 @@ static func _deck_before_draw(after: Dictionary, _unused: Array) -> Array:
 	return after.hand + after.deck
 
 
-## Keep a whole sequence within the time limit by shortening every step alike.
+## Keep a whole sequence within the time limit by shortening every step alike, all
+## but the reveal of the next Encounter, which keeps its own timing.
 static func _fit_time(steps: Array) -> void:
 	var total := 0.0
 	for st in steps:
-		total += st.duration
+		if not REVEAL.has(st.kind):
+			total += st.duration
 	if total > T.SEQUENCE_MAX:
 		var k: float = T.SEQUENCE_MAX / total
 		for st in steps:
-			st.duration *= k
+			if not REVEAL.has(st.kind):
+				st.duration *= k

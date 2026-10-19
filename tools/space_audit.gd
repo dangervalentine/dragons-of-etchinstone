@@ -119,10 +119,9 @@ func _game(size: String) -> void:
 func _zones() -> Dictionary:
 	var play = ui.play
 	var out := {}
+	# The left side is the Deck alone (specs/013): the face zoomed into, or the note
+	# laid in its place, which is measured for fit rather than fill (_measure).
 	out["encounter"] = [play._regions.encounter.get_global_rect(), play.encounter_node()]
-	for panel in [play.preview, play.soak_meter, play.xp_purse]:
-		if panel.visible:
-			out["preview"] = [panel.get_global_rect(), panel]
 	# Since feature 010 the Roles are labels on the places, inside the Hand's zone.
 	out["hand"] = [play._hand_panel.get_global_rect(), play.hand]
 	return out
@@ -131,9 +130,16 @@ func _zones() -> Dictionary:
 func _measure(size: String, state: String) -> void:
 	var play = ui.play
 	var content: Rect2 = play.plan.content
-	# The box's room is for the sum it shows once Play is pressed (specs/011 R6).
-	if play.preview.visible and play.preview.has_sum():
-		play.preview.reveal()
+	# The note's room is for the result it shows once Play is pressed: how much of
+	# it the result takes, and that it fits (specs/013 research R7).
+	var note: Dictionary = {}
+	if play.vs.get("math", {}).get("complete", false):
+		play.deck.show_result()
+		await process_frame
+		var n = play.deck.note
+		note = {"height": n.size.y, "content": n.content_height(), "roomy": n.preview.roomy}
+		print("%s/%s note %d of %d (%s)" % [size, state, int(note.content), int(note.height), "lines" if note.roomy else "one row"])
+		play.deck.clear_result(0.0)
 		await process_frame
 	# The role display: the labels over the places (feature 010).
 	var role := Rect2()
@@ -150,7 +156,7 @@ func _measure(size: String, state: String) -> void:
 		if e > worst[1]:
 			worst = [key, e]
 	var row := {"role_size": [role.size.x, role.size.y], "role_share": snappedf(role_area / (content.size.x * content.size.y), 0.001),
-		"zones": zones, "max_empty": [worst[0], snappedf(worst[1], 0.01)]}
+		"zones": zones, "max_empty": [worst[0], snappedf(worst[1], 0.01)], "note": note}
 	results["%s/%s" % [size, state]] = row
 	print("view %s " % str(play.plan.view) + "%s/%s role %dx%d (%.1f%%) emptiest %s %.0f%% %s" % [size, state, role.size.x, role.size.y, row.role_share * 100.0, worst[0], worst[1] * 100.0, str(zones)])
 
@@ -165,6 +171,9 @@ func _compare(base) -> bool:
 		var row: Dictionary = results[key]
 		if row.max_empty[1] > MAX_EMPTY:
 			print("FAIL %s: %s is %.0f%% empty" % [key, row.max_empty[0], row.max_empty[1] * 100.0])
+			failed = true
+		if not row.note.is_empty() and row.note.content > row.note.height:
+			print("FAIL %s: the result runs over its note (%d of %d)" % [key, int(row.note.content), int(row.note.height)])
 			failed = true
 		if base != null and base.has(key):
 			var b: Array = base[key].role_size

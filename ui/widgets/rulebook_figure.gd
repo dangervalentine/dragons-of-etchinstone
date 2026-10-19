@@ -8,6 +8,10 @@ const UI = preload("res://ui/theme/theme.gd")
 const Art = preload("res://ui/model/art.gd")
 const ViewState = preload("res://ui/model/view_state.gd")
 const CardFace = preload("res://ui/widgets/card_face.gd")
+## The least height of an Encounter face on the page: a Region Enemy's four badge
+## rows with the Key Card line under the art (300, as play's face needed before
+## feature 013 replaced it with the printed panel).
+const FACE_MIN := 300.0
 const EncounterFace = preload("res://ui/widgets/encounter_face.gd")
 const DragonStats = preload("res://ui/widgets/dragon_stats.gd")
 const Glossary = preload("res://ui/model/glossary.gd")
@@ -83,7 +87,7 @@ static func _encounter(db, kind: String, size: Vector2, on_help: Callable) -> Co
 	# the face fits above the page's terms with its caption inside the frame.
 	face.badge_min = 48.0
 	face.show_key_line = true
-	face.custom_minimum_size = Vector2(size.x, clampf(size.y, T.ENCOUNTER_MIN - 16, 360.0))
+	face.custom_minimum_size = Vector2(size.x, clampf(size.y, FACE_MIN, 360.0))
 	face.intent.connect(func(d): on_help.call(d))
 	face.render(ViewState.encounter_model(db, 1, kind, 1, null, key))
 	return face

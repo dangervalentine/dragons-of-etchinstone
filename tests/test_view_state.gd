@@ -517,18 +517,19 @@ func test_the_boost_is_aimed_on_its_card() -> void:
 		eq(vs.preview.missing, ["Boost target"], "it is what is missing")
 		ok(not vs.prompt.primary.enabled, "Play waits for it")
 		eq(vs.prompt.primary.reason, "Choose whether the Boost adds to Attack or to Initiative.", "and says why")
-		eq(vs.prompt.text, ViewState.TIP_AIM, "the tip says where to aim it")
+		eq(vs.prompt.text, "", "no tip while the set is built (specs/013 FR-006)")
+		eq(vs.note, null, "and nothing lies on the Deck in the card's place")
 		for s in vs.math.sums:
 			ok(not s.has("aim"), "the math box aims nothing (specs/011 FR-006)")
 		d.cycle_boost_to(0)
 		vs = ViewState.build(g, d, db)
 		ok(vs.prompt.primary.enabled or vs.preview.status != "incomplete", "once aimed, nothing is missing")
-		eq(vs.prompt.text, ViewState.TIP_REAIM, "and the tip says how to re-aim it")
+		eq(vs.prompt.text, "", "nor once it is aimed")
 		return
 	ok(false, "no seed opened on an Enemy")
 
 
-func test_a_journey_tip_has_no_aim() -> void:
+func test_a_journey_has_no_tip() -> void:
 	for game_seed in range(1, 40):
 		var g = _game(game_seed)
 		if g.encounter().kind != "journey":
@@ -536,7 +537,7 @@ func test_a_journey_tip_has_no_aim() -> void:
 		var d = Draft.new()
 		d.deal(g.hand)
 		var vs: Dictionary = ViewState.build(g, d, db)
-		eq(vs.prompt.text, ViewState.TIP_SWAP, "the Journey's tip is only about swapping")
+		eq(vs.prompt.text, "", "no tip while the set is built (specs/013 FR-006)")
 		for s in vs.math.sums:
 			ok(not s.has("aim"), "the Move row aims nothing")
 		return
@@ -602,3 +603,79 @@ func test_the_math_box_sums_come_from_the_engine() -> void:
 	var move: Dictionary = _sum(vs, "move")
 	eq(move.total, vs.explain.move, "the Final Journey's Move is the engine's")
 	ok(move.tier != null and move.tier.index == vs.explain.tier, "the tier reached is shown")
+
+
+# ---------------------------------------------------------------- the Deck (specs/012)
+
+func test_the_deck_zooms_into_the_encounter_the_key_card_names() -> void:
+	var g = _game()
+	var vs: Dictionary = ViewState.build(g, Draft.new(), db)
+	var enc: Dictionary = g.encounter()
+	eq(g.phase, "challenge", "a normal game starts at the first Encounter")
+	eq(vs.zoom, "%s:%d" % [enc.kind, enc.index], "the zoom is the Key Card's Encounter")
+	eq(vs.key_face.id, g.deck[0], "the Key Card is the top of the Deck")
+	eq(vs.top_card.kind, "region", "a Region Card is on top")
+	eq(vs.top_card.region, 1, "turned to Region 1")
+
+
+func test_through_upgrade_the_deck_keeps_the_encounter_just_played() -> void:
+	var g = _game()
+	var key: String = g.key_card()
+	var enc: Dictionary = g.encounter()
+	g.faced = {"key": key, "level": g.cards[key].level, "encounter": enc}
+	g.phase = "upgrade"
+	# The next card down is a different Key Card, but the table still shows the old one.
+	g.deck.push_front(g.deck.pop_back())
+	var vs: Dictionary = ViewState.build(g, Draft.new(), db)
+	eq(vs.zoom, "%s:%d" % [enc.kind, enc.index], "the faced Encounter")
+	eq(vs.key_face.id, key, "the card that named it")
+
+
+func test_after_the_cleanup_draw_poison_lifts_the_new_key_card() -> void:
+	var g = _game()
+	g.faced = {}
+	g.phase = "poison"
+	var vs: Dictionary = ViewState.build(g, Draft.new(), db)
+	var enc: Dictionary = g.encounter()
+	eq(vs.key_face.id, g.deck[0], "the new top card")
+	eq(vs.zoom, "%s:%d" % [enc.kind, enc.index], "its Encounter")
+
+
+func test_the_final_battle_zooms_into_the_dragon_card() -> void:
+	var g = _game()
+	_to_final(g)
+	var vs: Dictionary = ViewState.build(g, Draft.new(), db)
+	eq(vs.top_card.kind, "dragon", "the Dragon Card is on top")
+	eq(vs.zoom, "mp", "the Final Journey is its MP Tiers")
+	eq(vs.key_face, null, "no Key Card in the Final Battle")
+	g.phase = "final_enemy"
+	eq(ViewState.build(g, Draft.new(), db).zoom, "hp", "the Final Enemy is its HP Tiers")
+	g.phase = "won"
+	eq(ViewState.build(g, Draft.new(), db).zoom, "hp", "a won game ended on the HP Tiers")
+	g.phase = "lost"
+	eq(ViewState.build(g, Draft.new(), db, {"lost_at": "the Final Journey"}).zoom, "mp", "lost on the Final Journey")
+	eq(ViewState.build(g, Draft.new(), db, {"lost_at": "the Final Enemy"}).zoom, "hp", "lost to the Final Enemy")
+
+
+func test_the_deck_has_no_top_card_while_it_is_prepared() -> void:
+	var g = _game(3, "hard")
+	eq(g.phase, "setup", "hard has a setup step")
+	var vs: Dictionary = ViewState.build(g, Draft.new(), db)
+	eq(vs.top_card, null, "no Region Card yet")
+	eq(vs.zoom, "", "nothing to zoom into")
+
+
+## What lies on the Deck in the card's place (specs/013 data-model.md).
+func test_the_note_follows_the_step() -> void:
+	var g = _game(1)
+	var d = Draft.new()
+	d.deal(g.hand)
+	eq(ViewState.build(g, d, db).note, null, "building: the card, no note")
+	d.mode = "divert"
+	eq(ViewState.build(g, d, db).note, {"kind": "mode"}, "a Divert's step")
+	d.mode = "fuse_pick"
+	eq(ViewState.build(g, d, db).note, {"kind": "mode"}, "a Fuse's step")
+	eq(ViewState.note_for({"mode": "none"}, {"phase": "upgrade", "soak": null}), {"kind": "upgrade"}, "the XP to spend")
+	eq(ViewState.note_for({"mode": "none"}, {"phase": "final_soak", "soak": {"due": 3}}), {"kind": "soak"}, "the Soak")
+	eq(ViewState.note_for({"mode": "none"}, {"phase": "setup", "soak": null}), {"kind": "setup"}, "the Deck being prepared")
+	eq(ViewState.note_for({"mode": "regroup"}, {"phase": "final_soak", "soak": {"due": 3}}), {"kind": "mode"}, "a step comes first")

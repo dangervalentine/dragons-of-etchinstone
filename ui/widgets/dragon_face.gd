@@ -174,9 +174,16 @@ func _place(crossing: bool) -> void:
 	var beast_far := Rect2(clampf(feet.x - far / 2.0, 0.0, scene_w - far), maxf(0.0, feet.y - far), far, far)
 	var near := minf(scene_w, h * 0.95)
 	var beast_near := Rect2((scene_w - near) / 2.0, (h - near) / 2.0, near, near)
+	# Faced, the whole dragon stands under the figures, across the face, as large as
+	# the room below them allows; with less room than its own side, it keeps to it.
+	var below := h - _panel.get_combined_minimum_size().y - T.M
+	var big := minf(w, below)
+	if not journey and big > near:
+		beast_near = Rect2((w - big) / 2.0 - scene_x, h - big, big, big)
 	var beast: Rect2 = beast_far if journey else beast_near
-	# Far off on the road the whole dragon shows; facing it, its head fills the side.
-	var look: Rect2 = Art.FULL if journey else Art.head(_beast.art_name)
+	# The whole dragon shows: small and far off on the road, then filling its side
+	# as it is faced.
+	var look: Rect2 = Art.FULL
 	_fit_ladder(panel)
 	if _tween != null and _tween.is_valid():
 		_tween.kill()

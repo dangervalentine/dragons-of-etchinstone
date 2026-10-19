@@ -40,13 +40,13 @@ func _texts(panel) -> Array:
 	return out
 
 
-func test_before_play_only_the_tip() -> void:
+func test_before_play_nothing_but_the_step() -> void:
 	var vs := _ready_enemy()
 	ok(not vs.is_empty(), "a ready Enemy set")
 	var panel = PreviewPanel.new()
 	panel.render(vs)
 	var texts := _texts(panel)
-	ok(texts.has(vs.prompt.text), "the tip is shown")
+	eq(vs.prompt.text, "", "no tip while the set is built (specs/013 FR-006)")
 	for s in vs.math.sums:
 		ok(not texts.has(s.label), "no %s row before Play" % s.label)
 	ok(not texts.has(vs.preview.verdict_text), "no verdict before Play")
@@ -67,6 +67,5 @@ func test_play_reveals_the_sum_and_verdict() -> void:
 		ok(texts.has(str(s.total)), "the %s total %d once played" % [s.label, s.total])
 		ok(texts.has(s.label), "under its name")
 	ok(texts.has(vs.preview.verdict_text), "and the verdict")
-	ok(not texts.has(vs.prompt.text), "the tip makes way")
 	eq(panel.needed_height(400.0), before, "the box keeps one height before and after Play")
 	panel.free()

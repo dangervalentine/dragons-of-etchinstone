@@ -7,6 +7,8 @@ extends SceneTree
 
 const Solver = preload("res://ui/model/layout_solver.gd")
 const T = preload("res://ui/theme/tokens.gd")
+const UI = preload("res://ui/theme/theme.gd")
+const DeckStack = preload("res://ui/widgets/deck_stack.gd")
 const InspectOverlay = preload("res://ui/overlays/inspect_overlay.gd")
 const Game = preload("res://engine/game.gd")
 const CardDB = preload("res://engine/card_db.gd")
@@ -53,6 +55,13 @@ func _run() -> void:
 		await _screens_and_overlays(name)
 		await _marks_walk(name)
 		await _play(name, 11, "casual", false)
+	for name in ["desktop", "phone-tall", "tablet"]:
+		await _open(name)
+		await _deck_walk(name)
+	await _open("phone-16x9")
+	UI.reduced_motion = true
+	await _deck_walk("phone-16x9 reduced motion")
+	UI.reduced_motion = false
 	await _open("phone-16x9")
 	await _play("phone-16x9 animated", 5, "normal", true)
 	await _open("desktop")
@@ -141,27 +150,30 @@ func _check_space(where: String) -> void:
 	var play = ui.play
 	var zones := {"encounter": [play._regions.encounter.get_global_rect(), play.encounter_node()],
 		"hand": [play._hand_panel.get_global_rect(), play.hand]}
-	for panel in [play.soak_meter, play.xp_purse]:
-		if panel.visible:
-			zones["preview"] = [panel.get_global_rect(), panel]
-	# The box under the Encounter holds only a tip before Play; its room is for the
-	# sum it shows once Play is pressed, so that is what fills it (specs/011 R6).
-	var revealed := false
-	if play.preview.visible and play.preview.has_sum():
-		play.preview.reveal()
-		revealed = true
-		await process_frame
-		zones["preview"] = [play.preview.get_global_rect(), play.preview]
 	space_checks += 1
 	for key in zones:
 		var e: float = Solver.empty_fraction(zones[key][0], zones[key][1])
 		_ok(e <= MAX_EMPTY, "%s: %s is %d%% empty" % [where, key, int(e * 100.0)])
-	if revealed:
-		play.preview.conceal()
-		await process_frame
-		# Before Play the box shows no figure of the sum (specs/011 FR-001).
-		var shown: Array = play.preview.find_children("*", "Label", true, false).filter(func(l): return l.is_visible_in_tree())
-		for s in ui.vs.math.get("sums", []):
+
+
+## The note laid on the Deck in the card's place (specs/013 contracts/left-column.md):
+## on the Deck, its content inside it, every word at least TEXT_MIN; and before Play
+## it shows no figure of the sum (specs/011 FR-001).
+func _check_note(where: String) -> void:
+	if ui.screen == null or ui.screen != ui.play or ui.vs.is_empty() or ui.animator.is_playing():
+		return
+	var deck = ui.play.deck
+	var want: bool = ui.vs.get("note") != null or deck.result_held or deck.note.refusal != ""
+	_ok(deck.note_on == want, "%s: a note lies on the Deck only when there is one (%s, %s)" % [where, deck.note_on, ui.vs.get("note")])
+	if not deck.note_on:
+		return
+	var region: Rect2 = ui.play._regions.encounter.get_global_rect().grow(1)
+	_ok(region.encloses(deck.note.get_global_rect()), "%s: the note is on the Deck" % where)
+	_ok(deck.note.content_height() <= deck.note.size.y - 2.0 * deck.note.PAD + 1.0,
+		"%s: the note's %s fits it (%d of %d)" % [where, str(deck.note.kinds), int(deck.note.content_height()), int(deck.note.size.y)])
+	if not deck.result_held:
+		var shown: Array = deck.note.find_children("*", "Label", true, false).filter(func(l): return l.is_visible_in_tree())
+		for s in ui.vs.get("math", {}).get("sums", []):
 			_ok(not shown.any(func(l): return l.text == s.label), "%s: no %s row before Play" % [where, s.label])
 
 
@@ -170,7 +182,139 @@ func _settle() -> void:
 	await process_frame
 	await process_frame
 	if ui.game != null:
+		_check_deck_settled("%s %s" % [current_size, ui.game.phase])
+		_check_note("%s %s" % [current_size, ui.game.phase])
 		await _check_space("%s %s" % [current_size, ui.game.phase])
+
+
+## The Deck at rest (specs/012 contracts/deck-stack.md): zoomed in on the face of
+## what is being played, its edges as deep as the Deck count says, nothing held.
+func _check_deck_settled(where: String) -> void:
+	if ui.screen == null or ui.screen != ui.play or ui.vs.is_empty():
+		return
+	var deck = ui.play.deck
+	_ok(not deck.held, "%s: the Deck is not held at rest" % where)
+	_ok(deck.view == "face", "%s: at rest the Deck shows the face" % where)
+	_ok(deck.count == ui.vs.piles.deck, "%s: the stack is %d deep for a Deck of %d" % [where, deck.count, ui.vs.piles.deck])
+	var enc = ui.vs.encounter
+	if enc != null and (enc.kind == "enemy" or enc.kind == "journey"):
+		var p = deck.landed.panel.panel
+		_ok(deck.landed.visible and p.get("key", "") == "%s:%d" % [enc.kind, enc.index], "%s: the face is the Encounter's panel" % where)
+	var region: Rect2 = ui.play._regions.encounter.get_global_rect()
+	# Allowing for a shake still settling (UI.shake runs on after a skip).
+	_ok(region.grow(16).encloses(deck.face_node().get_global_rect()), "%s: the face %s is on the Deck %s" % [where, deck.face_node().get_global_rect(), region])
+	_ok(deck.face_node().size == DeckStack.face_rect(region.size).size, "%s: the face leaves the stack its margin" % where)
+	# Zoomed in on a Region Encounter, the card lies exactly where the zoom brought it
+	# (specs/013 research R3), so nothing jumps as the landed face takes over.
+	if deck.landed.visible:
+		var f: Rect2 = DeckStack.face_rect(region.size)
+		var at: Dictionary = deck._landing(Rect2(Vector2.ZERO, f.size))
+		_ok(deck.landed.card.position.is_equal_approx(at.card.position) and deck.landed.card.size.is_equal_approx(at.card.size),
+			"%s: the landed card is where the zoom ends" % where)
+		_ok(deck.landed.panel == deck.landed.card.panel(deck.landed.key) and deck.landed.panel.interactive, "%s: its panel is lit and explains itself" % where)
+		for l in deck.landed.strip.find_children("*", "Label", true, false):
+			_ok(l.get_theme_font_size("font_size") >= T.TEXT_MIN, "%s: the strip's '%s' is at least %d" % [where, l.text.left(20), T.TEXT_MIN])
+	# Cards are drawn from the Deck and go to its back (specs/012 R9).
+	for anchor in ["deck", "discard"]:
+		_ok(region.grow(T.DECK_EDGE).has_point(ui.play.point(anchor)), "%s: cards travel to and from the Deck (%s)" % [where, anchor])
+
+
+## The reveal frame by frame (specs/012): the start of a game and a Divert, played
+## through. While the view is zoomed out everything on the Deck stays inside it,
+## clear of the header, the Hand and the action row; between the draw and the zoom
+## the whole top card shows; the stack refills before a new Hand. In reduced motion
+## nothing on the Deck travels or grows.
+func _deck_walk(where: String) -> void:
+	ui.start_game({"seed": 5, "dragon": "rodving", "difficulty": "normal", "cavalier": false, "glass_cannon": false})
+	await _watch_deck(where + " start")
+	var id: String = ui.game.hand[0]
+	ui._act({"kind": "divert", "cards": [id], "id": id}, func(): return ui.game.divert(id))
+	await _watch_deck(where + " divert")
+	await _settle()
+	# The end of Region 1: the Deck is gathered, refills before the new Hand, and its
+	# card turns over to Region 2.
+	var g = ui.game
+	g.discard.append_array(g.deck)
+	g.deck = []
+	g.phase = "upgrade"
+	g._action = {"cards": {}, "fuse": null, "reserve": null}
+	ui._refresh(false)
+	ui._act({"kind": "finish", "cards": []}, func(): return ui.game.finish())
+	eq_region(where, g)
+	await _watch_deck(where + " region change", ui.vs.piles.deck + ui.vs.hand.size())
+	await _settle()
+	# The whole card is the printed card, figure for figure (specs/013 SC-001). It is
+	# a picture of the card, seen while the Deck zooms; its figures are read zoomed in.
+	var card = ui.play.deck.region_card
+	for p in card.model.panels:
+		var v = card.panel(p.key)
+		_ok(v != null and v.panel == p, "%s: panel %s shows its Encounter" % [where, p.key])
+		if v == null:
+			continue
+		var want := {"xp": str(p.xp)}
+		if p.kind == "enemy":
+			want.merge({"hp": str(p.enemy.hp), "initiative": str(p.enemy.initiative), "attack": str(p.enemy.attack.value), "armor0": str(p.enemy.armor[0].value)})
+		else:
+			want.merge({"mp": str(p.journey.mp.value), "time": str(p.journey.time_penalty)})
+		for chip in want:
+			_ok(v.chip(chip) != null and v.chip(chip).text == want[chip], "%s: panel %s's %s reads %s" % [where, p.key, chip, want[chip]])
+		_ok(v.discs().size() == (1 if p.effect != null else 0), "%s: panel %s marks its Ability or Peril only if it has one" % [where, p.key])
+
+
+func eq_region(where: String, g) -> void:
+	_ok(g.region == 2 and g.phase == "challenge", "%s: on to Region 2 (%d, %s)" % [where, g.region, g.phase])
+
+
+## `gathered`: the Deck's count once gathered, which the stack must show by the time
+## the card turns.
+func _watch_deck(where: String, gathered := -1) -> void:
+	var deck = ui.play.deck
+	var seen := []
+	var on_step := func(kind: String):
+		seen.append(kind)
+		if kind == "turn_card" and gathered >= 0:
+			_ok(deck.count == gathered, "%s: the stack refilled to %d before the turn (%d)" % [where, gathered, deck.count])
+	ui.animator.step_started.connect(on_step)
+	var region: Rect2 = ui.play._regions.encounter.get_global_rect().grow(1)
+	var others := [ui.play.header.get_global_rect(), ui.play._hand_panel.get_global_rect(), ui.play._regions.actions.get_global_rect()]
+	var still := true
+	var peek_at = null
+	var until := Time.get_ticks_msec() + 10000
+	while ui.animator.is_playing() and Time.get_ticks_msec() < until:
+		await process_frame
+		if deck.view == "card":
+			var top: Control = deck.top_node()
+			# While it grows into a panel (or back) it is clipped to the face (specs/013 R3).
+			if top != null and top.visible and top.scale == Vector2.ONE and not deck._tops.clip_contents:
+				_ok(region.encloses(top.get_global_rect()), "%s: the top card stays on the Deck (%s in %s)" % [where, top.get_global_rect(), region])
+			if deck._tops.clip_contents:
+				_ok(region.encloses(deck._tops.get_global_rect()), "%s: the growing card is clipped to the Deck" % where)
+			if deck._peek.visible:
+				var r: Rect2 = deck._peek_clip.get_global_rect().intersection(deck._peek.get_global_rect())
+				_ok(region.encloses(r), "%s: the Key Card stays on the Deck" % where)
+				for o in others:
+					_ok(not r.intersects(o), "%s: the Key Card stays clear of the rest of the screen" % where)
+				if peek_at == null:
+					peek_at = deck._peek.position
+				elif UI.reduced_motion and deck._peek.position != peek_at:
+					still = false
+		var drawn: int = seen.rfind("draw")
+		if drawn >= 0 and drawn > seen.rfind("zoom_in") and not seen.has("zoom_in"):
+			_ok(deck.view == "card", "%s: between the draw and the zoom the whole top card shows" % where)
+		if UI.reduced_motion:
+			for c in [deck.region_card, deck.landed]:
+				if c.scale != Vector2.ONE:
+					still = false
+	ui.animator.step_started.disconnect(on_step)
+	_ok(seen.has("zoom_in"), "%s: the reveal played (%s)" % [where, str(seen)])
+	if where.contains("start"):
+		_ok(seen.has("key_peek"), "%s: the Key Card rose" % where)
+	if gathered >= 0:
+		_ok(seen.has("turn_card"), "%s: the card turned" % where)
+	if UI.reduced_motion:
+		_ok(still, "%s: in reduced motion nothing on the Deck travels or grows" % where)
+	_ok(not ui.animator.is_playing(), "%s: the sequence ends within 10 seconds" % where)
+	_ok(deck.view == "face" and not deck.held, "%s: the reveal ends on the face (%s, held %s)" % [where, deck.view, deck.held])
 
 
 ## Everything a player can press or must read, checked against the screen.
@@ -207,6 +351,9 @@ func _inspect_screen(where: String) -> void:
 			# The menu and Back buttons reach below the header on purpose; their visible parts are inside.
 			var r_check := Rect2(r.position, Vector2(r.size.x, minf(r.size.y, 56.0))) if c.name in ["MenuButton", "BackButton"] else r
 			_ok(safe.encloses(r_check), "%s: %s at %s is outside the safe area %s" % [where, _name(c), str(r), str(safe)])
+		# The printed cards' codes are never shown (specs/013 FR-004).
+		if c is Label:
+			_ok(not c.text.contains("DOE-"), "%s: a card code shows in '%s'" % [where, c.text.left(30)])
 		if c is Label and c.text != "" and not c.has_meta("small_ok"):
 			var fs: int = c.get_theme_font_size("font_size")
 			_ok(fs >= T.TEXT_MIN, "%s: text '%s' is set at %d" % [where, c.text.left(30), fs])
@@ -1026,7 +1173,7 @@ func _arrange_walk(where: String) -> void:
 	_ok(ui.play.labels.get_child_count() == 4, "%s: a label over each card" % where)
 	_cards_on_screen(where + " dealt")
 	# Pressing the Encounter face shows the Key Card that named it, its Key Card part lifted.
-	var face: Control = ui.play.encounter_face
+	var face: Control = ui.play.landed
 	var up := InputEventMouseButton.new()
 	up.button_index = MOUSE_BUTTON_LEFT
 	up.pressed = false
@@ -1039,13 +1186,15 @@ func _arrange_walk(where: String) -> void:
 		_inspect_screen(where + " key card")
 	ui._close_overlays()
 	await _settle()
-	_ok(not ui.play.encounter_face.find_children("*", "Label", true, false).any(func(l): return l.text.contains("Key Card")), "%s: the face has no Key Card line" % where)
+	_ok(not ui.play.landed.find_children("*", "Label", true, false).any(func(l): return l.text.contains("Key Card")), "%s: the face has no Key Card line" % where)
 	if enemy:
 		# Play before the Boost has a target: nothing is played, and the board says why.
 		ui.dispatch({"type": "primary"})
 		await _settle()
 		_ok(g.phase == "challenge", "%s: Play waits for the Boost's aim" % where)
-		_ok(ui.play._toast.modulate.a > 0.5 and ui.play._toast_label.text.contains("Boost"), "%s: and says what is missing" % where)
+		# The reason lies on the Deck in the card's place (specs/013 FR-011).
+		_ok(ui.play.deck.note_on and ui.play.deck.note.refusal.contains("Boost"), "%s: and says what is missing" % where)
+		ui.play.deck.clear_refusal()
 		# The Boost card's lower band aims it (specs/011 research R4): Attack, then
 		# Initiative. A tap above the band picks the card up and leaves the aim alone.
 		var view: Control = ui.play.hand.card(hand[3])
