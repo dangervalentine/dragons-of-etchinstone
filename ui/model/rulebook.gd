@@ -59,7 +59,7 @@ const SECTIONS := [
 	]},
 	{"id": "regions", "title": "Regions and Encounters", "pages": [
 		{"text": [
-			{"p": "Your road crosses four Regions in order. Each has four [[enemy|enemies]] and four [[journey|Journeys]] of its own, numbered 1 to 4, and every Region is harder than the one before."},
+			{"p": "Your road crosses four Regions in order. Each has four enemies and four Journeys of its own, numbered 1 to 4, and every Region is harder than the one before."},
 			{"p": "The Key Card names the Encounter, an enemy or a Journey and its number, and you meet that one in the Region you are in."},
 			{"list": [
 				"An enemy shows {icon:hp} HP, {icon:initiative} Initiative, {icon:attack} Attack and {icon:armor} Armor.",
