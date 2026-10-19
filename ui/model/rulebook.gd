@@ -38,6 +38,17 @@ const SECTIONS := [
 			{"p": "You win if you survive the dragon's last attack. You lose if your Final Journey falls short, if you cannot wound the dragon enough, or if you cannot Soak the damage it deals you."},
 		]},
 	]},
+	{"id": "ethers", "title": "The Four Ethers", "pages": [
+		{"text": [
+			{"list": [
+				"{icon:water} [[water]]: very strong Armor and Initiative; standard Attack, Boost and Move.",
+				"{icon:fire} [[fire]]: very strong Attack; weak Armor, Boost, Initiative and Move.",
+				"{icon:lightning} [[lightning]]: very strong Move and strong Initiative; weak Attack and Boost; costly to Upgrade.",
+				"{icon:shadow} [[shadow]]: very strong Boost; standard Attack, Initiative and Move. The actions that work as Attack or Move are enhanced by Shadow.",
+			]},
+			{"p": "Ether matters in four places: a Spell's enhanced action, enemy and dragon Armor, your own Armor against damage, and a Journey's MP."},
+		]},
+	]},
 	{"id": "mage_cards", "title": "Mage Cards", "pages": [
 		{"text": [
 			{"p": "Your sixteen Mage Cards are your spells, your shield and your clock. Each belongs to one of the four Ethers, shown by its colour and the mark beside its name."},
@@ -292,17 +303,6 @@ const SECTIONS := [
 			{"p": "A loss scores 0. A win scores the total of the Levels of every card that was not Trashed, counted after you Soak the dragon's last attack."},
 			{"p": "So a high score means keeping your cards strong to the very end: Upgrade whenever you can, and choose carefully what you Downgrade."},
 			{"p": "Every game you play is kept. The Leaderboard, on the first screen and in the menu, shows your best wins on each difficulty, which you can narrow to one dragon; the History, in the menu, lists every attempt with how far it got."},
-		]},
-	]},
-	{"id": "ethers", "title": "The Four Ethers", "pages": [
-		{"text": [
-			{"list": [
-				"{icon:water} [[water]]: very strong Armor and Initiative; standard Attack, Boost and Move.",
-				"{icon:fire} [[fire]]: very strong Attack; weak Armor, Boost, Initiative and Move.",
-				"{icon:lightning} [[lightning]]: very strong Move and strong Initiative; weak Attack and Boost; costly to Upgrade.",
-				"{icon:shadow} [[shadow]]: very strong Boost; standard Attack, Initiative and Move. The actions that work as Attack or Move are enhanced by Shadow.",
-			]},
-			{"p": "Ether matters in four places: a Spell's enhanced action, enemy and dragon Armor, your own Armor against damage, and a Journey's MP."},
 		]},
 	]},
 	{"id": "difficulty", "title": "Difficulty and Alternate Rules", "pages": [

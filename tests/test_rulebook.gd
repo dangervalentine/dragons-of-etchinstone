@@ -5,9 +5,9 @@ const Rulebook = preload("res://ui/model/rulebook.gd")
 const Glossary = preload("res://ui/model/glossary.gd")
 const Game = preload("res://engine/game.gd")
 
-const ORDER := ["welcome", "mage_cards", "regions", "dragons", "setup", "encounter", "challenge", "action",
-	"enemies", "journeys", "penalty", "upgrade_cleanup", "region_end", "final_journey", "final_enemy",
-	"scoring", "ethers", "difficulty"]
+const ORDER := ["welcome", "ethers", "mage_cards", "regions", "dragons", "setup", "encounter", "challenge",
+	"action", "enemies", "journeys", "penalty", "upgrade_cleanup", "region_end", "final_journey", "final_enemy",
+	"scoring", "difficulty"]
 
 
 func test_sections_in_reading_order() -> void:
@@ -22,7 +22,7 @@ func test_sections_in_reading_order() -> void:
 
 func test_find() -> void:
 	eq(Rulebook.find("welcome"), 0, "first section")
-	eq(Rulebook.find("penalty"), 10, "penalty section")
+	eq(Rulebook.find("penalty"), 11, "penalty section")
 	eq(Rulebook.find("nope"), -1, "unknown section")
 
 

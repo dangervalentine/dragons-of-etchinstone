@@ -96,4 +96,6 @@ The planned reading order. Ids are fixed now; titles and how the text splits int
 | 17 | `ethers` | The Four Ethers | Strengths of Water, Fire, Lightning, Shadow; Shadow's flexible actions [Ether elements] | — |
 | 18 | `difficulty` | Difficulty and Alternate Rules | Six levels and what each changes; where they're chosen; Cavalier; Glass Cannon [difficulty, alternate rules] | table: difficulty (generated) |
 
+Since 2026-10-18, The Four Ethers comes second, right after Welcome to Vale (owner request), so the Ethers are known before the cards that use them; the others keep their order.
+
 The physical book's Ordering Your Hand, the DIZED tutorial, Variants and the Tracking Crystal are left out (FR-014, FR-019).
