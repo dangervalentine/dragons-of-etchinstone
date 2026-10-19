@@ -159,8 +159,13 @@ func bump(pile: String, delta: int) -> void:
 
 ## Global centre of a pile's icon, for cards flying to or from it.
 func pile_point(pile: String) -> Vector2:
+	return pile_rect(pile).get_center()
+
+
+## Global rect of a pile's icon.
+func pile_rect(pile: String) -> Rect2:
 	var icon: Control = _icons[pile]
-	return icon.global_position + icon.size / 2.0
+	return Rect2(icon.global_position, icon.size)
 
 
 func _fit() -> void:

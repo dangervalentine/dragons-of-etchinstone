@@ -350,4 +350,3 @@ func _chip(opts: Dictionary) -> Control:
 	var c: Control = StatChip.make(opts)
 	c.help.connect(func(id, source): intent.emit({"type": "help", "id": id, "source": source}))
 	return c
-

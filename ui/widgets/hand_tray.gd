@@ -22,6 +22,8 @@ var _vs := {}
 ## The card being dragged and where the pointer holds it, from its top-left.
 var _drag_id := ""
 var _drag_grip := Vector2.ZERO
+## Cards passing by and not in the Hand: a Time Penalty's, on their way to the Discard.
+var _passing: Array = []
 
 
 func _init() -> void:
@@ -150,6 +152,9 @@ func finish() -> void:
 		if tw.is_valid():
 			tw.kill()
 	_tweens = []
+	for view in _passing:
+		view.queue_free()
+	_passing = []
 	for view in _cards.values():
 		if view.home.size != Vector2.ZERO:
 			view.snap_home()
@@ -173,6 +178,42 @@ func _glide(view: Control, delay: float, fly := false) -> void:
 		tw.tween_property(view, "position", view.home.position, d).set_delay(delay)
 		tw.tween_property(view, "size", view.home.size, d).set_delay(delay)
 		tw.tween_property(view, "modulate:a", 1.0, d * 0.6).set_delay(delay)
+	_tweens.append(tw)
+
+
+## A card that leaves the top card on the Deck (`from`, a global rect) after
+## `delay` as a drawn one does, but goes to the pile whose icon is at `to` (a
+## global rect) instead of the Hand, shrinking into it; `landed` is called as it
+## arrives. In reduced motion it shows at the icon and fades.
+func pass_to(m: Dictionary, from: Rect2, to: Rect2, delay: float, d: float, landed: Callable) -> void:
+	var view := CardView.new()
+	view.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(view)
+	view.set_model(m)
+	view.size = from.size
+	view.pivot_offset = from.size / 2.0
+	view.position = from.position - global_position
+	view.modulate.a = 0.0
+	_passing.append(view)
+	var end := to.get_center() - global_position - from.size / 2.0
+	var shrink := Vector2.ONE * minf(1.0, to.size.y * 1.2 / maxf(1.0, from.size.y))
+	var tw := create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+	if UI.reduced_motion:
+		view.position = end
+		view.scale = shrink
+		tw.tween_property(view, "modulate:a", 1.0, d * 0.4).set_delay(delay)
+		tw.tween_property(view, "modulate:a", 0.0, d * 0.4).set_delay(delay + d * 0.6)
+	else:
+		# Out of sight until its turn, then whole from its first frame, fading only as
+		# it goes into the icon.
+		tw.tween_property(view, "modulate:a", 1.0, 0.001).set_delay(delay)
+		tw.tween_property(view, "position", end, d).set_delay(delay)
+		tw.tween_property(view, "scale", shrink, d).set_delay(delay)
+		tw.tween_property(view, "modulate:a", 0.0, d * 0.2).set_delay(delay + d * 0.8)
+	tw.chain().tween_callback(func():
+		landed.call()
+		_passing.erase(view)
+		view.queue_free())
 	_tweens.append(tw)
 
 

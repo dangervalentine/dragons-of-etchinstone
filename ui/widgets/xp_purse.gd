@@ -58,6 +58,11 @@ func point() -> Vector2:
 	return amount.global_position + amount.size / 2.0 if amount != null else global_position + size / 2.0
 
 
+## Global centre of the big star, where XP stars leave from and come back to.
+func star_point() -> Vector2:
+	return _icon.global_position + _icon.size / 2.0 if _icon != null and _icon.is_inside_tree() else point()
+
+
 ## Count the XP figure down (or up) to `n` while stars fly from it (specs/011 R7).
 func count_to(n: int, duration: float) -> void:
 	if amount == null:

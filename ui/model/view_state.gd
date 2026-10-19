@@ -29,11 +29,17 @@ static func snapshot(game) -> Dictionary:
 	var levels := {}
 	for id in game.cards:
 		levels[id] = game.cards[id].level
+	# What Upgrading each card in the Hand would cost, so an Upgrade shows its own.
+	var costs := {}
+	for id in game.hand:
+		var cost = game.level_data(id).upgrade_cost
+		if cost != null:
+			costs[id] = cost
 	return {
 		"phase": game.phase, "region": game.region, "xp": game.xp, "damage_due": game.damage_due,
 		"deck": game.deck.duplicate(), "hand": game.hand.duplicate(),
 		"discard": game.discard.duplicate(), "trash": game.trash.duplicate(),
-		"levels": levels, "offer": game.setup_offer.duplicate() if game.phase == "setup" else [],
+		"levels": levels, "costs": costs, "offer": game.setup_offer.duplicate() if game.phase == "setup" else [],
 		"encounter": _region_encounter(game),
 	}
 
@@ -589,10 +595,12 @@ static func _sets(game, draft) -> Array:
 	return out
 
 
-static func _card(game, draft, db, id: String, vs: Dictionary) -> Dictionary:
+## A card face up as it lies, with nothing chosen and no part to play: a Time
+## Penalty's cards, which go from the Deck to the Discard without being in the Hand.
+static func plain_card(game, db, id: String) -> Dictionary:
 	var m: Dictionary = db.mage(id)
 	var lv: Dictionary = game.level_data(id)
-	var c := {
+	return {
 		"id": id, "name": m.name, "element": m.element, "level": game.cards[id].level,
 		"max_level": m.levels.size(), "stats": lv,
 		"state": "available", "role": null, "fuse": null, "reserve": false, "reserve_boosts": false,
@@ -605,6 +613,11 @@ static func _card(game, draft, db, id: String, vs: Dictionary) -> Dictionary:
 		"alt": null,
 		"key_name": Art.encounter_name(game.region, lv.encounter.type, lv.encounter.index),
 	}
+
+
+static func _card(game, draft, db, id: String, vs: Dictionary) -> Dictionary:
+	var lv: Dictionary = game.level_data(id)
+	var c := plain_card(game, db, id)
 	# After a battle: which cards are spent and which one stays in the Hand.
 	var played = vs.played
 	if played != null:

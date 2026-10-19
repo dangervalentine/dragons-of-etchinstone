@@ -764,6 +764,12 @@ func _act(action: Dictionary, call: Callable) -> void:
 	if game.phase != phase_before and (game.phase == "challenge" or game.phase.begins_with("final")):
 		_reset_draft()
 	var steps := Sequencer.build(before, action, game.result, after)
+	# A Time Penalty's cards show their faces as they go to the Discard.
+	for st in steps:
+		if st.kind == "pay_time":
+			st.values["models"] = {}
+			for id in st.cards:
+				st.values.models[id] = ViewState.plain_card(game, db, id)
 	_refresh(false, false)
 	if steps.is_empty():
 		play.render(vs, true)
