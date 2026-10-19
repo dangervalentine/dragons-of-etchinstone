@@ -68,6 +68,7 @@ func _place() -> void:
 
 
 func render(vs: Dictionary) -> void:
+	_actions.visible = true
 	for c in _actions.get_children():
 		_actions.remove_child(c)
 		c.queue_free()
@@ -109,6 +110,21 @@ func render(vs: Dictionary) -> void:
 	_was_enabled = p.enabled
 	if _ready:
 		_glow()
+
+
+## While the Key Card waits on the Deck with its Encounter lit (specs/014): the
+## primary action names the Encounter, ready, glowing, and the other actions are
+## put away; any press goes on with the reveal (main.gd _input).
+func show_confirm(label: String) -> void:
+	_actions.visible = false
+	primary.visible = true
+	primary.text = label
+	primary.disabled = false
+	primary.tooltip_text = ""
+	_why.visible = false
+	if _kind != "primary":
+		_kind = "primary"
+	set_ready(true)
 
 
 ## The primary action glows while it is the thing waiting on the player.

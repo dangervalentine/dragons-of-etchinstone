@@ -1,6 +1,6 @@
 extends PanelContainer
-## The Soak step: the damage owed, a meter that fills as cards are chosen to
-## Downgrade, and whether it is covered yet.
+## The Soak step: the damage owed, and a meter that fills as cards are chosen to
+## Downgrade, its count saying how much is covered (green once it all is).
 
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
@@ -41,9 +41,7 @@ func render(vs: Dictionary) -> void:
 		head.add_child(UI.icon_rect(s.element, 30, T.ether_ink(s.element)))
 	_box.add_child(head)
 	_box.add_child(_meter)
-	var status := "Covered. Take the damage to go on." if s.covered else "%d more to Soak." % (s.due - s.total)
-	_box.add_child(UI.label(status, ["body_bold", T.BODY[1]], T.GOOD if s.covered else T.INK))
-	var how := UI.label("Tap cards to Downgrade them. Matching Armor Soaks double.", T.LABEL, T.INK_MUTED, true)
+	var how := UI.label("Tap cards to Downgrade them.", T.LABEL, T.INK_MUTED, true)
 	how.custom_minimum_size.x = 300
 	_box.add_child(how)
 	_meter.queue_redraw()

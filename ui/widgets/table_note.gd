@@ -13,7 +13,6 @@ signal held(on: bool)
 
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
-const StoneStyle = preload("res://ui/theme/stone_style.gd")
 const PreviewPanel = preload("res://ui/widgets/preview_panel.gd")
 const SoakMeter = preload("res://ui/widgets/soak_meter.gd")
 const XpPurse = preload("res://ui/widgets/xp_purse.gd")
@@ -37,7 +36,6 @@ var _setup := VBoxContainer.new()
 var _setup_key := ""
 var _refusal := Label.new()
 var _creature := Creature.new()
-var _stone := StoneStyle.new("well", 0.5)
 var _pressed_at := -1.0
 
 
@@ -65,7 +63,6 @@ func _init() -> void:
 	_refusal.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_refusal.visible = false
 	_box.add_child(_refusal)
-	_stone.changed.connect(queue_redraw)
 	resized.connect(_fit)
 
 
@@ -161,6 +158,7 @@ func _render_setup(vs: Dictionary) -> void:
 
 
 func _fit() -> void:
+	queue_redraw()
 	var inner := Rect2(Vector2(PAD, PAD), size - Vector2(PAD, PAD) * 2.0)
 	_box.position = inner.position
 	_box.size = Vector2(inner.size.x, 0)
@@ -200,9 +198,9 @@ func _gui_input(event: InputEvent) -> void:
 		accept_event()
 
 
+## The card's own stone and rounded corners, so the note reads as the Region Card
+## showing something else for a moment, not a panel laid over it (specs/014).
 func _draw() -> void:
-	var r := Rect2(Vector2.ZERO, size)
-	draw_style_box(_stone, r)
-	var pts := _stone.outline(r, 1.5)
-	pts.append(pts[0])
-	draw_polyline(pts, T.BRONZE, 3.0, true)
+	# As the zoomed face draws itself (deck_stack.gd LandedFace), so the one gives way
+	# to the other with nothing round the edge changing.
+	draw_style_box(UI.box(T.BG_RAISED, Color.TRANSPARENT, 0, UI.card_radius(size.x), 0), Rect2(Vector2.ZERO, size))

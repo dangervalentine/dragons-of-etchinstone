@@ -28,6 +28,14 @@ In the physical game, every card is the same size. The Region Card is just anoth
 - Q: What should make the Deck read as a pile of real cards being drawn from? → A: Real card edges. Each card under the Region Card shows as a thin card edge, a little offset and slightly uneven, so the pile thickens and thins with the Deck count, with a soft shadow under it. The edges do not reveal any card's Ether colour; every edge looks the same. The edges have the same rounded corners as the cards, and so does the pile as a whole.
 - Q: Should a drawn card show its face the whole way, or start as a card back and turn over? → A: Cards are always face-up, and so is the Deck, as in the physical game: the Region Card lies on a face-up pile, which is why the Key Card's number can peek out from under it. Drawn cards show their faces throughout the flight. Because the pile is face-up and seen from the side, its edges are plain card edges (the cards' sides), not card backs, and show no Ether colour.
 
+### Session 2026-10-19 (after the first build)
+
+- Q: Where do drawn cards come from? → A: From under the Region Card, which stays lying on top of them. A drawn card starts hidden beneath the top card and slides out from under it, then shrinks into the Hand.
+- Q: Should the zoomed Encounter show its number? → A: No. The reading strip names it without the number ("Swamp Treant", not "1 Swamp Treant"), and the number plate fades out of the panel's art as the view zooms in. It stays on the whole Region Card, where it matches the Key Card's number.
+- Q: Which views of the Region Card are rounded? → A: All of them: the whole card, the card while it grows into the panel, and the zoomed face.
+- Q: Does the reveal go straight on to the zoom? → A: No. Once the Key Card is up with its number and its Encounter lit, the reveal waits for the player. The action reads "Face Enemy 3" (or "Face Journey 2"), and any press goes on: the Key Card slides down and the Deck zooms in. A press earlier in the sequence hurries it on to this point instead of past it, so every Encounter is seen and confirmed. A change of window size or the app going to the background still finishes the whole sequence at once.
+- Q: How does the note showing an Encounter's results look? → A: Like the card itself: the zoomed face's colour and rounded corners, with no rim of its own. The Region Card seems to have changed its contents to show the results.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Drawn cards leave the Deck at the Region Card's size (Priority: P1)
@@ -145,6 +153,11 @@ The Deck on the left reads at a glance as a face-up pile of real cards, with the
 - **FR-010**: With reduced motion on, draws MUST place cards with no travel or scaling. The Key Card MUST appear in place at the Region Card's width, already raised. Both highlights MUST still be shown, in order or together, while the Key Card is shown. The Key Card MUST then fade out as the Encounter face fades in, with no sliding or zooming.
 - **FR-011**: Skipping a draw or reveal MUST settle at once into the same Hand, stack and Encounter face as letting it play.
 - **FR-012**: From the Hand settling to the zoomed face settling, the reveal (rise, two highlights, zoom) MUST take no more than 3 seconds. It MUST be skippable by the player's next input.
+- **FR-002a**: While the Hand is drawn, the top card MUST lie over the cards being drawn. Each drawn card is hidden beneath it at first and comes out from under it.
+- **FR-017**: Zoomed in, the Encounter MUST be named without its number, and the panel's number plate MUST NOT show. The plate fades out during the zoom in and back in during the zoom out.
+- **FR-018**: The Region Card's rounded corners MUST hold before, during and after the zoom, including on the zoomed face.
+- **FR-019**: The note laid in the card's place (results, steps, Soak, XP, refusals) MUST have the zoomed face's colour and rounded corners and no rim of its own.
+- **FR-020**: Every Region reveal MUST wait, with the Key Card up and both highlights on, until the player presses. The primary action MUST name the Encounter ("Face Enemy 3"), and the other actions (Fuse, Divert, Regroup) MUST be hidden until the reveal goes on. A press before the wait MUST hurry the sequence on to the wait, not past it. A press during the wait MUST go on with the zoom and the rest of the sequence.
 - **FR-013**: The behaviour established in 012 and 013 MUST otherwise be kept: the Region Card stays on top throughout, the stack's depth tracks the Deck count, the reveal is not replayed on undo, the Final Battle has no Key Card reveal, and the left side fits at every supported window size.
 - **FR-014**: The Deck MUST show the cards under the top card as separate edges, each the plain side of a card (the pile is face-up, so no card back is shown), a little offset and slightly uneven, with a soft shadow under the pile. The number of edges shown MUST rise and fall with the Deck count, up to a cap that fits the left column, and MUST be at least one while the Deck holds any card.
 - **FR-015**: The Deck's card edges MUST NOT reveal any card's Ether colour or anything else that tells cards apart. All edges look alike.

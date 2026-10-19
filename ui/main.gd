@@ -959,12 +959,13 @@ func _input(event: InputEvent) -> void:
 		_refresh_menu()
 		get_viewport().set_input_as_handled()
 		return
-	# While a sequence plays, the first press of anything finishes it and does nothing else.
+	# While a sequence plays, a press of anything hurries it on and does nothing else:
+	# to the Key Card waiting with its Encounter lit, or from there on (specs/014).
 	if animator.is_playing():
 		var press: bool = (event is InputEventMouseButton and event.pressed) or (event is InputEventKey and event.pressed and not event.echo) \
 			or (event is InputEventScreenTouch and event.pressed)
 		if press:
-			animator.skip()
+			animator.press()
 			get_viewport().set_input_as_handled()
 
 

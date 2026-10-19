@@ -161,6 +161,11 @@ func _deck() -> void:
 	await _until(ui.play.deck.reveal_beat, "panel_lit")
 	await create_timer(T.PANEL_LIT).timeout
 	_grab("deck_reveal")
+	# The reveal waits on the player with the Key Card up (specs/014).
+	while not ui.animator.is_waiting():
+		await process_frame
+	_grab("deck_waiting")
+	ui.animator.resume()
 	await _until(ui.play.deck.reveal_beat, "zoom")
 	await create_timer(T.ZOOM * 0.4).timeout
 	_grab("deck_zooming_in")

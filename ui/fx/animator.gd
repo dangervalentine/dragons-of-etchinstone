@@ -13,6 +13,9 @@ signal started
 signal finished
 ## Each step as it begins, for the checks that follow a sequence (tools/ui_check.gd).
 signal step_started(kind: String)
+## The reveal has paused with the Key Card up and its Encounter lit, until the
+## player goes on (specs/014): resume(), or any press (main.gd _input).
+signal waiting
 
 var screen: Control
 var flight: Control
@@ -28,10 +31,19 @@ var _tallies := false
 var _master: Tween
 var _tweens: Array = []
 var _playing := false
+var _steps: Array = []
+## Waiting on the player with the Key Card up (resume() goes on).
+var _waiting := false
+## The step the sequence waits after (a key_peek), until it has been reached.
+var _wait_at := -1
 
 
 func is_playing() -> bool:
 	return _playing
+
+
+func is_waiting() -> bool:
+	return _waiting
 
 
 func play(steps: Array, play_screen: Control, after_vs: Dictionary) -> void:
@@ -47,12 +59,81 @@ func play(steps: Array, play_screen: Control, after_vs: Dictionary) -> void:
 	# lands, whatever renders on the way (specs/012 research R8).
 	if steps.any(func(st): return st.kind == "zoom_in"):
 		screen.deck.hold_card(true)
-	_master = create_tween()
-	for st in steps:
+	_steps = steps
+	_waiting = false
+	_wait_at = steps.find_custom(func(st): return st.kind == "key_peek")
+	_master = _build(0)
+
+
+## The steps from `from` on, the sequence waiting on the player once the Key Card
+## is up and its Encounter lit.
+func _build(from: int) -> Tween:
+	var tw := create_tween()
+	for i in range(from, _steps.size()):
+		var st: Dictionary = _steps[i]
 		var d: float = reduced_duration(st) if UI.reduced_motion else st.duration
-		_master.tween_callback(_run.bind(st, d))
-		_master.tween_interval(d)
-	_master.tween_callback(_finish)
+		tw.tween_callback(_run.bind(st, d))
+		tw.tween_interval(d)
+		if i == _wait_at:
+			tw.tween_callback(_wait)
+	tw.tween_callback(_finish)
+	return tw
+
+
+func _wait() -> void:
+	_waiting = true
+	_wait_at = -1
+	_master.pause()
+	var st: Dictionary = _steps[_steps.find_custom(func(s): return s.kind == "key_peek")]
+	screen.actions.show_confirm("Face %s %d" % [st.values.kind.capitalize(), st.values.index])
+	waiting.emit()
+
+
+## Go on from the Key Card: it slides back down and the Deck zooms in.
+func resume() -> void:
+	if not _waiting:
+		return
+	_waiting = false
+	screen.actions.set_ready(false)
+	screen.actions.render(_after)
+	_master.play()
+
+
+## The player's press while a sequence plays: waiting, it goes on; before the Key
+## Card has risen, everything up to it is done at once and it waits there, so the
+## Encounter is always seen and confirmed; after, the rest is done at once.
+func press() -> void:
+	if not _playing:
+		return
+	if _waiting:
+		resume()
+	elif _wait_at >= 0:
+		_to_wait()
+	else:
+		skip()
+
+
+## Everything before the Key Card done at once, and the Key Card up with its
+## number and Encounter lit, waiting.
+func _to_wait() -> void:
+	var peek: Dictionary = _steps[_wait_at]
+	var from := _wait_at + 1
+	if _master != null and _master.is_valid():
+		_master.kill()
+	for tw in _tweens:
+		if tw != null and tw.is_valid():
+			tw.kill()
+	_tweens = []
+	flight.clear()
+	screen.deck.finish()
+	screen.render(_after)
+	screen.deck.show_reveal(_after.key_face, peek.values.get("target", _after.zoom))
+	_master = _build(from)
+	_wait_at = -1
+	_master.pause()
+	_waiting = true
+	screen.actions.show_confirm("Face %s %d" % [peek.values.kind.capitalize(), peek.values.index])
+	waiting.emit()
 
 
 ## How long a step plays in reduced motion: a short fade, but the stage banner
@@ -74,6 +155,8 @@ func _finish() -> void:
 	if not _playing:
 		return
 	_playing = false
+	_waiting = false
+	_wait_at = -1
 	if _master != null and _master.is_valid():
 		_master.kill()
 	for tw in _tweens:
@@ -190,7 +273,9 @@ func _run(st: Dictionary, d: float) -> void:
 			if show_banner.is_valid():
 				show_banner.call(st.values, d)
 		"draw":
-			# Each card leaves the top card at its size (specs/014 research R1).
+			# Each card leaves the top card at its size, from under it (specs/014 R1).
+			var n: int = maxi(1, st.cards.size())
+			screen.deck.cover_draw(T.STAGGER * (n - 1) + T.DRAW_FLY)
 			screen.render(_after, true, screen.deck.top_rect())
 		"zoom_out":
 			screen.deck.zoom_out(d)

@@ -33,6 +33,8 @@ var focus := 0.0
 ## How brightly the focused panel is rimmed in gold, 0 to 1: the Encounter the Key
 ## Card has just named, before the Deck zooms into it (specs/014 research R3).
 var rim := 0.0
+## How much the panels' number plates show, 0 to 1 (RegionPanel.number_alpha).
+var numbers := 1.0
 var _panels := {}
 var _stone := StoneStyle.new("well", 0.5)
 ## Over the panels, so the rim is never under one.
@@ -60,6 +62,7 @@ func render(m: Dictionary) -> void:
 	for p in model.panels:
 		var view := RegionPanel.new()
 		add_child(view)
+		view.number_alpha = numbers
 		view.render(p)
 		_panels[p.key] = view
 	_fit()
@@ -75,6 +78,12 @@ func set_focus(key: String, amount: float) -> void:
 		_panels[k].modulate = Color(dim, dim, dim * 1.04)
 	queue_redraw()
 	_rim_layer.queue_redraw()
+
+
+func set_numbers(amount: float) -> void:
+	numbers = clampf(amount, 0.0, 1.0)
+	for v in _panels.values():
+		v.number_alpha = numbers
 
 
 func set_rim(amount: float) -> void:

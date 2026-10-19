@@ -33,6 +33,12 @@ var _chips := {}
 var _discs := []
 ## The number plate's text size as last laid out.
 var number_size := 0
+## How much of the number plate shows, 0 to 1: on the whole card, to match the Key
+## Card's number to; faded out as the Deck zooms in on the panel (specs/014).
+var number_alpha := 1.0:
+	set(v):
+		number_alpha = clampf(v, 0.0, 1.0)
+		queue_redraw()
 
 
 func _init() -> void:
@@ -216,11 +222,13 @@ func _draw() -> void:
 		# The printed strip along the top, in the dark of the card's band.
 		draw_rect(Rect2(0, 0, size.x, at.art.position.y), Color(T.BG_BAND, 0.92))
 	draw_rect(at.frame.grow(-edge / 2.0), T.muted(tint), false, edge)
+	if number_alpha <= 0.0:
+		return
 	var n: Rect2 = at.number
-	draw_style_box(UI.box(Color(T.BG_BASE, 0.72), Color.TRANSPARENT, 0, int(n.size.y * 0.2), 0), n)
+	draw_style_box(UI.box(Color(T.BG_BASE, 0.72 * number_alpha), Color.TRANSPARENT, 0, int(n.size.y * 0.2), 0), n)
 	var font := UI.font(T.LABEL_BOLD[0])
 	number_size = maxi(8, roundi(n.size.y * 0.78))
 	var text := str(panel.index)
 	var tw := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, number_size).x
 	var base := n.get_center().y + (font.get_ascent(number_size) - font.get_descent(number_size)) / 2.0
-	draw_string(font, Vector2(n.get_center().x - tw / 2.0, base), text, HORIZONTAL_ALIGNMENT_LEFT, -1, number_size, T.INK)
+	draw_string(font, Vector2(n.get_center().x - tw / 2.0, base), text, HORIZONTAL_ALIGNMENT_LEFT, -1, number_size, Color(T.INK, number_alpha))

@@ -78,6 +78,9 @@ class LandedFace extends Control:
 		mouse_filter = Control.MOUSE_FILTER_STOP
 		mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		clip_contents = true
+		# Its corners rounded as the card's are (specs/014): what it draws masks the card.
+		clip_children = CanvasItem.CLIP_CHILDREN_AND_DRAW
+		card.set_numbers(0.0)
 		add_child(card)
 		_back.color = Color(0.06, 0.05, 0.09, 0.88)
 		_back.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -120,7 +123,7 @@ class LandedFace extends Control:
 		return global_position + size / 2.0
 
 	func _draw() -> void:
-		draw_style_box(_stone, Rect2(Vector2.ZERO, size))
+		draw_style_box(UI.box(T.BG_RAISED, Color.TRANSPARENT, 0, UI.card_radius(size.x), 0), Rect2(Vector2.ZERO, size))
 
 
 var landed := LandedFace.new()
@@ -173,6 +176,7 @@ func _init() -> void:
 		c.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(c)
 	_edges.draw.connect(_draw_edges)
+	_tops.draw.connect(_draw_tops_mask)
 	# Only what has risen above the top card shows; the rest of the Key Card is under it.
 	_peek_clip.clip_contents = true
 	_peek_clip.add_child(_peek)
@@ -379,6 +383,8 @@ func finish() -> void:
 	_clip_tops(false)
 	region_card.set_focus("", 0.0)
 	region_card.set_rim(0.0)
+	region_card.set_numbers(1.0)
+	_tops.z_index = 0
 	_put_peek_away()
 	for c in [region_card, dragon_card, landed, dragon_face, _peek]:
 		c.scale = Vector2.ONE
@@ -505,7 +511,6 @@ func _render_strip(enc: Dictionary, p: Dictionary) -> void:
 		c.queue_free()
 	var head := UI.hbox(T.S)
 	head.add_child(UI.icon_rect(p.kind, 34, T.ether_ink(p.element)))
-	head.add_child(UI.label(str(p.index), T.SUBHEAD, T.ether_ink(p.element)))
 	var title := UI.label(enc.title.to_upper(), T.SUBHEAD, T.INK)
 	title.clip_text = true
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -563,6 +568,9 @@ func _place() -> void:
 	# While the Key Card is up, the card and its edges stay dipped under it.
 	if view == "card":
 		cr.position.y += _dip
+	if _peek_up and not _zooming:
+		_peek.size = key_rect(size, true).size
+		_peek.position = key_rect(size, true).position
 	var top: Control = top_node()
 	if top != null:
 		top.position = cr.position
@@ -788,7 +796,8 @@ func zoom_out(d: float) -> void:
 		tw.tween_method(func(v: float):
 			var r := _lerp_rect(Rect2(at.card.position + f.position, at.card.size), cr, v)
 			_card_at(r.position, r.size)
-			region_card.set_focus(zoomed, 1.0 - v), 0.0, 1.0, d)
+			region_card.set_focus(zoomed, 1.0 - v)
+			region_card.set_numbers(v), 0.0, 1.0, d)
 		tw.tween_method(_set_stack_rect, f, cr, d)
 		tw.chain().tween_callback(func():
 			_zooming = false
@@ -868,7 +877,8 @@ func zoom_in(target: String, d: float) -> void:
 			var r := _lerp_rect(from, Rect2(at.card.position + f.position, at.card.size), v)
 			_card_at(r.position, r.size)
 			region_card.set_focus(target, lerpf(lit0, 1.0, v))
-			region_card.set_rim(lerpf(rim0, 0.0, v)), 0.0, 1.0, d)
+			region_card.set_rim(lerpf(rim0, 0.0, v))
+			region_card.set_numbers(1.0 - v), 0.0, 1.0, d)
 		tw.tween_property(face, "modulate:a", 1.0, d * LAND_FADE).set_delay(d * (1.0 - LAND_FADE))
 		tw.tween_method(_set_stack_rect, from, f, d)
 		tw.chain().tween_callback(_land)
@@ -899,7 +909,24 @@ func _card_at(at: Vector2, card_size: Vector2) -> void:
 
 func _clip_tops(on: bool) -> void:
 	_tops.clip_contents = on
+	# Rounded as the landed face is, so the corners do not change as it takes over.
+	_tops.clip_children = CanvasItem.CLIP_CHILDREN_ONLY if on else CanvasItem.CLIP_CHILDREN_DISABLED
 	_tops.size = face_rect(size).size if on else size
+	_tops.queue_redraw()
+
+
+func _draw_tops_mask() -> void:
+	if _tops.clip_contents:
+		_tops.draw_style_box(UI.box(Color.WHITE, Color.TRANSPARENT, 0, card_radius(_tops.size.x), 0), Rect2(Vector2.ZERO, _tops.size))
+
+
+## While the Hand is drawn, the top card lies over the cards being drawn, so each
+## comes out from under it (specs/014): for `t` seconds, or until finish().
+func cover_draw(t: float) -> void:
+	_tops.z_index = 3
+	var tw := _keep(create_tween())
+	tw.tween_interval(t)
+	tw.tween_callback(func(): _tops.z_index = 0)
 
 
 static func _lerp_rect(a: Rect2, b: Rect2, v: float) -> Rect2:
@@ -914,6 +941,7 @@ func _settle_view() -> void:
 		c.modulate.a = 1.0
 	region_card.set_focus("", 0.0)
 	region_card.set_rim(0.0)
+	region_card.set_numbers(1.0)
 	_clip_tops(false)
 	_place()
 
@@ -1006,7 +1034,6 @@ func peek(face_model, target: String, d: float) -> void:
 	var rest := key_rect(size, false).position
 	var up := key_rect(size, true).position
 	_peek.visible = true
-	_peek_up = true
 	# The beats keep their shares of KEY_PEEK in whatever time the step is given.
 	var k := d / T.KEY_PEEK
 	var rise := T.PEEK_RISE * k
@@ -1023,12 +1050,40 @@ func peek(face_model, target: String, d: float) -> void:
 		_peek.modulate.a = 1.0
 		tw.tween_property(_peek, "position", up, rise).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 		tw.tween_method(_dip_to.bind(cr), 0.0, down, rise).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tw.tween_callback(func(): reveal_beat.emit("key_lit")).set_delay(rise)
+	tw.tween_callback(func():
+		_peek_up = true
+		reveal_beat.emit("key_lit")).set_delay(rise)
 	tw.tween_property(_peek, "lit", 1.0, T.KEY_LIT * k).set_delay(rise)
 	tw.tween_callback(func(): reveal_beat.emit("panel_lit")).set_delay(panel_at)
 	tw.tween_method(func(v: float):
 		region_card.set_focus(target, v)
 		region_card.set_rim(v), 0.0, 1.0, T.PANEL_LIT * k).set_delay(panel_at)
+
+
+## At once, with no motion: the whole Region Card, the Key Card up under it as
+## peek() leaves it, its number lit and `target`'s panel lit, waiting on the player
+## (a sequence hurried on to its reveal, animator.gd press()).
+func show_reveal(face_model, target: String) -> void:
+	if face_model == null:
+		return
+	held = true
+	view = "card"
+	if vs.get("top_card") != null and _shown_top != vs.top_card:
+		_show_top(vs.top_card)
+	if _shown_top == null or _shown_top.kind != "region":
+		return
+	var cr := card_rect(size, "card", true)
+	_hold_faces(true)
+	_peek.size = cr.size
+	_peek.set_model(face_model, ["encounter"])
+	_peek.lit = 1.0
+	_peek.modulate.a = 1.0
+	_peek.visible = true
+	_peek_up = true
+	_dip = dip(peek_h(cr.size))
+	region_card.set_focus(target, 1.0)
+	region_card.set_rim(1.0)
+	_place()
 
 
 ## The top card and the edges under it, `by` below where they rest.

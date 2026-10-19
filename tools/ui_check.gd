@@ -197,6 +197,7 @@ func _check_deck_settled(where: String) -> void:
 		return
 	var deck = ui.play.deck
 	_ok(not deck.held, "%s: the Deck is not held at rest" % where)
+	_ok(deck._tops.z_index == 0, "%s: the top card no longer covers the Hand" % where)
 	_ok(deck.view == "face", "%s: at rest the Deck shows the face" % where)
 	_ok(deck.count == ui.vs.piles.deck, "%s: the stack is %d deep for a Deck of %d" % [where, deck.count, ui.vs.piles.deck])
 	var enc = ui.vs.encounter
@@ -215,6 +216,11 @@ func _check_deck_settled(where: String) -> void:
 		_ok(deck.landed.card.position.is_equal_approx(at.card.position) and deck.landed.card.size.is_equal_approx(at.card.size),
 			"%s: the landed card is where the zoom ends" % where)
 		_ok(deck.landed.panel == deck.landed.card.panel(deck.landed.key) and deck.landed.panel.interactive, "%s: its panel is lit and explains itself" % where)
+		# Zoomed in, the Encounter is named without its number (specs/014).
+		_ok(deck.landed.panel.number_alpha == 0.0, "%s: no number plate on the zoomed panel" % where)
+		for l in deck.landed.strip.get_child(0).find_children("*", "Label", true, false):
+			_ok(not l.text.is_valid_int(), "%s: the strip names the Encounter without its number ('%s')" % [where, l.text])
+		_ok(deck.landed.clip_children == CanvasItem.CLIP_CHILDREN_AND_DRAW, "%s: the zoomed card keeps its rounded corners" % where)
 		for l in deck.landed.strip.find_children("*", "Label", true, false):
 			_ok(l.get_theme_font_size("font_size") >= T.TEXT_MIN, "%s: the strip's '%s' is at least %d" % [where, l.text.left(20), T.TEXT_MIN])
 	# Cards are drawn from the Deck and go to its back (specs/012 R9).
@@ -294,10 +300,20 @@ func _skip_walk(where: String) -> void:
 		ui.animator.step_started.disconnect(on_step)
 		deck.reveal_beat.disconnect(on_beat)
 		_ok(reached[0], "%s: reached %s before skipping" % [where, at])
-		ui.animator.skip()
+		# A press hurries on to the Key Card waiting with its Encounter lit.
+		_tap()
 		await process_frame
 		await process_frame
-		var w := "%s skipped at %s" % [where, at]
+		var w := "%s pressed at %s" % [where, at]
+		_check_waiting(w)
+		_ok(deck._peek.global_position.is_equal_approx(deck.global_position + DeckStack.key_rect(deck.size, true).position),
+			"%s: the Key Card is up" % w)
+		# A second press goes on: the Key Card slides down and the Deck zooms in.
+		_tap()
+		var until2 := Time.get_ticks_msec() + 10000
+		while ui.animator.is_playing() and Time.get_ticks_msec() < until2:
+			await process_frame
+		await process_frame
 		for id in ui.play.hand.ids():
 			var v: Control = ui.play.hand.card(id)
 			_ok(_near(v.get_global_rect(), Rect2(ui.play.hand.global_position + v.home.position, v.home.size), 2.0) and v.modulate.a == 1.0,
@@ -305,6 +321,29 @@ func _skip_walk(where: String) -> void:
 		_ok(deck.view == "face" and not deck.held, "%s: the face, zoomed in" % w)
 		_ok(deck.landed.key == ui.vs.zoom, "%s: on the Encounter (%s, %s)" % [w, deck.landed.key, ui.vs.zoom])
 		_ok(deck.region_card.rim == 0.0 and not deck._peek.visible and not deck._peek_up, "%s: nothing left lit or raised" % w)
+
+
+## A press anywhere, as the player's finger or mouse.
+func _tap() -> void:
+	var ev := InputEventMouseButton.new()
+	ev.button_index = MOUSE_BUTTON_LEFT
+	ev.pressed = true
+	ev.position = Vector2(10, 10)
+	ui._input(ev)
+
+
+## The reveal waiting on the player (specs/014): the Key Card up with its number
+## lit, its Encounter lit on the Region Card, and the action naming it, ready.
+func _check_waiting(where: String) -> void:
+	var deck = ui.play.deck
+	_ok(ui.animator.is_waiting(), "%s: the reveal waits on the player" % where)
+	_ok(deck._peek.visible and deck._peek_up and deck._peek.lit == 1.0, "%s: the Key Card is up, its number lit" % where)
+	_ok(deck.region_card.rim == 1.0 and deck.region_card.focus_key == ui.vs.zoom, "%s: its Encounter is lit (%s)" % [where, deck.region_card.focus_key])
+	var b: Button = ui.play.actions.primary
+	var enc = ui.vs.encounter
+	var want := "Face %s %d" % [enc.kind.capitalize(), enc.index]
+	_ok(b.visible and not b.disabled and b.text == want, "%s: the action reads '%s' ('%s')" % [where, want, b.text])
+	_ok(not ui.play.actions._actions.is_visible_in_tree(), "%s: the other actions are put away while it waits" % where)
 
 
 func eq_region(where: String, g) -> void:
@@ -340,8 +379,18 @@ func _watch_deck(where: String, gathered := -1) -> void:
 	var first_seen := {}
 	var top_at := Rect2()
 	var until := Time.get_ticks_msec() + 10000
+	var waited := 0
 	while ui.animator.is_playing() and Time.get_ticks_msec() < until:
 		await process_frame
+		if ui.animator.is_waiting():
+			waited += 1
+			_check_waiting(where)
+			# It stays waiting until pressed.
+			for i in 3:
+				await process_frame
+			_ok(ui.animator.is_waiting() and deck._peek_up, "%s: the Key Card waits until pressed" % where)
+			_tap()
+			continue
 		if seen.has("draw") and top_at == Rect2():
 			top_at = deck.top_rect()
 		for id in ui.play.hand.ids():
@@ -388,6 +437,7 @@ func _watch_deck(where: String, gathered := -1) -> void:
 	deck.reveal_beat.disconnect(on_beat)
 	_ok(seen.has("zoom_in"), "%s: the reveal played (%s)" % [where, str(seen)])
 	if seen.has("key_peek"):
+		_ok(waited == 1, "%s: the reveal waited on the player once (%d)" % [where, waited])
 		_ok(beats == ["key_lit", "panel_lit", "zoom"], "%s: the number lights, then the panel, then the zoom (%s)" % [where, str(beats)])
 	_ok(deck.region_card.rim == 0.0 and not deck._peek.visible and not deck._peek_up and deck._peek.lit == 0.0,
 		"%s: nothing is left lit or raised once the zoom lands" % where)
