@@ -419,7 +419,7 @@ func _play(where: String, game_seed: int, difficulty: String, animated: bool) ->
 				for i in mini(3, hand.size()):
 					await _place(hand[i], [0, roles[i]], animated, where)
 				if hand.size() > 2 and g.encounter().kind == "enemy":
-					await _press({"type": "aim_card", "id": hand[2]}, animated)
+					await _press({"type": "set_boost_to", "set": 0, "to": "attack"}, animated)
 				var a := {"spell": hand[0]}
 				if hand.size() > 1:
 					a["element"] = hand[1]
@@ -429,10 +429,10 @@ func _play(where: String, game_seed: int, difficulty: String, animated: bool) ->
 				a["ranged_discard"] = false
 				if not animated:
 					_inspect_screen("%s challenge, placed" % where)
-					# On a long phone a Region's cards are half again as tall as 009's 196
-					# (specs/010 SC-001).
+					# On a long phone a Region's cards are two fifths again as tall as 009's
+					# 196, less what the Boost's column takes from 010's half again.
 					if current_size.begins_with("phone-tall") and hand.size() == 4:
-						_ok(ui.play.plan.card_size.y >= 294.0, "%s: cards %s, at least 294 tall" % [where, str(ui.play.plan.card_size)])
+						_ok(ui.play.plan.card_size.y >= 274.0, "%s: cards %s, at least 274 tall" % [where, str(ui.play.plan.card_size)])
 				await _press({"type": "primary"}, animated)
 				shadow.play(a)
 			"penalty", "poison", "final_soak":
@@ -467,12 +467,11 @@ func _play(where: String, game_seed: int, difficulty: String, animated: bool) ->
 					await _place(hand[i], [i / 3, order[i % 3]], animated, where)
 				if g.phase == "final_enemy":
 					for i in 2:
-						await _press({"type": "aim_card", "id": hand[i * 3 + 2]}, animated)
+						await _press({"type": "set_boost_to", "set": i, "to": "attack"}, animated)
 				if not animated:
 					_inspect_screen("%s %s, placed" % [where, g.phase])
-					if g.phase == "final_enemy":
-						for i in 2:
-							_check_aim_zone(ui.play.hand.card(hand[i * 3 + 2]), "%s Final Enemy Boost %d" % [where, i + 1])
+					for i in 2:
+						_check_aim(i, g.phase == "final_enemy", "%s %s Boost %d" % [where, g.phase, i + 1])
 				var sets := [{}, {}]
 				var roles := ["spell", "element", "boost"]
 				for i in mini(6, hand.size()):
@@ -1139,15 +1138,29 @@ func _marks_walk(where: String) -> void:
 
 ## A Boost card's aim zone against an Enemy (specs/011 contracts/card-marks.md): one
 ## tap target tall, inside the card, no more than half of it, over the Boost plate.
-func _check_aim_zone(view: Control, where: String) -> void:
-	if view == null:
-		_ok(false, "%s: the card is on screen" % where)
-		return
-	var zone: Rect2 = view.aim_rect()
-	_ok(zone.size.y >= T.TAP_MIN - 0.5, "%s: the aim zone is a tap target, %s" % [where, str(zone.size)])
-	_ok(Rect2(Vector2.ZERO, view.size).grow(0.5).encloses(zone), "%s: the aim zone is inside the card" % where)
-	_ok(zone.size.y <= view.size.y * 0.5 + 0.5, "%s: the aim zone is at most half the card (%s of %s)" % [where, str(zone.size.y), str(view.size.y)])
-	_ok(zone.has_point(view._face.region_rect("boost").get_center()), "%s: the aim zone covers the Boost" % where)
+## Set `set_index`'s Boost aim, in the column after its row of places: Attack and
+## Initiative against an Enemy (`enemy`), else the fixed Move; every button a tap
+## target, inside the Hand's region, clear of every card, and beside that set's row.
+func _check_aim(set_index: int, enemy: bool, where: String) -> void:
+	var buttons: Array = ui.play.aims.buttons(set_index)
+	var want := ["attack", "initiative"] if enemy else ["move"]
+	_ok(buttons.map(func(b): return b.get_meta("to")) == want, "%s: the aim offers %s" % [where, str(want)])
+	var hand_region: Rect2 = ui.play.plan.regions.hand
+	var row := []
+	for pos in ui.play.plan.positions:
+		if ui.vs.places.size() > ui.play.plan.positions.find(pos):
+			var pl: Dictionary = ui.vs.places[ui.play.plan.positions.find(pos)]
+			if pl.set == set_index and pl.role != "reserve":
+				row.append(pos.card)
+	for b in buttons:
+		var r: Rect2 = b.get_global_rect()
+		_ok(r.size.y >= T.TAP_MIN - 0.5 and r.size.x >= T.TAP_MIN - 0.5, "%s: %s is a tap target, %s" % [where, b.get_meta("to"), str(r.size)])
+		_ok(hand_region.grow(0.5).encloses(r), "%s: %s is inside the Hand" % [where, b.get_meta("to")])
+		_ok(not ui.play.plan.positions.any(func(pos): return pos.card.intersects(r)), "%s: %s covers no card" % [where, b.get_meta("to")])
+		if not row.is_empty():
+			_ok(r.position.x >= row.map(func(c): return c.end.x).max() and r.position.y >= row[0].position.y - 0.5 and r.end.y <= row[0].end.y + 0.5,
+				"%s: %s is beside its set's row" % [where, b.get_meta("to")])
+		_ok(b.text == "" and b.icon != null and b.tooltip_text != "", "%s: %s is its symbol alone, named on hover" % [where, b.get_meta("to")])
 
 
 ## A press and release at a point on a card, as a finger or mouse would.
@@ -1195,24 +1208,25 @@ func _arrange_walk(where: String) -> void:
 		# The reason lies on the Deck in the card's place (specs/013 FR-011).
 		_ok(ui.play.deck.note_on and ui.play.deck.note.refusal.contains("Boost"), "%s: and says what is missing" % where)
 		ui.play.deck.clear_refusal()
-		# The Boost card's lower band aims it (specs/011 research R4): Attack, then
-		# Initiative. A tap above the band picks the card up and leaves the aim alone.
+		# The Boost is aimed in its own column after the row: Attack, then Initiative;
+		# a tap on the Boost card only picks it up, as on any other card.
+		_check_aim(0, true, where)
+		ui.play.aims.choice(0, "attack").pressed.emit()
+		await _settle()
+		_ok(ui.draft.boost_to[0] == "attack", "%s: Attack aims the Boost at Attack" % where)
+		_ok(ui.draft.held == null, "%s: and picks no card up" % where)
+		ui.play.aims.choice(0, "initiative").pressed.emit()
+		await _settle()
+		_ok(ui.draft.boost_to[0] == "initiative", "%s: Initiative aims it at Initiative" % where)
 		var view: Control = ui.play.hand.card(hand[3])
-		_check_aim_zone(view, where + " Boost")
-		var zone: Rect2 = view.aim_rect()
-		_tap_card(view, zone.get_center())
+		_tap_card(view, view.size * Vector2(0.5, 0.9))
 		await _settle()
-		_ok(ui.draft.boost_to[0] == "attack", "%s: a tap on the Boost's band aims it at Attack" % where)
-		_ok(ui.draft.held == null, "%s: and does not pick the card up" % where)
-		_tap_card(view, zone.get_center())
-		await _settle()
-		_ok(ui.draft.boost_to[0] == "initiative", "%s: another tap aims it at Initiative" % where)
-		_tap_card(view, Vector2(view.size.x / 2.0, (view.size.y - zone.size.y) / 2.0))
-		await _settle()
-		_ok(ui.draft.held == hand[3] and ui.draft.boost_to[0] == "initiative", "%s: a tap above the band picks it up, the aim unchanged" % where)
-		_tap_card(view, Vector2(view.size.x / 2.0, (view.size.y - zone.size.y) / 2.0))
+		_ok(ui.draft.held == hand[3] and ui.draft.boost_to[0] == "initiative", "%s: a tap low on the Boost card picks it up, the aim unchanged" % where)
+		_tap_card(view, view.size / 2.0)
 		await _settle()
 		_ok(ui.draft.held == null, "%s: and a second tap puts it down" % where)
+	else:
+		_check_aim(0, false, where)
 	# Tap the Element, then the Boost: they swap.
 	ui.dispatch({"type": "card", "id": hand[1]})
 	ui.dispatch({"type": "card", "id": hand[3]})

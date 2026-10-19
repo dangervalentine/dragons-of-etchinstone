@@ -562,14 +562,6 @@ func dispatch(intent: Dictionary) -> void:
 		"toggle_boost_to":
 			draft.toggle_boost_to(intent.set)
 			_refresh()
-		"aim_card":
-			# A tap on a Boost card's aim zone (specs/011 research R4): that set's Boost
-			# goes to Attack, then back and forth with Initiative.
-			var slot = draft.slot_of(intent.id)
-			if slot != null and slot[1] == "boost":
-				draft.cycle_boost_to(slot[0])
-				draft.put_down()
-				_refresh()
 		"fuse_element":
 			draft.choose_fuse_element(intent.element)
 			draft.settle(game.hand)

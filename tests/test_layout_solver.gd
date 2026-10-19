@@ -183,15 +183,26 @@ func test_every_place_is_a_label_over_a_card() -> void:
 
 
 func test_region_cards_are_larger_than_before() -> void:
+	# A Region's one row gives up a little width to the Boost's column, so its cards
+	# are smaller than 010 made them (SC-001's 294 on phone-tall, FR-013's 009
+	# sizes): still larger than 009's, and than the Final Battle's, everywhere but
+	# the tablet.
 	var tall := _plan("phone-tall")
-	eq(tall.card_size, Vector2(220, 308), "phone-tall: 220 x 308")
-	ok(tall.card_size.y >= 1.5 * SIZE_009["phone-tall"].region.y, "at least half again as tall (SC-001)")
-	eq(_plan("phone-16x9").card_size, Vector2(197, 275), "baseline: 197 x 275")
+	eq(tall.card_size, Vector2(198, 277), "phone-tall: 198 x 277")
+	ok(tall.card_size.y >= 1.4 * SIZE_009["phone-tall"].region.y, "two fifths again as tall as 009's")
+	eq(_plan("phone-16x9").card_size, Vector2(175, 245), "baseline: 175 x 245")
 	for name in Solver.MATRIX:
 		var cases := {"region": _plan(name), "final_journey": _plan(name, 7, 7, true), "final_enemy": _plan(name, 9, 6, true)}
 		for stage in cases:
 			var size: Vector2 = cases[stage].card_size
-			ok(size.x >= SIZE_009[name][stage].x, "%s %s: %s no smaller than 009's %s (FR-013)" % [name, stage, str(size), str(SIZE_009[name][stage])])
+			if stage == "region":
+				# The tablet's tall Hand fits both Final rows at full width, so only there
+				# are a Region's cards the smaller.
+				if name != "tablet":
+					ok(size.x > cases.final_journey.card_size.x, "%s: a Region's cards are larger than the Final Battle's" % name)
+					ok(size.x >= SIZE_009[name][stage].x, "%s region: %s no smaller than 009's %s" % [name, str(size), str(SIZE_009[name][stage])])
+			else:
+				ok(size.x >= SIZE_009[name][stage].x, "%s %s: %s no smaller than 009's %s (FR-013)" % [name, stage, str(size), str(SIZE_009[name][stage])])
 
 
 func test_setup_and_soak_have_no_labels() -> void:
@@ -278,3 +289,19 @@ func test_the_final_enemys_extras_are_not_counted_as_places() -> void:
 	eq(Solver.place_count({"places": places}), 6, "the extra has no place of its own")
 	places.push_front({"role": "reserve"})
 	eq(Solver.place_count({"places": places}), 7, "the Reserve does")
+
+
+func test_each_set_has_a_boost_aim_beside_its_row() -> void:
+	for name in Solver.MATRIX:
+		for case in [[4, 4, false, 1], [7, 7, true, 2], [8, 6, true, 2]]:
+			var p := _plan(name, case[0], case[1], case[2])
+			var aims: Array = p.boost_aims
+			eq(aims.size(), case[3], "%s %s: an aim per set" % [name, str(case)])
+			var right := 0.0
+			for pos in p.positions:
+				right = maxf(right, pos.card.end.x)
+			for r in aims:
+				ok(r.size.x >= T.TAP_MIN and r.size.y >= 2 * T.TAP_MIN + T.S, "%s %s: room for two tap targets, %s" % [name, str(case), str(r.size)])
+				ok(p.regions.hand.encloses(r), "%s %s: inside the Hand" % [name, str(case)])
+				ok(r.position.x >= right + Solver.CARD_GAP_MIN - 0.5, "%s %s: after the cards" % [name, str(case)])
+	eq(_plan("phone-16x9", 5, 0).boost_aims, [], "setup and Soak have no aim")

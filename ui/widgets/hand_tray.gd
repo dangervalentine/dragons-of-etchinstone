@@ -66,7 +66,6 @@ func sync(vs: Dictionary, plan: Dictionary, animate := false, arrive_from = null
 		if fresh:
 			view = CardView.new()
 			view.tapped.connect(func(card_id): intent.emit({"type": "card", "id": card_id}))
-			view.aim_tapped.connect(func(card_id): intent.emit({"type": "aim_card", "id": card_id}))
 			view.held.connect(func(card_id): intent.emit({"type": "inspect", "id": card_id}))
 			view.hovered.connect(func(card_id, on): hover.emit(card_id, on))
 			view.drag_started.connect(_on_drag_started)

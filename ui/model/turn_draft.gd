@@ -298,13 +298,12 @@ func set_boost_to(set_index: int, to: String) -> void:
 	boost_to[set_index] = to
 
 
-## A tap on the Boost card's aim (specs/011 research R4): Attack first, then back and
-## forth between Initiative and Attack.
+## Attack first, then back and forth between Initiative and Attack.
 func cycle_boost_to(set_index: int) -> void:
 	boost_to[set_index] = "initiative" if boost_to[set_index] == "attack" else "attack"
 
 
-## The keyboard's switch, the same cycle as a tap on the card.
+## The keyboard's switch (B), the same cycle.
 func toggle_boost_to(set_index: int) -> void:
 	cycle_boost_to(set_index)
 

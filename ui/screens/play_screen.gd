@@ -12,6 +12,7 @@ const UI = preload("res://ui/theme/theme.gd")
 const HeaderBar = preload("res://ui/widgets/header_bar.gd")
 const DeckStack = preload("res://ui/widgets/deck_stack.gd")
 const PlaceLabels = preload("res://ui/widgets/place_labels.gd")
+const BoostAim = preload("res://ui/widgets/boost_aim.gd")
 const HandTray = preload("res://ui/widgets/hand_tray.gd")
 const ActionBar = preload("res://ui/widgets/action_bar.gd")
 const EtherPicker = preload("res://ui/widgets/ether_picker.gd")
@@ -30,6 +31,8 @@ var preview: Control = deck.note.preview
 var soak_meter: Control = deck.note.soak_meter
 var xp_purse: Control = deck.note.xp_purse
 var labels := PlaceLabels.new()
+## Where each set's Boost goes, in the column after its row of places.
+var aims := BoostAim.new()
 var actions := ActionBar.new()
 var hand := HandTray.new()
 var picker := EtherPicker.new()
@@ -66,6 +69,8 @@ func _init() -> void:
 	add_child(_hand_panel)
 	add_child(labels)
 	labels.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(aims)
+	aims.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(hand)
 	hand.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(picker)
@@ -77,7 +82,7 @@ func _init() -> void:
 	add_child(_hover_timer)
 	hand.hover.connect(_on_hover)
 	# Whatever the player does next takes a refused move's reason off the Deck.
-	for w in [header, deck, labels, actions, hand, picker]:
+	for w in [header, deck, labels, aims, actions, hand, picker]:
 		w.intent.connect(func(data):
 			deck.clear_refusal()
 			intent.emit(data))
@@ -105,6 +110,7 @@ func render(state: Dictionary, animate := false, arrive_from = null) -> void:
 		deck.set_card_size(plan.positions[0].card.size)
 	deck.render(vs)
 	labels.render(vs, plan)
+	aims.render(vs, plan)
 	actions.render(vs)
 	_render_prominence()
 	hand.sync(vs, plan, animate, arrive_from)
@@ -134,14 +140,16 @@ func _place_regions(p: Dictionary) -> void:
 	actions.apply_layout(p.regions.actions, p.regions.commit, p.regions.secondary)
 
 
-## The Hand's panel: round every place, its label and its card, at the Hand
-## region's edges (layout_solver.HAND_PAD).
+## The Hand's panel: round every place, its label and its card, and the Boost's
+## column, at the Hand region's edges (layout_solver.HAND_PAD).
 func _place_hand_panel() -> void:
 	if plan.is_empty() or plan.get("positions", []).is_empty():
 		return
 	var cells: Rect2 = plan.positions[0].label.merge(plan.positions[0].card)
 	for pos in plan.positions:
 		cells = cells.merge(pos.label).merge(pos.card)
+	for r in plan.get("boost_aims", []):
+		cells = cells.merge(r)
 	var Solver = load("res://ui/model/layout_solver.gd")
 	var panel := cells.grow(Solver.HAND_PAD)
 	_hand_panel.position = panel.position

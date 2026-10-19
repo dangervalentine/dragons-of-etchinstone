@@ -424,13 +424,11 @@ func _game() -> void:
 
 	_place_set(_best_single(), 1, false)
 	await _shot("enemy_boost_unchosen")
-	# The Boost is aimed on its card (specs/011): Attack, then Initiative.
-	var boost = ui.draft.sets[0].get("boost")
-	if boost != null:
-		_press({"type": "aim_card", "id": boost})
-		await _shot("aim_attack")
-		_press({"type": "aim_card", "id": boost})
-		await _shot("aim_initiative")
+	# The Boost is aimed in its column after the row: Attack, then Initiative.
+	_press({"type": "set_boost_to", "set": 0, "to": "attack"})
+	await _shot("aim_attack")
+	_press({"type": "set_boost_to", "set": 0, "to": "initiative"})
+	await _shot("aim_initiative")
 	_press({"type": "set_boost_to", "set": 0, "to": "attack"})
 	await _shot("enemy_ready_tip_only")
 	ui.dispatch({"type": "primary"})

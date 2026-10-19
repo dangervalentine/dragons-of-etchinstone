@@ -9,7 +9,9 @@ const T = preload("res://ui/theme/tokens.gd")
 
 const HEADER_H := 48
 const GAP := 12
-const COLUMN_GAP := 24
+## Between the left side and the card side: the same as between the Hand and the
+## action row.
+const COLUMN_GAP := GAP
 ## How far a picked-up card rises out of its row; less than GAP, so it never
 ## reaches the band above.
 const HELD_LIFT := 10.0
@@ -28,6 +30,10 @@ const ACTION_ROW_H := float(T.TAP_MIN)
 ## In the Final Battle the left side narrows to this, so every card fits (R6).
 const FINAL_LEFT_W := 380.0
 const CARD_MAX_W := 250.0
+## The column after each row of places where the row's Boost is aimed: Attack or
+## Initiative against an Enemy, Move on a Journey, each a symbol alone. One tap
+## target wide, one card tall, CARD_GAP_MIN after the row's last card.
+const BOOST_W := float(T.TAP_MIN)
 ## Room between Hand cards side by side; a little less once more than four share a row.
 const CARD_GAP_MIN := 12.0
 const CARD_GAP_CROWDED := 10.0
@@ -146,7 +152,9 @@ static func is_final(vs: Dictionary) -> bool:
 ## `action_cells`: how many cells the action row holds, Play included.
 ##
 ## The card side, top to bottom: the Hand, one labelled place per card in as few
-## rows as give the largest cards, then the action row.
+## rows as give the largest cards, then the action row. While there are places, a
+## column after the cards holds each Action Set's Boost aim (`boost_aims`, one rect
+## per set, beside that set's row).
 static func solve(view: Vector2, safe: Rect2, hand_count := 4, place_count := 4, points_per_unit := 0.5, upright := false, final := false, action_cells := 3) -> Dictionary:
 	var left := maxf(safe.position.x, T.M)
 	var top := maxf(safe.position.y, T.M)
@@ -186,13 +194,17 @@ static func solve(view: Vector2, safe: Rect2, hand_count := 4, place_count := 4,
 	var label_h := LABEL_H if place_count > 0 else 0.0
 	var band := hand.grow_individual(0, -HAND_PAD, 0, -HAND_PAD)
 	var laid: Dictionary
+	# The cards leave room for the Boost's column while there are places to fill.
+	var aims := place_count > 0
+	var cards := band.grow_individual(0, 0, -(BOOST_W + CARD_GAP_MIN), 0) if aims else band
 	if final and (place_count == 6 or place_count == 7):
 		# The Final Battle's two sets, one row each, under one row of labels.
-		laid = _set_grid(band, place_count, n, label_h)
+		laid = _set_grid(cards, place_count, n, label_h)
 	else:
 		# Building a Region set keeps one row (FR-001); setup and Soak may wrap when
 		# that gives larger cards.
-		laid = _positions(band, n, label_h, 1 if place_count > 0 else 3)
+		laid = _positions(cards, n, label_h, 1 if place_count > 0 else 3)
+	var boost_aims := _boost_aims(band, laid.positions) if aims else []
 	return {
 		"view": view, "content": c, "regions": regions,
 		# What the screens other than the play screen have, under the header.
@@ -201,11 +213,36 @@ static func solve(view: Vector2, safe: Rect2, hand_count := 4, place_count := 4,
 		"action_cells": action_cells,
 		"left_w": left_w,
 		"positions": laid.positions,
+		"boost_aims": boost_aims,
 		"label_h": label_h,
 		"set_rows": laid.get("set_rows", false),
 		"points_per_unit": points_per_unit,
 		"undersized": upright or points_per_unit < LEGIBLE_SCALE,
 	}
+
+
+## The Boost's column beside the places: the cards and the column centred together
+## across `band`, the column CARD_GAP_MIN after the last card, and one aim per row of
+## cards (a set per row), as tall as the row's cards. Moves `positions` with them.
+static func _boost_aims(band: Rect2, positions: Array) -> Array:
+	var rows := []
+	var left := INF
+	var right := -INF
+	for pos in positions:
+		var card: Rect2 = pos.card
+		left = minf(left, card.position.x)
+		right = maxf(right, card.end.x)
+		if not rows.has(card.position.y):
+			rows.append(card.position.y)
+	var dx := roundf(band.position.x + (band.size.x - (right - left + CARD_GAP_MIN + BOOST_W)) / 2.0 - left)
+	for pos in positions:
+		pos.card.position.x += dx
+		pos.label.position.x += dx
+	var h: float = positions[0].card.size.y
+	var out := []
+	for y in rows:
+		out.append(Rect2(right + dx + CARD_GAP_MIN, y, BOOST_W, h))
+	return out
 
 
 ## The action row's cells (research R5): up to three, the secondary actions a quarter
