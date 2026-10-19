@@ -55,13 +55,16 @@ func _run() -> void:
 		await _screens_and_overlays(name)
 		await _marks_walk(name)
 		await _play(name, 11, "casual", false)
-	for name in ["desktop", "phone-tall", "tablet"]:
+	for name in Solver.MATRIX:
 		await _open(name)
 		await _deck_walk(name)
-	await _open("phone-16x9")
-	UI.reduced_motion = true
-	await _deck_walk("phone-16x9 reduced motion")
-	UI.reduced_motion = false
+	for name in ["phone-16x9", "desktop"]:
+		await _open(name)
+		UI.reduced_motion = true
+		await _deck_walk(name + " reduced motion")
+		UI.reduced_motion = false
+	await _open("phone-tall")
+	await _skip_walk("phone-tall")
 	await _open("phone-16x9")
 	await _play("phone-16x9 animated", 5, "normal", true)
 	await _open("desktop")
@@ -261,6 +264,49 @@ func _deck_walk(where: String) -> void:
 		_ok(v.discs().size() == (1 if p.effect != null else 0), "%s: panel %s marks its Ability or Peril only if it has one" % [where, p.key])
 
 
+static func _near(a: Rect2, b: Rect2, px: float) -> bool:
+	return absf(a.position.x - b.position.x) <= px and absf(a.position.y - b.position.y) <= px \
+		and absf(a.end.x - b.end.x) <= px and absf(a.end.y - b.end.y) <= px
+
+
+## Skipping a draw or a reveal at any point settles it exactly as playing it out
+## would (specs/014 FR-011): every card at its place, the face zoomed in, nothing
+## left lit or raised.
+func _skip_walk(where: String) -> void:
+	for at in ["draw", "key_lit", "panel_lit"]:
+		ui.start_game({"seed": 5, "dragon": "rodving", "difficulty": "normal", "cavalier": false, "glass_cannon": false})
+		var deck = ui.play.deck
+		var reached := [false]
+		var on_step := func(kind: String):
+			if kind == at:
+				reached[0] = true
+		var on_beat := func(beat: String):
+			if beat == at:
+				reached[0] = true
+		ui.animator.step_started.connect(on_step)
+		deck.reveal_beat.connect(on_beat)
+		var until := Time.get_ticks_msec() + 10000
+		while ui.animator.is_playing() and not reached[0] and Time.get_ticks_msec() < until:
+			await process_frame
+		# Mid-way through the beat.
+		for i in 3:
+			await process_frame
+		ui.animator.step_started.disconnect(on_step)
+		deck.reveal_beat.disconnect(on_beat)
+		_ok(reached[0], "%s: reached %s before skipping" % [where, at])
+		ui.animator.skip()
+		await process_frame
+		await process_frame
+		var w := "%s skipped at %s" % [where, at]
+		for id in ui.play.hand.ids():
+			var v: Control = ui.play.hand.card(id)
+			_ok(_near(v.get_global_rect(), Rect2(ui.play.hand.global_position + v.home.position, v.home.size), 2.0) and v.modulate.a == 1.0,
+				"%s: card %s at its place" % [w, id])
+		_ok(deck.view == "face" and not deck.held, "%s: the face, zoomed in" % w)
+		_ok(deck.landed.key == ui.vs.zoom, "%s: on the Encounter (%s, %s)" % [w, deck.landed.key, ui.vs.zoom])
+		_ok(deck.region_card.rim == 0.0 and not deck._peek.visible and not deck._peek_up, "%s: nothing left lit or raised" % w)
+
+
 func eq_region(where: String, g) -> void:
 	_ok(g.region == 2 and g.phase == "challenge", "%s: on to Region 2 (%d, %s)" % [where, g.region, g.phase])
 
@@ -279,9 +325,42 @@ func _watch_deck(where: String, gathered := -1) -> void:
 	var others := [ui.play.header.get_global_rect(), ui.play._hand_panel.get_global_rect(), ui.play._regions.actions.get_global_rect()]
 	var still := true
 	var peek_at = null
+	# The reveal's beats in order, and what was lit when the zoom began (specs/014).
+	var beats := []
+	var on_beat := func(beat: String):
+		beats.append(beat)
+		if beat == "zoom" and beats.has("panel_lit"):
+			_ok(deck.region_card.focus_key == deck.zoomed, "%s: the panel lit is the one zoomed into (%s, %s)" % [where, deck.region_card.focus_key, deck.zoomed])
+			_ok(deck.region_card.rim > 0.99 and deck._peek.lit > 0.99, "%s: both lit as the zoom starts" % where)
+			_ok(deck._peek_up, "%s: the Key Card is still up as the zoom starts" % where)
+	deck.reveal_beat.connect(on_beat)
+	# Drawn cards (specs/014 research R1): each first shows as the whole top card, or
+	# at its place in reduced motion, keeps the card's shape and lands at its place.
+	var before_ids: Array = ui.play.hand.ids()
+	var first_seen := {}
+	var top_at := Rect2()
 	var until := Time.get_ticks_msec() + 10000
 	while ui.animator.is_playing() and Time.get_ticks_msec() < until:
 		await process_frame
+		if seen.has("draw") and top_at == Rect2():
+			top_at = deck.top_rect()
+		for id in ui.play.hand.ids():
+			var v: Control = ui.play.hand.card(id)
+			if before_ids.has(id) or v == null or v.modulate.a <= 0.0:
+				continue
+			var at: Rect2 = v.get_global_rect()
+			if not first_seen.has(id):
+				first_seen[id] = true
+				var want: Rect2 = Rect2(ui.play.hand.global_position + v.home.position, v.home.size) if UI.reduced_motion else top_at
+				_ok(_near(at, want, 2.0), "%s: card %s is first seen at %s (%s)" % [where, id, want, at])
+			if at.size.y > 0.0:
+				_ok(absf(at.size.x / at.size.y - T.CARD_ASPECT) <= T.CARD_ASPECT * 0.01 + 1.0 / at.size.y,
+					"%s: card %s keeps the card's shape in flight (%s)" % [where, id, at.size])
+		if deck._peek.visible and deck._peek_up and seen.size() > 0 and seen.back() == "key_peek" and not UI.reduced_motion:
+			var kr: Rect2 = deck._peek.get_global_rect()
+			var rr: Rect2 = deck.region_card.get_global_rect()
+			_ok(absf(kr.position.x - rr.position.x) <= 2.0 and absf(kr.end.x - rr.end.x) <= 2.0,
+				"%s: the Key Card %s is as wide as the Region Card %s" % [where, kr, rr])
 		if deck.view == "card":
 			var top: Control = deck.top_node()
 			# While it grows into a panel (or back) it is clipped to the face (specs/013 R3).
@@ -306,7 +385,20 @@ func _watch_deck(where: String, gathered := -1) -> void:
 				if c.scale != Vector2.ONE:
 					still = false
 	ui.animator.step_started.disconnect(on_step)
+	deck.reveal_beat.disconnect(on_beat)
 	_ok(seen.has("zoom_in"), "%s: the reveal played (%s)" % [where, str(seen)])
+	if seen.has("key_peek"):
+		_ok(beats == ["key_lit", "panel_lit", "zoom"], "%s: the number lights, then the panel, then the zoom (%s)" % [where, str(beats)])
+	_ok(deck.region_card.rim == 0.0 and not deck._peek.visible and not deck._peek_up and deck._peek.lit == 0.0,
+		"%s: nothing is left lit or raised once the zoom lands" % where)
+	if seen.has("draw"):
+		_ok(not first_seen.is_empty(), "%s: drawn cards were seen arriving" % where)
+	await process_frame
+	for id in first_seen:
+		var v: Control = ui.play.hand.card(id)
+		if v != null:
+			_ok(_near(v.get_global_rect(), Rect2(ui.play.hand.global_position + v.home.position, v.home.size), 2.0),
+				"%s: card %s lands at its place" % [where, id])
 	if where.contains("start"):
 		_ok(seen.has("key_peek"), "%s: the Key Card rose" % where)
 	if gathered >= 0:

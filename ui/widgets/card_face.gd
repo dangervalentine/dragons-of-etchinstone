@@ -43,6 +43,9 @@ var dimmed := false: set = set_dimmed
 ## Figures to ring, such as those an Upgrade or Downgrade would change.
 var changed: Array = []
 var glow: Color = T.GOLD
+## How lit the rings are, 0 to 1: the Key Card's Encounter number lights up as it
+## is revealed on the Deck (specs/014 research R3); everywhere else it stays 1.
+var lit := 1.0: set = set_lit
 ## Whether the Ether field moves. Off under reduced motion whatever this says.
 var motion := true: set = set_motion
 
@@ -73,6 +76,22 @@ func set_model(m: Dictionary, ring: Array = [], ring_colour: Color = T.GOLD) -> 
 	glow = ring_colour
 	set_motion(motion)
 	_layout()
+
+
+func set_lit(value: float) -> void:
+	lit = clampf(value, 0.0, 1.0)
+	_ink.queue_redraw()
+
+
+## The rings' colour at the current `lit`.
+func ring_colour() -> Color:
+	return Color(glow, glow.a * lit)
+
+
+## The gold leaf behind a ringed Encounter mark, as the Boost's chosen aim is leafed
+## (boost_aim.gd); clear when the Encounter is not ringed.
+func wash_colour() -> Color:
+	return Color(T.GOLD, 0.28 * lit) if changed.has("encounter") else Color(T.GOLD, 0.0)
 
 
 func set_dimmed(value: bool) -> void:
@@ -447,6 +466,8 @@ func _draw_strip(g: Dictionary, lv: Dictionary) -> void:
 	var kr: Rect2 = g.key
 	if changed.has("encounter") or changed.has("hardship"):
 		_ring("encounter" if changed.has("encounter") else "hardship", _rect_pts(kr.grow(-1), strip * 0.3))
+	if wash_colour().a > 0.0 and not dimmed:
+		_ink.draw_colored_polygon(_rect_pts(kr.grow(-1), strip * 0.3), wash_colour())
 	_strip_glows.append([_rect_pts(kr.grow(-1), strip * 0.3), _lift("key")])
 	var ink := _ink_for("key", T.INK) if not dimmed else T.INK_MUTED
 	var x: float = b + tab + g.pad * 0.2
@@ -680,11 +701,13 @@ func _ring(key: String, pts: PackedVector2Array) -> void:
 
 
 func _draw_rings() -> void:
+	if lit <= 0.0:
+		return
 	var wd := maxf(2.0, size.x * 0.012)
 	for pts in _rings:
 		var closed: PackedVector2Array = pts.duplicate()
 		closed.append(pts[0])
-		_ink.draw_polyline(closed, glow, wd, true)
+		_ink.draw_polyline(closed, ring_colour(), wd, true)
 
 
 ## Each mark on a dark disc, so it reads over any Ether's field: the effect's or the

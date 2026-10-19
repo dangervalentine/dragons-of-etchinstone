@@ -14,7 +14,7 @@ const DURATION := {
 	"pay_time": 0.2, "poison_pending": 0.3, "knock_out": 0.45, "downgrade": 0.3, "trash": 0.3,
 	"upgrade": 0.35, "discard": 0.35, "gather_shuffle": 0.45, "stage_banner": 1.2, "draw": 0.35,
 	"ending": 0.4, "xp_lost": 0.5, "soak_damage": 0.5,
-	"zoom_out": T.ZOOM, "zoom_in": T.ZOOM, "turn_card": T.TURN, "key_peek": T.PEEK_RISE + T.PEEK_HOLD + T.PEEK_FALL,
+	"zoom_out": T.ZOOM, "zoom_in": T.ZOOM, "turn_card": T.TURN, "key_peek": T.KEY_PEEK,
 }
 ## The steps that reveal the next Encounter on the Deck (specs/012 research R8):
 ## they keep their own timing, so a long sequence never hurries the Key Card.
@@ -209,7 +209,7 @@ static func _reveal(steps: Array, after: Dictionary) -> void:
 		return
 	var enc = after.get("encounter")
 	if enc != null and not after.deck.is_empty():
-		steps.append(_step("key_peek", [after.deck[0]], {"key": after.deck[0], "kind": enc.kind, "index": enc.index,
+		steps.append(_step("key_peek", [after.deck[0]], {"key": after.deck[0], "kind": enc.kind, "index": enc.index, "target": target,
 			"hardship": enc.hardship}, "deck"))
 	steps.append(_step("zoom_in", [], {"target": target}, "deck"))
 
@@ -218,7 +218,7 @@ static func _draw_step(steps: Array, ids: Array) -> void:
 	if ids.is_empty():
 		return
 	var st := _step("draw", ids.duplicate(), {}, "hand")
-	st.duration = minf(0.35 + T.STAGGER * (ids.size() - 1), 1.0)
+	st.duration = minf(T.DRAW_FLY + T.STAGGER * (ids.size() - 1), 1.2)
 	steps.append(st)
 
 

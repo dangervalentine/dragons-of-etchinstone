@@ -117,6 +117,8 @@ func _chip(opts: Dictionary) -> Control:
 
 
 func _fit() -> void:
+	# Rounded as a Mage Card is (specs/014 research R5).
+	_stone.round_radius = UI.card_radius(size.x)
 	if model.is_empty():
 		return
 	var at := art_rect(size, Art.head(model.art))
@@ -156,10 +158,11 @@ func _draw() -> void:
 		return
 	var card := Rect2(Vector2.ZERO, size)
 	draw_style_box(_stone, card)
-	draw_rect(Rect2(0, size.y * LAYOUT.band.end.y, size.x, size.y * (1.0 - LAYOUT.band.end.y)), Color(T.ether(model.element), 0.22))
+	draw_colored_polygon(_stone.part(card, Rect2(0, size.y * LAYOUT.band.end.y, size.x, size.y * (1.0 - LAYOUT.band.end.y))),
+		Color(T.ether(model.element), 0.22))
 	var b: Rect2 = LAYOUT.band
 	var band := Rect2(size * b.position, size * b.size)
-	draw_rect(band, T.BG_BAND)
+	draw_colored_polygon(_stone.part(card, band), T.BG_BAND)
 	draw_line(Vector2(band.position.x, band.end.y), band.end, T.muted(T.GOLD), maxf(1.0, size.y * 0.003))
 	var heading := UI.font(T.HEADING[0])
 	var name: String = model.name.to_upper()

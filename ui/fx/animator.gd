@@ -56,13 +56,12 @@ func play(steps: Array, play_screen: Control, after_vs: Dictionary) -> void:
 
 
 ## How long a step plays in reduced motion: a short fade, but the stage banner
-## keeps its time to be read, and so does the Key Card's strip (specs/012 FR-011).
+## keeps its time to be read, and so does the Key Card, its number and its panel
+## lighting up one after the other (specs/012 FR-011, specs/014 FR-010).
 static func reduced_duration(st: Dictionary) -> float:
 	match st.kind:
-		"stage_banner":
+		"stage_banner", "key_peek":
 			return st.duration
-		"key_peek":
-			return maxf(0.6, T.FAST * 2.0)
 	return minf(st.duration, T.FAST * 2.0)
 
 
@@ -191,13 +190,14 @@ func _run(st: Dictionary, d: float) -> void:
 			if show_banner.is_valid():
 				show_banner.call(st.values, d)
 		"draw":
-			screen.render(_after, true, screen.point("deck"))
+			# Each card leaves the top card at its size (specs/014 research R1).
+			screen.render(_after, true, screen.deck.top_rect())
 		"zoom_out":
 			screen.deck.zoom_out(d)
 		"turn_card":
 			screen.deck.turn_to(_after.top_card, d)
 		"key_peek":
-			screen.deck.peek(_after.key_face, d)
+			screen.deck.peek(_after.key_face, st.values.get("target", _after.zoom), d)
 		"zoom_in":
 			screen.deck.zoom_in(st.values.target, d)
 		"ending":

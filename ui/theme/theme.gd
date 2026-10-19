@@ -147,6 +147,13 @@ static func texture_rect(texture: Texture2D, side: float, color: Color = T.INK) 
 	return t
 
 
+## The corner radius of a card `width` wide, as a Mage Card draws its own
+## (card_face.gd): the Region and Dragon Cards and the Deck's edges match it
+## (specs/014 FR-016).
+static func card_radius(width: float) -> int:
+	return roundi(width * 0.075)
+
+
 static func box(bg: Color, border: Color = Color.TRANSPARENT, width := 0, radius: int = T.RADIUS_M, margin: int = T.S) -> StyleBoxFlat:
 	var s := StyleBoxFlat.new()
 	s.bg_color = bg

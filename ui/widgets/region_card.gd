@@ -30,12 +30,21 @@ var model := {}
 ## card is dimmed around it, 0 to 1.
 var focus_key := ""
 var focus := 0.0
+## How brightly the focused panel is rimmed in gold, 0 to 1: the Encounter the Key
+## Card has just named, before the Deck zooms into it (specs/014 research R3).
+var rim := 0.0
 var _panels := {}
 var _stone := StoneStyle.new("well", 0.5)
+## Over the panels, so the rim is never under one.
+var _rim_layer := Control.new()
 
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_rim_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_rim_layer.z_index = 1
+	_rim_layer.draw.connect(_draw_rim)
+	add_child(_rim_layer)
 	resized.connect(_fit)
 	_stone.changed.connect(queue_redraw)
 
@@ -65,6 +74,38 @@ func set_focus(key: String, amount: float) -> void:
 		var dim := 1.0 - 0.62 * amount if k != key else 1.0
 		_panels[k].modulate = Color(dim, dim, dim * 1.04)
 	queue_redraw()
+	_rim_layer.queue_redraw()
+
+
+func set_rim(amount: float) -> void:
+	rim = clampf(amount, 0.0, 1.0)
+	_rim_layer.queue_redraw()
+
+
+## Its width: the Key Card's ring's (card_face.gd _draw_rings) at the card's width.
+func rim_width() -> float:
+	return maxf(2.0, size.x * 0.012)
+
+
+## Where the rim runs: on the focused panel's frame edge, half outside it, so it
+## never covers the panel's number marker or XP star.
+func rim_rect() -> Rect2:
+	if focus_key == "":
+		return Rect2()
+	return panel_rect(size, focus_key).grow(rim_width() / 2.0)
+
+
+func _draw_rim() -> void:
+	if rim <= 0.0 or focus_key == "":
+		return
+	var r := rim_rect()
+	var s := StyleBoxFlat.new()
+	s.draw_center = false
+	s.border_color = Color(T.GOLD, rim)
+	s.set_border_width_all(ceili(rim_width()))
+	s.set_corner_radius_all(int(r.size.y * 0.04))
+	s.anti_aliasing = true
+	_rim_layer.draw_style_box(s, r)
 
 
 func panel(key: String) -> Control:
@@ -103,6 +144,9 @@ static func panel_rect(card_size: Vector2, key: String) -> Rect2:
 
 
 func _fit() -> void:
+	_rim_layer.size = size
+	# Rounded as a Mage Card is: the Region Card is just another card (specs/014 R5).
+	_stone.round_radius = UI.card_radius(size.x)
 	for key in _panels:
 		var r := panel_rect(size, key)
 		_panels[key].position = r.position
@@ -117,7 +161,7 @@ func _draw() -> void:
 	draw_style_box(_stone, card)
 	var b: Rect2 = LAYOUT.band
 	var band := Rect2(card.size * b.position, card.size * b.size)
-	draw_rect(band, T.BG_BAND)
+	draw_colored_polygon(_stone.part(card, band), T.BG_BAND)
 	draw_line(Vector2(band.position.x, band.end.y), band.end, T.muted(T.GOLD), maxf(1.0, size.y * 0.003))
 	# An ornament at each end, the name between them, and the Region's number under it.
 	var o := band.size.y * 0.72
@@ -140,4 +184,4 @@ func _draw() -> void:
 	draw_string(label, Vector2(band.get_center().x - lw / 2.0, band.position.y + band.size.y * 0.88), line, HORIZONTAL_ALIGNMENT_LEFT, -1, ls, T.GOLD)
 	# The card's own band and stone step back with the other panels (set_focus).
 	if focus > 0.0:
-		draw_rect(card, Color(0, 0, 0, 0.62 * focus))
+		draw_colored_polygon(_stone.outline(card), Color(0, 0, 0, 0.62 * focus))

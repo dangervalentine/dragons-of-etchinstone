@@ -97,7 +97,7 @@ func apply_layout(p: Dictionary) -> void:
 
 
 ## Show a view state. `animate` lets moved cards glide; new cards arrive from
-## `arrive_from` (a global point) when given.
+## `arrive_from` (a global rect: the top card on the Deck) when given.
 func render(state: Dictionary, animate := false, arrive_from = null) -> void:
 	var fused_before := _fused_top(vs)
 	vs = state
@@ -106,8 +106,6 @@ func render(state: Dictionary, animate := false, arrive_from = null) -> void:
 	header.render(vs)
 	plan = _replan(plan, vs)
 	_place_hand_panel()
-	if not plan.get("positions", []).is_empty():
-		deck.set_card_size(plan.positions[0].card.size)
 	deck.render(vs)
 	labels.render(vs, plan)
 	aims.render(vs, plan)

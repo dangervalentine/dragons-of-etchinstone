@@ -43,7 +43,8 @@ func set_live(on: bool) -> void:
 
 
 ## Bring the cards in line with the view state. `animate` glides moved cards;
-## `arrive_from` (a global point) is where new cards come from, one after another.
+## `arrive_from` (a global rect, the top card on the Deck) is where new cards come
+## from, one after another, at its size, shrinking into their places as they go.
 ## Every card has a place (contracts/board-layout.md); in setup and Soak, which have
 ## none, the cards take the plan's positions in Hand order.
 func sync(vs: Dictionary, plan: Dictionary, animate := false, arrive_from = null) -> void:
@@ -82,11 +83,11 @@ func sync(vs: Dictionary, plan: Dictionary, animate := false, arrive_from = null
 		view.home = home
 		view.z_index = 1 if m.state == "held" else 0
 		if fresh and animate and arrive_from != null:
-			var start := Rect2(arrive_from - global_position - home.size * 0.15, home.size * 0.3)
-			view.position = start.position
+			var start: Rect2 = arrive_from
+			view.position = start.position - global_position
 			view.size = start.size
 			view.modulate.a = 0.0
-			_glide(view, arrivals * T.STAGGER)
+			_glide(view, arrivals * T.STAGGER, true)
 			arrivals += 1
 		elif fresh or not animate:
 			view.snap_home()
@@ -152,13 +153,20 @@ func finish() -> void:
 			view.snap_home()
 
 
-func _glide(view: Control, delay: float) -> void:
-	var d: float = T.FAST if UI.reduced_motion else T.MOVE
+## `fly`: a card just drawn, whole and face-up, moving and shrinking together from
+## the top card on the Deck to its place (specs/014 research R1).
+func _glide(view: Control, delay: float, fly := false) -> void:
+	var d: float = T.FAST if UI.reduced_motion else (T.DRAW_FLY if fly else T.MOVE)
 	var tw := create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
 	if UI.reduced_motion:
 		view.position = view.home.position
 		view.size = view.home.size
 		tw.tween_property(view, "modulate:a", 1.0, d).set_delay(delay)
+	elif fly:
+		# Out of sight until its turn, then whole from its first frame.
+		tw.tween_property(view, "modulate:a", 1.0, 0.001).set_delay(delay)
+		tw.tween_property(view, "position", view.home.position, d).set_delay(delay)
+		tw.tween_property(view, "size", view.home.size, d).set_delay(delay)
 	else:
 		tw.tween_property(view, "position", view.home.position, d).set_delay(delay)
 		tw.tween_property(view, "size", view.home.size, d).set_delay(delay)

@@ -150,13 +150,20 @@ func _records() -> void:
 func _deck() -> void:
 	var ViewState = load("res://ui/model/view_state.gd")
 	ui.start_game({"seed": 5, "dragon": "rodving", "difficulty": "normal", "cavalier": false, "glass_cannon": false})
-	# The start sequence: banner and draw over the whole Region Card, the Key Card
-	# rising, the zoom, and the face settled.
-	var t := 0.0
-	for at in [[0.8, "deck_zoomed_out"], [1.6, "deck_drawn"], [2.3, "deck_key_card_up"], [2.85, "deck_zooming_in"]]:
-		await create_timer(at[0] - t).timeout
-		t = at[0]
-		_grab(at[1])
+	# The start sequence (specs/014 contracts/deck-motion.md): the whole Region Card,
+	# a card halfway from it to the Hand, the Key Card up with its number and its
+	# panel lit, the zoom, and the face settled.
+	await create_timer(0.8).timeout
+	_grab("deck_zoomed_out")
+	await _until(ui.animator.step_started, "draw")
+	await create_timer(T.STAGGER + T.DRAW_FLY * 0.5).timeout
+	_grab("deck_draw_mid")
+	await _until(ui.play.deck.reveal_beat, "panel_lit")
+	await create_timer(T.PANEL_LIT).timeout
+	_grab("deck_reveal")
+	await _until(ui.play.deck.reveal_beat, "zoom")
+	await create_timer(T.ZOOM * 0.4).timeout
+	_grab("deck_zooming_in")
 	await _shot("deck_settled")
 	# A Divert: out to the card, the Key Card leaving, the next one rising.
 	var id: String = ui.game.hand[0]
@@ -176,6 +183,13 @@ func _deck() -> void:
 		await _shot("deck_region_%d" % region, false)
 	deck._show_top(ViewState.region_card_model(ui.db, 1))
 	deck._place()
+	# The pile full and nearly spent (specs/014 contracts/deck-pile.md).
+	var was: int = deck.count
+	deck.set_count(16)
+	await _shot("deck_pile_full", false)
+	deck.set_count(3)
+	await _shot("deck_pile_low", false)
+	deck.set_count(was)
 	deck.turn_to(ViewState.region_card_model(ui.db, 2), T_TURN)
 	await create_timer(T_TURN * 0.3).timeout
 	_grab("deck_half_turn")
@@ -192,6 +206,20 @@ func _deck() -> void:
 
 
 const T_TURN := 0.5
+const T = preload("res://ui/theme/tokens.gd")
+
+
+## Wait until `sig` carries `what`.
+func _until(sig: Signal, what: String) -> void:
+	var got := [false]
+	var on := func(v: String):
+		if v == what:
+			got[0] = true
+	sig.connect(on)
+	var until := Time.get_ticks_msec() + 10000
+	while not got[0] and Time.get_ticks_msec() < until:
+		await process_frame
+	sig.disconnect(on)
 
 
 ## The printed cards laid over the drawn ones at half strength (specs/013 SC-001):

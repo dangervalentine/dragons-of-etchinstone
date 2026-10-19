@@ -1,11 +1,14 @@
 extends Control
-## The Deck on the left side of the play screen (specs/012, specs/013): the Mage
-## Cards held as in the rulebook's left hand, with the Region Card on top (the Dragon
-## Card in the Final Battle) and the Hand drawn from under it. It is all the left
-## side holds. Back to front:
-##   the card edges, as many as the Deck's depth (edges());
-##   the Key Card, which rises from under the top card to show the Encounter it
-##     names and any Hardship, then slides back (peek());
+## The Deck on the left side of the play screen (specs/012, specs/013, specs/014):
+## the Mage Cards held face up as in the rulebook's left hand, with the Region Card
+## on top (the Dragon Card in the Final Battle) and the Hand drawn from under it,
+## each card leaving at the top card's size (top_rect()). It is all the left side
+## holds. Back to front:
+##   the card edges, as many as the Deck's depth (edges()): rounded card-stock
+##     sides with a soft shadow under them (_draw_edges());
+##   the Key Card, as big as the Region Card, which rises from under it to show the
+##     Encounter it names and any Hardship, lights its number and then that panel,
+##     and stays up until zoom_in() slides it back down (peek());
 ##   the top card, whole while the view is zoomed out;
 ##   the face being played against: the top card's panel for that Encounter, grown
 ##     to fill the left side with a few lines under it saying what its marks mean
@@ -17,6 +20,9 @@ extends Control
 ## sequence plays, which holds the view (hold_card) until its zoom_in lands.
 
 signal intent(data: Dictionary)
+## Each beat of a reveal as it starts: "key_lit", "panel_lit", "zoom" (specs/014
+## contracts/deck-motion.md), for tools/ui_check.gd to check their order.
+signal reveal_beat(name: String)
 
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
@@ -34,9 +40,18 @@ const Glossary = preload("res://ui/model/glossary.gd")
 const EDGE_STEP := 3.0
 ## The most edges drawn: 8 at a full Deck of 16, filling DECK_EDGE.
 const EDGES_MAX := 8
+## Each edge's small, fixed offset from true, so the pile is a little uneven like a
+## real one but never shimmers as it thins (specs/014 research R4). The deepest
+## keeps inside the margin.
+const JITTER := [Vector2(0, 0), Vector2(1, 0), Vector2(-1, 1), Vector2(0, 1), Vector2(1, 1), Vector2(-1, 0),
+	Vector2(0, 1), Vector2(-1, 0)]
+## The soft shadow under the pile: how much each layer grows, and how dark it is.
+const SHADOW := [[2.0, 0.10], [4.0, 0.07], [6.0, 0.05], [8.0, 0.03]]
 ## One line of the reading strip under the landed panel: a 44-unit disc, or a line
 ## of body text, and the gap after it.
 const STRIP_LINE := 52.0
+## The share of a card's height its band and strip take (peek_h()).
+const PEEK_FRAC := 0.245
 ## The share of a zoom over which the landed face fades in (or out, zooming out).
 const LAND_FADE := 0.35
 ## The phases in which a new Encounter is being played: a Play's result held on the
@@ -138,12 +153,15 @@ var _shown_top = null
 var zoomed := ""
 ## The rect the stack's edges hang from: the face's, or the top card's when zoomed out.
 var _stack_rect := Rect2()
-var _card_size := Vector2(190, 266)
 var _tweens: Array = []
 var _note_tween: Tween
 ## While the card grows into a panel or back: what else settles meanwhile (the Key
 ## Card sliding home) leaves it be.
 var _zooming := false
+## How far the top card and the edges have dipped for the Key Card, while it is up.
+var _dip := 0.0
+## Whether the Key Card is up, waiting for zoom_in() to slide it back down.
+var _peek_up := false
 var _refusal_timer := Timer.new()
 var _strip_key := []
 
@@ -186,6 +204,22 @@ static func edges(n: int) -> int:
 	return clampi(ceili(n / 2.0), 1, EDGES_MAX)
 
 
+## The corner radius of a card `width` wide, as a Mage Card draws its own
+## (card_face.gd), so the top card, the Key Card and the Deck's edges match.
+static func card_radius(width: float) -> int:
+	return UI.card_radius(width)
+
+
+## The pile's edges under a top card at `stack`, deepest first: as many as edges(n)
+## says, each a card the size of the top one, a step further down and right and a
+## little off true. Only the count goes in, so nothing about any card shows.
+static func edge_rects(stack: Rect2, n: int) -> Array:
+	var out := []
+	for i in range(edges(n), 0, -1):
+		out.append(Rect2(stack.position + Vector2.ONE * EDGE_STEP * i + JITTER[i - 1], stack.size))
+	return out
+
+
 ## Where the face sits on a Deck of `deck_size`: all of it but the edges' margin.
 static func face_rect(deck_size: Vector2) -> Rect2:
 	return Rect2(0, 0, deck_size.x - T.DECK_EDGE, deck_size.y - T.DECK_EDGE)
@@ -198,20 +232,50 @@ static func dip(peek_h: float) -> float:
 
 
 ## Where the top card sits. Zoomed out it is the printed card's shape (5 by 7) as
-## wide as the face, or as tall as fits under the room the Key Card rises into, the
-## rest of that rise being the Deck's dip (peek()), centred in what is left; the
-## Dragon Card, with nothing rising from under it, the same shape in the whole face.
-## Zoomed in it is the face's rect.
-static func card_rect(deck_size: Vector2, v: String, peek_h: float) -> Rect2:
+## wide as the face, or as tall as fits under the room a Key Card of its own size
+## rises into (`peek`: a Region Card), the rest of that rise being the Deck's dip
+## (peek()), centred in what is left; the Dragon Card, with nothing rising from under
+## it, the same shape in the whole face. Zoomed in it is the face's rect.
+static func card_rect(deck_size: Vector2, v: String, peek := false) -> Rect2:
 	var f := face_rect(deck_size)
 	if v != "card":
 		return f
-	var room := maxf(0.0, peek_h - dip(peek_h)) if peek_h > 0.0 else 0.0
 	var s := RegionCard.card_size(f.size.x)
+	var room := rise_room(s) if peek else 0.0
 	if s.y > f.size.y - room:
-		s = Vector2((f.size.y - room) * RegionCard.ASPECT, f.size.y - room)
-	var spare := f.size.y - room - s.y
+		# As tall as h + room(h) allows, room(h) being PEEK_FRAC h less the dip: the
+		# full margin once that is half the rise or less, else half the rise.
+		var h := f.size.y
+		if peek:
+			h = (f.size.y + T.DECK_EDGE) / (1.0 + PEEK_FRAC)
+			if PEEK_FRAC * h / 2.0 < T.DECK_EDGE:
+				h = f.size.y / (1.0 + PEEK_FRAC / 2.0)
+		h = floorf(h)
+		s = Vector2(h * RegionCard.ASPECT, h)
+		room = rise_room(s) if peek else 0.0
+		# peek_h() rounds its band and strip; give back what that takes.
+		while peek and s.y + room > f.size.y + 0.01 and h > 1.0:
+			h -= 1.0
+			s = Vector2(h * RegionCard.ASPECT, h)
+			room = rise_room(s)
+	var spare := maxf(0.0, f.size.y - room - s.y)
 	return Rect2(Vector2((f.size.x - s.x) / 2.0, room + spare / 2.0), s)
+
+
+## How much of a Key Card the size of `card` must rise above it: its band and strip,
+## less the Deck's dip.
+static func rise_room(card: Vector2) -> float:
+	var ph := peek_h(card)
+	return ph - dip(ph)
+
+
+## The Key Card on a Deck of `deck_size`: the Region Card's own size and place, at
+## rest under it or raised to show its band and strip, the Deck dipped meanwhile.
+static func key_rect(deck_size: Vector2, raised: bool) -> Rect2:
+	var cr := card_rect(deck_size, "card", true)
+	var ph := peek_h(cr.size)
+	var y := cr.position.y + (dip(ph) - ph if raised else 0.0)
+	return Rect2(Vector2(cr.position.x, y), cr.size)
 
 
 ## How much a panel grows to fill the face: as much as fits both ways, as a printed
@@ -261,19 +325,12 @@ static func note_kinds(state_note, result: bool) -> Array:
 
 
 ## How far a Key Card of `card_size` rises to show its title band and Key Card
-## strip (card_face.gd's geometry), and no more.
+## strip (card_face.gd's geometry), and no more: about PEEK_FRAC of its height.
 static func peek_h(card_size: Vector2) -> float:
 	return roundf(card_size.y * 0.155) + roundf(card_size.y * 0.09)
 
 
 # ---------------------------------------------------------------- state
-
-## The Hand's card size, which the Key Card is drawn at.
-func set_card_size(s: Vector2) -> void:
-	if s.x > 0.0 and s != _card_size:
-		_card_size = s
-		_place()
-
 
 func render(state: Dictionary) -> void:
 	vs = state
@@ -321,6 +378,8 @@ func finish() -> void:
 	_zooming = false
 	_clip_tops(false)
 	region_card.set_focus("", 0.0)
+	region_card.set_rim(0.0)
+	_put_peek_away()
 	for c in [region_card, dragon_card, landed, dragon_face, _peek]:
 		c.scale = Vector2.ONE
 		c.modulate.a = 1.0
@@ -347,7 +406,7 @@ func top_node() -> Control:
 ## Global points cards travel to and from: under the top card's top edge, where
 ## the Key Card sits and the Hand is drawn from; and the back of the Deck.
 func top_point() -> Vector2:
-	var r := card_rect(size, view, _peek_h())
+	var r := card_rect(size, view, _peeks())
 	return global_position + Vector2(r.get_center().x, r.position.y + 8.0)
 
 
@@ -362,9 +421,18 @@ func note_point() -> Vector2:
 	return note.global_position + note.size / 2.0
 
 
-func _peek_h() -> float:
+## Whether a Key Card rises from under the top card: a Region Card's, not the
+## Dragon Card's.
+func _peeks() -> bool:
 	var top = _shown_top if _shown_top != null else vs.get("top_card")
-	return peek_h(_card_size) if top != null and top.kind == "region" else 0.0
+	return top != null and top.kind == "region"
+
+
+## The global rect of the whole top card resting on the Deck, zoomed out whatever
+## the view: where every drawn card starts (specs/014 research R1).
+func top_rect() -> Rect2:
+	var r := card_rect(size, "card", _peeks())
+	return Rect2(global_position + r.position, r.size)
 
 
 func _show_top(m) -> void:
@@ -480,7 +548,7 @@ func _place() -> void:
 	# landed face is.
 	if _tops.clip_contents:
 		_tops.size = f.size
-	var cr := card_rect(size, view, _peek_h())
+	var cr := card_rect(size, view, _peeks())
 	# The Key Card never shows below the top card, which covers the rest of it.
 	_peek_clip.position = Vector2.ZERO
 	_peek_clip.size = Vector2(size.x, maxf(cr.end.y, 0.0))
@@ -492,6 +560,9 @@ func _place() -> void:
 	note.position = f.position
 	note.size = f.size
 	_render_top()
+	# While the Key Card is up, the card and its edges stay dipped under it.
+	if view == "card":
+		cr.position.y += _dip
 	var top: Control = top_node()
 	if top != null:
 		top.position = cr.position
@@ -508,13 +579,28 @@ func _place() -> void:
 	_edges.queue_redraw()
 
 
+## The Deck seen from the side, face up (specs/014 contracts/deck-pile.md): a soft
+## shadow, then each card's edge in card stock with a line between it and the next,
+## rounded as the cards are.
 func _draw_edges() -> void:
-	var n := edges(count)
-	for i in range(n, 0, -1):
-		var r := _stack_rect
-		r.position += Vector2.ONE * EDGE_STEP * i
-		_edges.draw_rect(r, T.BG_RAISED)
-		_edges.draw_rect(r, T.BRONZE_DARK, false, 1.5)
+	var rects := edge_rects(_stack_rect, count)
+	if rects.is_empty():
+		return
+	var radius := card_radius(_stack_rect.size.x)
+	var deepest: Rect2 = rects[0]
+	for layer in SHADOW:
+		var sh := StyleBoxFlat.new()
+		sh.bg_color = Color(0, 0, 0, layer[1])
+		sh.set_corner_radius_all(radius + int(layer[0]))
+		_edges.draw_style_box(sh, Rect2(deepest.position + Vector2(2, 4), deepest.size).grow(layer[0]))
+	var card := StyleBoxFlat.new()
+	card.bg_color = T.CARD_EDGE
+	card.border_color = T.CARD_EDGE_LINE
+	card.set_border_width_all(2)
+	card.set_corner_radius_all(radius)
+	card.anti_aliasing = true
+	for r in rects:
+		_edges.draw_style_box(card, r)
 
 
 func _hold_faces(on: bool) -> void:
@@ -672,7 +758,7 @@ func zoom_out(d: float) -> void:
 	_hold_faces(true)
 	var face: Control = face_node()
 	var f := face_rect(size)
-	var cr := card_rect(size, "card", _peek_h())
+	var cr := card_rect(size, "card", _peeks())
 	var tile := _target_rect(zoomed, cr)
 	view = "card"
 	top.position = cr.position
@@ -740,10 +826,15 @@ func zoom_in(target: String, d: float) -> void:
 		return
 	_render_faces()
 	_hold_faces(true)
+	reveal_beat.emit("zoom")
 	var face: Control = face_node()
 	var f := face_rect(size)
-	var cr := card_rect(size, "card", _peek_h())
+	var cr := card_rect(size, "card", _peeks())
 	var tile := _target_rect(target, cr)
+	# Where the Key Card left the card: dipped, the panel already lit and rimmed.
+	var from := Rect2(cr.position + Vector2(0, _dip), cr.size)
+	var lit0: float = region_card.focus if region_card.focus_key == target else 0.0
+	var rim0: float = region_card.rim
 	face.position = f.position
 	face.size = f.size
 	face.visible = true
@@ -752,11 +843,18 @@ func zoom_in(target: String, d: float) -> void:
 		var tw := _keep(create_tween().set_parallel(true))
 		tw.tween_property(face, "modulate:a", 1.0, d)
 		tw.tween_property(top, "modulate:a", 0.0, d)
+		if _peek_up:
+			tw.tween_property(_peek, "modulate:a", 0.0, d)
 		tw.chain().tween_callback(_land)
 		return
 	var pivot := tile.get_center() - cr.position
 	top.pivot_offset = pivot
 	var tw := _keep(create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT))
+	if _peek_up:
+		# The Key Card slides back down under the card as the zoom starts.
+		tw.tween_property(_peek, "position", key_rect(size, false).position, d * T.PEEK_FALL / T.ZOOM).set_ease(Tween.EASE_IN)
+		tw.tween_property(_peek, "lit", 0.0, d * T.PEEK_FALL / T.ZOOM)
+	_dip = 0.0
 	if face == landed:
 		# The card itself grows, drawn at each size rather than scaled, until it lies
 		# exactly as the landed face draws it; the landed face then takes over.
@@ -767,11 +865,12 @@ func zoom_in(target: String, d: float) -> void:
 		top.pivot_offset = Vector2.ZERO
 		face.modulate.a = 0.0
 		tw.tween_method(func(v: float):
-			var r := _lerp_rect(cr, Rect2(at.card.position + f.position, at.card.size), v)
+			var r := _lerp_rect(from, Rect2(at.card.position + f.position, at.card.size), v)
 			_card_at(r.position, r.size)
-			region_card.set_focus(target, v), 0.0, 1.0, d)
+			region_card.set_focus(target, lerpf(lit0, 1.0, v))
+			region_card.set_rim(lerpf(rim0, 0.0, v)), 0.0, 1.0, d)
 		tw.tween_property(face, "modulate:a", 1.0, d * LAND_FADE).set_delay(d * (1.0 - LAND_FADE))
-		tw.tween_method(_set_stack_rect, cr, f, d)
+		tw.tween_method(_set_stack_rect, from, f, d)
 		tw.chain().tween_callback(_land)
 		return
 	else:
@@ -814,11 +913,23 @@ func _settle_view() -> void:
 		c.scale = Vector2.ONE
 		c.modulate.a = 1.0
 	region_card.set_focus("", 0.0)
+	region_card.set_rim(0.0)
 	_clip_tops(false)
 	_place()
 
 
+## The Key Card back under the Region Card, unlit and out of sight, the Deck no
+## longer dipped.
+func _put_peek_away() -> void:
+	_peek_up = false
+	_dip = 0.0
+	_peek.visible = false
+	_peek.lit = 0.0
+	_peek.modulate.a = 1.0
+
+
 func _land() -> void:
+	_put_peek_away()
 	_zooming = false
 	view = "face"
 	held = false
@@ -833,7 +944,7 @@ func turn_to(m, d: float) -> void:
 		return
 	var was = _shown_top
 	view = "card"
-	var cr := card_rect(size, "card", peek_h(_card_size) if m.kind == "region" else 0.0)
+	var cr := card_rect(size, "card", m.kind == "region")
 	if UI.reduced_motion or was == null:
 		_show_top(m)
 		_place()
@@ -879,51 +990,50 @@ func turn_to(m, d: float) -> void:
 	tw.tween_callback(_settle_view)
 
 
-## The Key Card rises from under the Region Card just far enough to show the
-## Encounter it names and any Hardship, holds, and slides back down. The Deck dips
-## a little as it is drawn up (dip()), so the Region Card can stay large.
-func peek(face_model, d: float) -> void:
+## The Key Card, as big as the Region Card and lined up with it, rises from under
+## it just far enough to show the Encounter it names and any Hardship; its number
+## lights up, then `target`'s panel on the Region Card, and it stays up, both lit,
+## until zoom_in() slides it back down (specs/014 contracts/deck-motion.md). The Deck
+## dips a little as it is drawn up (dip()), so the Region Card can stay large.
+func peek(face_model, target: String, d: float) -> void:
 	if face_model == null or _shown_top == null or _shown_top.kind != "region" or view != "card":
 		return
-	var cr := card_rect(size, "card", _peek_h())
-	var ph := _peek_h()
-	var down := dip(ph)
-	_peek.size = _card_size
+	var cr := card_rect(size, "card", true)
+	var down := dip(peek_h(cr.size))
+	_peek.size = cr.size
 	_peek.set_model(face_model, ["encounter"])
-	var x := cr.get_center().x - _card_size.x / 2.0
-	var rest := Vector2(x, cr.position.y)
-	var up := Vector2(x, cr.position.y + down - ph)
+	_peek.lit = 0.0
+	var rest := key_rect(size, false).position
+	var up := key_rect(size, true).position
 	_peek.visible = true
-	var total := T.PEEK_RISE + T.PEEK_HOLD + T.PEEK_FALL
-	var tw := _keep(create_tween())
+	_peek_up = true
+	# The beats keep their shares of KEY_PEEK in whatever time the step is given.
+	var k := d / T.KEY_PEEK
+	var rise := T.PEEK_RISE * k
+	var panel_at := (T.PEEK_RISE + 0.6 * T.KEY_LIT) * k
+	var tw := _keep(create_tween().set_parallel(true))
 	if UI.reduced_motion:
-		# Already raised, the Deck already dipped, with no travel: it fades in, holds
-		# and fades out.
+		# Already raised, the Deck already dipped, with no travel: it fades in.
 		_dip_to(down, cr)
 		_peek.position = up
 		_peek.modulate.a = 0.0
-		var fade := minf(T.FAST, d / 3.0)
-		tw.tween_property(_peek, "modulate:a", 1.0, fade)
-		tw.tween_interval(maxf(0.0, d - 2.0 * fade))
-		tw.tween_property(_peek, "modulate:a", 0.0, fade)
+		tw.tween_property(_peek, "modulate:a", 1.0, minf(T.FAST, rise))
 	else:
 		_peek.position = rest
 		_peek.modulate.a = 1.0
-		var rise := d * T.PEEK_RISE / total
-		var fall := d * T.PEEK_FALL / total
 		tw.tween_property(_peek, "position", up, rise).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-		tw.parallel().tween_method(_dip_to.bind(cr), 0.0, down, rise).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-		tw.tween_interval(d * T.PEEK_HOLD / total)
-		tw.tween_property(_peek, "position", rest, fall).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
-		tw.parallel().tween_method(_dip_to.bind(cr), down, 0.0, fall).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
-	tw.tween_callback(func():
-		_peek.visible = false
-		_peek.modulate.a = 1.0
-		_settle_view())
+		tw.tween_method(_dip_to.bind(cr), 0.0, down, rise).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_callback(func(): reveal_beat.emit("key_lit")).set_delay(rise)
+	tw.tween_property(_peek, "lit", 1.0, T.KEY_LIT * k).set_delay(rise)
+	tw.tween_callback(func(): reveal_beat.emit("panel_lit")).set_delay(panel_at)
+	tw.tween_method(func(v: float):
+		region_card.set_focus(target, v)
+		region_card.set_rim(v), 0.0, 1.0, T.PANEL_LIT * k).set_delay(panel_at)
 
 
 ## The top card and the edges under it, `by` below where they rest.
 func _dip_to(by: float, cr: Rect2) -> void:
+	_dip = by
 	var top: Control = top_node()
 	if top != null:
 		top.position = cr.position + Vector2(0, by)

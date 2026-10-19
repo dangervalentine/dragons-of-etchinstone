@@ -4,6 +4,7 @@ extends "res://tests/base.gd"
 const Game = preload("res://engine/game.gd")
 const ViewState = preload("res://ui/model/view_state.gd")
 const Sequencer = preload("res://ui/model/sequencer.gd")
+const T = preload("res://ui/theme/tokens.gd")
 const Undo = preload("res://ui/model/upgrade_undo.gd")
 
 var db = CardDB.new()
@@ -29,7 +30,15 @@ func _act(g, action: Dictionary, call: Callable) -> String:
 		else:
 			total += st.duration
 		kinds_seen[st.kind] = true
-	ok(reveal <= 1.4 + 0.001, "%s reveals its Encounter within 1.4 seconds (%.2f)" % [action.kind, reveal])
+	# The rise, the number and the panel lit, and the zoom (specs/014 FR-012).
+	ok(reveal <= 3.0 + 0.001, "%s reveals its Encounter within 3 seconds (%.2f)" % [action.kind, reveal])
+	for st in steps:
+		if st.kind == "key_peek":
+			eq(st.duration, T.KEY_PEEK, "%s: the Key Card's reveal keeps its time" % action.kind)
+		if st.kind == "draw":
+			# A long sequence is compressed (test_long_sequences_are_compressed...).
+			ok(st.duration <= minf(T.DRAW_FLY + T.STAGGER * (st.cards.size() - 1), 1.2) + 0.001,
+				"%s: each drawn card flies from the top card, one after another" % action.kind)
 	_check_deck_steps(action, before, after, steps)
 	for zone in ["hand", "discard", "trash"]:
 		var a: Array = state[zone].duplicate()
@@ -127,6 +136,16 @@ func test_a_draft_change_has_no_steps() -> void:
 	var g = Game.new(db, {"seed": 1, "difficulty": "normal"})
 	var s: Dictionary = ViewState.snapshot(g)
 	eq(Sequencer.build(s, {"kind": "draft", "cards": []}, {}, s), [], "nothing to show")
+
+
+func test_a_draw_takes_one_flight_and_the_stagger() -> void:
+	for n in [1, 4, 7]:
+		var ids := []
+		for i in n:
+			ids.append("c%d" % i)
+		var steps := []
+		Sequencer._draw_step(steps, ids)
+		eq(steps[0].duration, minf(T.DRAW_FLY + T.STAGGER * (n - 1), 1.2), "%d cards" % n)
 
 
 func test_long_sequences_are_compressed_to_three_seconds() -> void:
@@ -254,6 +273,7 @@ func _check_deck_steps(action: Dictionary, before: Dictionary, after: Dictionary
 		eq(p.values.key, after.deck[0], "%s: the Key Card is the top of the Deck" % what)
 		eq([p.values.kind, p.values.index, p.values.hardship], [after.encounter.kind, after.encounter.index, after.encounter.hardship],
 			"%s: it names the engine's Encounter" % what)
+		eq(p.values.target, zoom.values.target, "%s: the panel lit is the one zoomed into" % what)
 	else:
 		ok(not kinds.has("key_peek"), "%s: no Key Card in the Final Battle" % what)
 	if what in ["start", "setup"]:

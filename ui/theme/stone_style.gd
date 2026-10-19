@@ -45,6 +45,15 @@ var face := Color(0, 0, 0, 0):
 		emit_changed()
 ## A plinth pressed in sits flush.
 var pressed := false
+## Round corners of this radius instead of the chamfer: a card (the Region and
+## Dragon Cards on the Deck, specs/014 research R5). 0 keeps the chamfer.
+var round_radius := 0.0:
+	set(v):
+		round_radius = v
+		emit_changed()
+
+## The points along each rounded corner.
+const ARC := 8
 
 
 func _init(p_kind := "well", p_depth := 0.5) -> void:
@@ -66,9 +75,34 @@ func chamfer() -> float:
 	return T.CHAMFER_M
 
 
-## The cut-cornered outline of `rect`, `inset` units in from its edge.
+## The cut-cornered outline of `rect`, `inset` units in from its edge; with a
+## `round_radius`, rounded instead, each corner an arc of ARC + 1 points from the
+## top left round clockwise.
 func outline(rect: Rect2, inset := 0.0) -> PackedVector2Array:
 	var r := rect.grow(-inset)
+	if round_radius > 0.0:
+		var rr := minf(maxf(round_radius - inset, 0.0), minf(r.size.x, r.size.y) / 2.0)
+		var out := PackedVector2Array()
+		var centres := [r.position + Vector2(rr, rr), Vector2(r.end.x - rr, r.position.y + rr), r.end - Vector2(rr, rr),
+			Vector2(r.position.x + rr, r.end.y - rr)]
+		for c in 4:
+			for i in ARC + 1:
+				var a := PI + (c + float(i) / ARC) * PI / 2.0
+				out.append(centres[c] + Vector2(cos(a), sin(a)) * rr)
+		return out
+	return _chamfered(r)
+
+
+## The part of the outline of `rect` inside `inside`: a band or a tint laid on the
+## stone that keeps its corners.
+func part(rect: Rect2, inside: Rect2) -> PackedVector2Array:
+	var box := PackedVector2Array([inside.position, Vector2(inside.end.x, inside.position.y), inside.end,
+		Vector2(inside.position.x, inside.end.y)])
+	var got := Geometry2D.intersect_polygons(outline(rect), box)
+	return got[0] if not got.is_empty() else PackedVector2Array()
+
+
+func _chamfered(r: Rect2) -> PackedVector2Array:
 	var c := minf(chamfer(), minf(r.size.x, r.size.y) * 0.3)
 	return PackedVector2Array([
 		Vector2(r.position.x + c, r.position.y), Vector2(r.end.x - c, r.position.y),
@@ -103,6 +137,12 @@ func _draw(ci: RID, rect: Rect2) -> void:
 	# Upper-left run: from the lower-left corner up and across to the upper right.
 	var upper := PackedVector2Array([b[6], b[7], b[0], b[1], b[2]])
 	var lower := PackedVector2Array([b[2], b[3], b[4], b[5], b[6]])
+	if round_radius > 0.0:
+		# From the middle of the lower-left arc to the middle of the upper-right one.
+		var n := ARC + 1
+		var half := ARC / 2
+		upper = b.slice(3 * n + half) + b.slice(0, n + half + 1)
+		lower = b.slice(n + half, 3 * n + half + 1)
 	var w := 2.0 + depth * 2.0
 	rs.canvas_item_add_polyline(ci, upper, PackedColorArray([dark if recessed else lit]), w, true)
 	rs.canvas_item_add_polyline(ci, lower, PackedColorArray([lit if recessed else dark]), w, true)

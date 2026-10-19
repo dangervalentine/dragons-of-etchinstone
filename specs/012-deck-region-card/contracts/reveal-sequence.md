@@ -1,5 +1,7 @@
 # Contract: Reveal Steps in Each Sequence
 
+> **Superseded in part by [specs/014 contracts/deck-motion.md](../../014-card-draw-key-reveal/contracts/deck-motion.md):** `key_peek`'s timing (now `T.KEY_PEEK`), the Key Card staying raised into `zoom_in`, the `draw` duration, and invariant 6 (the reveal is now ≤ 3 s).
+
 What `Sequencer.build(before, action, result, after)` emits for the Deck. `test_sequencer.gd` checks this table. The existing steps are unchanged except where they are shown here, in order. `…` stands for the existing steps that stay where they are.
 
 ## New steps

@@ -133,3 +133,19 @@ func test_marks_sit_beside_their_figure() -> void:
 			for key in column:
 				ok(not r.intersects(f.region_rect(key)), "mark %s clear of %s on a %s card" % [str(r), key, str(sz)])
 		f.free()
+
+
+## The Key Card's Encounter number lights up on the Deck (specs/014 research R3):
+## unlit, its ring and gold leaf are clear; lit, they are full.
+func test_the_key_cards_number_lights_up() -> void:
+	var f = _face(_one_of_each_ether()[0], SIZES[0])
+	f.set_model(f.model, ["encounter"])
+	f.lit = 0.0
+	eq(f.ring_colour().a, 0.0, "unlit: no ring")
+	eq(f.wash_colour().a, 0.0, "unlit: no leaf")
+	f.lit = 1.0
+	eq(f.ring_colour().a, f.glow.a, "lit: the ring in full")
+	ok(f.wash_colour().a > 0.2, "lit: the gold leaf behind the number")
+	f.set_model(f.model)
+	eq(f.wash_colour().a, 0.0, "not ringed: no leaf, however lit")
+	f.free()

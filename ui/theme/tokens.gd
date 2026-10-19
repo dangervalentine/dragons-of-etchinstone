@@ -78,6 +78,10 @@ const CARD_FRAME := Color("0d0b10")
 const BRONZE := Color("5a4632")
 const BRONZE_DARK := Color("3a2c1f")
 const BRONZE_LIGHT := Color("a88a63")
+## The Deck seen from the side (feature 014): each card's edge in card stock, and
+## the line between one card and the next. Never an Ether's colour.
+const CARD_EDGE := Color("8d8778")
+const CARD_EDGE_LINE := Color("4a463e")
 
 # Layout
 ## The margin the Deck's card edges take on the right and bottom of the left side.
@@ -117,12 +121,22 @@ const REVEAL := 0.4
 const STAGGER := 0.12
 const SEQUENCE_MAX := 3.0
 ## The Deck (feature 012): zooming between the top card and a face, turning the
-## Region Card, and the Key Card rising from under it, holding, and sliding back.
+## Region Card, and the Key Card rising from under it and, as the zoom starts,
+## sliding back.
 const ZOOM := 0.55
 const TURN := 0.5
 const PEEK_RISE := 0.25
-const PEEK_HOLD := 0.4
 const PEEK_FALL := 0.2
+## A drawn card's flight from the top card, at its size, to its place in the Hand
+## (feature 014).
+const DRAW_FLY := 0.45
+## The Key Card's Encounter number lighting up once it has risen.
+const KEY_LIT := 0.35
+## The matching panel on the Region Card lighting up, from 60% of KEY_LIT.
+const PANEL_LIT := 0.45
+## The whole reveal on the Deck: the rise, the number lit, the panel lit and the hold
+## with the Key Card still up, until the zoom slides it back down.
+const KEY_PEEK := 1.05
 
 # The landscape layout
 const DESIGN_MIN := Vector2(1280, 720)

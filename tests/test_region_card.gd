@@ -91,3 +91,21 @@ func test_the_panels_lie_as_printed() -> void:
 		var j: Rect2 = rects["journey:%d" % i]
 		ok(absf(e.size.x / e.size.y - 1.45) <= 0.08, "Enemy %d is shaped as printed (%.2f)" % [i, e.size.x / e.size.y])
 		ok(absf(j.size.x / j.size.y - 0.6) <= 0.08, "Journey %d is shaped as printed (%.2f)" % [i, j.size.x / j.size.y])
+
+
+## The Encounter the Key Card names is rimmed in gold before the zoom, and no other
+## panel (specs/014 research R3).
+func test_only_the_named_panel_is_rimmed() -> void:
+	var card = RegionCard.new()
+	card.size = RegionCard.card_size(400.0)
+	card.render(ViewState.region_card_model(db, 1))
+	card.set_focus("journey:3", 1.0)
+	card.set_rim(1.0)
+	var pr := RegionCard.panel_rect(card.size, "journey:3")
+	eq(card.rim_rect(), pr.grow(card.rim_width() / 2.0), "round Journey 3's frame")
+	for key in KEYS:
+		if key != "journey:3":
+			ok(not card.rim_rect().encloses(RegionCard.panel_rect(card.size, key)), "%s is not rimmed" % key)
+	card.set_focus("", 0.0)
+	eq(card.rim_rect(), Rect2(), "with nothing focused, no rim")
+	card.free()

@@ -1,5 +1,7 @@
 # Contract: The Left Column
 
+> The stack's edges are drawn per [specs/014 contracts/deck-pile.md](../../014-card-draw-key-reveal/contracts/deck-pile.md): rounded, card-stock card sides with a soft shadow.
+
 This replaces `specs/012-deck-region-card/contracts/deck-stack.md`'s "Layers", "Per phase, settled" and "Space" sections, and retires `specs/011-card-contribution-highlights/contracts/left-box.md`. 012's Peek, Interaction and Anchors sections stand, except as noted.
 
 ## Region
