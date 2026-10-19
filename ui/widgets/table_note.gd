@@ -20,6 +20,23 @@ const Creature = preload("res://ui/fx/creature.gd")
 const Art = preload("res://ui/model/art.gd")
 
 const PAD := 16.0
+## Printed as a game's reference card is (specs/015): a border of the card stock
+## round a dark face, a title band across the top with a torn edge in the note's
+## colour, the rest read from the top down, and a narrow band along the foot. The
+## border as a share of the card's width; the bands' heights.
+const BORDER := 0.035
+const BAND_H := 54.0
+const FOOT_H := 18.0
+## Each kind's title, icon and colour as the band shows them. A step's title is its
+## mode's name (FUSE, DIVERT, REGROUP).
+const LOOKS := {
+	"setup": {"title": "PREPARE YOUR DECK", "icon": "crown", "accent": "gold"},
+	"mode": {"title": "", "icon": "", "accent": "focus"},
+	"result": {"title": "RESULT", "icon": "attack", "accent": "gold"},
+	"soak": {"title": "SOAK THE DAMAGE", "icon": "hp", "accent": "bad"},
+	"upgrade": {"title": "UPGRADE", "icon": "upgrade", "accent": "gold"},
+	"refusal": {"title": "NOT ALLOWED", "icon": "close", "accent": "bad"},
+}
 
 var preview := PreviewPanel.new()
 var soak_meter := SoakMeter.new()
@@ -40,6 +57,18 @@ var _setup_key := ""
 var _refusal := Label.new()
 var _creature := Creature.new()
 var _pressed_at := -1.0
+## The title band's icon and words.
+var _band := HBoxContainer.new()
+var _band_icon := TextureRect.new()
+var _band_title := Label.new()
+var _band_key := ""
+var _accent: Color = T.GOLD
+## While _fit_result() lays the card out again.
+var _refitting := false
+## A layout asked for at the end of the frame, as what a panel shows changes.
+var _fit_pending := false
+## The size and result found too tall to set out line by line: kept on one row.
+var _compact_key := ""
 
 
 func _init() -> void:
@@ -47,6 +76,19 @@ func _init() -> void:
 	_body.clip_contents = true
 	_body.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_body)
+	_band.add_theme_constant_override("separation", T.S)
+	_band.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_band_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_band_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_band_icon.custom_minimum_size = Vector2(30, 30)
+	_band_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_band_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_band.add_child(_band_icon)
+	UI.style_label(_band_title, T.SUBHEAD, T.INK)
+	_band_title.clip_text = true
+	_band_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_band_title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_band.add_child(_band_title)
 	_creature.held = true
 	_creature.visible = false
 	_creature.modulate.a = 0.35
@@ -63,11 +105,15 @@ func _init() -> void:
 		_box.add_child(panel)
 		panel.visible = false
 	preview.intent.connect(func(data): intent.emit(data))
-	UI.style_label(_refusal, T.BODY, T.BAD)
+	# The animator reveals the sum on the panel directly (the tally): lay the card out
+	# again as it grows.
+	preview.minimum_size_changed.connect(_queue_fit)
+	UI.style_label(_refusal, T.BODY, T.INK)
 	_refusal.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_refusal.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_refusal.visible = false
 	_box.add_child(_refusal)
+	# Over the art behind the words, as printed.
+	_body.add_child(_band)
 	resized.connect(_fit)
 
 
@@ -80,7 +126,6 @@ func show_kinds(what: Array, vs: Dictionary) -> void:
 	soak_meter.visible = what.has("soak")
 	xp_purse.visible = what.has("upgrade")
 	_setup.visible = what.has("setup")
-	preview.roomy = size.y >= T.NOTE_ROOMY_H
 	if what.has("result"):
 		_render_result()
 	elif preview.visible:
@@ -94,12 +139,11 @@ func show_kinds(what: Array, vs: Dictionary) -> void:
 	if _setup.visible:
 		_render_setup(vs)
 	_creature.visible = _setup.visible and _creature.art_name != ""
+	if not what.is_empty():
+		var mode: String = str(vs.get("mode", ""))
+		_set_band(what[0], mode.get_slice("_", 0) if what[0] == "mode" else "")
 	_show_refusal()
 	_fit()
-	if what.has("result") and preview.roomy and content_height() > size.y - 2.0 * PAD:
-		preview.roomy = false
-		_render_result()
-		_fit()
 
 
 func _render_result() -> void:
@@ -129,6 +173,38 @@ func _show_refusal() -> void:
 		for c in [preview, soak_meter, xp_purse, _setup]:
 			c.visible = false
 		_creature.visible = false
+		_set_band("refusal")
+
+
+## The title band for `kind`; a step's (`mode`, as "fuse") names it.
+func _set_band(kind: String, mode := "") -> void:
+	var look: Dictionary = LOOKS.get(kind, LOOKS.result)
+	var title: String = mode.to_upper() if kind == "mode" and mode != "" else look.title
+	var icon: String = mode if kind == "mode" and mode != "" else look.icon
+	if kind == "mode" and title == "":
+		title = "NEXT STEP"
+		icon = "help"
+	_accent = {"gold": T.GOLD, "focus": T.FOCUS, "bad": T.BAD}[look.accent]
+	var key := "%s|%s" % [title, icon]
+	if key == _band_key:
+		return
+	_band_key = key
+	_band_title.text = title
+	_band_icon.texture = UI.icon(icon) if icon != "" else null
+	_band_icon.modulate = _accent
+	_band_icon.visible = icon != ""
+	_fit_title()
+	queue_redraw()
+
+
+## The title as large as the band lets it be, down to the smallest text read.
+func _fit_title() -> void:
+	var font := UI.font(T.SUBHEAD[0])
+	var room := face_rect().size.x - 28.0 - (30.0 + T.S if _band_icon.visible else 0.0)
+	var fs: int = T.SUBHEAD[1]
+	while fs > T.TEXT_MIN and font.get_string_size(_band_title.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > room:
+		fs -= 1
+	_band_title.add_theme_font_size_override("font_size", fs)
 
 
 ## Before the first Encounter: the dragon hunted, faint behind the words, and what
@@ -141,13 +217,7 @@ func _render_setup(vs: Dictionary) -> void:
 	for c in _setup.get_children():
 		_setup.remove_child(c)
 		c.queue_free()
-	var head := UI.hbox(T.S)
-	head.add_child(UI.icon_rect("crown", 34, T.GOLD))
-	var title := UI.label("PREPARE YOUR DECK", T.SUBHEAD, T.INK)
-	title.clip_text = true
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.add_child(title)
-	_setup.add_child(head)
+	# Its title is the card's own band.
 	_setup.add_child(UI.label("Four Regions lie between you and the dragon. Your sixteen Mage Cards are your only weapons, and your deck is your time.", T.BODY, T.INK, true))
 	_setup.add_child(UI.label("The cards you choose start at a different Level. Hold a card to see its other Levels.", T.LABEL, T.INK_MUTED, true))
 	var art: String = vs.stage.get("art", "")
@@ -157,25 +227,82 @@ func _render_setup(vs: Dictionary) -> void:
 	UI.ignore_mouse(_setup)
 
 
+## The printed face inside the card-stock border.
+func face_rect() -> Rect2:
+	var b := roundf(maxf(6.0, size.x * BORDER))
+	return Rect2(Vector2(b, b), size - Vector2(b, b) * 2.0)
+
+
+## Where the content is read: under the title band, over the foot, inside the pad.
+func content_rect() -> Rect2:
+	var f := face_rect()
+	var top := f.position.y + BAND_H + PAD
+	return Rect2(f.position.x + PAD, top, f.size.x - 2.0 * PAD, f.end.y - FOOT_H - PAD - top)
+
+
+## How tall the content may be and still fit the card (for the result's layout and
+## the checks).
+func content_room() -> float:
+	return content_rect().size.y
+
+
 func _fit() -> void:
 	queue_redraw()
 	_body.position = Vector2.ZERO
 	_body.size = size
-	var inner := Rect2(Vector2(PAD, PAD), size - Vector2(PAD, PAD) * 2.0)
+	var f := face_rect()
+	_band.position = f.position + Vector2(14, 0)
+	_band.size = Vector2(f.size.x - 28, BAND_H - 6)
+	_fit_title()
+	var inner := content_rect()
 	_box.position = inner.position
 	_box.size = Vector2(inner.size.x, 0)
 	# Twice: the first pass gives wrapped lines their width, the second the height
 	# that width needs (as preview_panel.gd's _lay_out).
 	for i in 3:
 		_sort(_box)
-	# Short content sits in the middle of the note; long content from its top.
-	var h := _box.get_combined_minimum_size().y
-	_box.size.y = h
-	_box.position.y = inner.position.y + maxf(0.0, (inner.size.y - h) / 2.0)
-	var a := minf(size.x, size.y) * 0.9
+	_sort(_band)
+	# Read from the top down, as a reference card is.
+	_box.size.y = _box.get_combined_minimum_size().y
+	var a := minf(f.size.x, f.size.y) * 0.9
 	_creature.size = Vector2(a, a)
-	_creature.position = Vector2(size.x - a, size.y - a)
+	_creature.position = f.end - Vector2(a, a + FOOT_H)
+	_fit_result()
 	queue_redraw()
+
+
+## A result is set out line by line while that fits the card at its size, else on
+## one row: chosen again whenever the card is laid out, as it may be sized after it
+## was filled.
+func _fit_result() -> void:
+	if _refitting or not kinds.has("result") or refusal != "" or result_vs.is_empty():
+		return
+	_refitting = true
+	var key := "%s|%d" % [size, result_vs.hash()]
+	var roomy: bool = size.y >= T.NOTE_ROOMY_H and key != _compact_key
+	if preview.roomy != roomy:
+		preview.roomy = roomy
+		_render_result()
+		_fit()
+	if preview.roomy and content_height() > content_room():
+		_compact_key = key
+		preview.roomy = false
+		_render_result()
+		_fit()
+	_refitting = false
+
+
+func _queue_fit() -> void:
+	if _fit_pending or _refitting:
+		return
+	_fit_pending = true
+	_deferred_fit.call_deferred()
+
+
+func _deferred_fit() -> void:
+	_fit_pending = false
+	if is_inside_tree():
+		_fit()
 
 
 ## Lay `node` out from the top down: each container gives its children their
@@ -212,6 +339,62 @@ func _draw() -> void:
 		sh.bg_color = Color(0, 0, 0, layer[1])
 		sh.set_corner_radius_all(radius + int(layer[0]))
 		draw_style_box(sh, Rect2(Vector2(2, 4), size).grow(layer[0]))
-	# Its edge in card stock, as the Deck's cards have, so each note laid on another
-	# reads as a card of its own.
-	draw_style_box(UI.box(T.BG_RAISED, T.CARD_EDGE_LINE, 2, radius, 0), Rect2(Vector2.ZERO, size))
+	# Printed on the card stock the Deck's edges show, its border that stock.
+	draw_style_box(UI.box(T.CARD_EDGE, T.CARD_EDGE_LINE, 2, radius, 0), Rect2(Vector2.ZERO, size))
+	var f := face_rect()
+	var inner_r := maxi(2, radius - int(f.position.x))
+	draw_style_box(UI.box(T.BG_RAISED, Color.TRANSPARENT, 0, inner_r, 0), f)
+	# The title band, its foot torn, the tear edged in the note's colour.
+	var torn := _torn_band(f, BAND_H)
+	draw_colored_polygon(_shifted(torn, Vector2(0, 3)), _accent)
+	draw_colored_polygon(torn, T.BG_BAND)
+	# Where the words end short of the foot, the card's emblem printed faint, as a
+	# reference card fills its face; the setup card has the dragon there instead.
+	if _band_icon.visible and _band_icon.texture != null and not _creature.visible:
+		var top := _box.position.y + _box.size.y + PAD
+		var room := Rect2(f.position.x, top, f.size.x, f.end.y - FOOT_H - PAD - top)
+		var side := minf(room.size.x * 0.55, room.size.y * 0.8)
+		if side >= 64.0:
+			var at := Rect2(room.get_center() - Vector2(side, side) / 2.0, Vector2(side, side))
+			draw_texture_rect(_band_icon.texture, at, false, Color(_accent, 0.07))
+	# The foot: a narrow band of the same dark, a rule of the note's colour over it
+	# and a small mark at its middle, as a printed card's bottom edge.
+	var foot := Rect2(f.position.x, f.end.y - FOOT_H, f.size.x, FOOT_H)
+	var fs := StyleBoxFlat.new()
+	fs.bg_color = T.BG_BAND
+	fs.corner_radius_bottom_left = inner_r
+	fs.corner_radius_bottom_right = inner_r
+	draw_style_box(fs, foot)
+	draw_line(foot.position, Vector2(foot.end.x, foot.position.y), Color(_accent, 0.7), 2.0)
+	var c := foot.get_center()
+	var d := FOOT_H * 0.3
+	draw_colored_polygon(PackedVector2Array([c + Vector2(0, -d), c + Vector2(d, 0), c + Vector2(0, d), c + Vector2(-d, 0)]), _accent)
+
+
+## The title band across the top of `f`, `h` deep, its top corners rounded as the
+## face's are and its foot torn: the same tear on every note, so it reads as print.
+func _torn_band(f: Rect2, h: float) -> PackedVector2Array:
+	var r := float(maxi(2, UI.card_radius(size.x) - int(f.position.x)))
+	var pts := PackedVector2Array()
+	# Round the top-left corner, along the top, round the top-right corner.
+	for i in 5:
+		var a := PI + i * (PI / 2.0) / 4.0
+		pts.append(f.position + Vector2(r, r) + Vector2(cos(a), sin(a)) * r)
+	for i in 5:
+		var a := -PI / 2.0 + i * (PI / 2.0) / 4.0
+		pts.append(Vector2(f.end.x - r, f.position.y + r) + Vector2(cos(a), sin(a)) * r)
+	# The torn foot, right to left.
+	var steps := 18
+	var bottom := f.position.y + h
+	for i in range(steps, -1, -1):
+		var x := f.position.x + f.size.x * i / steps
+		var jag: float = [0.0, 4.0, 1.5, 5.0, 2.0, 3.5, 0.5, 4.5, 1.0][i % 9]
+		pts.append(Vector2(x, bottom - jag))
+	return pts
+
+
+static func _shifted(pts: PackedVector2Array, by: Vector2) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	for p in pts:
+		out.append(p + by)
+	return out

@@ -278,8 +278,8 @@ func _check_note(where: String) -> void:
 		for corner in [Vector2(n.size.x, 0), n.size, Vector2(0, n.size.y)]:
 			turned = turned.expand(xf * corner)
 		_ok(region.encloses(turned), "%s: the %s note is on the Deck (%s in %s)" % [where, n.get_meta("kind"), turned, region])
-		_ok(n.content_height() <= n.size.y - 2.0 * n.PAD + 1.0,
-			"%s: the %s note fits it (%d of %d)" % [where, n.get_meta("kind"), int(n.content_height()), int(n.size.y)])
+		_ok(n.content_height() <= n.content_room() + 1.0,
+			"%s: the %s note fits it (%d of %d)" % [where, n.get_meta("kind"), int(n.content_height()), int(n.content_room())])
 		if not deck.result_held:
 			var shown: Array = n.find_children("*", "Label", true, false).filter(func(l): return l.is_visible_in_tree())
 			for s in ui.vs.get("math", {}).get("sums", []):
