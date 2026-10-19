@@ -20,6 +20,8 @@ const StatChip = preload("res://ui/widgets/stat_chip.gd")
 
 ## The pale grey of the printed hourglass.
 const STEEL := Color("aaa6b8")
+## The printed hourglass's glass, a shade darker than its bars.
+const GLASS := Color("75717f")
 
 var panel := {}
 ## The Key Card's Hardship on this Encounter, shown beside the Ability or Peril once
@@ -29,8 +31,14 @@ var hardship = null
 ## on the whole card, which takes no input.
 var interactive := false
 var _creature := Creature.new()
+## Holds the creature and clips it, and its drifting Ether, to the art's part of the
+## frame; the creature cuts the frame's corners from itself (Creature.set_cut()),
+## as clipping children would not hold inside the Deck's own clipping.
+var _clip := Control.new()
 ## A Journey's painted map, or null.
 var _map: Texture2D
+## Over the art and under the badges: the frame's edge and the number plate.
+var _over := Control.new()
 var _chips := {}
 var _discs := []
 ## The number plate's text size as last laid out.
@@ -40,14 +48,22 @@ var number_size := 0
 var number_alpha := 1.0:
 	set(v):
 		number_alpha = clampf(v, 0.0, 1.0)
-		queue_redraw()
+		_over.queue_redraw()
 
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	clip_contents = true
+	# The XP star and the effect discs sit across the frame's edge, as printed, so the
+	# panel does not clip; the art is clipped to the frame by _clip.
+	_clip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_clip.clip_contents = true
+	add_child(_clip)
 	_creature.held = true
-	add_child(_creature)
+	_clip.add_child(_creature)
+	_over.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_over.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_over.draw.connect(_draw_over)
+	add_child(_over)
 	resized.connect(_fit)
 
 
@@ -85,15 +101,16 @@ func render(p: Dictionary, hardship_id = null, live_badges := false) -> void:
 		# As printed: a dark mountain in a box of the MP's Ether, and a pale hourglass.
 		_add("mp", {"icon": "mp_badge", "text": str(j.mp.value), "color": T.BG_BAND, "backing": T.ether(j.mp.element),
 			"element": j.mp.element, "glossary_id": "mp"})
-		_add("time", {"icon": "time_badge", "text": str(j.time_penalty), "color": STEEL, "inset": T.BG_BAND, "glossary_id": "time"})
+		_add("time", {"icon": "time_badge", "text": str(j.time_penalty), "color": STEEL, "inset": GLASS, "inset_icon": "time_badge_glass", "glossary_id": "time"})
 	_add("xp", {"icon": "xp", "text": str(p.xp), "color": T.GOLD, "ink": T.BG_BASE, "glossary_id": "xp"})
-	# The Hardship sits nearer the middle, the Encounter's own Ability or Peril at the corner.
-	for id in [hardship_id, p.effect]:
+	# The Encounter's own Ability or Peril where it is printed, the Hardship beside it.
+	for id in [p.effect, hardship_id]:
 		if id != null:
 			var disc := _make({"icon": Glossary.entry(id).icon, "text": "", "color": T.INK, "glossary_id": id})
 			_discs.append(disc)
 	_fit()
 	queue_redraw()
+	_over.queue_redraw()
 
 
 ## Let the creature move, or keep it still.
@@ -115,7 +132,8 @@ func discs() -> Array:
 static func parts(size: Vector2, kind: String, armor_count := 1) -> Dictionary:
 	var w := size.x
 	var h := size.y
-	var out := {"frame": Rect2(Vector2.ZERO, size)}
+	# The printed frame's corners are cut on the right, top and bottom.
+	var out := {"frame": Rect2(Vector2.ZERO, size), "bevel": bevel(size)}
 	if kind == "enemy":
 		out["art"] = Rect2(w * 0.17, 0, w * 0.83, h)
 		var top := h * 0.04
@@ -134,12 +152,14 @@ static func parts(size: Vector2, kind: String, armor_count := 1) -> Dictionary:
 					shields.append(Rect2(w * 0.02 + k * s * 0.98, y + (side - s) / 2.0, s, s))
 				badges.append(shields)
 		out["badges"] = badges
+		# The star in the bottom right, the Ability across the top edge beside the HP
+		# heart (further discs to its right), as printed.
 		var star := h * 0.22
 		out["xp"] = Rect2(w - star - h * 0.03, h - star - h * 0.03, star, star)
 		var d := h * 0.18
-		out["discs"] = Rect2(w - d - h * 0.03, h * 0.03, d, d)
+		out["discs"] = Rect2(w * 0.02 + side + h * 0.02, -d / 2.0, d, d)
 		var n := h * 0.16
-		out["number"] = Rect2(out.art.position.x + h * 0.03, h * 0.03, n, n)
+		out["number"] = Rect2(w - n - h * 0.05, h * 0.05, n, n)
 	else:
 		var strip := h * 0.25
 		out["art"] = Rect2(0, strip, w, h - strip)
@@ -153,6 +173,23 @@ static func parts(size: Vector2, kind: String, armor_count := 1) -> Dictionary:
 		var n := minf(h * 0.1, w * 0.24)
 		out["number"] = Rect2(w * 0.04, strip + w * 0.04, n, n)
 	return out
+
+
+## How far the frame's corners are cut: about as on the print.
+static func bevel(size: Vector2) -> float:
+	return minf(size.x, size.y) * 0.07
+
+
+## The printed frame round `r`: a box with its right-hand corners cut by `c`.
+static func outline(r: Rect2, c: float) -> PackedVector2Array:
+	return PackedVector2Array([r.position, Vector2(r.end.x - c, r.position.y), Vector2(r.end.x, r.position.y + c),
+		Vector2(r.end.x, r.end.y - c), Vector2(r.end.x - c, r.end.y), Vector2(r.position.x, r.end.y)])
+
+
+## The part of the frame from `top` down, its corners cut as the frame's are.
+static func _below(size: Vector2, top: float, c: float) -> PackedVector2Array:
+	return PackedVector2Array([Vector2(0, top), Vector2(size.x, top), Vector2(size.x, size.y - c),
+		Vector2(size.x - c, size.y), Vector2(0, size.y)])
 
 
 func _add(name: String, opts: Dictionary) -> void:
@@ -177,9 +214,15 @@ func _fit() -> void:
 	var armor: int = panel.enemy.armor.size() if panel.kind == "enemy" else 1
 	var at := parts(size, panel.kind, armor)
 	var art: Rect2 = at.art
-	_creature.position = art.position
+	_clip.position = art.position
+	_clip.size = art.size
+	_creature.position = Vector2.ZERO
 	_creature.size = art.size
 	_creature.crop = _crop(art.size)
+	# The frame's right-hand corners cut from the art: both on an Enemy, whose art
+	# runs the frame's height; on a Journey only the bottom, its top under the strip.
+	var c: float = at.bevel
+	_creature.set_cut(Rect2(Vector2.ZERO, art.size), c if panel.kind == "enemy" else 0.0, c)
 	var rows: Array = at.badges
 	var names := ["hp", "initiative", "attack"] if panel.kind == "enemy" else ["mp", "time"]
 	for i in names.size():
@@ -189,11 +232,13 @@ func _fit() -> void:
 			_put(_chips["armor%d" % k], rows[3][k])
 	_put(_chips.xp, at.xp)
 	var d: Rect2 = at.discs
+	# The Encounter's own effect first, where it is printed: an Enemy's to the right
+	# of it, a Journey's to the left, from its corner.
+	var step := d.size.x * 1.08 * (1.0 if panel.kind == "enemy" else -1.0)
 	for i in _discs.size():
-		# Right to left from the corner: the Encounter's own effect at the corner.
-		var k := _discs.size() - 1 - i
-		_put(_discs[i], Rect2(d.position - Vector2(k * d.size.x * 1.08, 0), d.size))
+		_put(_discs[i], Rect2(d.position + Vector2(i * step, 0), d.size))
 	queue_redraw()
+	_over.queue_redraw()
 
 
 func _put(c: Control, r: Rect2) -> void:
@@ -230,20 +275,43 @@ func _draw() -> void:
 	var at := parts(size, panel.kind, armor)
 	var tint: Color = T.ether(panel.element)
 	var edge := maxf(1.5, size.y * 0.012)
-	draw_rect(at.frame, Color(tint, 0.18))
+	var c: float = at.bevel
+	draw_colored_polygon(outline(at.frame, c), Color(tint, 0.18))
 	if panel.kind == "journey":
 		# The printed strip along the top, in the dark of the card's band.
-		draw_rect(Rect2(0, 0, size.x, at.art.position.y), Color(T.BG_BAND, 0.92))
+		var strip: float = at.art.position.y
+		draw_colored_polygon(PackedVector2Array([Vector2.ZERO, Vector2(size.x - c, 0), Vector2(size.x, c),
+			Vector2(size.x, strip), Vector2(0, strip)]), Color(T.BG_BAND, 0.92))
 		if _map != null:
-			draw_texture_rect_region(_map, at.art, cover_region(_map.get_size(), at.art.size))
-	draw_rect(at.frame.grow(-edge / 2.0), T.muted(tint), false, edge)
+			# The map covers the landscape, cut at the frame's corner like it.
+			var pts := _below(size, strip, c)
+			var src := cover_region(_map.get_size(), at.art.size)
+			var uvs := PackedVector2Array()
+			for pt in pts:
+				uvs.append((src.position + (pt - at.art.position) / at.art.size * src.size) / _map.get_size())
+			draw_colored_polygon(pts, Color.WHITE, uvs, _map)
+
+
+## The frame's edge and the number plate, over the art so a figure standing to the
+## panel's foot goes behind the edge, and under the badges.
+func _draw_over() -> void:
+	if panel.is_empty():
+		return
+	var armor: int = panel.enemy.armor.size() if panel.kind == "enemy" else 1
+	var at := parts(size, panel.kind, armor)
+	var tint: Color = T.ether(panel.element)
+	var edge := maxf(1.5, size.y * 0.012)
+	var line := outline(at.frame.grow(-edge / 2.0), at.bevel)
+	line.append(line[0])
+	_over.draw_polyline(line, T.muted(tint), edge, true)
 	if number_alpha <= 0.0:
 		return
 	var n: Rect2 = at.number
-	draw_style_box(UI.box(Color(T.BG_BASE, 0.72 * number_alpha), Color.TRANSPARENT, 0, int(n.size.y * 0.2), 0), n)
+	_over.draw_style_box(UI.box(Color(T.BG_BASE, 0.72 * number_alpha), Color.TRANSPARENT, 0, int(n.size.y * 0.2), 0), n)
 	var font := UI.font(T.LABEL_BOLD[0])
 	number_size = maxi(8, roundi(n.size.y * 0.78))
 	var text := str(panel.index)
 	var tw := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, number_size).x
 	var base := n.get_center().y + (font.get_ascent(number_size) - font.get_descent(number_size)) / 2.0
-	draw_string(font, Vector2(n.get_center().x - tw / 2.0, base), text, HORIZONTAL_ALIGNMENT_LEFT, -1, number_size, Color(T.INK, number_alpha))
+	_over.draw_string(font, Vector2(n.get_center().x - tw / 2.0, base), text, HORIZONTAL_ALIGNMENT_LEFT, -1, number_size, Color(T.INK, number_alpha))
+

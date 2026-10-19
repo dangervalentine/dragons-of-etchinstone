@@ -39,6 +39,9 @@ var _frame := Control.new()
 ## shader's layer0 to layer5), so the tint's alpha is applied once.
 var _picture := _layer()
 var _particles: CPUParticles2D
+## A bevelled frame the picture is cut to (set_cut()), in the widget's own units:
+## {box, top, bottom}, or empty for none.
+var _cut := {}
 var _still := false
 ## Kept still whatever the motion setting: a creature on the Region Card, or one
 ## waiting for the Deck's zoom to land before it wakes (specs/012 research R7).
@@ -172,6 +175,26 @@ func art_rect() -> Rect2:
 	return Rect2((size - crop.size * zoom) / 2.0 - crop.position * zoom, Vector2(side, side))
 
 
+## Cut the picture to `box` (in the widget's own units) with its top-right and
+## bottom-right corners cut away by `top` and `bottom`, as a Region Card panel's
+## frame is: drawn so by the shader, so it holds inside other clipping.
+func set_cut(box: Rect2, top: float, bottom: float) -> void:
+	_cut = {"box": box, "top": top, "bottom": bottom}
+	_apply_cut()
+
+
+func _apply_cut() -> void:
+	var m: ShaderMaterial = _picture.material
+	m.set_shader_parameter("cut", not _cut.is_empty())
+	if _cut.is_empty():
+		return
+	# The shader works in the picture's units: the box moved by where the picture sits.
+	var box: Rect2 = _cut.box
+	var at := box.position - _frame.position - _picture.position
+	m.set_shader_parameter("cut_box", Vector4(at.x, at.y, box.size.x, box.size.y))
+	m.set_shader_parameter("cut_corners", Vector2(_cut.top, _cut.bottom))
+
+
 func _fit() -> void:
 	# The picture is the whole square of art, scaled so `crop` fits the widget and
 	# placed so `crop` is centred in it.
@@ -182,6 +205,7 @@ func _fit() -> void:
 	_picture.position = art.position - art.size * MARGIN
 	_picture.size = art.size * (1.0 + 2.0 * MARGIN)
 	_picture.material.set_shader_parameter("pad", MARGIN / (1.0 + 2.0 * MARGIN))
+	_apply_cut()
 	if _particles != null:
 		_particles.position = size / 2.0
 		_particles.emission_rect_extents = size * Vector2(0.34, 0.3)

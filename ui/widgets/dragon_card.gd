@@ -18,6 +18,8 @@ const Art = preload("res://ui/model/art.gd")
 
 ## The pale grey of the printed hourglass.
 const STEEL := Color("aaa6b8")
+## The printed hourglass's glass, a shade darker than its bars.
+const GLASS := Color("75717f")
 ## Shares of the card's width and height, measured from the scan
 ## (reference/sheets-official/o5.png, Grimroch and Vuurhast).
 const LAYOUT := {
@@ -67,7 +69,7 @@ func render(m: Dictionary) -> void:
 	for tier in d.mp_tiers:
 		_rows.mp.append([
 			_chip({"icon": "mp_badge", "text": str(tier.mp.value), "color": T.BG_BAND, "backing": T.ether(tier.mp.element), "element": tier.mp.element}),
-			_chip({"icon": "time_badge", "text": str(tier.time_penalty), "color": STEEL, "inset": T.BG_BAND})])
+			_chip({"icon": "time_badge", "text": str(tier.time_penalty), "color": STEEL, "inset": GLASS, "inset_icon": "time_badge_glass"})])
 	for tier in d.hp_tiers:
 		_rows.hp.append([
 			_chip({"icon": "hp", "text": str(tier.hp), "color": T.BG_BAND}),

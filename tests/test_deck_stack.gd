@@ -156,11 +156,12 @@ func test_the_zoom_rests_on_the_card_grown_round_its_panel() -> void:
 					ok(at.card.grow(0.5).encloses(Rect2(face.position, Vector2(face.size.x, at.strip.position.y))) or at.card.size.x < face.size.x or at.card.size.y < at.strip.position.y,
 						"%s: no bare face round the card" % where)
 					ok(not at.panel.intersects(at.strip), "%s: clear of the strip" % where)
-					ok(is_equal_approx(at.strip.end.y, face.end.y), "%s: the strip along the foot" % where)
+					ok(absf(at.strip.position.y - at.panel.end.y) < 0.5, "%s: the strip right under the panel" % where)
+					ok(at.strip.end.y <= face.end.y + 0.5, "%s: the strip on the face" % where)
 					var on_card := RegionCard.panel_rect(at.card.size, key)
 					ok(on_card.position.distance_to(at.panel.position - at.card.position) < 0.5 and on_card.size.distance_to(at.panel.size) < 0.5,
 						"%s: the panel is the card's own, grown" % where)
-					ok(is_equal_approx(at.panel.size.x, face.size.x) or absf(at.panel.end.y - at.strip.position.y) < 0.5 or is_equal_approx(at.panel.size.y, face.size.y - at.strip.size.y),
+					ok(is_equal_approx(at.panel.size.x, face.size.x) or is_equal_approx(at.panel.size.y, face.size.y - at.strip.size.y),
 						"%s: as large as fits" % where)
 		var three := DeckStack.landing(face, "journey:1", 3)
 		var one := DeckStack.landing(face, "journey:1", 1)

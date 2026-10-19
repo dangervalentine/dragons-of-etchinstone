@@ -22,19 +22,22 @@ var plate := false
 var glossary_id := ""
 ## A chamfered box behind the shape, as the printed Journey MP sits in its Ether colour.
 var backing := Color.TRANSPARENT
-## A smaller copy of the shape inside it in this colour, as the printed hourglass.
+## A smaller copy of the shape inside it in this colour, or `inset_icon` in it.
 var inset := Color.TRANSPARENT
+## A shape of its own drawn in `inset` over the icon, as the printed hourglass's glass
+## between its bars.
+var inset_icon := ""
 
 var _hover := false
 
 ## Where the number belongs inside each shape, in the icons' 48-unit view box: the
 ## widest calm part of its body (the heart between its lobes and point, the shield
-## above its point, the flame's round base, the dark hourglass between its bars).
+## above its point, the flame's round base, the hourglass's glass between its bars).
 ## The number is sized to fit this window and centred on it by its own ink
 ## (ui/theme/numerals.gd).
 const WINDOW := {"hp": Rect2(8, 10, 32, 23), "initiative": Rect2(9, 5, 30, 29),
 	"attack_badge": Rect2(11, 20, 26, 23), "armor": Rect2(8, 8, 32, 28),
-	"mp_badge": Rect2(10, 27, 28, 16), "time_badge": Rect2(14.5, 12, 19, 24),
+	"mp_badge": Rect2(10, 27, 28, 16), "time_badge": Rect2(15, 13, 18, 22),
 	"xp": Rect2(13, 13, 22, 22), "crown": Rect2(10, 18, 28, 18), "mp": Rect2(11, 29, 24, 13)}
 const WINDOW_DEFAULT := Rect2(9, 9, 30, 30)
 
@@ -103,7 +106,9 @@ func _draw() -> void:
 		# A thin pale rim, as the printed badges have.
 		draw_texture_rect(UI.icon(icon), rect.grow(maxf(1.0, side * 0.03)), false, Color(T.INK, 0.45))
 		draw_texture_rect(UI.icon(icon), rect, false, color)
-		if inset.a > 0.0:
+		if inset.a > 0.0 and inset_icon != "":
+			draw_texture_rect(UI.icon(inset_icon), rect, false, inset)
+		elif inset.a > 0.0:
 			draw_texture_rect(UI.icon(icon), rect.grow(-side * 0.1), false, inset)
 		Numerals.draw(self, window_rect(icon, rect), text, ink, color)
 		if element != "":

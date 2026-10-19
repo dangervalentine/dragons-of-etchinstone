@@ -17,20 +17,20 @@ What the top card shows, checked by `test_region_card`, `test_region_panel`, `ui
 
 | Part | Where (fraction of the panel) | Content |
 |---|---|---|
-| Frame | whole | Rounded rect in the panel's Ether at 0.18, edge `T.muted(ether)` |
+| Frame | whole | Box with its right-hand corners cut (`bevel`, 0.07 of the shorter side) as printed, in the panel's Ether at 0.18, edge `T.muted(ether)` over the art |
 | Art | x 0.2 – 1, y 0 – 1 | Creature, cropped by `enemy_crop`. Still on the card, moving when landed |
 | Badge column | x 0.02 – 0.2, y 0.04 – 0.96 | HP (heart, `T.HP`), Initiative (`T.BG_BAND`), Attack (Ether), Armor (Ether; 2 shields at 0.92 size side by side when two) |
-| Effect disc(s) | top-right, 0.18 h each | Ability. When landed, also the Key Card's Hardship, to its left |
+| Effect disc(s) | across the top edge beside the HP heart, 0.18 h each | Ability, where it is printed. When landed, also the Key Card's Hardship, to its right |
 | XP star | bottom-right, 0.22 h | `xp` in a star, `T.GOLD` |
-| Number marker | top-left of the art, 0.16 h | `index` in `T.LABEL_BOLD` on `T.BG_BASE` at 0.72 |
+| Number marker | top-right, 0.16 h | `index` in `T.LABEL_BOLD` on `T.BG_BASE` at 0.72 |
 
 ## A Journey panel (`RegionPanel`, kind `journey`)
 
 | Part | Where | Content |
 |---|---|---|
-| Header strip | y 0 – 0.25 | MP badge (dark mountain on the MP Ether) on the left half, Time Penalty hourglass (`STEEL`) on the right |
+| Header strip | y 0 – 0.25 | MP badge (dark mountain on the MP Ether) on the left half, Time Penalty hourglass (`STEEL` bars, `GLASS` between them, flared as printed) on the right |
 | Art | y 0.25 – 1 | Landscape, whole (`Art.FULL`), cropped to fill |
-| Effect disc(s) | art's top-right | Peril. When landed, also the Hardship |
+| Effect disc(s) | art's top-right | Peril. When landed, also the Hardship, to its left |
 | XP star | foot, centred | `xp` |
 | Number marker | art's top-left | `index` |
 

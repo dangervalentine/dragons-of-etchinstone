@@ -11,6 +11,8 @@ signal intent(data: Dictionary)
 
 ## The pale grey of the printed hourglass.
 const STEEL := Color("aaa6b8")
+## The printed hourglass's glass, a shade darker than its bars.
+const GLASS := Color("75717f")
 
 var _shown := {}
 var _enemy := false
@@ -98,7 +100,7 @@ func render(enc: Dictionary) -> void:
 		# As printed: a dark mountain in a box of the MP's Ether, and a pale hourglass.
 		_column.add_child(_chip({"icon": "mp_badge", "text": str(d.mp.value), "color": T.BG_BAND, "backing": T.ether(d.mp.element),
 			"element": d.mp.element, "glossary_id": "mp"}))
-		_column.add_child(_chip({"icon": "time_badge", "text": str(d.time_penalty), "color": STEEL, "inset": T.BG_BAND,
+		_column.add_child(_chip({"icon": "time_badge", "text": str(d.time_penalty), "color": STEEL, "inset": GLASS, "inset_icon": "time_badge_glass",
 			"glossary_id": "time"}))
 	row.add_child(_column)
 	_art_slot = Control.new()

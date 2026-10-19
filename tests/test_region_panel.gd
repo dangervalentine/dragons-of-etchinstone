@@ -12,12 +12,23 @@ func _all(at: Dictionary) -> Array:
 	return out
 
 
+## The parts drawn wholly inside the frame: all but the discs, which sit across its
+## edge as printed.
+func _inside(at: Dictionary) -> Array:
+	var out := [at.art, at.xp, at.number]
+	for row in at.badges:
+		out.append_array(row)
+	return out
+
+
 func test_every_part_is_inside_the_panel() -> void:
 	for kind in ["enemy", "journey"]:
 		for s in [Vector2(167, 115), Vector2(92, 158), Vector2(376, 259), Vector2(300, 500)]:
 			var frame := Rect2(Vector2.ZERO, s).grow(0.5)
-			for r in _all(RegionPanel.parts(s, kind, 2)):
+			var at := RegionPanel.parts(s, kind, 2)
+			for r in _inside(at):
 				ok(frame.encloses(r), "%s at %s: %s inside" % [kind, s, r])
+			ok(frame.has_point(at.discs.get_center()), "%s at %s: the discs centred on the frame" % [kind, s])
 
 
 func test_the_parts_grow_with_the_panel() -> void:
@@ -44,8 +55,8 @@ func test_an_enemy_has_its_four_badge_rows_down_the_left() -> void:
 	ok(two.badges[3][0].end.x <= two.badges[3][1].position.x + 1.0 and is_equal_approx(two.badges[3][0].position.y, two.badges[3][1].position.y), "side by side")
 	ok(is_equal_approx(two.badges[3][0].size.x, one.badges[3][0].size.x * 0.92), "each a little smaller")
 	ok(one.xp.position.x > s.x * 0.6 and one.xp.position.y > s.y * 0.6, "the star at the bottom right")
-	ok(one.discs.position.x > s.x * 0.6 and one.discs.end.y < s.y * 0.4, "the Ability at the top right")
-	ok(one.number.position.x >= one.art.position.x and one.number.end.y < s.y * 0.3, "the number at the art's top left")
+	ok(absf(one.discs.get_center().y) < 0.5 and one.discs.position.x >= one.badges[0][0].end.x, "the Ability across the top edge, beside the HP heart")
+	ok(one.number.position.x > s.x * 0.6 and one.number.end.y < s.y * 0.3, "the number at the top right")
 
 
 func test_a_journey_has_its_figures_in_the_top_strip() -> void:

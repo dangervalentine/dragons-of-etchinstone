@@ -62,12 +62,39 @@ uniform float bone_reach[8];
 uniform int bone_last[8];
 uniform vec2 bone_shift[8];
 
+// A frame the art is cut to, in the picture's own units (x, y, width, height), and
+// how far its top-right and bottom-right corners are cut away: a Region Card
+// panel's bevelled frame. Done here rather than by a clipping parent, as clipping
+// children does not nest inside the Deck's own.
+uniform bool cut = false;
+uniform vec4 cut_box = vec4(0.0);
+uniform vec2 cut_corners = vec2(0.0);
+
 // The node's modulate, its parents' included (a screen fading in or out). It
 // arrives in the vertex colour, which writing COLOR would otherwise throw away.
 varying vec4 modulate;
+// Where the fragment is in the picture's own units, for the cut.
+varying vec2 local;
 
 void vertex() {
 	modulate = COLOR;
+	local = VERTEX;
+}
+
+// 1 inside the cut frame, 0 outside it.
+float within_cut(vec2 p) {
+	if (!cut) {
+		return 1.0;
+	}
+	vec2 lo = cut_box.xy;
+	vec2 hi = cut_box.xy + cut_box.zw;
+	if (p.x < lo.x || p.y < lo.y || p.x > hi.x || p.y > hi.y) {
+		return 0.0;
+	}
+	if ((hi.x - p.x) + (p.y - lo.y) < cut_corners.x || (hi.x - p.x) + (hi.y - p.y) < cut_corners.y) {
+		return 0.0;
+	}
+	return 1.0;
 }
 
 // 1 inside the art, 0 beyond its edge, where nothing is drawn.
@@ -233,10 +260,11 @@ void fragment() {
 	}
 	body = body * (1.0 - cover) + draw;
 	float glow = mode == 7 ? 0.82 + 0.18 * a * sin(t * 1.1) : 1.0;
+	float kept = within_cut(local);
 	if (painted) {
 		vec4 c = texture(TEXTURE, uv) * inside(uv);
-		COLOR = vec4(c.rgb * glow, c.a) * modulate;
+		COLOR = vec4(c.rgb * glow, c.a * kept) * modulate;
 	} else {
-		COLOR = vec4(tint.rgb * glow, tint.a * body) * modulate;
+		COLOR = vec4(tint.rgb * glow, tint.a * body * kept) * modulate;
 	}
 }

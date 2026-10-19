@@ -72,6 +72,12 @@ class LandedFace extends Control:
 	var key := ""
 	var strip := VBoxContainer.new()
 	var _back := ColorRect.new()
+	## The strip's own room under the panel, clipped at the panel's foot, so the strip
+	## slides down into it from behind the art (slide_strip()).
+	var _strip_room := Control.new()
+	## How far above its place the strip is, sliding down.
+	var _strip_up := 0.0
+	var _strip_tween: Tween
 	var _stone = load("res://ui/theme/stone_style.gd").new("well", 0.5)
 
 	func _init() -> void:
@@ -82,11 +88,14 @@ class LandedFace extends Control:
 		clip_children = CanvasItem.CLIP_CHILDREN_AND_DRAW
 		card.set_numbers(0.0)
 		add_child(card)
+		_strip_room.clip_contents = true
+		_strip_room.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(_strip_room)
 		_back.color = Color(0.06, 0.05, 0.09, 0.88)
 		_back.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		add_child(_back)
+		_strip_room.add_child(_back)
 		strip.add_theme_constant_override("separation", 8)
-		add_child(strip)
+		_strip_room.add_child(strip)
 		_stone.changed.connect(queue_redraw)
 		gui_input.connect(func(e: InputEvent):
 			if e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT and not e.pressed and panel != null:
@@ -111,10 +120,31 @@ class LandedFace extends Control:
 	func lay_out(at: Dictionary) -> void:
 		card.position = at.card.position
 		card.size = at.card.size
-		_back.position = at.strip.position
+		_strip_room.position = at.strip.position
+		_strip_room.size = at.strip.size
 		_back.size = at.strip.size
-		strip.position = at.strip.position + Vector2(16, 8)
 		strip.size = Vector2(at.strip.size.x - 32, 0)
+		_place_strip(_strip_up)
+
+	func _place_strip(up: float) -> void:
+		_strip_up = up
+		_back.position = Vector2(0, -up)
+		strip.position = Vector2(16, 8 - up)
+
+	## The strip slides down from behind the panel's foot into its place after
+	## `delay`, over `d`.
+	func slide_strip(delay: float, d: float) -> void:
+		settle_strip()
+		_place_strip(_strip_room.size.y)
+		_strip_tween = create_tween()
+		_strip_tween.tween_interval(delay)
+		_strip_tween.tween_method(_place_strip, _strip_room.size.y, 0.0, d).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+
+	## The strip in its place, any slide stopped.
+	func settle_strip() -> void:
+		if _strip_tween != null and _strip_tween.is_valid():
+			_strip_tween.kill()
+		_place_strip(0.0)
 
 	func _relay(data: Dictionary) -> void:
 		intent.emit(data)
@@ -288,10 +318,11 @@ static func zoom_scale(face: Rect2, tile: Rect2) -> float:
 	return minf(face.size.x / maxf(tile.size.x, 1.0), face.size.y / maxf(tile.size.y, 1.0))
 
 
-## Where the Deck comes to rest zoomed in on `key` on a face of `face`: the reading
-## strip of `strip_lines` lines along the face's foot; the panel as large as fits in
-## the rest, keeping its printed shape, centred there; and the whole card, grown
-## alike, where that puts it (most of it beyond the face, which clips it).
+## Where the Deck comes to rest zoomed in on `key` on a face of `face`: room for the
+## reading strip of `strip_lines` lines kept along the face's foot; the panel as
+## large as fits in the rest, keeping its printed shape, centred there; the strip
+## itself right under the panel; and the whole card, grown alike, where that puts it
+## (most of it beyond the face, which clips it).
 static func landing(face: Rect2, key: String, strip_lines: int) -> Dictionary:
 	var strip_h := strip_lines * STRIP_LINE + T.M
 	var strip := Rect2(face.position + Vector2(0, face.size.y - strip_h), Vector2(face.size.x, strip_h))
@@ -313,6 +344,9 @@ static func landing(face: Rect2, key: String, strip_lines: int) -> Dictionary:
 				shift[axis] = area.end[axis] - card.end[axis]
 	panel.position += shift
 	card.position += shift
+	# The strip comes up to the panel's foot, however few its lines, so the name sits
+	# right under the Encounter it names.
+	strip.position.y = minf(strip.position.y, panel.end.y)
 	return {"strip": strip, "panel": panel, "card": card}
 
 
@@ -943,6 +977,8 @@ func zoom_in(target: String, d: float) -> void:
 			region_card.set_rim(lerpf(rim0, 0.0, v))
 			region_card.set_numbers(1.0 - v), 0.0, 1.0, d)
 		tw.tween_property(face, "modulate:a", 1.0, d * LAND_FADE).set_delay(d * (1.0 - LAND_FADE))
+		# The Encounter's name comes down from behind the panel as the face takes over.
+		landed.slide_strip(d * (1.0 - LAND_FADE), T.MOVE)
 		tw.tween_method(_set_stack_rect, from, f, d)
 		tw.chain().tween_callback(_land)
 		return

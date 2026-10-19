@@ -107,14 +107,11 @@ func rim_rect() -> Rect2:
 func _draw_rim() -> void:
 	if rim <= 0.0 or focus_key == "":
 		return
+	# Along the panel's frame, its corners cut as the frame's are.
 	var r := rim_rect()
-	var s := StyleBoxFlat.new()
-	s.draw_center = false
-	s.border_color = Color(T.GOLD, rim)
-	s.set_border_width_all(ceili(rim_width()))
-	s.set_corner_radius_all(int(r.size.y * 0.04))
-	s.anti_aliasing = true
-	_rim_layer.draw_style_box(s, r)
+	var line := RegionPanel.outline(r, RegionPanel.bevel(panel_rect(size, focus_key).size) + rim_width() * 0.2)
+	line.append(line[0])
+	_rim_layer.draw_polyline(line, Color(T.GOLD, rim), rim_width(), true)
 
 
 func panel(key: String) -> Control:
