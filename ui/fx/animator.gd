@@ -312,7 +312,8 @@ func _strike(ids: Array, d: float) -> void:
 	_keep(_later(d * 0.45, func(): UI.shake(face, 9.0)))
 
 
-## A card changes Level where it stands.
+## A card changes Level where it stands: given its new Level, it turns over to
+## show it (card_view.gd), unless it already shows it, turned when it was chosen.
 func _level(id: String, st: Dictionary, d: float) -> void:
 	var v: Control = screen.hand.card(id)
 	if v == null:
@@ -320,8 +321,9 @@ func _level(id: String, st: Dictionary, d: float) -> void:
 	var up: bool = st.kind == "upgrade"
 	var m: Dictionary = _after.cards.get(id, {}).duplicate(true)
 	if not m.is_empty():
-		_keep(_later(d * 0.35, func(): v.set_model(m)))
-	_keep(_pulse(v, d))
+		v.set_model(m)
+	if UI.reduced_motion:
+		_keep(_pulse(v, d))
 	var c: Color = T.GOLD if up else T.BAD
 	_keep(flight.float_text("Level %d" % st.values.level, v.global_position + Vector2(v.size.x / 2.0, v.size.y * 0.2), c, 30, d * 2.0,
 		"crown" if up else "down_arrow"))
@@ -338,6 +340,24 @@ func _stars(id: String, spent: int, d: float) -> void:
 	for i in spent:
 		_keep(flight.ghost("xp", from, to, d, T.GOLD, 28, i * d * 0.08))
 	screen.xp_purse.count_to(int(screen.vs.xp) - spent, d)
+
+
+## While Upgrades are chosen: the XP a card takes flies from the purse to it as
+## stars, and back to the purse when the Upgrade is taken back; the purse counts
+## from `from_xp` to what is left.
+func spend(play_screen: Control, id: String, from_xp: int, to_xp: int) -> void:
+	screen = play_screen
+	var v: Control = screen.hand.card(id)
+	if v == null or not screen.xp_purse.is_visible_in_tree() or from_xp == to_xp:
+		return
+	var purse: Vector2 = screen.xp_purse.point()
+	var card: Vector2 = v.global_position + v.size / 2.0
+	var a: Vector2 = purse if to_xp < from_xp else card
+	var b: Vector2 = card if to_xp < from_xp else purse
+	for i in absi(from_xp - to_xp):
+		flight.ghost("xp", a, b, T.TURN, T.GOLD, 28, i * T.TURN * 0.08)
+	screen.xp_purse.amount.text = str(from_xp)
+	screen.xp_purse.count_to(to_xp, T.TURN)
 
 
 ## The damage due leaves the Soak meter for the cards chosen to take it: each card

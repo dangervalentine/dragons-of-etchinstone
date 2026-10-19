@@ -78,7 +78,9 @@ func sync(vs: Dictionary, plan: Dictionary, animate := false, arrive_from = null
 		view.set_model(m)
 		var r: Rect2 = _home_of(id, m, places, vs.get("unplaced", hand))
 		var home: Rect2 = Rect2(r.position - global_position, r.size)
-		if m.state == "held" or m.state == "selected":
+		# A card picked up rises a little; a chosen one stays put, its border (and in
+		# the Soak and Upgrade steps its turned face) enough to show it.
+		if m.state == "held":
 			home.position.y -= Solver.HELD_LIFT
 		view.home = home
 		view.z_index = 1 if m.state == "held" else 0

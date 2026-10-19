@@ -5,7 +5,6 @@ const Game = preload("res://engine/game.gd")
 const ViewState = preload("res://ui/model/view_state.gd")
 const Sequencer = preload("res://ui/model/sequencer.gd")
 const T = preload("res://ui/theme/tokens.gd")
-const Undo = preload("res://ui/model/upgrade_undo.gd")
 
 var db = CardDB.new()
 var kinds_seen := {}
@@ -191,19 +190,6 @@ func test_an_upgrade_step_carries_the_xp_spent() -> void:
 	var up: Array = steps.filter(func(s): return s.kind == "upgrade")
 	eq(up.size(), 1, "one Upgrade step")
 	eq(up[0].values.get("spent"), cost, "it spent the card's Upgrade cost")
-
-
-## Undoing an Upgrade gives the XP back as a Downgrade step, with nothing spent.
-func test_undo_is_a_downgrade_with_no_spend() -> void:
-	var g = _upgrading(20)
-	var id := _upgradable(g)
-	var entry: Dictionary = Undo.record(g, id)
-	g.upgrade(id)
-	var before: Dictionary = ViewState.snapshot(g)
-	Undo.undo(g, entry)
-	var steps: Array = Sequencer.build(before, {"kind": "upgrade", "cards": [id], "id": id}, {}, ViewState.snapshot(g))
-	eq(steps.map(func(s): return s.kind), ["downgrade"], "one Downgrade step")
-	ok(not steps[0].values.has("spent"), "and no XP spent")
 
 
 ## XP left when the Upgrade step ends is lost, and the steps say how much.

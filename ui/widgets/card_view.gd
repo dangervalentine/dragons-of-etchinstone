@@ -2,12 +2,19 @@ extends Control
 ## One Mage Card on screen. The node lives as long as the card is visible, so it
 ## can move between places. It draws the face, shows the card's state on top of it
 ## (role, Reserve, selection, fused, unavailable) and reports taps and holds.
+## When the Level it shows changes, it turns over as if the new Level were printed
+## on the back: right to left going up, left to right going down.
 
 const T = preload("res://ui/theme/tokens.gd")
 const HelpTip = preload("res://ui/widgets/help_tip.gd")
 const UI = preload("res://ui/theme/theme.gd")
 const Haptics = preload("res://ui/fx/haptics.gd")
 const CardFace = preload("res://ui/widgets/card_face.gd")
+const TrashedBack = preload("res://ui/widgets/trashed_back.gd")
+const TURN_SHADER = preload("res://ui/fx/shaders/card_turn.gdshader")
+## Room round the card in the turning picture, as a share of its size: for the tag
+## above it, its shadow, and the near edge growing as it comes forward.
+const TURN_ROOM := Vector2(0.15, 0.3)
 
 const HOLD_SECONDS := 0.35
 ## How far the pointer moves with the button down before a press becomes a drag.
@@ -35,11 +42,24 @@ var home := Rect2()
 
 const Glossary = preload("res://ui/model/glossary.gd")
 var _face := CardFace.new()
+## The face and the marks on it, turned over together when the Level shown changes,
+## so the card's own place in the Hand moves on undisturbed.
+var _turn := Control.new()
+## What a card to be Trashed turns to: a back shared by all such cards, no figures.
+var _back := TrashedBack.new()
+var _flip: Tween
+## While the card turns, the face is drawn into this picture, and `_turning` shows
+## it laid on the turning plane (ui/fx/shaders/card_turn.gdshader).
+var _picture: SubViewport
+var _turning: TextureRect
+## The Level the face shows, or is turning to show (0 for a card to be Trashed).
+var _shown_level := -1
+## Whether the face shows the card as it will become (model.turned), once turned.
+var _face_turned := false
 ## The parts a tooltip can explain; the Ether sigils are checked first, as they sit on the plates.
 const PART_ORDER := ["level", "cost", "key", "initiative", "basic", "enhanced", "boost", "armor"]
 var _marks := Control.new()
 var _hold := Timer.new()
-var _showing_alt := false
 var _pressing := false
 var _held := false
 var _hover := false
@@ -52,10 +72,14 @@ const AIM_HELP := "Where this Boost goes: choose Attack or Initiative beside the
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	focus_mode = Control.FOCUS_NONE
-	add_child(_face)
+	_turn.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_turn)
+	_turn.add_child(_face)
+	_back.visible = false
+	_turn.add_child(_back)
 	_marks.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_marks.draw.connect(_draw_marks)
-	add_child(_marks)
+	_turn.add_child(_marks)
 	_hold.one_shot = true
 	_hold.wait_time = HOLD_SECONDS
 	_hold.timeout.connect(_on_hold)
@@ -66,17 +90,118 @@ func _init() -> void:
 
 
 func set_model(m: Dictionary) -> void:
+	var same_card: bool = not model.is_empty() and model.id == m.id
 	model = m
 	id = m.id
-	_showing_alt = false
-	_face.set_model(m)
-	_face.dimmed = not m.get("eligible", true)
-	_face.set_focus(m.get("focus", {}))
-	if _hover:
-		_show_alt(true)
 	_cursor = Control.CURSOR_POINTING_HAND if m.get("eligible", true) else Control.CURSOR_ARROW
 	mouse_default_cursor_shape = _cursor
+	var level := shown_level(m)
+	if same_card and level != _shown_level and is_inside_tree() and not UI.reduced_motion:
+		_turn_over(-1.0 if level > _shown_level else 1.0)
+	elif _flip == null or not _flip.is_valid():
+		_show_face()
+	_shown_level = level
+
+
+## The Level a card's face shows: the one it will become while it is turned (0 if
+## it will be Trashed), else its own.
+static func shown_level(m: Dictionary) -> int:
+	var alt = m.get("alt")
+	if m.get("turned", false) and alt != null:
+		return 0 if alt.trashed else int(alt.level)
+	return int(m.level)
+
+
+## Draw the face for the model as it stands: the card as it will become while it
+## is turned, with the figures that change ringed, or the Trashed back.
+func _show_face() -> void:
+	var alt = model.get("alt")
+	_face_turned = model.get("turned", false) and alt != null
+	var trashed: bool = _face_turned and alt.trashed
+	_face.visible = not trashed
+	_back.visible = trashed
+	if not _face_turned or trashed:
+		_face.set_model(model)
+		_face.dimmed = not model.get("eligible", true)
+	else:
+		var m := model.duplicate()
+		m.level = alt.level
+		m.stats = alt.stats
+		_face.set_model(m, alt.changed, T.GOLD if alt.level > model.level else T.BAD)
+		_face.dimmed = false
+	_face.set_focus(model.get("focus", {}))
 	_marks.queue_redraw()
+
+
+## Turn the card over about its upright axis, in perspective; `dir` is the way
+## the edge it is turned by travels, -1 right to left and 1 left to right. That
+## edge lifts toward the eye and sweeps across; the face changes while the card is
+## edge-on, and the new face comes down from the other side.
+func _turn_over(dir: float) -> void:
+	if _flip != null and _flip.is_valid():
+		_flip.kill()
+	_begin_turning()
+	var mat: ShaderMaterial = _turning.material
+	var turn := func(t: float) -> void:
+		# The first half turns the old face to its edge, the second brings the new one
+		# down from the far side, so the same edge leads all the way across.
+		var a: float = dir * PI * t if t <= 0.5 else -dir * PI * (1.0 - t)
+		mat.set_shader_parameter("angle", a)
+	_flip = create_tween().set_trans(Tween.TRANS_SINE)
+	_flip.tween_method(turn, 0.0, 0.5, T.TURN / 2.0).set_ease(Tween.EASE_IN)
+	_flip.tween_callback(_show_face)
+	_flip.tween_method(turn, 0.5, 1.0, T.TURN / 2.0).set_ease(Tween.EASE_OUT)
+	_flip.tween_callback(_end_turning)
+
+
+## Move the face into the picture, sharp at the size it is on screen, and show the
+## picture on the turning plane in its place.
+func _begin_turning() -> void:
+	var px: Vector2 = get_viewport().get_final_transform().get_scale() * get_global_transform_with_canvas().get_scale()
+	var k := maxf(1.0, maxf(px.x, px.y))
+	var room := size * TURN_ROOM
+	if _picture == null:
+		_picture = SubViewport.new()
+		_picture.transparent_bg = true
+		_picture.disable_3d = true
+		add_child(_picture)
+		_turning = TextureRect.new()
+		_turning.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_turning.texture = _picture.get_texture()
+		_turning.stretch_mode = TextureRect.STRETCH_SCALE
+		_turning.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		_turning.material = ShaderMaterial.new()
+		_turning.material.shader = TURN_SHADER
+		add_child(_turning)
+	_picture.size = Vector2i(((size + room * 2.0) * k).ceil())
+	_picture.canvas_transform = Transform2D(0.0, Vector2(k, k), 0.0, room * k)
+	_picture.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	if _turn.get_parent() != _picture:
+		remove_child(_turn)
+		_picture.add_child(_turn)
+	# The plane's rect reaches further up and down than the picture, for the near edge.
+	var reach := Vector2(room.x, room.y * 1.6)
+	_turning.position = -reach
+	_turning.size = size + reach * 2.0
+	_turning.visible = true
+	var mat: ShaderMaterial = _turning.material
+	mat.set_shader_parameter("card_size", size)
+	mat.set_shader_parameter("rect_origin", -reach)
+	mat.set_shader_parameter("rect_size", _turning.size)
+	mat.set_shader_parameter("tex_origin", -room)
+	mat.set_shader_parameter("tex_size", size + room * 2.0)
+	mat.set_shader_parameter("angle", 0.0)
+
+
+## The face back in its place, the picture put away.
+func _end_turning() -> void:
+	if _picture == null or _turn.get_parent() != _picture:
+		return
+	_picture.remove_child(_turn)
+	add_child(_turn)
+	move_child(_turn, 0)
+	_turning.visible = false
+	_picture.render_target_update_mode = SubViewport.UPDATE_DISABLED
 
 
 ## Whether the card's Ether field moves: off while something covers the screen.
@@ -95,9 +220,13 @@ func snap_home() -> void:
 
 
 func _fit() -> void:
+	_turn.position = Vector2.ZERO
+	_turn.size = size
 	_face.position = Vector2.ZERO
 	_face.size = size
 	_marks.position = Vector2.ZERO
+	_back.position = Vector2.ZERO
+	_back.size = size
 	_marks.size = size
 	pivot_offset = size / 2.0
 	_marks.queue_redraw()
@@ -256,29 +385,7 @@ func _set_hover(on: bool) -> void:
 	if DisplayServer.is_touchscreen_available():
 		return
 	_hover = on
-	_show_alt(on)
 	hovered.emit(id, on)
-	_marks.queue_redraw()
-
-
-## While hovered in the Soak and Upgrade steps, show the card as it would become.
-func _show_alt(on: bool) -> void:
-	var alt = model.get("alt")
-	if alt == null or on == _showing_alt:
-		return
-	_showing_alt = on
-	if not on:
-		_face.set_model(model)
-		_face.dimmed = not model.get("eligible", true)
-	elif alt.trashed:
-		_face.dimmed = true
-	else:
-		var m := model.duplicate()
-		m.level = alt.level
-		m.stats = alt.stats
-		m.downgraded = false
-		_face.set_model(m, alt.changed, T.GOLD if alt.level > model.level else T.BAD)
-		_face.dimmed = false
 	_marks.queue_redraw()
 
 
@@ -336,15 +443,17 @@ func _draw_marks() -> void:
 		ribbon_icon = model.get("note_icon", "")
 		ribbon_bg = T.GOOD if model.get("match", false) else T.BG_BAND
 		ribbon_ink = T.BG_BASE if model.get("match", false) else T.INK
+	# The Trashed back carries nothing but its own mark.
+	if _back.visible:
+		return
 	if ribbon != "":
 		_ribbon(ribbon, ribbon_icon, ribbon_bg, ribbon_ink)
 
-	# A tag on the top edge: what the card would become, or its fate after a battle.
+	# A tag on the top edge: the Level a turned card becomes, or its fate after a battle.
 	var alt = model.get("alt")
-	if _showing_alt and alt != null:
-		var up: bool = not alt.trashed and alt.level > model.level
-		var text: String = alt.label if alt.trashed else "%s · Level %d" % [alt.label, alt.level]
-		_tag(text, "trash" if alt.trashed else ("crown" if up else "down_arrow"), T.GOLD if up else T.BAD, T.BG_BASE)
+	if _face_turned and alt != null:
+		var up: bool = alt.level > model.level
+		_tag("Level %d" % alt.level, "crown" if up else "down_arrow", T.GOLD if up else T.BAD, T.BG_BASE)
 	elif model.get("fate", "") == "stays":
 		_tag("Stays in Hand", "reserve", T.GOLD, T.BG_BASE)
 	elif model.get("fate", "") == "spent":

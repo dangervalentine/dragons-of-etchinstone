@@ -75,7 +75,6 @@ static func build(game, draft, db, extra := {}) -> Dictionary:
 		"fuse_elements": draft.mode == "fuse_element",
 		"fuse_pick": draft.fuse_pick.duplicate(),
 		"played": _played(game),
-		"undo": extra.get("undo", 0),
 		"key_target": extra.get("key_target"),
 	}
 	if playing:
@@ -83,6 +82,8 @@ static func build(game, draft, db, extra := {}) -> Dictionary:
 		vs.explain = explain(game, draft)
 		vs.math = math(game, vs.preview, vs.explain)
 		vs.sets = _sets(game, draft)
+	if phase == "upgrade":
+		vs.xp = game.xp - staged_cost(game, draft)
 	if SOAK_PHASES.has(phase):
 		var total := 0
 		for id in draft.picks:
@@ -229,7 +230,7 @@ static func _input_region(game, draft, vs: Dictionary) -> String:
 			return "commit" if draft.mode == "none" and vs.preview.status == "ready" else "hand"
 		"upgrade":
 			for id in vs.hand:
-				if vs.cards[id].eligible:
+				if vs.cards[id].eligible and not vs.cards[id].turned:
 					return "hand"
 	return "commit"
 
@@ -597,6 +598,8 @@ static func _card(game, draft, db, id: String, vs: Dictionary) -> Dictionary:
 		"state": "available", "role": null, "fuse": null, "reserve": false, "reserve_boosts": false,
 		"eligible": true, "reason": "", "note": "", "note_icon": "", "match": false,
 		"selection_order": -1,
+		# Chosen in the Soak or Upgrade step: the face shows the card as it will become.
+		"turned": false,
 		"downgraded": game.downgraded.has(id),
 		"fate": "",
 		"alt": null,
@@ -637,6 +640,8 @@ static func _card(game, draft, db, id: String, vs: Dictionary) -> Dictionary:
 			c["soaks"] = value
 			c.note_icon = "armor"
 			c.selection_order = draft.picks.find(id)
+			# A chosen card shows the Level it will be Downgraded to.
+			c.turned = c.selection_order >= 0
 			if c.level > 1:
 				c.alt = _alt(game, db, id, c.level - 1, "If Downgraded")
 			else:
@@ -650,14 +655,22 @@ static func _card(game, draft, db, id: String, vs: Dictionary) -> Dictionary:
 				c.eligible = false
 				c.reason = "Covered"
 		"upgrade":
+			# A chosen card shows the Level it will be Upgraded to; its cost is taken
+			# from the XP left when it is chosen and given back when it is not.
 			var cost = lv.upgrade_cost
-			if c.downgraded:
+			c.selection_order = draft.picks.find(id)
+			c.turned = c.selection_order >= 0
+			if c.turned:
+				c.state = "selected"
+				c.note = "%d XP" % cost
+				c.note_icon = "xp"
+			elif c.downgraded:
 				c.eligible = false
 				c.reason = "Downgraded"
 			elif cost == null:
 				c.eligible = false
 				c.reason = "Max Level"
-			elif cost > game.xp:
+			elif cost > vs.xp:
 				c.eligible = false
 				c.reason = "Costs %d XP" % cost
 			else:
@@ -666,6 +679,14 @@ static func _card(game, draft, db, id: String, vs: Dictionary) -> Dictionary:
 			if cost != null and not c.downgraded:
 				c.alt = _alt(game, db, id, c.level + 1, "If Upgraded")
 	return c
+
+
+## The XP the Upgrades chosen but not yet confirmed will take.
+static func staged_cost(game, draft) -> int:
+	var cost := 0
+	for id in draft.picks:
+		cost += int(game.level_data(id).upgrade_cost)
+	return cost
 
 
 ## A card as it would be at another Level, with the figures that would change.
@@ -775,21 +796,23 @@ static func _prompt(game, draft, vs: Dictionary) -> Dictionary:
 		"upgrade":
 			var affordable := false
 			for id in vs.hand:
-				affordable = affordable or (vs.cards[id].eligible)
+				affordable = affordable or (vs.cards[id].eligible and not vs.cards[id].turned)
 			p.step = "Upgrade"
-			if game.xp <= 0:
+			if not draft.picks.is_empty():
+				p.text = "Tap a card again to take its Upgrade back. Unspent XP is lost."
+			elif game.xp <= 0:
 				p.text = "No XP to spend."
 			elif affordable:
-				p.text = "Tap a card to Upgrade it. Unspent XP is lost."
+				p.text = "Tap cards to Upgrade them, then Confirm. Unspent XP is lost."
 			else:
 				p.text = "No card can be Upgraded with this XP."
-			p.primary.label = "Continue"
+			p.primary.label = "Confirm" if not draft.picks.is_empty() else "Continue"
 			p.primary.enabled = true
 	return p
 
 
 ## The secondary actions for the action row, one per cell (specs/010 research R5,
-## R8): Fuse (or Undo Upgrade), then Divert or Regroup, then, against a Ranged Enemy
+## R8): Fuse, then Divert or Regroup, then, against a Ranged Enemy
 ## while the Reserve holds a card, Give up Reserve. A null entry leaves its cell
 ## blank, so Play keeps its half when an action is not on offer.
 static func _secondary(game, draft, vs: Dictionary) -> Array:
@@ -811,8 +834,6 @@ static func _secondary(game, draft, vs: Dictionary) -> Array:
 			if game.phase == "final_journey":
 				out.append({"id": "regroup", "label": "Regroup", "icon": "regroup", "enabled": not game._regrouped,
 					"active": draft.mode == "regroup", "reason": "" if not game._regrouped else "Already used"})
-	if game.phase == "upgrade" and vs.undo > 0:
-		out.append({"id": "undo", "label": "Undo Upgrade", "icon": "undo", "enabled": true, "active": false, "reason": ""})
 	var enc = vs.encounter
 	if game.phase == "challenge" and enc != null and enc.kind == "enemy" and enc.data.get("ability") == "ranged" \
 			and draft.reserve_card(game.hand) != null:

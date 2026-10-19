@@ -11,8 +11,8 @@ const ViewState = preload("res://ui/model/view_state.gd")
 
 const DURATION := {
 	"play_cards": 0.35, "tally": 0.6, "verdict": 0.4, "gain_xp": 0.35, "damage": 0.35,
-	"pay_time": 0.2, "poison_pending": 0.3, "knock_out": 0.45, "downgrade": 0.3, "trash": 0.3,
-	"upgrade": 0.35, "discard": 0.35, "gather_shuffle": 0.45, "stage_banner": 1.2, "draw": 0.35,
+	"pay_time": 0.2, "poison_pending": 0.3, "knock_out": 0.45, "downgrade": T.TURN, "trash": 0.3,
+	"upgrade": T.TURN, "discard": 0.35, "gather_shuffle": 0.45, "stage_banner": 1.2, "draw": 0.35,
 	"ending": 0.4, "xp_lost": 0.5, "soak_damage": 0.5,
 	"zoom_out": T.ZOOM, "zoom_in": T.ZOOM, "turn_card": T.TURN, "key_peek": T.KEY_PEEK,
 }
