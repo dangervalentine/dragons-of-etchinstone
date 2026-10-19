@@ -951,6 +951,10 @@ func _record(outcome: String) -> void:
 
 # ---------------------------------------------------------------- keyboard and skipping
 
+## The frame of the last press that hurried a sequence on (_input).
+var _pressed_frame := -1
+
+
 func _input(event: InputEvent) -> void:
 	# Before anything else: Alt+Enter must not reach a focused button as Enter, and
 	# F11 must not also skip a sequence.
@@ -961,11 +965,17 @@ func _input(event: InputEvent) -> void:
 		return
 	# While a sequence plays, a press of anything hurries it on and does nothing else:
 	# to the Key Card waiting with its Encounter lit, or from there on (specs/014).
+	# One tap is one press: on a touch screen the touch also arrives as an emulated
+	# mouse click, which would otherwise go on from the Key Card and then skip the zoom.
 	if animator.is_playing():
 		var press: bool = (event is InputEventMouseButton and event.pressed) or (event is InputEventKey and event.pressed and not event.echo) \
 			or (event is InputEventScreenTouch and event.pressed)
 		if press:
-			animator.press()
+			var echo: bool = (event is InputEventMouseButton and event.device == InputEvent.DEVICE_ID_EMULATION) \
+				or Engine.get_process_frames() == _pressed_frame
+			if not echo:
+				_pressed_frame = Engine.get_process_frames()
+				animator.press()
 			get_viewport().set_input_as_handled()
 
 

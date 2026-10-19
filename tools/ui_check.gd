@@ -308,8 +308,12 @@ func _skip_walk(where: String) -> void:
 		_check_waiting(w)
 		_ok(deck._peek.global_position.is_equal_approx(deck.global_position + DeckStack.key_rect(deck.size, true).position),
 			"%s: the Key Card is up" % w)
-		# A second press goes on: the Key Card slides down and the Deck zooms in.
-		_tap()
+		# A second press goes on: the Key Card slides down and the Deck zooms in. On a
+		# touch screen the tap comes as a touch and then an emulated click: one press,
+		# so the zoom plays rather than being skipped.
+		_touch()
+		await process_frame
+		_ok(ui.animator.is_playing() and not ui.animator.is_waiting(), "%s: one tap goes on to the zoom, not past it" % w)
 		var until2 := Time.get_ticks_msec() + 10000
 		while ui.animator.is_playing() and Time.get_ticks_msec() < until2:
 			await process_frame
@@ -326,6 +330,20 @@ func _skip_walk(where: String) -> void:
 ## A press anywhere, as the player's finger or mouse.
 func _tap() -> void:
 	var ev := InputEventMouseButton.new()
+	ev.button_index = MOUSE_BUTTON_LEFT
+	ev.pressed = true
+	ev.position = Vector2(10, 10)
+	ui._input(ev)
+
+
+## A tap on a touch screen: the touch, then the mouse click emulated from it.
+func _touch() -> void:
+	var t := InputEventScreenTouch.new()
+	t.pressed = true
+	t.position = Vector2(10, 10)
+	ui._input(t)
+	var ev := InputEventMouseButton.new()
+	ev.device = InputEvent.DEVICE_ID_EMULATION
 	ev.button_index = MOUSE_BUTTON_LEFT
 	ev.pressed = true
 	ev.position = Vector2(10, 10)
