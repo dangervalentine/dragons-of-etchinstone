@@ -30,9 +30,19 @@ static func font(name: String) -> Font:
 	return _fonts[name]
 
 
-## A creature or landscape silhouette from art/creatures/.
+## A creature or landscape silhouette from art/creatures/, or its painted picture
+## from art/painted/ when there is one (a preview of the feature 008 art).
 static func art(name: String) -> Texture2D:
+	if is_painted(name):
+		if not _icons.has("painted/" + name):
+			_icons["painted/" + name] = load("res://art/painted/%s.png" % name)
+		return _icons["painted/" + name]
 	return icon("../creatures/" + name)
+
+
+## Whether the art has a painted picture in art/painted/, drawn in its own colours.
+static func is_painted(name: String) -> bool:
+	return ResourceLoader.exists("res://art/painted/%s.png" % name)
 
 
 static func art_rect(name: String, side: float, color: Color = T.INK) -> TextureRect:

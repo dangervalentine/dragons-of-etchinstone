@@ -105,6 +105,35 @@ Lessons so far:
   hexer's pale smoke is still faint.
 - Iteration 6: all 16 enemies x 8 seeds (109-116), the iteration 5 prompts with the
   vector opening of STYLE, no references. Raw images on the share under i6\raw\.
+- The dragons (17-20) are added from art/STYLE_PROMPT.md, with colour words taken out
+  and the jaws open in a snarl (their old subjects closed the jaws for the rig). Their
+  silhouettes are made by tools/split_rig.py with rig masks; generate_art.render_start
+  turned the masks' white rects black, which left only the heads, so it now recolours
+  only what comes after </defs>.
+- Iteration 7: all 16 enemies x 10 seeds (121-130), then the 4 dragons x 10, with the
+  iteration 6 prompts. Raw images on the share under i7\raw\.
+  Result: the dragons fit the set (the same flat look and glowing eyes). Grimroch's
+  icy spires and Helsang's violet ribs follow the emanation well. Rodving's fire comes
+  from its mouth in about half the seeds and from its tail tip in the rest. Vuurhast's
+  sparks go to the tail tip far more than to the horns, and sometimes come out as
+  orange flame rather than lightning: a tail tip near the edge of the frame draws the
+  emanation. The panda is a red panda in only 2 of 10 seeds (121, 130); the rest are
+  grey raccoons or wolves again, so the grey START wins over "red panda".
+- flatten.py v5 on iteration 7 (all 200): flatten reads each creature's Ether from
+  the card data, which has no dragons, so the dragons came out with no Ether: Vuurhast's
+  lightning turned black, Rodving's fire was outlined and dulled. Rerun with the
+  dragons' Ethers added (grimroch water, helsang shadow, rodving fire, vuurhast
+  lightning): lightning and fire keep their colour. Grimroch's icy claws now read as
+  cyan Ether too, and an ice floor painted under it stays in the cut-out, outlined.
+- Iteration 8: only the three with no pick from iteration 7 (marsh-treant, grimroch,
+  rodving) x 10 seeds (131-140), the same prompts. Raw images on the share under
+  i8\raw\, flatten.py v5 (with the dragons' Ethers) in i8\flat-v5\.
+  Result: Rodving's fire comes from its mouth alone in 131, 136, 137 and 140; the
+  others add a flame at the tail tip, on the head or on the ground. Grimroch's spires
+  read as ice in most seeds, but its frost still drifts to the tail tip (133, 136, 138);
+  139 keeps it on the spires. The treant's Ether is a small violet wisp or flame at a
+  hand or foot rather than rising from its body (131's smoke is grey, not violet), and
+  many seeds have thorny fringes on the limbs; 131 and 136 have the smoothest outlines.
 - The approach is volume: many seeds per creature, then pick, rather than perfecting
   the prompt for every image.
 
@@ -466,3 +495,365 @@ it.
 
 YOUR VISION:
 
+
+
+17. GRIMROCH, SCALES OF STONE  (grimroch · dragon · water)
+---------------------------------------------------------
+START: art/creatures/grimroch.svg
+
+SUBJECT:
+A hulking ice dragon facing right, standing hunched on two thick hind legs like a
+great ape, with a massive barrel torso, long powerful arms hanging almost to the ground
+and ending in huge clawed hands, and no wings. Its hide is armoured in overlapping
+plates of glacier ice, and its back is a row of long, straight icicle spires, tallest
+over the shoulders. Its thick, heavy tail tapers to a blunt point along the ground. Its
+broad reptile head is thrust forward, with a heavy brow and jaws lined with tusk-like
+fangs of ice.
+
+EMANATION:
+Its eyes glow bright icy blue. Bright icy blue Ether energy emanates from the icicle
+spires along its back, rising off them in curling wisps of frost and mist, as if its
+power is leaking out of it.
+
+YOUR VISION:
+
+
+
+18. HELSANG, THE UNDYING  (helsang · dragon · shadow)
+----------------------------------------------------
+START: art/creatures/helsang.svg
+
+SUBJECT:
+An undead dragon facing right, standing on two gaunt hind legs, its emaciated body all
+sinew with its ribs showing as gaps, long thin clawed arms and a long thin tail.
+Tattered bat wings are spread half-open behind its back, with holes torn through them.
+On a long thin neck its narrow, skull-like head is held high, crowned with branching
+antler-like horns, its jaws bared in a snarl.
+
+EMANATION:
+Its eyes glow bright violet. Bright violet Ether energy emanates from between its ribs,
+rising off them in curling wisps of smoke, as if its power is leaking out of it.
+
+YOUR VISION:
+
+
+
+19. RODVING, THE LAST BREATH  (rodving · dragon · fire)
+------------------------------------------------------
+START: art/creatures/rodving.svg
+
+SUBJECT:
+A lean, fierce fire dragon facing right, rearing up on two hind legs, with huge bat
+wings spread wide and raised behind it. A long S-curved neck lifts its horned,
+wedge-shaped head high, its jaws open in a snarl, and a long whip-like tail barbed with
+spines curls along the ground beneath it.
+
+EMANATION:
+Its eyes glow bright ember-red. Bright ember-red Ether energy emanates from its open
+mouth, rising off it in flickering tongues of flame, as if its power is leaking out of
+it.
+
+YOUR VISION:
+
+
+
+20. VUURHAST, DEATH AND DARKNESS  (vuurhast · dragon · lightning)
+----------------------------------------------------------------
+START: art/creatures/vuurhast.svg
+
+SUBJECT:
+A long serpentine eastern lightning dragon facing right, rearing upright on two short
+clawed hind legs, its long snake-like body ribbed with belly plates and its tail
+curling up in a great loop behind it, and no wings. Its long head rises on a curving
+neck, with two jagged zigzag horns standing up from its skull, long whiskers trailing
+from its snout, and jaws bared in a snarl.
+
+EMANATION:
+Its eyes glow bright amber-orange. Bright amber-orange Ether energy emanates from its
+zigzag horns, crackling off them in jagged sparks and arcs, as if its power is leaking
+out of it.
+
+YOUR VISION:
+
+
+
+
+JOURNEYS (round 1: top-down maps with the RPG Maps LoRA)
+=========================================================
+
+paint_art.py journeys [names...] paints these: text to image at 1344 x 768, no START,
+no references, with the LoRA below on FLUX.1-dev. Each prompt is SUBJECT + ETHER +
+SCENE STYLE. The user is fine with the top-down battle-map look for Journeys.
+
+LORA: RPGmaps_v5.safetensors 1.0
+  (Civitai model 682177, v5, FLUX.1-dev, trigger word "RPGmap"; its licence allows
+  commercial use of the images. Strength is the number after the file name.)
+
+Journey lessons so far:
+- Round 1 is the first test of the LoRA: every Journey, 2 seeds, strength 1.0.
+  Result: a strong, consistent battle-map set, about 30 s an image. Every scene keeps
+  its Ether as the one glowing colour (blue pools and rivers, violet cave light, red
+  lava and braziers), and the look is the same hand across all 17. The High Peaks is
+  the outlier: "pillars rising out of a sea of mist" gave a rendered 3D view in
+  perspective rather than a map. The Glass Desert went orange all over, the sand taking
+  the Ether's colour. The lava and burning wood are very dark. The Final Journey's
+  standing stones are small and weak.
+- Round 2 rewrites those five: the peaks as plateaus "mapped from straight above"
+  rather than pillars rising out of mist; the desert's sand and rock named pale
+  (bone-coloured sand, grey-brown rock) so the Ether stays in the glass streaks; lava
+  and the burning wood set "in daylight" with grey ash, and the wood given a green
+  forest edge; the Final Journey's stones "huge, tall", each with its own shadow, and
+  runes for its glow. Colour words are allowed in Journey subjects when they keep the
+  Ether's colour out of the ground.
+  Result (seeds 1-2, tag r2): all five improved. The peaks are now a map of grassy
+  plateaus and chasms; the desert is pale, with the amber only in the glass streak
+  (perhaps a little too washed out); the lava crust is lit grey, not black; the burning
+  wood is a grey ash clearing with a green edge; and the Final Journey's stones are big
+  and cast long shadows (seed 2 best).
+- Flattening Journeys: etch008-art\flatten\flatten_journey.py runs flatten.py's own
+  steps (it loads them from flatten.py, so its fixes carry over) on the whole frame:
+  no cut-out, more colour families, few lightness tones each, the Ether kept by hue,
+  dark lines kept. With 2 tones per family (the default) the depth goes completely
+  (crevice shading, vignettes, glow falloff), lava and water keep their Ether, but
+  tree crowns merge into blobs and cliff faces become one dark slab. --soft --levels=3
+  --families=8 --ink=14 keeps more of the trees; cliffs still lose their form, because
+  in these maps the form IS the shading. So flattening after the fact trades depth
+  for form; the depth is better reduced when the map is made (LoRA strength), with a
+  light flatten after. Output for all round 1 and 2 maps in journeys-r1\flat-soft\.
+- LoRA strength (all 17, seeds 1-2, at 0.8 and 0.6, journeys-lora\): lowering it
+  does NOT flatten the maps. At 0.6 FLUX's own rendering comes through, with more
+  texture, finer pixel-art detail, deeper shading, and sometimes perspective (rope
+  bridge 0.6) or a figure on the road (the Final Journey at 0.8 and 0.6). 1.0 is the
+  flattest and the most consistent, so it stays. Depth is a property of the LoRA's
+  battle-map look; reducing it needs post-processing or a different LoRA.
+
+SCENE STYLE (appended to every Journey prompt)
+-----------------------------------------------
+RPGmap. A top-down fantasy battle map seen from directly above, drawn as flat 2D game
+art: big, simple, readable shapes in flat colour with clean edges, little surface
+texture, a limited, muted, earthy palette, and the scene's Ether as its one bright,
+glowing colour. The landscape is empty and uninhabited, the whole map filled edge to
+edge.
+
+ETHER (follows every subject, from the Journey's element)
+  fire       Ember-red firelight glows from [PLACE].
+  water      Icy blue light glows from [PLACE], with curling wisps of frost and mist.
+  lightning  Amber-orange sparks and arcs crackle over [PLACE].
+  shadow     Violet light glows from [PLACE], with curling wisps of smoke.
+
+
+J1. HIGH PEAKS  (peaks · R1 Journey 1 · lightning)
+--------------------------------------------------
+SUBJECT:
+A mountain summit mapped from straight above: flat, grassy rock plateaus at different
+heights, edged by cliffs and separated by narrow chasms, with patches of mist lying in
+the chasms between them and a single twisted pine on the highest plateau.
+
+ETHER:
+Amber-orange sparks and arcs crackle over a scorched crater on the highest plateau,
+where lightning has struck.
+
+YOUR VISION:
+
+
+J2. THE FALLS  (waterfall · R1 Journey 2 · water)
+-------------------------------------------------
+SUBJECT:
+A river running across the map and pouring over a cliff edge between two rock pillars
+into a round pool below, mist billowing at the foot of the falls, mossy boulders on the
+banks.
+
+ETHER:
+Icy blue light glows from the pool below the falls, with curling wisps of frost and
+mist.
+
+YOUR VISION:
+
+
+J3. MOUNTAIN ROAD  (mountain-road · R1 Journey 3 · fire)
+--------------------------------------------------------
+SUBJECT:
+A narrow switchback road zigzagging up a steep, rocky mountainside, scattered boulders
+and a twisted pine at the top bend.
+
+ETHER:
+Ember-red firelight glows from a row of iron braziers along the road.
+
+YOUR VISION:
+
+
+J4. DARK CAVE  (cave-entrance · R1 Journey 4 · shadow)
+------------------------------------------------------
+SUBJECT:
+A rocky cliff face with a dark cave mouth opening into it, a dirt trail leading to the
+entrance between boulders, and a twisted pine growing above it.
+
+ETHER:
+Violet light glows from deep inside the cave mouth, with curling wisps of smoke.
+
+YOUR VISION:
+
+
+J5. SUNKEN MIRE  (swamp · R2 Journey 1 · fire)
+----------------------------------------------
+SUBJECT:
+A sunken mire of still, dark water with twisted swamp trees standing on arching stilt
+roots, small muddy islands and patches of reeds.
+
+ETHER:
+Ember-red firelight glows from a few floating will-o'-wisp flames over the water.
+
+YOUR VISION:
+
+
+J6. BLACK RIVER  (river · R2 Journey 2 · water)
+-----------------------------------------------
+SUBJECT:
+A broad, dark river winding across the map between muddy banks of tangled mangrove
+roots, a gnarled tree leaning out over the water.
+
+ETHER:
+Icy blue light glows from the frozen shallows along the banks, with curling wisps of
+frost and mist.
+
+YOUR VISION:
+
+
+J7. WEEPING WILLOWS  (willow-tree · R2 Journey 3 · lightning)
+-------------------------------------------------------------
+SUBJECT:
+A great weeping willow on the bank of a still pond, seen from above as a round canopy
+of long hanging curtains of branches, its roots spreading into the water.
+
+ETHER:
+Amber-orange sparks and arcs crackle over the willow's canopy.
+
+YOUR VISION:
+
+
+J8. CLIFF PATH  (cliff-crossing · R2 Journey 4 · shadow)
+--------------------------------------------------------
+SUBJECT:
+A narrow ledge path running along the edge of a deep, dark gorge, loose rocks on the
+path and one gnarled tree clinging to the edge.
+
+ETHER:
+Violet light glows from the depths of the gorge, with curling wisps of smoke.
+
+YOUR VISION:
+
+
+J9. ASH SLOPES  (volcano · R3 Journey 1 · water)
+------------------------------------------------
+SUBJECT:
+The broken crater of a volcano seen from above, its grey ash slopes scored with long
+gullies and scattered with black rocks.
+
+ETHER:
+Icy blue light glows from a cold crater lake at its centre, with curling wisps of frost
+and mist.
+
+YOUR VISION:
+
+
+J10. GLASS DESERT  (desert · R3 Journey 2 · lightning)
+------------------------------------------------------
+SUBJECT:
+A sun-bleached desert canyon: pale grey-brown rock mesas and spires around smooth,
+pale, bone-coloured sand dunes, with one bare dead tree.
+
+ETHER:
+Amber-orange sparks and arcs crackle over a few thin streaks of lightning glass fused
+into the pale sand.
+
+YOUR VISION:
+
+
+J11. LAVA FIELDS  (lava · R3 Journey 3 · fire)
+----------------------------------------------
+SUBJECT:
+Fields of cracked lava crust in daylight, its plates covered in grey ash and scattered
+rocks, with molten rivers running through it and a vent at the centre bursting with a
+geyser of fire.
+
+ETHER:
+Ember-red firelight glows from the molten rivers and the vent.
+
+YOUR VISION:
+
+
+J12. DEEP CAVERNS  (underground-cave · R3 Journey 4 · shadow)
+-------------------------------------------------------------
+SUBJECT:
+A deep cavern floor seen from above, rings of stalagmites and fallen boulders, and a
+narrow path winding through the dark.
+
+ETHER:
+Violet light glows from clusters of crystals along the path, with curling wisps of
+smoke.
+
+YOUR VISION:
+
+
+J13. ROPE BRIDGE  (rope-bridge · R4 Journey 1 · water)
+------------------------------------------------------
+SUBJECT:
+A rope bridge of wooden planks slung across a deep forest gorge between two great
+gnarled trees, the forest canopy on both sides.
+
+ETHER:
+Icy blue light glows from the river far below the bridge, with curling wisps of frost
+and mist.
+
+YOUR VISION:
+
+
+J14. FOREST GATE  (forest-entrance · R4 Journey 2 · shadow)
+-----------------------------------------------------------
+SUBJECT:
+The edge of a dark forest, two huge gnarled trees whose crowns meet over a dirt path
+leading into the woods.
+
+ETHER:
+Violet light glows between the two trunks where the path enters the forest, with
+curling wisps of smoke.
+
+YOUR VISION:
+
+
+J15. BURNING WOOD  (burning-forest · R4 Journey 3 · fire)
+---------------------------------------------------------
+SUBJECT:
+A burning wood in daylight: a forest clearing of grey ash and scorched earth, charred
+tree trunks with a few bare branches, fallen logs, and the green forest edge still
+standing around it.
+
+ETHER:
+Ember-red firelight glows from tall tongues of flame rising between the trees.
+
+YOUR VISION:
+
+
+J16. OLD STONE STAIR  (stone-path · R4 Journey 4 · lightning)
+-------------------------------------------------------------
+SUBJECT:
+An old stone stair winding up between gnarled roots and boulders to a ruined stone
+archway.
+
+ETHER:
+Amber-orange sparks and arcs crackle over the ruined archway.
+
+YOUR VISION:
+
+
+J17. THE FINAL JOURNEY  (horizon-road · Final Journey · none)
+-------------------------------------------------------------
+SUBJECT:
+A long straight road running across the map between two rows of huge, tall, leaning
+standing stones, each stone a big clearly drawn slab with its own long shadow, toward
+a jagged mountain at the far edge.
+
+ETHER:
+Faint golden light glows from carved runes on the standing stones.
+
+YOUR VISION:

@@ -297,7 +297,10 @@ def render_start(name, dest):
         sys.exit("restyle and start need resvg-py: run this with ComfyUI's Python, "
                  "or pip install resvg-py")
     svg = open(os.path.join(ART, name + ".svg"), encoding="utf-8").read()
-    svg = svg.replace('fill="#fff"', 'fill="#000"')
+    # Recolour the drawing only: a mask's white rect (the dragons' rig masks) must stay
+    # white, or the mask hides everything but the head.
+    defs, sep, body = svg.rpartition("</defs>")
+    svg = defs + sep + body.replace('fill="#fff"', 'fill="#000"')
     m = START_MARGIN
     svg = re.sub(r'viewBox="[^"]*"', 'viewBox="%d %d %d %d"' % (-m, -m, 512 + 2 * m, 512 + 2 * m), svg)
     png = resvg_py.svg_to_bytes(svg_string=svg, width=SIZE, height=SIZE, background="#ffffff")

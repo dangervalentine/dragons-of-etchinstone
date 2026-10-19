@@ -20,8 +20,14 @@ Run:
   python3 tools/paint_art.py paint all --server http://other-pc:8188 --q8
   python3 tools/paint_art.py paint crane-monk --seed 101 --tag vector --q8
 
+  python3 tools/paint_art.py journeys [names...] [--seed 1] [--count 2] [--q8]
+
 paint queues every image first, so they all show in ComfyUI's queue, then saves each
 as it finishes. An image already in build/art/painted/ is skipped.
+
+journeys paints the JOURNEYS part of the doc into build/art/painted/journeys/: text to
+image at 1344 x 768 with no START or references, the model passed through the LoRA
+named in the doc (in ComfyUI's models/loras).
 """
 import argparse
 import json
@@ -47,6 +53,9 @@ STYLE_STRENGTH = 0.05
 # paint over, light enough for colour to come in.
 FIGURE_GREY = 128
 GROUND_GREY = 216
+# Journeys: FLUX's native size nearest 16:9, cropped to cover the art panel in game.
+JOURNEY_SIZE = (1344, 768)
+JOURNEY_OUT = os.path.join(OUT, "journeys")
 
 
 # The doc
@@ -62,6 +71,7 @@ def between(text, start, end):
 
 def read_doc():
     text = open(DOC, encoding="utf-8").read()
+    text = text[:text.index("\nJOURNEYS (")]
     shared = text[text.index("SHARED STYLE REFERENCES"):text.index("\nSTYLE (")]
     refs = [os.path.join(ROOT, p) for p in re.findall(r"^(art/\S+\.png)", shared, re.M)]
     head = re.search(r"^STYLE \(.*\n-+\n", text, re.M)
@@ -76,6 +86,23 @@ def read_doc():
             "start": re.search(r"^START: (\S+)", section, re.M).group(1),
         }
     return refs, creatures
+
+
+def read_journeys():
+    """The JOURNEYS part of the doc: the LoRA and its strength, and each Journey's
+    prompt, SUBJECT + ETHER + SCENE STYLE."""
+    text = open(DOC, encoding="utf-8").read()
+    text = text[text.index("\nJOURNEYS ("):]
+    lora, strength = re.search(r"^LORA: (\S+) ([\d.]+)", text, re.M).groups()
+    head = re.search(r"^SCENE STYLE \(.*\n-+\n", text, re.M)
+    style = squash(text[head.end():text.index("\nETHER (")])
+    journeys = {}
+    for m in re.finditer(r"^J\d+\. .*?\(([a-z-]+) ·.*?(?=^J\d+\. |\Z)", text, re.M | re.S):
+        section = m.group(0)
+        subject = between(section, "SUBJECT:", "ETHER:")
+        ether = between(section, "ETHER:", "YOUR VISION:")
+        journeys[m.group(1)] = " ".join([subject, ether, style])
+    return (lora, float(strength)), journeys
 
 
 # Starting images
@@ -120,6 +147,17 @@ def graph(prompt, start, refs, seed, denoise, strength, prefix):
     return g
 
 
+def journey_graph(prompt, lora, seed, prefix):
+    """Text to image at JOURNEY_SIZE, the model passed through the LoRA."""
+    g = ga.text_to_image(prompt, seed, prefix)
+    name, strength = lora
+    g["lora"] = {"class_type": "LoraLoaderModelOnly", "inputs": {
+        "model": ["unet", 0], "lora_name": name, "strength_model": strength}}
+    g["sample"]["inputs"]["model"] = ["lora", 0]
+    g["latent"]["inputs"]["width"], g["latent"]["inputs"]["height"] = JOURNEY_SIZE
+    return g
+
+
 def queue(g):
     r = json.loads(ga.call("/prompt", json.dumps({"prompt": g}).encode(),
                            {"Content-Type": "application/json"}))
@@ -150,8 +188,9 @@ def fetch(pid, dest):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    p.add_argument("command", choices=["list", "prompt", "paint"])
-    p.add_argument("names", nargs="*", help="creatures from the doc, e.g. lion-archer, or all")
+    p.add_argument("command", choices=["list", "prompt", "paint", "journeys"])
+    p.add_argument("names", nargs="*",
+                   help="creatures (paint) or Journeys (journeys) from the doc, or all")
     p.add_argument("--seed", type=int, help="the first seed; random if left out")
     p.add_argument("--count", type=int, default=4, help="how many seeds to try; %(default)s")
     p.add_argument("--denoise", type=float, default=DENOISE,
@@ -160,24 +199,33 @@ def main():
                    help="Redux strength for each shared reference; %(default)s")
     p.add_argument("--server", default=ga.SERVER, help="the ComfyUI to use; %(default)s")
     p.add_argument("--q8", action="store_true", help="use the Q8 models")
+    p.add_argument("--lora-strength", type=float,
+                   help="journeys: try the LoRA at this strength instead of the doc's")
     p.add_argument("--tag", default="",
                    help="added to each file name, to rerun the same seeds after a prompt change")
     a = p.parse_args()
     ga.SERVER = a.server.rstrip("/")
     ga.models = ga.MODELS["q8" if a.q8 else "q4"]
     refs, creatures = read_doc()
+    lora, journeys = read_journeys()
     if a.command == "list":
         for name, c in creatures.items():
             print("%-16s start %s" % (name, c["start"]))
         print("shared references:", ", ".join(os.path.relpath(r, ROOT) for r in refs))
+        print("journeys (LoRA %s at %g):" % lora, ", ".join(journeys))
         return
+    if a.command == "journeys":
+        if a.lora_strength is not None:
+            lora = (lora[0], a.lora_strength)
+        return paint_journeys(a, lora, journeys)
     names = list(creatures) if a.names in ([], ["all"]) else a.names
     for name in names:
-        if name not in creatures:
+        if name not in creatures and name not in journeys:
             sys.exit("%s isn't in %s; see 'list'" % (name, os.path.relpath(DOC, ROOT)))
     if a.command == "prompt":
         for name in names:
-            print("%s:\n%s\n" % (name, creatures[name]["prompt"]))
+            print("%s:\n%s\n" % (name, creatures[name]["prompt"] if name in creatures
+                                 else journeys[name]))
         return
     os.makedirs(OUT, exist_ok=True)
     seed = a.seed if a.seed is not None else random.randrange(1 << 32)
@@ -196,6 +244,28 @@ def main():
             start = start or ga.upload(grey_start(name, c["start"]))
             g = graph(c["prompt"], start, uploaded, s, a.denoise, a.style_strength,
                       "etch008/%s-%d%s" % (name, s, tag))
+            jobs.append((queue(g), dest))
+            print("queued", name, s, flush=True)
+    for pid, dest in jobs:
+        fetch(pid, dest)
+
+
+def paint_journeys(a, lora, journeys):
+    names = list(journeys) if a.names in ([], ["all"]) else a.names
+    for name in names:
+        if name not in journeys:
+            sys.exit("%s isn't a Journey in %s; see 'list'" % (name, os.path.relpath(DOC, ROOT)))
+    os.makedirs(JOURNEY_OUT, exist_ok=True)
+    seed = a.seed if a.seed is not None else random.randrange(1 << 32)
+    tag = "-" + a.tag if a.tag else ""
+    jobs = []
+    for name in names:
+        for s in range(seed, seed + a.count):
+            dest = os.path.join(JOURNEY_OUT, "%s-%d%s.png" % (name, s, tag))
+            if os.path.exists(dest):
+                print("have", os.path.relpath(dest, ROOT))
+                continue
+            g = journey_graph(journeys[name], lora, s, "etch008/journeys/%s-%d%s" % (name, s, tag))
             jobs.append((queue(g), dest))
             print("queued", name, s, flush=True)
     for pid, dest in jobs:

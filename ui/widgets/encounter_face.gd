@@ -31,6 +31,8 @@ var badge_min := 52.0
 var _panel := Vector2(300, 250)
 ## Each figure's outline in its 512 units, measured once from its art.
 static var _bounds := {}
+## A Journey's painted map, covering the art panel and cropped to it.
+var _map := TextureRect.new()
 
 
 func render(enc: Dictionary) -> void:
@@ -45,6 +47,14 @@ func render(enc: Dictionary) -> void:
 	var art_name: String = enc.get("art", "")
 	set_look(enc.element, "sigil_" + str(enc.element), art_name,
 		enemy_crop(art_name, _panel) if enemy and art_name != "" else Art.FULL)
+	# A Journey with a painted map (art/painted/journeys/, a preview of the feature
+	# 008 art) fills the panel with it in place of its silhouette.
+	var map_path := "res://art/painted/journeys/%s.png" % art_name
+	var painted := not enemy and art_name != "" and ResourceLoader.exists(map_path)
+	_map.texture = load(map_path) if painted else null
+	_map.visible = painted
+	if painted:
+		_creature.visible = false
 
 	band.add_child(UI.icon_rect("enemy" if enemy else "journey", 34, T.ether_ink(enc.element)))
 	# Which Enemy or Journey of the Region it is, beside its icon, before the name
@@ -124,6 +134,13 @@ var _art_rect := Rect2()
 
 func _init() -> void:
 	super._init()
+	_map.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_map.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	_map.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_map.visible = false
+	add_child(_map)
+	# Over the Ether pattern, under the band, the badges and the frame's edge.
+	move_child(_map, _creature.get_index())
 	_edge.draw.connect(_draw_art_frame)
 	# A press on the face (outside its badges, which explain themselves) shows the
 	# Key Card that named the Encounter.
@@ -225,6 +242,8 @@ func _place_art() -> void:
 	_field.position = _art_rect.position
 	_field.size = _art_rect.size
 	_field.material.set_shader_parameter("size", _art_rect.size)
+	_map.position = _art_rect.position
+	_map.size = _art_rect.size
 	if art != "" and _enemy:
 		# An enemy fills the panel, cropped from the top of the figure down (see
 		# enemy_crop), so it stands large with its feet below the frame.

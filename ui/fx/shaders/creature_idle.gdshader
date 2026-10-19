@@ -11,6 +11,8 @@ uniform float speed = 1.0;
 // Offsets the cycle so two creatures never move in step.
 uniform float phase = 0.0;
 uniform vec4 tint : source_color = vec4(1.0);
+// A painted picture (art/painted/), drawn whole in its own colours, not tinted.
+uniform bool painted = false;
 // The share of the picture on each side that is room around the art, for parts
 // that move past the art's edge.
 uniform float pad = 0.0;
@@ -231,5 +233,10 @@ void fragment() {
 	}
 	body = body * (1.0 - cover) + draw;
 	float glow = mode == 7 ? 0.82 + 0.18 * a * sin(t * 1.1) : 1.0;
-	COLOR = vec4(tint.rgb * glow, tint.a * body) * modulate;
+	if (painted) {
+		vec4 c = texture(TEXTURE, uv) * inside(uv);
+		COLOR = vec4(c.rgb * glow, c.a) * modulate;
+	} else {
+		COLOR = vec4(tint.rgb * glow, tint.a * body) * modulate;
+	}
 }

@@ -69,7 +69,9 @@ static func _layer() -> TextureRect:
 func setup(name: String, tint: Color, ether := "", particles := true) -> void:
 	art_name = name
 	element = ether
-	var layers := Art.layers(name)
+	# A painted picture is one whole piece in its own colours, not the parts of the rig.
+	var painted := UI.is_painted(name)
+	var layers := [] if painted else Art.layers(name)
 	assert(layers.size() <= MAX_LAYERS, name + " has more layers than the shader draws")
 	_picture.texture = UI.art(layers[0].art if not layers.is_empty() else name)
 	_idle(_picture, name, tint)
@@ -93,6 +95,7 @@ func setup(name: String, tint: Color, ether := "", particles := true) -> void:
 		var by: Vector2 = lunge.get("shift", Vector2.ZERO) / 512.0
 		slides.append(Vector4(by.x, by.y, lunge.get("period", 0.0), lunge.get("phase", 0.0)))
 	m.set_shader_parameter("layers", layers.size())
+	m.set_shader_parameter("painted", painted)
 	m.set_shader_parameter("pivots", pivots)
 	m.set_shader_parameter("parents", parents)
 	m.set_shader_parameter("joins", joins)
