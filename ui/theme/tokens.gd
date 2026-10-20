@@ -89,10 +89,11 @@ const DECK_EDGE := 24
 ## The narrowest the left column gets (feature 013): it fixes the smallest whole
 ## Region Card, whose figures must still read at TEXT_MIN.
 const LEFT_MIN_W := 400
-## How long a refused Play's reason lies on the Deck in the card's place (feature 013).
-const NOTE_HOLD := 2.4
 ## The least height of a note on the Deck that sets the result out line by line.
 const NOTE_ROOMY_H := 360
+## Every icon read in a note's content (a verdict, the damage, the XP, an Ether, a
+## status), one size on every card.
+const NOTE_ICON := 30
 ## A note's flight in from off the left of the screen to its place on the Deck, and
 ## its flight off to the left again as a discard (feature 015).
 const NOTE_DEAL := 0.35
@@ -104,6 +105,8 @@ const NOTE_TURN := 14.0
 const NOTE_TILT := [0.0, -1.2, 0.9, -0.6]
 ## How much later each note under the top one leaves when the pile is thrown.
 const NOTE_PILE_STAGGER := 0.04
+## A step card turning over to its next step (a Fuse's), edge on half way.
+const NOTE_FLIP := 0.36
 ## The soft shadow under a card on the table: how much each layer grows, and how
 ## dark it is.
 const CARD_SHADOW := [[2.0, 0.10], [4.0, 0.07], [6.0, 0.05], [8.0, 0.03]]

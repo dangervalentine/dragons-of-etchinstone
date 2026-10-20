@@ -278,9 +278,19 @@ func settle() -> void:
 	preview.settle()
 
 
-## A refused move's reason, on the Deck in the card's place (specs/013 FR-011).
-func refuse(text: String) -> void:
-	deck.show_refusal(text)
+## A refused move's reason, on the Deck in the card's place (specs/013 FR-011),
+## titled with what was refused.
+func refuse(text: String, title := "") -> void:
+	deck.show_refusal(text, title)
+
+
+## A refused move's card stays until the player presses anywhere at all (specs/015);
+## the press still does whatever it does.
+func _input(event: InputEvent) -> void:
+	if not is_visible_in_tree() or deck.pile.refusal_text() == "":
+		return
+	if (event is InputEventMouseButton or event is InputEventScreenTouch) and event.pressed:
+		deck.clear_refusal()
 
 
 ## Global points that effects travel between.

@@ -1,5 +1,6 @@
 extends PanelContainer
-## The Upgrade step: how the Encounter went, and the XP there is to spend.
+## The Upgrade step: the XP there is to spend, and, unless the card says it
+## elsewhere (`recap` off, as on the Upgrade note, specs/015), how the Encounter went.
 
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
@@ -7,6 +8,8 @@ const UI = preload("res://ui/theme/theme.gd")
 var _box := VBoxContainer.new()
 var amount: Label
 var _icon: Control
+## Whether to say how the Encounter went above the XP.
+var recap := true
 
 
 func _init() -> void:
@@ -25,7 +28,7 @@ func render(vs: Dictionary) -> void:
 	for c in _box.get_children():
 		_box.remove_child(c)
 		c.queue_free()
-	var r: Dictionary = vs.recap
+	var r: Dictionary = vs.recap if recap else {}
 	if not r.is_empty():
 		var look: Dictionary = T.VERDICT[r.outcome]
 		var head := UI.hbox(T.S)
@@ -42,9 +45,11 @@ func render(vs: Dictionary) -> void:
 		if not notes.is_empty():
 			_box.add_child(UI.label("Cost: " + ", ".join(notes), T.LABEL, T.INK_MUTED))
 	var purse := UI.hbox(T.S)
-	_icon = UI.icon_rect("xp", 56, T.GOLD)
+	_icon = UI.icon_rect("xp", T.NOTE_ICON, T.GOLD)
+	_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	purse.add_child(_icon)
-	amount = UI.label(str(vs.xp), T.NUMERAL_L, T.GOLD)
+	amount = UI.label(str(vs.xp), T.HEADING, T.GOLD)
+	amount.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	purse.add_child(amount)
 	var cap := UI.label("XP to spend", T.BODY, T.INK)
 	cap.vertical_alignment = VERTICAL_ALIGNMENT_CENTER

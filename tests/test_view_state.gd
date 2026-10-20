@@ -746,3 +746,41 @@ func test_the_note_follows_the_step() -> void:
 	eq(ViewState.note_for({"mode": "none"}, {"phase": "final_soak", "soak": {"due": 3}}), {"kind": "soak"}, "the Soak")
 	eq(ViewState.note_for({"mode": "none"}, {"phase": "setup", "soak": null}), {"kind": "setup"}, "the Deck being prepared")
 	eq(ViewState.note_for({"mode": "regroup"}, {"phase": "final_soak", "soak": {"due": 3}}), {"kind": "mode"}, "a step comes first")
+
+
+## A Divert waits for its confirmation (specs/015): a tapped card is only chosen,
+## the primary action becomes Divert once one is, and the step says how many
+## Diverts are left.
+func test_a_divert_is_confirmed_before_it_is_taken() -> void:
+	var g = _game()
+	var d = Draft.new()
+	d.deal(g.hand)
+	d.begin_mode("divert")
+	var vs: Dictionary = ViewState.build(g, d, db)
+	eq(vs.prompt.primary.label, "Divert", "the primary action is the Divert")
+	ok(not vs.prompt.primary.enabled, "with no card chosen it waits")
+	eq(vs.prompt.count, "%d Diverts left" % (Game.MAX_DIVERTS - g.diverts), "the step says how many are left")
+	var id: String = g.hand[0]
+	d.choose_for_mode(id)
+	vs = ViewState.build(g, d, db)
+	ok(vs.prompt.primary.enabled, "a card chosen: Divert can be confirmed")
+	eq(vs.cards[id].state, "selected", "the chosen card shows it")
+	eq(vs.cards[id].note, "Discard", "and says it will be discarded")
+	ok(vs.prompt.text.contains(vs.cards[id].name), "and the step names it")
+	d.choose_for_mode(id)
+	ok(ViewState.build(g, d, db).prompt.primary.enabled == false, "chosen again, it is put back")
+
+
+## A refused Play's card is titled with what was refused (specs/015).
+func test_a_refused_boost_is_titled() -> void:
+	for game_seed in range(1, 60):
+		var g = _game(game_seed)
+		if g.phase != "challenge" or g.encounter().kind != "enemy":
+			continue
+		var d = Draft.new()
+		d.deal(g.hand)
+		var vs: Dictionary = ViewState.build(g, d, db)
+		if vs.preview.status == "incomplete" and vs.preview.missing.all(func(m): return m.begins_with("Boost target")):
+			eq(vs.prompt.primary.title, "Boost Assignment", "the Boost's aim missing")
+			return
+	ok(false, "an Enemy set missing only the Boost's aim")

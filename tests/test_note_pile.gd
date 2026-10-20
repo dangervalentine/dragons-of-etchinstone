@@ -99,3 +99,9 @@ func test_a_refusal_is_thrown_alone() -> void:
 	eq(p.kinds(), ["result", "soak"], "the pile under it stays")
 	ok(p.refusal_card == null, "the refusal is gone")
 	p.free()
+
+
+func test_a_step_cards_step_number() -> void:
+	eq(NotePile.step_number({"prompt": {"step": "Fuse · step 2 of 3"}}, "mode"), 2, "a Fuse's second step")
+	eq(NotePile.step_number({"prompt": {"step": "Divert"}}, "mode"), 0, "a step with no steps")
+	eq(NotePile.step_number({"prompt": {"step": "Fuse · step 2 of 3"}}, "result"), 0, "only a step card has one")

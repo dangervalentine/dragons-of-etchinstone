@@ -194,9 +194,9 @@ var _stack_rect := Rect2()
 var _tweens: Array = []
 ## The state the set just played was played in: the result is built from it.
 var _result_vs := {}
-## Which Encounter the notes lying on the Deck belong to; and the Encounter and
-## phase whose notes were thrown as the Deck zoomed out of it, done with until play
-## moves on.
+## Which Encounter the notes lying on the Deck belong to; and the Encounter, phase
+## and notes wanted when the Deck zoomed out of it, whose notes are done with until
+## anything else is wanted.
 var _note_key := ""
 var _closed_key := ""
 ## While the card grows into a panel or back: what else settles meanwhile (the Key
@@ -206,7 +206,6 @@ var _zooming := false
 var _dip := 0.0
 ## Whether the Key Card is up, waiting for zoom_in() to slide it back down.
 var _peek_up := false
-var _refusal_timer := Timer.new()
 var _strip_key := []
 
 
@@ -235,9 +234,6 @@ func _init() -> void:
 	dragon_face.intent.connect(func(data): intent.emit(data))
 	add_child(pile)
 	pile.intent.connect(func(data): intent.emit(data))
-	_refusal_timer.one_shot = true
-	_refusal_timer.timeout.connect(func(): clear_refusal())
-	add_child(_refusal_timer)
 	resized.connect(_place)
 
 
@@ -738,9 +734,19 @@ func _update_note(animate: bool) -> void:
 	if key != _note_key:
 		pile.throw_all(animate)
 		_note_key = key
-	var closed: bool = key + "|" + str(vs.get("phase", "")) == _closed_key
-	var wanted := [] if closed else note_kinds(vs.get("note"), result_held)
+	var wanted := note_kinds(vs.get("note"), result_held)
+	if _closed_key != "":
+		if _closed_key == _closing_key(wanted):
+			wanted = []
+		else:
+			_closed_key = ""
 	pile.sync(wanted, vs, _result_vs, animate)
+
+
+## What a state wanting `wanted` on the Deck is, for the notes closed as the Deck
+## zoomed out: the same Encounter, phase and notes wanted.
+func _closing_key(wanted: Array) -> String:
+	return "%s|%s|%s" % [note_key(vs), vs.get("phase", ""), ",".join(wanted)]
 
 
 ## Which Encounter a state's notes belong to: the Region and where the Deck is
@@ -765,24 +771,30 @@ func clear_result(_d: float) -> void:
 	if not result_held:
 		return
 	result_held = false
+	_close_notes()
+
+
+## Every note is thrown off as the Deck zooms out of the Encounter, before the next
+## Key Card rises and its panel is lit: the result and the XP after a battle, a
+## Divert's or Regroup's card once it is confirmed (specs/015). Until the sequence
+## ends, the state it started from deals none of them again.
+func _close_notes() -> void:
 	if not vs.is_empty():
-		_closed_key = note_key(vs) + "|" + str(vs.get("phase", ""))
+		_closed_key = _closing_key(note_kinds(vs.get("note"), result_held))
 	_update_note(is_inside_tree())
 
 
-## A refused move's reason lies on the Deck on a note of its own for a moment
-## (T.NOTE_HOLD), or until the player does something else.
-func show_refusal(text: String) -> void:
+## A refused move's reason lies on the Deck on a note of its own, titled with what
+## was refused, until the player presses anywhere (play_screen.gd).
+func show_refusal(text: String, title := "") -> void:
 	if text == "":
 		return
-	pile.show_refusal(text, is_inside_tree())
-	_refusal_timer.start(T.NOTE_HOLD)
+	pile.show_refusal(text, is_inside_tree(), title)
 
 
 func clear_refusal() -> void:
 	if pile.refusal_text() == "":
 		return
-	_refusal_timer.stop()
 	pile.clear_refusal(is_inside_tree())
 
 
@@ -792,7 +804,8 @@ func clear_refusal() -> void:
 ## the card's own panel grown, so the card simply shrinks back from it.
 func zoom_out(d: float) -> void:
 	held = true
-	clear_result(d * 0.3)
+	result_held = false
+	_close_notes()
 	var top: Control = top_node()
 	if view != "face" or top == null or zoomed == "":
 		view = "card"

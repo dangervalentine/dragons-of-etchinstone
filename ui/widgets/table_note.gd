@@ -45,6 +45,8 @@ var xp_purse := XpPurse.new()
 ## "upgrade"), or the reason of a refusal.
 var kinds: Array = []
 var refusal := ""
+## What the refused move was, the refusal card's title ("Boost Assignment").
+var refusal_title := ""
 ## The state the set just played was played in: the result is always built from it.
 var result_vs := {}
 
@@ -55,6 +57,9 @@ var _box := VBoxContainer.new()
 var _setup := VBoxContainer.new()
 var _setup_key := ""
 var _refusal := Label.new()
+## The card's title under its band, in gold, as a step's is ("FUSE · STEP 1 OF 3"):
+## what this card is about. A step's and the setup's title is the step's own.
+var _title := Label.new()
 var _creature := Creature.new()
 var _pressed_at := -1.0
 ## The title band's icon and words.
@@ -96,6 +101,12 @@ func _init() -> void:
 	_box.add_theme_constant_override("separation", T.M)
 	_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_body.add_child(_box)
+	UI.style_label(_title, T.EYEBROW, T.GOLD)
+	_title.visible = false
+	_box.add_child(_title)
+	# On the Upgrade note the XP is the whole of it: how the Encounter went is on the
+	# result under it.
+	xp_purse.recap = false
 	_setup.add_theme_constant_override("separation", T.S)
 	_box.add_child(_setup)
 	# On the note the hosted panels draw no stone of their own: the note is the card.
@@ -142,6 +153,7 @@ func show_kinds(what: Array, vs: Dictionary) -> void:
 	if not what.is_empty():
 		var mode: String = str(vs.get("mode", ""))
 		_set_band(what[0], mode.get_slice("_", 0) if what[0] == "mode" else "")
+		_set_title(title_for(what[0], vs, result_vs))
 	_show_refusal()
 	_fit()
 
@@ -154,11 +166,37 @@ func _render_result() -> void:
 	preview.settle()
 
 
-## A refused move's reason, alone on the note; "" to go back to what it showed.
-func set_refusal(text: String) -> void:
+## A refused move's reason, alone on the note under its title; "" to go back to
+## what it showed.
+func set_refusal(text: String, title := "") -> void:
 	refusal = text
+	refusal_title = title
 	_show_refusal()
 	_fit()
+
+
+## The title a note of `kind` reads under its band: the Encounter a result is for;
+## what is to be Soaked; the XP to spend. A step's and the setup's titles are their
+## own (preview_panel.gd's prompt), so they have none here.
+static func title_for(kind: String, vs: Dictionary, played_vs: Dictionary) -> String:
+	match kind:
+		"result":
+			var enc = played_vs.get("encounter")
+			return str(enc.get("title", "")).to_upper() if enc != null else ""
+		"soak":
+			var s = vs.get("soak")
+			if s != null and s.get("poison", false):
+				return "POISON"
+			var enc = vs.get("encounter")
+			return "COMBAT DAMAGE" if enc != null and str(enc.get("kind", "")).ends_with("enemy") else "DAMAGE"
+		"upgrade":
+			return "SPEND YOUR XP"
+	return ""
+
+
+func _set_title(text: String) -> void:
+	_title.text = text
+	_title.visible = text != ""
 
 
 func is_showing() -> bool:
@@ -174,6 +212,7 @@ func _show_refusal() -> void:
 			c.visible = false
 		_creature.visible = false
 		_set_band("refusal")
+		_set_title(refusal_title.to_upper())
 
 
 ## The title band for `kind`; a step's (`mode`, as "fuse") names it.
@@ -225,6 +264,15 @@ func _render_setup(vs: Dictionary) -> void:
 		var e: String = vs.stage.get("element", "")
 		_creature.setup(art, Color(T.ether(e) if e != "" else T.INK, 0.5), e, false)
 	UI.ignore_mouse(_setup)
+
+
+## Where the card's faint emblem is printed: half the face's width, centred across
+## it, its middle two thirds of the way down under the band.
+func emblem_rect() -> Rect2:
+	var f := face_rect()
+	var side := f.size.x * 0.5
+	var c := Vector2(f.get_center().x, f.position.y + BAND_H + (f.size.y - BAND_H - FOOT_H) * 0.66)
+	return Rect2(c - Vector2(side, side) / 2.0, Vector2(side, side))
 
 
 ## The printed face inside the card-stock border.
@@ -344,19 +392,20 @@ func _draw() -> void:
 	var f := face_rect()
 	var inner_r := maxi(2, radius - int(f.position.x))
 	draw_style_box(UI.box(T.BG_RAISED, Color.TRANSPARENT, 0, inner_r, 0), f)
-	# The title band, its foot torn, the tear edged in the note's colour.
-	var torn := _torn_band(f, BAND_H)
-	draw_colored_polygon(_shifted(torn, Vector2(0, 3)), _accent)
-	draw_colored_polygon(torn, T.BG_BAND)
-	# Where the words end short of the foot, the card's emblem printed faint, as a
-	# reference card fills its face; the setup card has the dragon there instead.
+	# The title band, its top corners rounded as the face's are and its foot torn as
+	# a Mage Card's band is, the tear edged in the note's colour: the same on every note.
+	var tear := BAND_H * 0.12
+	var bs := StyleBoxFlat.new()
+	bs.bg_color = T.BG_BAND
+	bs.corner_radius_top_left = inner_r
+	bs.corner_radius_top_right = inner_r
+	draw_style_box(bs, Rect2(f.position, Vector2(f.size.x, BAND_H - tear)))
+	UI.draw_torn_edge(self, f.position.x, f.end.x, f.position.y + BAND_H - tear, tear, hash("table_note"), T.BG_BAND, _accent, 3.0)
+	# The card's emblem printed faint, as a reference card fills its face: on every
+	# card the same size and in the same place, low on the face, behind the words.
+	# The setup card has the dragon there instead.
 	if _band_icon.visible and _band_icon.texture != null and not _creature.visible:
-		var top := _box.position.y + _box.size.y + PAD
-		var room := Rect2(f.position.x, top, f.size.x, f.end.y - FOOT_H - PAD - top)
-		var side := minf(room.size.x * 0.55, room.size.y * 0.8)
-		if side >= 64.0:
-			var at := Rect2(room.get_center() - Vector2(side, side) / 2.0, Vector2(side, side))
-			draw_texture_rect(_band_icon.texture, at, false, Color(_accent, 0.07))
+		draw_texture_rect(_band_icon.texture, emblem_rect(), false, Color(_accent, 0.07))
 	# The foot: a narrow band of the same dark, a rule of the note's colour over it
 	# and a small mark at its middle, as a printed card's bottom edge.
 	var foot := Rect2(f.position.x, f.end.y - FOOT_H, f.size.x, FOOT_H)
@@ -369,32 +418,3 @@ func _draw() -> void:
 	var c := foot.get_center()
 	var d := FOOT_H * 0.3
 	draw_colored_polygon(PackedVector2Array([c + Vector2(0, -d), c + Vector2(d, 0), c + Vector2(0, d), c + Vector2(-d, 0)]), _accent)
-
-
-## The title band across the top of `f`, `h` deep, its top corners rounded as the
-## face's are and its foot torn: the same tear on every note, so it reads as print.
-func _torn_band(f: Rect2, h: float) -> PackedVector2Array:
-	var r := float(maxi(2, UI.card_radius(size.x) - int(f.position.x)))
-	var pts := PackedVector2Array()
-	# Round the top-left corner, along the top, round the top-right corner.
-	for i in 5:
-		var a := PI + i * (PI / 2.0) / 4.0
-		pts.append(f.position + Vector2(r, r) + Vector2(cos(a), sin(a)) * r)
-	for i in 5:
-		var a := -PI / 2.0 + i * (PI / 2.0) / 4.0
-		pts.append(Vector2(f.end.x - r, f.position.y + r) + Vector2(cos(a), sin(a)) * r)
-	# The torn foot, right to left.
-	var steps := 18
-	var bottom := f.position.y + h
-	for i in range(steps, -1, -1):
-		var x := f.position.x + f.size.x * i / steps
-		var jag: float = [0.0, 4.0, 1.5, 5.0, 2.0, 3.5, 0.5, 4.5, 1.0][i % 9]
-		pts.append(Vector2(x, bottom - jag))
-	return pts
-
-
-static func _shifted(pts: PackedVector2Array, by: Vector2) -> PackedVector2Array:
-	var out := PackedVector2Array()
-	for p in pts:
-		out.append(p + by)
-	return out

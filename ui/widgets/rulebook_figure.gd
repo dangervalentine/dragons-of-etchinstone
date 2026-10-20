@@ -101,7 +101,7 @@ static func _dragon(db, size: Vector2) -> Control:
 	var head := UI.hbox(T.M)
 	var art_name: String = Art.dragon(id)
 	var colour: Color = T.ether(d.early_damage.element)
-	head.add_child(UI.texture_rect(UI.art_crop(Art.head_art(art_name), Art.head(art_name)), minf(96.0, size.y * 0.35), colour))
+	head.add_child(UI.texture_rect(UI.art_crop(Art.head_art(art_name), Art.head(art_name, UI.is_painted(Art.head_art(art_name)))), minf(96.0, size.y * 0.35), colour))
 	var names := UI.vbox(0)
 	names.alignment = BoxContainer.ALIGNMENT_CENTER
 	names.add_child(UI.label(d.name.to_upper(), T.SUBHEAD, T.INK))

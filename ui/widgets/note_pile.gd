@@ -129,16 +129,35 @@ func sync(wanted: Array, vs: Dictionary, result_vs: Dictionary, animate: bool) -
 	if p.throw > 0:
 		throw_top(p.throw, animate)
 	for c in cards:
-		if wanted.has(c.get_meta("kind")):
-			fill.call(c, c.get_meta("kind"), vs, result_vs)
+		var k: String = c.get_meta("kind")
+		if not wanted.has(k):
+			continue
+		var step := step_number(vs, k)
+		var was: int = c.get_meta("step", 0)
+		c.set_meta("step", step)
+		if animate and step > 0 and was > 0 and step != was and not UI.reduced_motion:
+			_flip(c, step > was, fill.bind(c, k, vs, result_vs))
+		else:
+			fill.call(c, k, vs, result_vs)
 	for k in p.deal:
 		deal(k, vs, result_vs, animate)
+
+
+## Which step of a Fuse a state's step card is at ("Fuse · step 2 of 3" is 2); 0 for
+## any other card.
+static func step_number(vs: Dictionary, kind: String) -> int:
+	if kind != "mode":
+		return 0
+	var step: String = str(vs.get("prompt", {}).get("step", "")).to_lower()
+	var at := step.find("step ")
+	return step.substr(at + 5).get_slice(" ", 0).to_int() if at >= 0 else 0
 
 
 ## Lay a card of `kind` on top of the pile.
 func deal(kind: String, vs: Dictionary, result_vs: Dictionary, animate: bool) -> void:
 	var c := _new_card()
 	c.set_meta("kind", kind)
+	c.set_meta("step", step_number(vs, kind))
 	fill.call(c, kind, vs, result_vs)
 	cards.append(c)
 	if refusal_card != null:
@@ -166,13 +185,13 @@ func throw_all(animate: bool) -> void:
 
 ## A refused move's reason on a card of its own on top; another refusal while it
 ## lies there only changes what it says.
-func show_refusal(text: String, animate: bool) -> void:
+func show_refusal(text: String, animate: bool, title := "") -> void:
 	if refusal_card != null:
-		refusal_card.set_refusal(text)
+		refusal_card.set_refusal(text, title)
 		return
 	refusal_card = _new_card()
 	refusal_card.set_meta("kind", "refusal")
-	refusal_card.set_refusal(text)
+	refusal_card.set_refusal(text, title)
 	_arrive(refusal_card, animate)
 
 
@@ -264,6 +283,27 @@ func _leave(c: Control, animate: bool, delay: float) -> void:
 	tw.chain().tween_callback(_free.bind(c))
 
 
+## A step card turned over to its next step (specs/015): edge on as it turns, its
+## new step on the far side. Onward it turns right to left, back left to right, the
+## card leaning the way it turns.
+func _flip(c: Control, onward: bool, refill: Callable) -> void:
+	var half := T.NOTE_FLIP / 2.0
+	var lean := rest.size.x * 0.08 * (-1.0 if onward else 1.0)
+	var home := _place_of(c)
+	c.pivot_offset = c.size / 2.0
+	# Any turn still under way lands first (_kill), then this one waits its half way.
+	var tw := _tween_for(c).set_trans(Tween.TRANS_SINE)
+	c.set_meta("refill", refill)
+	tw.tween_property(c, "scale:x", 0.0, half).set_ease(Tween.EASE_IN)
+	tw.tween_property(c, "position:x", home.x + lean, half).set_ease(Tween.EASE_IN)
+	tw.chain().tween_callback(func():
+		if c.has_meta("refill"):
+			c.remove_meta("refill")
+			refill.call())
+	tw.tween_property(c, "scale:x", 1.0, half).set_ease(Tween.EASE_OUT)
+	tw.tween_property(c, "position:x", home.x, half).set_ease(Tween.EASE_OUT)
+
+
 ## Every card not in flight eases into its tilt and place for its depth.
 func _lie_down(animate: bool) -> void:
 	for c in _lying():
@@ -278,6 +318,7 @@ func _lie_down(animate: bool) -> void:
 
 
 func _pose(c: Control) -> void:
+	c.scale = Vector2.ONE
 	c.size = rest.size
 	c.pivot_offset = rest.size / 2.0
 	c.position = _place_of(c)
@@ -338,6 +379,11 @@ func _kill(c: Control) -> void:
 	if tw != null and tw.is_valid():
 		tw.kill()
 	_tweens.erase(c)
+	# A flip stopped part way still shows its new side.
+	if c.has_meta("refill"):
+		var refill: Callable = c.get_meta("refill")
+		c.remove_meta("refill")
+		refill.call()
 
 
 func _free(c: Control) -> void:

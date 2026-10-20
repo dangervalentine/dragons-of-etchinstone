@@ -167,6 +167,30 @@ static func card_radius(width: float) -> int:
 	return roundi(width * 0.075)
 
 
+## A title band's foot torn as a Mage Card's is (card_face.gd _draw_tears): from
+## `x0` to `x1` along `y`, `colour` torn down by up to `depth`, the same way every
+## time for the same `seed`, its steps a share of the width so it tears alike at
+## any size. With an `edge` colour, that shows `edge_w` deep under the tear.
+static func draw_torn_edge(canvas: CanvasItem, x0: float, x1: float, y: float, depth: float, seed: int,
+		colour: Color, edge := Color.TRANSPARENT, edge_w := 0.0) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed
+	var step := maxf(3.0, (x1 - x0) * 0.022)
+	var pts := PackedVector2Array([Vector2(x0, y - 1)])
+	var x := x0
+	while x < x1:
+		pts.append(Vector2(x, y + rng.randf_range(0.0, depth)))
+		x += step * rng.randf_range(0.6, 1.4)
+	pts.append(Vector2(x1, y + rng.randf_range(0.0, depth)))
+	pts.append(Vector2(x1, y - 1))
+	if edge.a > 0.0 and edge_w > 0.0:
+		var under := PackedVector2Array()
+		for p in pts:
+			under.append(p + Vector2(0, edge_w))
+		canvas.draw_colored_polygon(under, edge)
+	canvas.draw_colored_polygon(pts, colour)
+
+
 static func box(bg: Color, border: Color = Color.TRANSPARENT, width := 0, radius: int = T.RADIUS_M, margin: int = T.S) -> StyleBoxFlat:
 	var s := StyleBoxFlat.new()
 	s.bg_color = bg

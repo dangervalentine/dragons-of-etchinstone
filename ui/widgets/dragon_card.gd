@@ -16,10 +16,10 @@ const StoneStyle = preload("res://ui/theme/stone_style.gd")
 const RegionCard = preload("res://ui/widgets/region_card.gd")
 const Art = preload("res://ui/model/art.gd")
 
-## The pale grey of the printed hourglass.
-const STEEL := Color("aaa6b8")
-## The printed hourglass's glass, a shade darker than its bars.
-const GLASS := Color("75717f")
+## The Dragon Card's hourglass: the Region Card's shape (region_panel.gd) in black,
+## as its other figures are, its glass a dark slate so the shape still reads.
+const BARS := T.BG_BAND
+const GLASS := Color("3b3747")
 ## Shares of the card's width and height, measured from the scan
 ## (reference/sheets-official/o5.png, Grimroch and Vuurhast).
 const LAYOUT := {
@@ -69,7 +69,7 @@ func render(m: Dictionary) -> void:
 	for tier in d.mp_tiers:
 		_rows.mp.append([
 			_chip({"icon": "mp_badge", "text": str(tier.mp.value), "color": T.BG_BAND, "backing": T.ether(tier.mp.element), "element": tier.mp.element}),
-			_chip({"icon": "time_badge", "text": str(tier.time_penalty), "color": STEEL, "inset": GLASS, "inset_icon": "time_badge_glass"})])
+			_chip({"icon": "time_badge", "text": str(tier.time_penalty), "color": BARS, "inset": GLASS, "inset_icon": "time_badge_glass", "ink": T.INK})])
 	for tier in d.hp_tiers:
 		_rows.hp.append([
 			_chip({"icon": "hp", "text": str(tier.hp), "color": T.BG_BAND}),
@@ -123,7 +123,7 @@ func _fit() -> void:
 	_stone.round_radius = UI.card_radius(size.x)
 	if model.is_empty():
 		return
-	var at := art_rect(size, Art.head(model.art))
+	var at := art_rect(size, Art.head(model.art, UI.is_painted(model.art)))
 	_creature.position = at.position
 	_creature.size = at.size
 	# The figures in one centred row.
@@ -165,7 +165,9 @@ func _draw() -> void:
 	var b: Rect2 = LAYOUT.band
 	var band := Rect2(size * b.position, size * b.size)
 	draw_colored_polygon(_stone.part(card, band), T.BG_BAND)
-	draw_line(Vector2(band.position.x, band.end.y), band.end, T.muted(T.GOLD), maxf(1.0, size.y * 0.003))
+	# Its foot torn as a Mage Card's band is, edged in gold.
+	UI.draw_torn_edge(self, band.position.x, band.end.x, band.end.y, band.size.y * 0.12, hash(model.id), T.BG_BAND,
+		T.muted(T.GOLD), maxf(1.0, size.y * 0.003))
 	var heading := UI.font(T.HEADING[0])
 	var name: String = model.name.to_upper()
 	var fs := maxi(6, roundi(band.size.y * 0.5))

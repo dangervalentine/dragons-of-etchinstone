@@ -168,7 +168,9 @@ func _draw() -> void:
 	var b: Rect2 = LAYOUT.band
 	var band := Rect2(card.size * b.position, card.size * b.size)
 	draw_colored_polygon(_stone.part(card, band), T.BG_BAND)
-	draw_line(Vector2(band.position.x, band.end.y), band.end, T.muted(T.GOLD), maxf(1.0, size.y * 0.003))
+	# Its foot torn as a Mage Card's band is, edged in gold; each Region tears its own way.
+	UI.draw_torn_edge(self, band.position.x, band.end.x, band.end.y, band.size.y * 0.12, hash(model.name), T.BG_BAND,
+		T.muted(T.GOLD), maxf(1.0, size.y * 0.003))
 	# An ornament at each end, the name between them, and the Region's number under it.
 	var o := band.size.y * 0.72
 	var oy := band.get_center().y - o / 2.0

@@ -81,6 +81,8 @@ func _run() -> void:
 	await _open("desktop")
 	await _resize_mid_turn()
 	await _open("phone-16x9")
+	await _divert_walk("phone-16x9")
+	await _open("phone-16x9")
 	await _arrange_walk("phone-16x9")
 	await _overlay_over_lifted_cards("phone-16x9")
 	await _unspent_xp_walk("phone-16x9")
@@ -141,6 +143,28 @@ func _note_motion() -> void:
 	var gone: Array = p.leaving.duplicate()
 	p.finish()
 	_ok(p.leaving.is_empty() and gone.all(func(n): return n.is_queued_for_deletion()), "and gone once landed")
+	# A Fuse's card turns over to its next step: edge on half way, the new step on
+	# the far side; onward it leans left, back it leans right.
+	var filled := [0]
+	p.fill = func(_c, _k, _vs, _rv): filled[0] += 1
+	p.deal("mode", {"prompt": {"step": "Fuse · step 1 of 3"}}, {}, false)
+	c = p.top()
+	filled[0] = 0
+	p.sync(["mode"], {"prompt": {"step": "Fuse · step 2 of 3"}}, {}, true)
+	_ok(filled[0] == 0 and p._moving(c), "a step card turns over to its next step")
+	await create_timer(T.NOTE_FLIP * 0.4).timeout
+	_ok(c.scale.x < 0.6 and c.position.x < rest.position.x, "edge on, leaning left as it turns onward (%s, %s)" % [c.scale.x, c.position.x])
+	_ok(filled[0] == 0, "still showing its old step")
+	await create_timer(T.NOTE_FLIP * 0.8).timeout
+	_ok(filled[0] == 1 and is_equal_approx(c.scale.x, 1.0), "turned over, showing the next step")
+	p.sync(["mode"], {"prompt": {"step": "Fuse · step 1 of 3"}}, {}, true)
+	await create_timer(T.NOTE_FLIP * 0.4).timeout
+	_ok(c.position.x > rest.position.x, "back a step, it leans right")
+	p.finish()
+	_ok(filled[0] == 2 and c.scale.x == 1.0, "stopped part way, it shows its new side")
+	p.throw_all(false)
+	p.finish()
+	p.fill = func(_c, _k, _vs, _rv): pass
 	UI.reduced_motion = true
 	p.deal("result", {}, {}, true)
 	c = p.top()
@@ -1556,3 +1580,54 @@ func _resize_mid_turn() -> void:
 	_ok(ui.draft.to_action() == before, "resize keeps the placed cards")
 	_ok(ui.play.hand.ids().size() == g.hand.size(), "resize keeps every card on screen")
 	_inspect_screen("after resize")
+
+
+## A Divert taken through the screen (specs/015): a tapped card is only chosen and
+## the step's card stays; confirmed, the step's card is thrown off before the next
+## Key Card's number is lit, and none lies there while the Key Card shows. A refused
+## move's card stays well past a moment until the player presses anywhere.
+func _divert_walk(where: String) -> void:
+	ui._close_overlays()
+	ui.start_game({"seed": 5, "dragon": "rodving", "difficulty": "normal", "cavalier": false, "glass_cannon": false})
+	await _settle()
+	var g = ui.game
+	var deck = ui.play.deck
+	var key_before: String = g.deck[0]
+	ui.dispatch({"type": "action", "id": "divert"})
+	await _settle()
+	_ok(deck.pile.kinds() == ["mode"], "%s: the Divert's card lies on the Deck" % where)
+	_ok(deck.pile.top().find_children("*", "Label", true, false).any(func(l): return l.text.contains("Divert") and l.text.contains("left")),
+		"%s: and says how many Diverts are left" % where)
+	var id: String = g.hand[0]
+	ui.dispatch({"type": "card", "id": id})
+	await _settle()
+	_ok(g.deck[0] == key_before and g.hand.has(id), "%s: a tapped card is only chosen, nothing discarded" % where)
+	_ok(ui.vs.cards[id].state == "selected" and ui.vs.prompt.primary.enabled, "%s: chosen, and Divert can be confirmed" % where)
+	_ok(deck.pile.kinds() == ["mode"], "%s: the Divert's card still lies there, asking" % where)
+	var lit := [false, -1]
+	var on_beat := func(beat: String):
+		if beat == "key_lit" and not lit[0]:
+			lit[0] = true
+			lit[1] = deck.pile.cards.size()
+	deck.reveal_beat.connect(on_beat)
+	ui.dispatch({"type": "primary"})
+	var until := Time.get_ticks_msec() + 10000
+	while ui.animator.is_playing() and not lit[0] and Time.get_ticks_msec() < until:
+		await process_frame
+	deck.reveal_beat.disconnect(on_beat)
+	_ok(lit[0], "%s: the next Key Card rises" % where)
+	_ok(lit[1] == 0, "%s: with the Divert's card already thrown off (%d lying)" % [where, lit[1]])
+	await _settle()
+	_ok(not g.hand.has(id), "%s: confirmed, the card is discarded" % where)
+	_ok(deck.pile.kinds().is_empty(), "%s: and no step card is dealt again" % where)
+	# A refused move's card stays until a press anywhere.
+	deck.show_refusal("Choose whether the Boost adds to Attack or to Initiative.", "Boost Assignment")
+	await create_timer(3.0).timeout
+	_ok(deck.pile.refusal_text() != "", "%s: a refused move's card stays until the player presses" % where)
+	var ev := InputEventMouseButton.new()
+	ev.button_index = MOUSE_BUTTON_LEFT
+	ev.pressed = true
+	ev.position = Vector2(5, 5)
+	ui.play._input(ev)
+	_ok(deck.pile.refusal_text() == "", "%s: a press anywhere takes it off" % where)
+	await _settle()

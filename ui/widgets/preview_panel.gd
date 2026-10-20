@@ -4,8 +4,10 @@ extends PanelContainer
 ## specs/011). Before Play it says only the step, if any: the cards show what each gives. Once Play is pressed,
 ## reveal() shows the sum the game did (contracts/math-box.md): one equation row per
 ## sum (Attack and Initiative against an Enemy, Move on a Journey), each term the
-## engine's own, signed and named, then the total set against its target; under
-## them the verdict and its consequences.
+## engine's own, signed and named, then the total set against its target, the rows'
+## terms, totals and targets in shared columns; the verdict under the first, who
+## strikes first under the Initiative; then the damage and any other cost
+## (specs/015).
 
 const T = preload("res://ui/theme/tokens.gd")
 const HelpTip = preload("res://ui/widgets/help_tip.gd")
@@ -25,8 +27,8 @@ const VERDICT := ["body_bold", 24]
 const TERM := T.NUMERAL_S
 const TOTAL := T.NUMERAL
 const MINUS := "\u2212"
-## On a note with room to spare the outcome is set out a line per reward and cost
-## rather than as one row of pills (specs/013 research R7).
+## Whether the note has room to spare (table_note.gd sets it as it lays the card
+## out); the result is set out the same either way since specs/015.
 var roomy := false
 
 ## The step's tip, shown until Play; and the sum, built with it but shown only once
@@ -120,16 +122,167 @@ func has_sum() -> bool:
 
 
 func _build_sum(p: Dictionary, m: Dictionary) -> void:
-	var fatal: bool = p.fatal
+	# The sums set out in columns every row shares (specs/015): the lead term (the
+	# Spell, or the Element for the Initiative), the Boost (its column held on every
+	# row, though it adds to one), any other terms, the total and the target. The
+	# verdict comes straight under the first sum, who strikes first under the
+	# Initiative; then the damage, then any other cost.
+	var extra_n := 0
+	var boosted := false
 	for s in m.sums:
-		_sum.add_child(_row(s))
-		if s.note != "" and not _final():
-			_sum.add_child(_note(s))
+		extra_n = maxi(extra_n, _extras(s).size())
+		boosted = boosted or _boost_of(s) != null
+	var rows := []
+	for i in m.sums.size():
+		var s: Dictionary = m.sums[i]
+		var row := _grid_row(s, boosted, extra_n)
+		rows.append(row)
+		_sum.add_child(row)
 		if s.target.terms.size() > 1:
 			_sum.add_child(_target_sum(s))
-	_sum.add_child(UI.spacer())
-	_verdict = _outcome_lines(p, m, fatal) if roomy else _outcome_row(p, m, fatal)
-	_sum.add_child(_verdict)
+		if i == 0:
+			_verdict = _verdict_line(p)
+			_sum.add_child(_verdict)
+		if s.note != "":
+			_sum.add_child(_strike_line(s))
+	var damage := _cost_line(p, m, ["damage"])
+	if damage != null:
+		_sum.add_child(damage)
+	var status := _cost_line(p, m, ["poison", "time", "reserve", "knock_out"])
+	if status != null:
+		_sum.add_child(status)
+	_align(rows)
+
+
+## The term a sum's first column shows: the Spell, the Element; never the Boost.
+static func _lead_of(s: Dictionary):
+	return s.terms[0] if not s.terms.is_empty() and s.terms[0].source != "boost" else null
+
+
+static func _boost_of(s: Dictionary):
+	for t in s.terms:
+		if t.source == "boost":
+			return t
+	return null
+
+
+## The terms after the lead and the Boost (an Armor, a Night Travel, the Reserve).
+static func _extras(s: Dictionary) -> Array:
+	var lead = _lead_of(s)
+	return s.terms.filter(func(t): return t != lead and t.source != "boost")
+
+
+## One sum as a row of the shared columns; a column a sum has nothing for is held
+## empty, so each column lines up down the card.
+func _grid_row(s: Dictionary, boosted: bool, extra_n: int) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 4 if _final() else T.S)
+	row.tooltip_text = s.label
+	var lead = _lead_of(s)
+	row.add_child(_term(lead, true) if lead != null else _gap())
+	if boosted:
+		var boost = _boost_of(s)
+		row.add_child(_term(boost, false) if boost != null else _gap())
+	var extras := _extras(s)
+	for i in extra_n:
+		row.add_child(_term(extras[i], false) if i < extras.size() else _gap())
+	row.add_child(_sign("="))
+	var colour: Color = T.VERDICT[s.result].color if T.VERDICT.has(s.result) else T.INK
+	var total := _cell(str(s.total), s.label, colour, TOTAL)
+	var value_label: Label = total.get_child(0)
+	value_label.set_meta("value", int(s.total))
+	_totals[s.id] = value_label
+	row.add_child(total)
+	# The Final Battle's Attack and Move are set against the tiers, which the dragon's
+	# face lists and the verdict names: no target.
+	if _final() and s.id != "initiative":
+		row.add_child(_sign(""))
+		row.add_child(_gap())
+		return row
+	row.add_child(_sign("/"))
+	var target_name: String = {"hp": "HP", "initiative": "Enemy" if _kind == "enemy" else "Dragon", "mp": "MP"}.get(s.target.icon, "")
+	if s.tier != null:
+		target_name = "Tier %d" % (s.tier.index + 1) if s.tier.index >= 0 else "Tier 1"
+	row.add_child(_cell(str(s.target.value), target_name, T.INK, TERM, s.target.icon))
+	return row
+
+
+func _gap() -> Control:
+	var c := Control.new()
+	c.custom_minimum_size.y = _row_h()
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return c
+
+
+## Each column as wide as its widest cell, down every row.
+static func _align(rows: Array) -> void:
+	if rows.is_empty():
+		return
+	var n: int = rows[0].get_child_count()
+	for j in n:
+		var w := 0.0
+		for row in rows:
+			if j < row.get_child_count():
+				w = maxf(w, row.get_child(j).get_combined_minimum_size().x)
+		for row in rows:
+			if j < row.get_child_count():
+				row.get_child(j).custom_minimum_size.x = w
+
+
+## A line of the card's own words: an icon and what it says, at one size and type
+## for the verdict and for who strikes first.
+func _say(icon: String, text: String, colour: Color) -> HBoxContainer:
+	var line := UI.hbox(T.S)
+	line.custom_minimum_size.y = 40
+	var i := UI.icon_rect(icon, T.NOTE_ICON, colour)
+	i.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	line.add_child(i)
+	var l := UI.label(text, VERDICT, colour, true)
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	l.tooltip_text = text
+	l.mouse_filter = Control.MOUSE_FILTER_PASS
+	line.add_child(l)
+	return line
+
+
+## Complete, Narrow Victory, Loss (or the tier reached), and the XP it brings.
+func _verdict_line(p: Dictionary) -> Control:
+	var look: Dictionary = T.VERDICT.get(p.verdict, T.VERDICT.loss)
+	var line := _say(look.icon, p.verdict_text, T.BAD if p.fatal else look.color)
+	if p.rewards.xp > 0:
+		var xp := _pill("+%d" % p.rewards.xp, "xp", "", T.GOLD, "xp")
+		xp.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		line.add_child(xp)
+	return line
+
+
+## Under the Initiative: who strikes first, and why when it is not Initiative.
+func _strike_line(s: Dictionary) -> Control:
+	var look: Dictionary = T.VERDICT.get(s.result, T.VERDICT.loss)
+	return _say(look.icon, s.note, look.color)
+
+
+## The costs `ids` of the Play, a pill each: the damage as its heart, figure and
+## Ether; each other cost (Poison, Time, the Reserve, a Knock Out) as its own. Each
+## pill's help names the engine's terms behind it. Null with none of them.
+func _cost_line(p: Dictionary, m: Dictionary, ids: Array) -> Control:
+	var costs: Array = p.costs.filter(func(c): return ids.has(c.id))
+	if costs.is_empty():
+		return null
+	var row := HFlowContainer.new()
+	row.add_theme_constant_override("h_separation", T.S)
+	row.add_theme_constant_override("v_separation", 4)
+	for c in costs:
+		var label: String = str(c.value) if c.value > 0 else c.text
+		var help: String = {"damage": "soak", "time": "time", "poison": "poison", "reserve": "reserve", "knock_out": "knock_out"}[c.id]
+		var pill := _pill(label, c.icon, c.element, T.BAD, help)
+		var why: Array = m.damage_terms if c.id == "damage" else (m.time_terms if c.id == "time" else [])
+		pill.tooltip_text = c.text
+		if not why.is_empty():
+			pill.tooltip_text = "%s: %s" % [c.text, " + ".join(why.map(func(t): return "%s %d" % [t.label, t.value]))]
+		row.add_child(pill)
+	return row
 
 
 ## The height this panel needs at `width`: the larger of its tip and its sum, and of
@@ -203,63 +356,6 @@ func _count(l: Label, from: int, to: int, duration: float) -> void:
 	l.create_tween().tween_method(show, float(from), float(to), duration).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 
 
-## One equation row: each term, then "=" and the total over the sum's name, then
-## "/" and the target over what it is. While incomplete, "Still needed" instead of
-## the total.
-func _row(s: Dictionary) -> Control:
-	var row := HFlowContainer.new()
-	# Wide enough apart that the captions under neighbouring terms read as two.
-	# The Final Battle's box is narrow: closer terms keep each sum on one line.
-	row.add_theme_constant_override("h_separation", 4 if _final() else T.S + 2)
-	row.add_theme_constant_override("v_separation", 4)
-	row.tooltip_text = s.label
-	for i in s.terms.size():
-		row.add_child(_term(s.terms[i], i == 0))
-	if s.total == null and s.missing.is_empty():
-		# Only the Boost's aim is missing, which its own cell asks for.
-		return row
-	if s.total == null:
-		# With nothing placed, the sum's icon and name lead the list, rather than an
-		# empty cell whose caption runs on into it.
-		var lead := "Still needed:"
-		if s.terms.is_empty():
-			if s.icon != "":
-				row.add_child(UI.icon_rect(s.icon, 26, T.INK_MUTED))
-			lead = "%s still needs" % s.label
-		# The Final Enemy's two rows share a short box: the list wraps beside the cell
-		# rather than dropping under it, so each row keeps its one height.
-		var beside := _kind == "final_enemy"
-		# The Final Battle's list of six Roles is longer than the box is wide: it wraps.
-		var long: bool = s.missing.size() > 3
-		var need := UI.label(lead + (" " if beside else "\n") + ", ".join(s.missing),
-			T.LABEL, T.INK_MUTED, beside or long)
-		need.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		need.custom_minimum_size.y = _row_h()
-		if beside or long:
-			need.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			need.custom_minimum_size.x = 160
-		row.add_child(need)
-		return row
-	if not s.terms.is_empty():
-		row.add_child(_sign("="))
-	var colour: Color = T.VERDICT[s.result].color if T.VERDICT.has(s.result) else T.INK
-	var total := _cell(str(s.total), s.label, colour, TOTAL)
-	var value_label: Label = total.get_child(0)
-	value_label.set_meta("value", int(s.total))
-	_totals[s.id] = value_label
-	row.add_child(total)
-	# The Final Battle's Attack and Move are set against the tiers, which the dragon's
-	# face lists and the verdict names; the row stops at the total.
-	if _final() and s.id != "initiative":
-		return row
-	row.add_child(_sign("/"))
-	var target_name: String = {"hp": "HP", "initiative": "Enemy" if _kind == "enemy" else "Dragon", "mp": "MP"}.get(s.target.icon, "")
-	if s.tier != null:
-		target_name = "Tier %d" % (s.tier.index + 1) if s.tier.index >= 0 else "Tier 1"
-	row.add_child(_cell(str(s.target.value), target_name, T.INK, TERM, s.target.icon))
-	return row
-
-
 func _term(t: Dictionary, first: bool) -> Control:
 	var v: int = t.value
 	var text := str(v) if first and v >= 0 else (("+%d" % v) if v >= 0 else MINUS + str(-v))
@@ -305,21 +401,6 @@ func _sign(text: String) -> Control:
 	return l
 
 
-## Under the Initiative row: who strikes first, and why when it is not Initiative.
-func _note(s: Dictionary) -> Control:
-	var look: Dictionary = T.VERDICT.get(s.result, T.VERDICT.loss)
-	var row := UI.hbox(6)
-	row.add_child(UI.icon_rect(look.icon, 20, look.color))
-	var l := UI.label(s.note, T.LABEL, look.color)
-	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	l.clip_text = true
-	l.tooltip_text = s.note
-	l.mouse_filter = Control.MOUSE_FILTER_PASS
-	row.add_child(l)
-	return row
-
-
 ## A target that is itself a sum (a Steep peril raising the MP), as one small line
 ## of the engine's terms.
 func _target_sum(s: Dictionary) -> Control:
@@ -340,84 +421,11 @@ func _target_sum(s: Dictionary) -> Control:
 func _prompt(_vs: Dictionary, _p, prompt: Dictionary) -> void:
 	if prompt.step != "":
 		_box.add_child(UI.label(prompt.step.to_upper(), T.EYEBROW, T.GOLD))
+	# How many of the step there are left to take ("2 Diverts left").
+	if prompt.get("count", "") != "":
+		_box.add_child(UI.label(prompt.count, T.LABEL_BOLD, T.INK_MUTED))
 	if prompt.text != "":
 		_box.add_child(UI.label(prompt.text, T.BODY, T.INK, true))
-
-
-## With the room of a note on the Deck (specs/013 research R7): the verdict as a
-## headline, then each reward and cost on a line of its own, its figure and what
-## brought it about, in the engine's own terms.
-func _outcome_lines(p: Dictionary, m: Dictionary, fatal: bool) -> Control:
-	var box := UI.vbox(T.S)
-	var look: Dictionary = T.VERDICT.get(p.verdict, T.VERDICT.loss)
-	var colour: Color = T.BAD if fatal else look.color
-	var head := UI.hbox(T.S)
-	head.add_child(UI.icon_rect(look.icon, 34, colour))
-	var text := UI.label(p.verdict_text, T.SUBHEAD, colour, true)
-	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	head.add_child(text)
-	box.add_child(head)
-	if p.rewards.xp > 0:
-		box.add_child(_line(_pill("+%d" % p.rewards.xp, "xp", "", T.GOLD, "xp"), "XP gained, to spend on Upgrades"))
-	for c in p.costs:
-		var label: String = str(c.value) if c.value > 0 else c.text
-		var help: String = {"damage": "soak", "time": "time", "poison": "poison", "reserve": "reserve", "knock_out": "knock_out"}[c.id]
-		var why: Array = m.damage_terms if c.id == "damage" else (m.time_terms if c.id == "time" else [])
-		var said: String = c.text
-		if not why.is_empty():
-			said = "%s: %s" % [c.text, " + ".join(why.map(func(t): return "%s %d" % [t.label, t.value]))]
-		box.add_child(_line(_pill(label, c.icon, c.element, T.BAD, help), said if c.value > 0 else ""))
-	if p.rewards.xp <= 0 and p.costs.is_empty() and p.tier < 0 and not fatal:
-		box.add_child(UI.label("No reward, no cost", T.BODY, T.INK_MUTED))
-	return box
-
-
-## A pill and the words that go with it, wrapping beside it.
-func _line(pill: Control, words: String) -> Control:
-	var row := UI.hbox(T.S)
-	pill.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	row.add_child(pill)
-	if words != "":
-		var l := UI.label(words, T.BODY, T.INK, true)
-		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		l.custom_minimum_size.y = 44
-		row.add_child(l)
-	return row
-
-
-## The verdict and its consequences on one line: rewards, then each cost. Each
-## cost's help names the engine's terms behind it ("Early damage 2 + Ambush 2").
-func _outcome_row(p: Dictionary, m: Dictionary, fatal: bool) -> Control:
-	var row := HFlowContainer.new()
-	row.add_theme_constant_override("h_separation", 8)
-	row.add_theme_constant_override("v_separation", 4)
-	row.alignment = FlowContainer.ALIGNMENT_CENTER
-	var look: Dictionary = T.VERDICT.get(p.verdict, T.VERDICT.loss)
-	var colour: Color = T.BAD if fatal else look.color
-	var verdict := UI.hbox(6)
-	verdict.custom_minimum_size.y = 44
-	verdict.add_child(UI.icon_rect(look.icon, 30, colour))
-	# In the body face, narrower than the display one, so the verdict and its rewards
-	# and costs share one line in the left side's width.
-	var text := UI.label(p.verdict_text, VERDICT, colour)
-	text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	verdict.add_child(text)
-	row.add_child(verdict)
-	if p.rewards.xp > 0:
-		row.add_child(_pill("+%d" % p.rewards.xp, "xp", "", T.GOLD, "xp"))
-	for c in p.costs:
-		var label: String = str(c.value) if c.value > 0 else c.text
-		var help: String = {"damage": "soak", "time": "time", "poison": "poison", "reserve": "reserve", "knock_out": "knock_out"}[c.id]
-		var pill := _pill(label, c.icon, c.element, T.BAD, help)
-		var why: Array = m.damage_terms if c.id == "damage" else (m.time_terms if c.id == "time" else [])
-		if not why.is_empty():
-			pill.tooltip_text = "%s: %s" % [c.text, " + ".join(why.map(func(t): return "%s %d" % [t.label, t.value]))]
-		row.add_child(pill)
-	if p.rewards.xp <= 0 and p.costs.is_empty() and p.tier < 0 and not fatal:
-		row.add_child(UI.label("No reward, no cost", T.LABEL, T.INK_MUTED))
-	return row
 
 
 func _pill(text: String, icon_name: String, element: String, colour: Color, help_id: String) -> Control:
@@ -431,12 +439,12 @@ func _pill(text: String, icon_name: String, element: String, colour: Color, help
 	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 	var row := UI.hbox(4)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_child(UI.icon_rect(icon_name, 26, colour))
+	row.add_child(UI.icon_rect(icon_name, T.NOTE_ICON, colour))
 	var l := UI.label(text, T.NUMERAL_S if text.is_valid_int() or text.begins_with("+") else T.LABEL_BOLD, T.INK)
 	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(l)
 	if element != "":
-		row.add_child(UI.icon_rect(element, 22, T.ether_ink(element)))
+		row.add_child(UI.icon_rect(element, T.NOTE_ICON, T.ether_ink(element)))
 	UI.ignore_mouse(row)
 	var m := MarginContainer.new()
 	for side in ["left", "right"]:

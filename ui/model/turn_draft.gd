@@ -16,6 +16,7 @@ var boost_to: Array = [null, null]       # "attack", "initiative", or null until
 var fuse: Variant = null              # {top, bottom, element}
 var fuse_pick: Array = []
 var mode := "none"                    # none, divert, regroup, fuse_pick, fuse_element
+var mode_pick: Variant = null         # the card a Divert or Regroup will discard, until confirmed
 var give_up_reserve := false
 var picks: Array = []                 # ordered picks for setup and Soak
 var held: Variant = null              # the card picked up, to trade places with another
@@ -32,6 +33,7 @@ func reset(count := 1, reserve_place := true) -> void:
 	fuse = null
 	fuse_pick = []
 	mode = "none"
+	mode_pick = null
 	give_up_reserve = false
 	picks = []
 	held = null
@@ -321,12 +323,20 @@ func boost_unchosen() -> Array:
 func begin_mode(m: String) -> void:
 	fuse_pick = []
 	held = null
+	mode_pick = null
 	mode = "none" if mode == m else m
 
 
 func cancel_mode() -> void:
 	fuse_pick = []
+	mode_pick = null
 	mode = "none"
+
+
+## The card a Divert or Regroup will discard, chosen and waiting to be confirmed;
+## chosen again, it is put back.
+func choose_for_mode(id: String) -> void:
+	mode_pick = null if mode_pick == id else id
 
 
 ## One of the two cards of a Fuse: first the card to play, then the card to tuck.
@@ -409,6 +419,7 @@ func duplicate_draft():
 	d.fuse = fuse.duplicate() if fuse != null else null
 	d.fuse_pick = fuse_pick.duplicate()
 	d.mode = mode
+	d.mode_pick = mode_pick
 	d.give_up_reserve = give_up_reserve
 	d.picks = picks.duplicate()
 	d.held = held

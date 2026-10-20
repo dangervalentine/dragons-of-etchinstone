@@ -45,6 +45,15 @@ const HEADS := {
 	"rodving": Rect2(278, 6, 160, 160),
 	"vuurhast": Rect2(284, 0, 178, 178),
 }
+## The same in each dragon's painted picture (art/painted/), drawn to its own
+## composition: centred on its face, eye to snout, and from the top of its crest,
+## antlers, horns or flames, so nothing of it rises past where the head is put.
+const PAINTED_HEADS := {
+	"grimroch": Rect2(310, 112, 110, 110),
+	"helsang": Rect2(315, 40, 160, 160),
+	"rodving": Rect2(283, 20, 150, 150),
+	"vuurhast": Rect2(279, 40, 130, 130),
+}
 
 
 ## How each silhouette idles; see ui/fx/shaders/creature_idle.gdshader.
@@ -250,8 +259,11 @@ static func dragon(id: String) -> String:
 	return DRAGONS.get(id, "")
 
 
-## The region of `name` to show where the dragon is faced: its head, or all of it.
-static func head(name: String) -> Rect2:
+## The region of `name` to show where the dragon is faced: its head, or all of it;
+## in its painted picture when that is what is drawn (`painted`, UI.is_painted()).
+static func head(name: String, painted := false) -> Rect2:
+	if painted and PAINTED_HEADS.has(name):
+		return PAINTED_HEADS[name]
 	return HEADS.get(name, FULL)
 
 

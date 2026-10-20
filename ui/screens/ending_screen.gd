@@ -43,7 +43,7 @@ func render(vs: Dictionary) -> void:
 	var sigil := Creature.new()
 	sigil.custom_minimum_size = Vector2(220, 220)
 	sigil.setup(vs.stage.art, colour if e.won else Color(T.INK_MUTED, 0.6), vs.stage.element if e.won else "")
-	sigil.crop = Art.head(vs.stage.art)
+	sigil.crop = Art.head(vs.stage.art, UI.is_painted(vs.stage.art))
 	sigil.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	left.add_child(sigil)
 	var head := ("%s is defeated" % e.dragon) if e.won else "You have perished"

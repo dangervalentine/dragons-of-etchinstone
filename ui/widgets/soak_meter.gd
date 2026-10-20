@@ -35,10 +35,10 @@ func render(vs: Dictionary) -> void:
 		_box.remove_child(c)
 		c.queue_free()
 	var head := UI.hbox(T.S)
-	head.add_child(UI.icon_rect("poison" if s.poison else "hp", 36, T.BAD))
+	head.add_child(UI.icon_rect("poison" if s.poison else "hp", T.NOTE_ICON, T.BAD))
 	head.add_child(UI.label(("Poison: %d damage" if s.poison else "%d damage") % s.due, T.HEADING, T.BAD))
 	if s.element != "":
-		head.add_child(UI.icon_rect(s.element, 30, T.ether_ink(s.element)))
+		head.add_child(UI.icon_rect(s.element, T.NOTE_ICON, T.ether_ink(s.element)))
 	_box.add_child(head)
 	_box.add_child(_meter)
 	var how := UI.label("Tap cards to Downgrade them.", T.LABEL, T.INK_MUTED, true)

@@ -601,12 +601,11 @@ func _on_card(id: String) -> void:
 				_refuse("That card cannot be Upgraded: %s." % card.get("reason", ""), id)
 		"challenge", "final_journey", "final_enemy":
 			match draft.mode:
-				"divert":
-					_respond("divert")
-					_act({"kind": "divert", "cards": [id], "id": id}, func(): return game.divert(id))
-				"regroup":
-					_respond("regroup")
-					_act({"kind": "regroup", "cards": [id], "id": id}, func(): return game.regroup(id))
+				"divert", "regroup":
+					# The card is only chosen: the step waits for its confirmation
+					# (specs/015), so a tap never discards a card by itself.
+					draft.choose_for_mode(id)
+					_refresh()
 				"fuse_pick":
 					var err: String = draft.pick_for_fuse(id, db)
 					_refresh()
@@ -676,7 +675,10 @@ func _on_primary() -> void:
 		# Play pressed too soon: say what is still missing.
 		var reason: String = vs.prompt.primary.reason
 		if reason != "":
-			_refuse(reason)
+			_refuse(reason, "", vs.prompt.primary.get("title", ""))
+		return
+	if draft.mode == "divert" or draft.mode == "regroup":
+		_confirm_mode()
 		return
 	match game.phase:
 		"setup":
@@ -741,6 +743,19 @@ func _played(a: Dictionary) -> Array:
 	return out
 
 
+## A Divert or Regroup confirmed: its chosen card is discarded and the step is done.
+func _confirm_mode() -> void:
+	var id = draft.mode_pick
+	if id == null:
+		return
+	if draft.mode == "divert":
+		_respond("divert")
+		_act({"kind": "divert", "cards": [id], "id": id}, func(): return game.divert(id))
+	else:
+		_respond("regroup")
+		_act({"kind": "regroup", "cards": [id], "id": id}, func(): return game.regroup(id))
+
+
 ## Apply an action to the game, then show what it did.
 func _act(action: Dictionary, call: Callable) -> void:
 	var before := ViewState.snapshot(game)
@@ -791,14 +806,35 @@ func _on_sequence_done() -> void:
 		_show_ending()
 
 
-func _refuse(text: String, card_id := "") -> void:
+func _refuse(text: String, card_id := "", title := "") -> void:
 	if play == null:
 		return
-	play.refuse(text)
+	play.refuse(text, title if title != "" else _refusal_title())
 	Haptics.refuse()
 	var view: Control = play.hand.card(card_id) if card_id != "" else null
 	if view != null:
 		UI.shake(view)
+
+
+## What a refused move was, by the step it was tried in: the refusal card's title.
+func _refusal_title() -> String:
+	if game == null:
+		return ""
+	match game.phase:
+		"setup":
+			return "Starting Cards"
+		"penalty", "poison", "final_soak":
+			return "Soak"
+		"upgrade":
+			return "Upgrade"
+	match draft.mode:
+		"fuse_pick", "fuse_element":
+			return "Fuse"
+		"divert":
+			return "Divert"
+		"regroup":
+			return "Regroup"
+	return "Placing Cards"
 
 
 ## The backdrop takes on a little of the Encounter's Ether behind it.
@@ -857,7 +893,7 @@ func _banner(values: Dictionary, duration: float) -> void:
 		var d: Dictionary = game.dragon
 		var art_name: String = Art.dragon(d.id)
 		b.show_banner("%s, %s" % [d.name, d.title], "The Final Journey" if values.phase == "final_journey" else "The Final Enemy",
-			UI.art_crop(art_name, Art.head(art_name)), T.ether(d.early_damage.element), duration)
+			UI.art_crop(art_name, Art.head(art_name, UI.is_painted(art_name))), T.ether(d.early_damage.element), duration)
 	else:
 		b.show_banner("Region %d" % values.region, db.region(values.region).name, "sigil_region", T.GOLD, duration)
 
@@ -1042,7 +1078,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		var i: int = draft.boost_target_set(draft.held)
 		if not vs.sets.is_empty() and vs.sets[0].show_boost_to:
 			if i < 0:
-				_refuse("Pick up a Boost card, then press B.")
+				_refuse("Pick up a Boost card, then press B.", "", "Boost Assignment")
 			else:
 				dispatch({"type": "toggle_boost_to", "set": i})
 	elif key == KEY_I:

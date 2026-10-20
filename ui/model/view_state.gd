@@ -756,10 +756,17 @@ static func _card_in_play(game, draft, db, c: Dictionary) -> void:
 			if c.selection_order >= 0:
 				c.state = "selected"
 			c.eligible = c.selection_order >= 0
+		"divert", "regroup":
+			# The card chosen to discard, waiting for the step to be confirmed.
+			if draft.mode_pick == id:
+				c.state = "selected"
+				c.selection_order = 0
+				c.note = "Discard"
+				c.note_icon = draft.mode
 
 
 static func _prompt(game, draft, vs: Dictionary) -> Dictionary:
-	var p := {"text": "", "step": "", "primary": {"label": "", "enabled": false, "reason": "", "kind": "primary"}}
+	var p := {"text": "", "step": "", "count": "", "primary": {"label": "", "enabled": false, "reason": "", "title": "", "kind": "primary"}}
 	match game.phase:
 		"setup":
 			var n: int = draft.picks.size()
@@ -774,10 +781,18 @@ static func _prompt(game, draft, vs: Dictionary) -> Dictionary:
 			match draft.mode:
 				"divert":
 					p.step = "Divert"
-					p.text = "Choose a Hand card to discard along with the Key Card. A new Key Card is revealed."
+					var left: int = Game.MAX_DIVERTS - game.diverts
+					p.count = "%d Divert%s left" % [left, "" if left == 1 else "s"]
+					if draft.mode_pick == null:
+						p.text = "Choose a Hand card to discard along with the Key Card. A new Key Card is revealed."
+					else:
+						p.text = "Discard %s along with the Key Card? Press Divert to confirm, or choose another card." % _card_name(vs, draft.mode_pick)
 				"regroup":
 					p.step = "Regroup"
-					p.text = "Choose one card to discard. The rest are shuffled back and you draw again."
+					if draft.mode_pick == null:
+						p.text = "Choose one card to discard. The rest are shuffled back and you draw again."
+					else:
+						p.text = "Discard %s and shuffle the rest back to draw again? Press Regroup to confirm, or choose another card." % _card_name(vs, draft.mode_pick)
 				"fuse_pick":
 					if draft.fuse_pick.is_empty():
 						p.step = "Fuse · step 1 of 3"
@@ -791,14 +806,26 @@ static func _prompt(game, draft, vs: Dictionary) -> Dictionary:
 			var pv: Dictionary = vs.preview
 			p.primary.label = "Play"
 			p.primary.enabled = pv.status == "ready" and draft.mode == "none"
+			# What a refused Play was, the title of the card that says why (specs/015).
 			if pv.status == "incomplete":
 				p.primary.reason = "Still needed: " + ", ".join(pv.missing)
+				p.primary.title = "Still Needed"
 				if pv.missing.all(func(m): return m.begins_with("Boost target")):
 					p.primary.reason = "Choose whether the Boost adds to Attack or to Initiative."
+					p.primary.title = "Boost Assignment"
 			elif pv.status == "blocked":
 				p.primary.reason = pv.reason
+				p.primary.title = "Action Set"
 			elif draft.mode != "none":
 				p.primary.reason = "Finish or cancel " + p.step.get_slice(" ", 0)
+				p.primary.title = p.step.get_slice(" ", 0)
+			# A Divert or Regroup is confirmed with the primary action once its card is
+			# chosen (specs/015).
+			if draft.mode == "divert" or draft.mode == "regroup":
+				p.primary.label = p.step
+				p.primary.enabled = draft.mode_pick != null
+				p.primary.reason = "" if p.primary.enabled else "Choose the card to discard first."
+				p.primary.title = p.step
 		"penalty", "poison", "final_soak":
 			var s: Dictionary = vs.soak
 			p.step = "Poison" if s.poison else "Soak"
@@ -822,6 +849,11 @@ static func _prompt(game, draft, vs: Dictionary) -> Dictionary:
 			p.primary.label = "Confirm" if not draft.picks.is_empty() else "Continue"
 			p.primary.enabled = true
 	return p
+
+
+static func _card_name(vs: Dictionary, id) -> String:
+	var c: Dictionary = vs.get("cards", {}).get(id, {})
+	return str(c.get("name", "that card"))
 
 
 ## The secondary actions for the action row, one per cell (specs/010 research R5,
