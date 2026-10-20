@@ -1,23 +1,20 @@
 extends Control
-## The first setup step: choose a dragon. Four cards show each dragon's head, name,
-## title and a line of flavour; beside them, on a card as tall as theirs, the
-## chosen dragon stands whole and moving over its figures, the only ones shown, so
-## one dragon is read at a time, each figure explaining itself on hover. The page
-## opens with none chosen and the card empty; Continue, to the difficulty and
-## alternate rules, waits for a choice. Back returns to the landing page.
+## The first setup step: choose a dragon. Four tiles on the right show each
+## dragon's head, name, title and a line of flavour; on the left, as tall as they
+## are, lies the chosen dragon's Dragon Card as the Final Battle shows it, the only
+## one shown, so one dragon is read at a time, each figure on it explaining itself
+## on hover. The page opens with none chosen and an empty place where the card will
+## lie; Continue, to the difficulty and alternate rules, waits for a choice. Back
+## returns to the landing page.
 
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
 const ChoiceTile = preload("res://ui/widgets/choice_tile.gd")
 const Art = preload("res://ui/model/art.gd")
-const Creature = preload("res://ui/fx/creature.gd")
-const DragonStats = preload("res://ui/widgets/dragon_stats.gd")
+const DragonCard = preload("res://ui/widgets/dragon_card.gd")
+const ViewState = preload("res://ui/model/view_state.gd")
 const Flavor = preload("res://ui/model/flavor.gd")
 const StoneStyle = preload("res://ui/theme/stone_style.gd")
-const FIELD_SHADER = preload("res://ui/fx/shaders/ether_field.gdshader")
-## How strongly the Ether field shows behind the chosen dragon: faint, so the dragon
-## reads first.
-const FIELD_ALPHA := 0.35
 
 signal intent(data: Dictionary)
 
@@ -28,12 +25,11 @@ var heading := "Hunt a Dragon"
 var db
 var options := {}
 var _tiles := {}
-## The chosen dragon's figures, rebuilt with the side on each choice.
-var stats: Control
-## The chosen dragon: its crest, name, title and figures.
-var _side: VBoxContainer
+## The chosen dragon's Dragon Card, rebuilt with the side on each choice.
+var card: Control
+## Where the card lies: an empty place before a choice, the card after.
+var _side: Control
 var _card: PanelContainer
-var _name: Label
 var _next: Button
 var _layout := Control.new()
 var _content := Rect2(16, 16, 1248, 688)
@@ -73,15 +69,16 @@ func _build() -> void:
 	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	root.add_child(row)
 
-	# Left: the chosen dragon on a card as tall as the four beside it.
-	var card := PanelContainer.new()
-	card.custom_minimum_size.x = 380
-	card.size_flags_stretch_ratio = 0.6
-	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(card)
-	_card = card
-	_side = UI.vbox(T.XS)
-	card.add_child(_side)
+	# Left: the chosen dragon's card, as tall as the four tiles beside it.
+	var place := PanelContainer.new()
+	place.custom_minimum_size.x = 380
+	place.size_flags_stretch_ratio = 0.6
+	place.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(place)
+	_card = place
+	_side = Control.new()
+	_side.resized.connect(_fit_card)
+	place.add_child(_side)
 	_fill_side()
 
 	# Right: the four dragons.
@@ -96,7 +93,7 @@ func _build() -> void:
 		var art := Art.dragon(id)
 		var line := Flavor.line(id)
 		var flavour: Control = UI.label(line, T.LABEL, T.INK_MUTED, true) if line != "" else null
-		# The head alone, still; the whole of the chosen one moves on the card beside.
+		# The head alone, still; the whole of the chosen one lies on its card beside.
 		var tile: Button = ChoiceTile.make(d.name, d.title, UI.art_crop(Art.head_art(art), Art.head(art, UI.is_painted(Art.head_art(art)))), T.ether(d.early_damage.element), null, 80.0, flavour)
 		tile.custom_minimum_size.y = 160
 		tile.pressed.connect(_choose.bind(id))
@@ -143,82 +140,55 @@ func _rank(id: String) -> int:
 	return at if at >= 0 else ETHER_ORDER.size()
 
 
-## The chosen dragon whole and moving, filling the card above its name, title and
-## figures, which sit at the foot where the cards beside it end.
+## The chosen dragon's Dragon Card, as large as the side holds it, centred.
 func _fill_side() -> void:
 	for c in _side.get_children():
 		_side.remove_child(c)
 		c.queue_free()
-	stats = null
-	_name = null
+	card = null
+	_card.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 	if options.dragon == "":
 		_fill_empty()
 		return
-	var d: Dictionary = db.dragon(options.dragon)
-	var ether: String = d.early_damage.element
-	var stone := StoneStyle.new("plinth", 0.35)
-	stone.edge = T.muted(T.ether(ether))
-	stone.edge_width = 2.0
-	for side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
-		stone.set_content_margin(side, T.S)
-	_card.add_theme_stylebox_override("panel", stone)
-	# The dragon stands over a faint field of its Ether, the moving woodcut the
-	# Encounters stand on.
-	var stage := Control.new()
-	stage.custom_minimum_size = Vector2(120, 120)
-	stage.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	stage.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	stage.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_side.add_child(stage)
-	var field := ColorRect.new()
-	field.material = ShaderMaterial.new()
-	field.material.shader = FIELD_SHADER
-	field.material.set_shader_parameter("tint", T.ether(ether))
-	field.material.set_shader_parameter("ether", T.ETHER_ID.get(ether, -1))
-	field.material.set_shader_parameter("motion", 0.0 if UI.reduced_motion else 1.0)
-	field.modulate.a = FIELD_ALPHA
-	field.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	field.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	field.resized.connect(func(): field.material.set_shader_parameter("size", field.size))
-	stage.add_child(field)
-	var crest := Creature.new()
-	crest.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	crest.setup(Art.dragon(options.dragon), T.ether(ether).lightened(0.15), ether)
-	stage.add_child(crest)
-	_name = UI.label(d.name.to_upper(), T.H1, T.GOLD)
-	_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_side.add_child(_name)
-	var title := UI.label(d.title, T.BODY, T.INK, true)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_side.add_child(title)
-	stats = DragonStats.make(d, true)
-	# Held in from the card's edge, clear of the stone's rail.
-	var inset := MarginContainer.new()
-	inset.add_theme_constant_override("margin_left", T.M)
-	inset.add_theme_constant_override("margin_right", T.M)
-	inset.add_child(stats)
-	_side.add_child(inset)
+	card = DragonCard.new()
+	card.explain = true
+	_side.add_child(card)
+	_fit_card()
+	card.render(ViewState.dragon_card_model(db.dragon(options.dragon)))
 
 
-## Before any choice: the card stands empty, a prompt at its middle.
+## Before any choice: an empty place the card's shape, a prompt at its middle.
 func _fill_empty() -> void:
 	var stone := StoneStyle.new("plinth", 0.6)
 	stone.edge = Color(0, 0, 0, 0)
 	for side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
-		stone.set_content_margin(side, T.S)
-	_card.add_theme_stylebox_override("panel", stone)
-	var gap := Control.new()
-	gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_side.add_child(gap)
+		stone.set_content_margin(side, T.M)
+	var place := PanelContainer.new()
+	place.add_theme_stylebox_override("panel", stone)
+	_side.add_child(place)
+	var prompt := UI.vbox(T.XS)
+	prompt.alignment = BoxContainer.ALIGNMENT_CENTER
+	place.add_child(prompt)
 	var hint := UI.label("Choose a dragon", T.HEADING, T.INK_MUTED)
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_side.add_child(hint)
-	var more := UI.label("Its Armor, Initiative and the tiers of the Final Battle show here.", T.LABEL, Color(T.INK_MUTED, 0.8), true)
+	prompt.add_child(hint)
+	var more := UI.label("Its Dragon Card, with its Armor, Initiative and the tiers of the Final Battle, shows here.", T.LABEL, Color(T.INK_MUTED, 0.8), true)
 	more.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_side.add_child(more)
-	var below := Control.new()
-	below.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_side.add_child(below)
+	prompt.add_child(more)
+	_fit_card()
+
+
+## The card, or the empty place, at the card's printed shape, as large as fits the
+## side, centred in it.
+func _fit_card() -> void:
+	if _side.get_child_count() == 0:
+		return
+	var s: Vector2 = DragonCard.card_size(_side.size.x)
+	if s.y > _side.size.y:
+		s = DragonCard.card_size(_side.size.y * s.x / s.y)
+	var c: Control = _side.get_child(0)
+	c.size = s
+	c.position = ((_side.size - s) / 2.0).round()
 
 
 ## Choosing a card changes only the marks and the side, so focus stays on the card.

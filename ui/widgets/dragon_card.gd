@@ -2,11 +2,11 @@ extends Control
 ## The Dragon Card on top of the Deck in the Final Battle, drawn as the printed card
 ## (specs/013 research R10, contracts/region-card-face.md "The Dragon Card"): a dark
 ## band with the dragon's name and title; under it a row of its figures, Initiative,
-## Early Damage and Armor; the MP Tiers down the left
-## (the Final Journey) and the HP Tiers down the right (the Final Enemy); and the
-## whole dragon, large, its head between the two ladders (art_rect()). The Deck
-## zooms into one column or the other. Every part is a share of the card's size, as
-## on the Region Card; the printed code is not shown.
+## Early Damage and Armor; the MP Tiers down the left (the Final Journey) and the HP
+## Tiers down the right (the Final Enemy); and the whole dragon, large, filling the
+## card under its figures behind the two ladders (art_rect()). The Deck zooms into
+## one column or the other. Every part is a share of the card's size, as on the
+## Region Card; the printed code is not shown.
 
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
@@ -15,6 +15,8 @@ const Creature = preload("res://ui/fx/creature.gd")
 const StoneStyle = preload("res://ui/theme/stone_style.gd")
 const RegionCard = preload("res://ui/widgets/region_card.gd")
 const Art = preload("res://ui/model/art.gd")
+const HelpTip = preload("res://ui/widgets/help_tip.gd")
+const DragonStats = preload("res://ui/widgets/dragon_stats.gd")
 
 ## The Dragon Card's hourglass: the Region Card's shape (region_panel.gd) in black,
 ## as its other figures are, its glass a dark slate so the shape still reads.
@@ -29,8 +31,18 @@ const LAYOUT := {
 	"hp": Rect2(0.74, 0.235, 0.24, 0.27),
 	"art": Rect2(0, 0.105, 1, 0.895),
 }
+## The dragon is held in this share of the card's width from its sides and foot,
+## and this far below the row of figures.
+const ART_SIDE := 0.03
+const ART_GAP := 0.01
+## At most this share of the dragon is moved off the card's left to clear its head
+## of the HP Tiers.
+const ART_SHIFT := 0.3
 
 var model := {}
+## Each figure tells on hover what it means, as on the choice of dragon; on the
+## Deck the card takes no part in the mouse. Set before render().
+var explain := false
 var _creature := Creature.new()
 var _chips: Array = []
 var _rows := {"figures": [], "mp": [], "hp": []}
@@ -75,6 +87,8 @@ func render(m: Dictionary) -> void:
 			_chip({"icon": "hp", "text": str(tier.hp), "color": T.BG_BAND}),
 			_chip({"icon": "attack_badge", "text": str(tier.attack.value), "color": T.ether(tier.attack.element),
 				"ink": T.ether_shade(tier.attack.element, "plate_ink"), "element": tier.attack.element})])
+	if explain:
+		_explain(d)
 	_fit()
 	queue_redraw()
 
@@ -92,22 +106,41 @@ static func target_rect(card_size: Vector2, target: String, _aspect := 1.0) -> R
 	return Rect2(card_size * r.position, card_size * r.size)
 
 
-## Where the whole dragon is drawn on a card of `card_size`, given where its head
-## lies in its art (`head`, in the art's 512 units): as wide as the card, but moved
-## so its head sits in the gap between the two ladders, just under the row of
-## figures, its body running off the left of the card (clipped) and below. With no
-## head marked, it fills the body as printed.
-static func art_rect(card_size: Vector2, head: Rect2) -> Rect2:
-	var side := card_size.x
-	var body: Rect2 = LAYOUT.art
-	if head == Art.FULL:
-		return Rect2(card_size * body.position, Vector2(side, side))
-	var k := side / Art.FULL.size.x
-	var gap_x := (LAYOUT.mp.end.x + LAYOUT.hp.position.x) / 2.0 * card_size.x
-	var top := (LAYOUT.figures.end.y + 0.01) * card_size.y
-	var x := minf(0.0, gap_x - head.get_center().x * k)
-	var y := maxf(body.position.y * card_size.y, top - head.position.y * k)
-	return Rect2(x, y, side, side)
+## Where the art is drawn on a card of `card_size`, given where the whole dragon
+## and its head lie in it (`body` and `head`, in the art's 512 units, Art.body()
+## and Art.head()): as large as the dragon fits under the row of figures, held in
+## from the card's edges, and centred there, the ladders lying over it as printed;
+## but moved left, its tail running off the card, so far as its head clears the HP
+## Tiers down the right.
+static func art_rect(card_size: Vector2, body: Rect2, head := Art.FULL) -> Rect2:
+	var top := LAYOUT.figures.end.y + ART_GAP
+	var room := Rect2(card_size * Vector2(ART_SIDE, top), card_size * Vector2(1.0 - 2.0 * ART_SIDE, 1.0 - top - ART_SIDE))
+	var k := minf(room.size.x / body.size.x, room.size.y / body.size.y)
+	var at := room.get_center() - body.get_center() * k
+	if head != Art.FULL and at.y + head.position.y * k < LAYOUT.hp.end.y * card_size.y:
+		var over := at.x + head.end.x * k - LAYOUT.hp.position.x * card_size.x
+		at.x -= clampf(over, 0.0, body.size.x * k * ART_SHIFT)
+	return Rect2(at, Art.FULL.size * k)
+
+
+## The words for each figure: the opening figures, each Armor, and each tier with
+## what its ladder is.
+func _explain(d: Dictionary) -> void:
+	var tip := func(c: Control, text: String, icon: String) -> void:
+		c.mouse_filter = Control.MOUSE_FILTER_STOP
+		HelpTip.show(c, text, icon)
+	tip.call(_rows.figures[0][0], DragonStats.initiative_text(d), "initiative")
+	tip.call(_rows.figures[1][0], "%s\n\n%s" % [DragonStats.early_damage_text(d), DragonStats.ether_text(d)], "attack")
+	for i in d.armor.size():
+		tip.call(_rows.figures[2 + i][0], DragonStats.armor_text(d.armor[i]), "armor")
+	for journey in [true, false]:
+		var rungs: Array = DragonStats.rungs(d, journey)
+		var rows: Array = _rows.mp if journey else _rows.hp
+		var tier := "Final Journey tier" if journey else "Final Enemy tier"
+		for i in rows.size():
+			var text := "%s: %s.\n\n%s" % [tier, DragonStats.rung_text(rungs[i], journey), DragonStats.ladder_heading_text(journey)]
+			for c in rows[i]:
+				tip.call(c, text, "time" if journey else "hp")
 
 
 func _chip(opts: Dictionary) -> Control:
@@ -123,7 +156,8 @@ func _fit() -> void:
 	_stone.round_radius = UI.card_radius(size.x)
 	if model.is_empty():
 		return
-	var at := art_rect(size, Art.head(model.art, UI.is_painted(model.art)))
+	var painted := UI.is_painted(model.art)
+	var at := art_rect(size, Art.body(model.art, painted), Art.head(model.art, painted))
 	_creature.position = at.position
 	_creature.size = at.size
 	# The figures in one centred row.

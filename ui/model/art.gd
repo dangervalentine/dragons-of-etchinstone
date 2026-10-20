@@ -54,6 +54,21 @@ const PAINTED_HEADS := {
 	"rodving": Rect2(283, 20, 150, 150),
 	"vuurhast": Rect2(279, 40, 130, 130),
 }
+## Where the whole of each dragon lies in its art, the box round all it draws, for
+## the places that frame it whole (the Dragon Card).
+const BODIES := {
+	"grimroch": Rect2(41, 29, 420, 463),
+	"helsang": Rect2(50, 21, 384, 469),
+	"rodving": Rect2(45, 24, 383, 448),
+	"vuurhast": Rect2(64, 4, 358, 486),
+}
+## The same in each dragon's painted picture.
+const PAINTED_BODIES := {
+	"grimroch": Rect2(60, 77, 345, 365),
+	"helsang": Rect2(38, 30, 402, 433),
+	"rodving": Rect2(22, 14, 422, 440),
+	"vuurhast": Rect2(72, 28, 355, 434),
+}
 
 
 ## How each silhouette idles; see ui/fx/shaders/creature_idle.gdshader.
@@ -265,6 +280,13 @@ static func head(name: String, painted := false) -> Rect2:
 	if painted and PAINTED_HEADS.has(name):
 		return PAINTED_HEADS[name]
 	return HEADS.get(name, FULL)
+
+
+## The region of `name` its whole body fills, or all of it where none is marked.
+static func body(name: String, painted := false) -> Rect2:
+	if painted and PAINTED_BODIES.has(name):
+		return PAINTED_BODIES[name]
+	return BODIES.get(name, FULL)
 
 
 ## The art to cut the head from: the head alone where the silhouette is drawn in

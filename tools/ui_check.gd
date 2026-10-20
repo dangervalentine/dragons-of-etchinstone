@@ -17,6 +17,7 @@ const StatChip = preload("res://ui/widgets/stat_chip.gd")
 const TitleScreen = preload("res://ui/screens/title_screen.gd")
 const RulesScreen = preload("res://ui/screens/rules_screen.gd")
 const DragonScreen = preload("res://ui/screens/dragon_screen.gd")
+const DragonCard = preload("res://ui/widgets/dragon_card.gd")
 const Settings = preload("res://ui/model/settings.gd")
 const ConfirmDialog = preload("res://ui/overlays/confirm_dialog.gd")
 const RulebookOverlay = preload("res://ui/overlays/rulebook_overlay.gd")
@@ -1249,7 +1250,7 @@ func _dragon_walk(where: String) -> void:
 		await process_frame
 		_inspect_screen("%s dragons %s" % [where, id])
 		_ok(_shows_only(id), "%s: only %s's figures are shown" % [where, id])
-		_ok(_explains(ui.screen.stats), "%s: %s's figures explain themselves" % [where, id])
+		_ok(_explains(ui.screen.card),"%s: %s's figures explain themselves" % [where, id])
 	var other: String = ui.db.dragon_ids()[1]
 	ui.screen._choose(other)
 	ui.screen.back()
@@ -1277,7 +1278,7 @@ func _play_from_landing(_where: String) -> void:
 func _shows_none() -> bool:
 	var s = ui.screen
 	return s.options.dragon == "" and s._tiles.values().all(func(t): return not t.selected) \
-		and s.stats == null and s._next.disabled
+		and s.card == null and s._next.disabled
 
 
 ## Every part of the figures that says what it is: the Initiative, Early Damage
@@ -1290,13 +1291,18 @@ func _explains(stats: Control) -> bool:
 	return ["Initiative", "Early Damage", "The dragon's Ether", "Armor", "The Final Journey", "The Final Enemy", "Final Journey tier", "Final Enemy tier"].all(func(k): return text.contains(k))
 
 
-## The dragon screen marks `id` alone and shows its figures and no other's.
+## The dragon screen marks `id` alone and shows its Dragon Card and no other's,
+## whole on screen at the card's printed shape.
 func _shows_only(id: String) -> bool:
 	var s = ui.screen
 	var marked: Array = s._tiles.keys().filter(func(k): return s._tiles[k].selected)
-	var figures: Array = s.find_children("*", "Label", true, false).filter(func(l): return l.is_visible_in_tree() and l.text == "Journey")
-	return marked == ["dragon:" + id] and is_instance_valid(s.stats) and s.stats.is_inside_tree() \
-		and figures.size() == 1 and s._name.text == ui.db.dragon(id).name.to_upper() and not s._next.disabled
+	var cards: Array = s.find_children("*", "Control", true, false).filter(func(c): return c.get_script() == DragonCard and c.is_visible_in_tree())
+	if marked != ["dragon:" + id] or cards != [s.card] or s._next.disabled:
+		return false
+	var r: Rect2 = s.card.get_global_rect()
+	var shape: Vector2 = DragonCard.card_size(1.0)
+	return s.card.model.get("id", "") == id and s.get_viewport_rect().encloses(r) \
+		and r.size.x > 0.0 and absf(r.size.x / r.size.y - shape.x / shape.y) < 0.01
 
 
 ## Place a card the way a player does: tap it, then tap its place in the role strip.
