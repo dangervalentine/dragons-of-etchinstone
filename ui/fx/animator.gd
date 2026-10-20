@@ -143,7 +143,7 @@ func _to_wait() -> void:
 ## Time Penalty, damage and XP, each card, mark or star seen as it goes.
 static func reduced_duration(st: Dictionary) -> float:
 	match st.kind:
-		"stage_banner", "key_peek", "pay_time", "damage", "soak_damage", "gain_xp", "upgrade", "xp_lost":
+		"stage_banner", "key_peek", "pay_time", "damage", "gain_xp", "upgrade", "xp_lost":
 			return st.duration
 	return minf(st.duration, T.FAST * 2.0)
 
@@ -237,10 +237,8 @@ func _run(st: Dictionary, d: float) -> void:
 			# The card turns in its own time while the XP it cost may still be flying.
 			for id in st.cards:
 				_level(id, st, minf(d, T.TURN))
-			if st.kind == "upgrade" and st.values.get("spent", 0) > 0:
-				_stars(st.cards[0], st.values.spent, d)
-		"soak_damage":
-			_soak_damage(st.cards, st.values.due, d)
+			if st.kind == "upgrade" and st.values.get("spent", 0) > 0 and screen.xp_purse.visible:
+				screen.xp_purse.count_to(int(screen.xp_purse.amount.text) - st.values.spent, d)
 		"xp_lost":
 			if screen.xp_purse.visible:
 				screen.xp_purse.fade_out(d)
@@ -372,65 +370,16 @@ func _level(id: String, st: Dictionary, d: float) -> void:
 		"crown" if up else "down_arrow"))
 
 
-## The XP an Upgrade spent leaves the purse's big star as that many stars, one
-## per XP, and lands on the card; the purse's figure counts down as they go
-## (specs/011 R7).
-func _stars(id: String, spent: int, d: float) -> void:
-	var v: Control = screen.hand.card(id)
-	if v == null or not screen.xp_purse.visible:
-		return
-	var from: Vector2 = screen.xp_purse.star_point()
-	var to: Vector2 = v.global_position + v.size / 2.0
-	var pace := _pace(spent, d)
-	for i in spent:
-		_keep(flight.ghost("xp", from, to, pace.x, T.GOLD, 28, i * pace.y))
-	screen.xp_purse.count_to(int(screen.xp_purse.amount.text) - spent, d)
-
-
-## While Upgrades are chosen: the XP a card takes flies from the purse to it as
-## stars, and back to the purse when the Upgrade is taken back; the purse counts
-## from `from_xp` to what is left.
+## While Upgrades are chosen: the purse's figure and bar count from `from_xp` to
+## what is left as a card takes its XP, or back as an Upgrade is taken back. Nothing
+## flies between the purse and the card (specs/015).
 func spend(play_screen: Control, id: String, from_xp: int, to_xp: int) -> void:
 	screen = play_screen
 	var v: Control = screen.hand.card(id)
 	if v == null or not screen.xp_purse.is_visible_in_tree() or from_xp == to_xp:
 		return
-	var purse: Vector2 = screen.xp_purse.star_point()
-	var card: Vector2 = v.global_position + v.size / 2.0
-	var a: Vector2 = purse if to_xp < from_xp else card
-	var b: Vector2 = card if to_xp < from_xp else purse
-	var n := absi(from_xp - to_xp)
-	var d := Sequencer.paced(n)
-	var pace := _pace(n, d)
-	for i in n:
-		flight.ghost("xp", a, b, pace.x, T.GOLD, 28, i * pace.y)
 	screen.xp_purse.amount.text = str(from_xp)
-	screen.xp_purse.count_to(to_xp, d)
-
-
-## The damage due leaves the Soak meter for the cards chosen to take it: each card
-## gets one mark per point it Soaks, in the order chosen, until the damage is all
-## taken, as the XP an Upgrade spends flies to its card.
-func _soak_damage(ids: Array, due: int, d: float) -> void:
-	if not screen.soak_meter.visible:
-		return
-	var soak: Dictionary = screen.vs.get("soak", {}) if screen.vs.get("soak") != null else {}
-	var element: String = soak.get("element", "")
-	var icon: String = "poison" if soak.get("poison", false) else (element if element != "" else "hp")
-	var from: Vector2 = screen.soak_meter.point()
-	var pace := _pace(due, d)
-	var left := due
-	var k := 0
-	for id in ids:
-		var v: Control = screen.hand.card(id)
-		var n: int = mini(left, int(screen.vs.cards.get(id, {}).get("soaks", 0)))
-		left -= n
-		if v == null:
-			continue
-		var to: Vector2 = v.global_position + v.size / 2.0
-		for i in n:
-			_keep(flight.ghost(icon, from, to, pace.x, T.BAD, 28, k * pace.y))
-			k += 1
+	screen.xp_purse.count_to(to_xp, Sequencer.paced(absi(from_xp - to_xp)))
 
 
 ## How long each of `n` marks or stars flies, and the gap between one leaving and

@@ -30,6 +30,9 @@ const MINUS := "\u2212"
 ## Whether the note has room to spare (table_note.gd sets it as it lays the card
 ## out); the result is set out the same either way since specs/015.
 var roomy := false
+## How wide a line of the card's own words may run before it wraps (table_note.gd
+## sets it to its content's width): short lines are centred whole.
+var text_room := 300.0
 
 ## The step's tip, shown until Play; and the sum, built with it but shown only once
 ## Play is pressed, so the box is sized for it from the start.
@@ -145,12 +148,17 @@ func _build_sum(p: Dictionary, m: Dictionary) -> void:
 			_sum.add_child(_verdict)
 		if s.note != "":
 			_sum.add_child(_strike_line(s))
+	# What the Play cost stands a little apart from the sums and the verdict.
 	var damage := _cost_line(p, m, ["damage"])
-	if damage != null:
-		_sum.add_child(damage)
 	var status := _cost_line(p, m, ["poison", "time", "reserve", "knock_out"])
-	if status != null:
-		_sum.add_child(status)
+	if damage != null or status != null:
+		var gap := Control.new()
+		gap.custom_minimum_size.y = T.M
+		gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_sum.add_child(gap)
+	for line in [damage, status]:
+		if line != null:
+			_sum.add_child(line)
 	_align(rows)
 
 
@@ -230,15 +238,21 @@ static func _align(rows: Array) -> void:
 
 
 ## A line of the card's own words: an icon and what it says, at one size and type
-## for the verdict and for who strikes first.
-func _say(icon: String, text: String, colour: Color) -> HBoxContainer:
+## for the verdict and for who strikes first, centred across the card; a line
+## wider than the card wraps under itself. `beside` is how wide whatever else
+## shares the line is (the verdict's XP).
+func _say(icon: String, text: String, colour: Color, beside := 0.0) -> HBoxContainer:
 	var line := UI.hbox(T.S)
+	line.alignment = BoxContainer.ALIGNMENT_CENTER
 	line.custom_minimum_size.y = 40
 	var i := UI.icon_rect(icon, T.NOTE_ICON, colour)
 	i.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	line.add_child(i)
 	var l := UI.label(text, VERDICT, colour, true)
-	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var room := maxf(80.0, text_room - T.NOTE_ICON - T.S - (beside + T.S if beside > 0.0 else 0.0))
+	var wide: float = UI.font(VERDICT[0]).get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, VERDICT[1]).x + 2.0
+	l.custom_minimum_size.x = minf(wide, room)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	l.tooltip_text = text
 	l.mouse_filter = Control.MOUSE_FILTER_PASS
@@ -249,10 +263,13 @@ func _say(icon: String, text: String, colour: Color) -> HBoxContainer:
 ## Complete, Narrow Victory, Loss (or the tier reached), and the XP it brings.
 func _verdict_line(p: Dictionary) -> Control:
 	var look: Dictionary = T.VERDICT.get(p.verdict, T.VERDICT.loss)
-	var line := _say(look.icon, p.verdict_text, T.BAD if p.fatal else look.color)
+	var xp: Control = null
 	if p.rewards.xp > 0:
-		var xp := _pill("+%d" % p.rewards.xp, "xp", "", T.GOLD, "xp")
+		xp = _pill("+%d" % p.rewards.xp, "xp", "", T.GOLD, "xp")
 		xp.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var line := _say(look.icon, p.verdict_text, T.BAD if p.fatal else look.color,
+		xp.custom_minimum_size.x if xp != null else 0.0)
+	if xp != null:
 		line.add_child(xp)
 	return line
 

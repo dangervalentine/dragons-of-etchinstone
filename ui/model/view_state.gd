@@ -90,6 +90,8 @@ static func build(game, draft, db, extra := {}) -> Dictionary:
 		vs.sets = _sets(game, draft)
 	if phase == "upgrade":
 		vs.xp = game.xp - staged_cost(game, draft)
+		# All the XP there was to spend, before any Upgrade chosen: the bar it empties.
+		vs["xp_total"] = game.xp
 	if SOAK_PHASES.has(phase):
 		var total := 0
 		for id in draft.picks:

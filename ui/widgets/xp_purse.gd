@@ -8,6 +8,11 @@ const UI = preload("res://ui/theme/theme.gd")
 var _box := VBoxContainer.new()
 var amount: Label
 var _icon: Control
+## The XP there is, as a bar that empties as it is spent (the Soak's meter fills
+## as the damage is covered; specs/015): what is left of all there was.
+var _bar := Control.new()
+var _total := 0
+var _left := 0.0
 ## Whether to say how the Encounter went above the XP.
 var recap := true
 
@@ -16,6 +21,8 @@ func _init() -> void:
 	add_theme_stylebox_override("panel", UI.stone_zone(T.GOLD))
 	_box.add_theme_constant_override("separation", 8)
 	add_child(_box)
+	_bar.custom_minimum_size.y = 34
+	_bar.draw.connect(_draw_bar)
 
 
 ## The height this panel needs at `width`.
@@ -25,9 +32,13 @@ func needed_height(width: float) -> float:
 
 
 func render(vs: Dictionary) -> void:
+	if _bar.get_parent() != null:
+		_box.remove_child(_bar)
 	for c in _box.get_children():
 		_box.remove_child(c)
 		c.queue_free()
+	_total = int(vs.get("xp_total", vs.xp))
+	_left = float(vs.xp)
 	var r: Dictionary = vs.recap if recap else {}
 	if not r.is_empty():
 		var look: Dictionary = T.VERDICT[r.outcome]
@@ -55,7 +66,32 @@ func render(vs: Dictionary) -> void:
 	cap.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	purse.add_child(cap)
 	_box.add_child(purse)
+	_box.add_child(_bar)
+	_bar.queue_redraw()
 	_box.add_child(UI.label(vs.prompt.text, T.LABEL, T.INK_MUTED, true))
+
+
+## The bar: gold for the XP left, emptying from the right as it is spent, its
+## count of what is left over all there was.
+func _draw_bar() -> void:
+	var r := Rect2(Vector2.ZERO, _bar.size)
+	_bar.draw_style_box(UI.box(T.BG_RAISED, T.LINE_SOFT, 1, 10, 0), r)
+	var frac := clampf(_left / float(_total), 0.0, 1.0) if _total > 0 else 0.0
+	if frac > 0.0:
+		_bar.draw_style_box(UI.box(T.GOLD, Color.TRANSPARENT, 0, 10, 0),
+			Rect2(r.position, Vector2(maxf(20.0, r.size.x * frac), r.size.y)))
+	var font := UI.font("display_bold")
+	var text := "%d / %d" % [roundi(_left), _total]
+	var sz := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 24)
+	_bar.draw_string(font, Vector2((r.size.x - sz.x) / 2.0, r.size.y / 2.0 + 9), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 24,
+		T.BG_BASE if frac >= 0.5 else T.INK)
+
+
+func _set_left(v: float) -> void:
+	_left = v
+	if is_instance_valid(amount):
+		amount.text = str(roundi(v))
+	_bar.queue_redraw()
 
 
 ## Global centre of the XP figure, where XP flies to.
@@ -68,19 +104,16 @@ func star_point() -> Vector2:
 	return _icon.global_position + _icon.size / 2.0 if _icon != null and _icon.is_inside_tree() else point()
 
 
-## Count the XP figure down (or up) to `n` while stars fly from it (specs/011 R7).
+## Count the XP figure and its bar down (or up) to `n`.
 func count_to(n: int, duration: float) -> void:
 	if amount == null:
 		return
 	var from := int(amount.text)
 	if UI.reduced_motion or not amount.is_inside_tree():
-		amount.text = str(n)
+		_set_left(n)
 		return
-	var l := amount
-	var show := func(v: float) -> void:
-		if is_instance_valid(l):
-			l.text = str(roundi(v))
-	l.create_tween().tween_method(show, float(from), float(n), duration).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	# Bound to the figure, so the count stops if the purse is drawn again under it.
+	amount.create_tween().tween_method(_set_left, float(from), float(n), duration).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 
 
 ## The XP left unspent fades away as the Upgrade step ends: it is lost.
@@ -88,3 +121,7 @@ func fade_out(duration: float) -> void:
 	for c in [amount, _icon]:
 		if c != null and c.is_inside_tree():
 			c.create_tween().tween_property(c, "modulate:a", 0.0, duration)
+	if amount != null and amount.is_inside_tree() and not UI.reduced_motion:
+		amount.create_tween().tween_method(_set_left, _left, 0.0, duration)
+	else:
+		_set_left(0.0)

@@ -30,7 +30,7 @@ const FOOT_H := 18.0
 ## Each kind's title, icon and colour as the band shows them. A step's title is its
 ## mode's name (FUSE, DIVERT, REGROUP).
 const LOOKS := {
-	"setup": {"title": "PREPARE YOUR DECK", "icon": "crown", "accent": "gold"},
+	"setup": {"title": "PREPARE", "icon": "crown", "accent": "gold"},
 	"mode": {"title": "", "icon": "", "accent": "focus"},
 	"result": {"title": "RESULT", "icon": "attack", "accent": "gold"},
 	"soak": {"title": "SOAK THE DAMAGE", "icon": "hp", "accent": "bad"},
@@ -137,6 +137,8 @@ func show_kinds(what: Array, vs: Dictionary) -> void:
 	soak_meter.visible = what.has("soak")
 	xp_purse.visible = what.has("upgrade")
 	_setup.visible = what.has("setup")
+	# The result's own lines are centred across the card's content.
+	preview.text_room = content_rect().size.x
 	if what.has("result"):
 		_render_result()
 	elif preview.visible:

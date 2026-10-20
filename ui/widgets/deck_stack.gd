@@ -439,7 +439,7 @@ func finish() -> void:
 	_put_peek_away()
 	for c in [region_card, dragon_card, landed, dragon_face, _peek]:
 		c.scale = Vector2.ONE
-		c.modulate.a = 1.0
+		c.modulate = Color.WHITE
 	_peek.visible = false
 	pile.finish()
 	if not vs.is_empty():
@@ -998,7 +998,7 @@ func _settle_view() -> void:
 		return
 	for c in [region_card, dragon_card, landed, dragon_face]:
 		c.scale = Vector2.ONE
-		c.modulate.a = 1.0
+		c.modulate = Color.WHITE
 	region_card.set_focus("", 0.0)
 	region_card.set_rim(0.0)
 	region_card.set_numbers(1.0)
@@ -1025,8 +1025,8 @@ func _land() -> void:
 	_hold_faces(false)
 
 
-## The card on top changes: placed on the Deck at the start, turned over to the
-## other Region on the same card, or swapped for the other card (or the dragon's).
+## The card on top changes: placed on the Deck at the start, turned over right to
+## left to the next Region on its back, or after the last Region to the dragon's.
 func turn_to(m, d: float) -> void:
 	if m == null:
 		return
@@ -1058,18 +1058,18 @@ func turn_to(m, d: float) -> void:
 		tw.chain().tween_callback(_settle_view)
 		return
 	var old: Control = top_node()
-	var same_card: bool = was.kind == "region" and m.kind == "region" and was.pair == m.pair
 	var tw := _keep(create_tween().set_trans(Tween.TRANS_QUAD))
-	if same_card:
-		# Turned end over end to the card's other Region.
+	if was.kind == "region":
+		# Turned over right to left, the next Region (or the dragon) on its back.
 		old.pivot_offset = old.size / 2.0
-		tw.tween_property(old, "scale:y", 0.0, d / 2.0).set_ease(Tween.EASE_IN)
-		tw.tween_callback(func():
-			_show_top(m)
-			_place()
-			var top: Control = top_node()
-			top.scale.y = 0.0)
-		tw.tween_method(func(v: float): top_node().scale.y = v, 0.0, 1.0, d / 2.0).set_ease(Tween.EASE_OUT)
+		# Where the card on show rests: the new one, once turned, rests at its own place.
+		var home := [old.position]
+		tw.tween_method(func(v: float):
+			if v >= 0.5 and _shown_top != m:
+				_show_top(m)
+				_place()
+				home[0] = top_node().position
+			_flip_at(v, home[0]), 0.0, 1.0, d).set_ease(Tween.EASE_IN_OUT)
 	else:
 		# The old card goes to the back; the next comes up from behind the Deck.
 		var away := old.position + Vector2.ONE * T.DECK_EDGE
@@ -1087,6 +1087,19 @@ func turn_to(m, d: float) -> void:
 			top.position = cr.position + Vector2.ONE * T.DECK_EDGE * (1.0 - v)
 			top.modulate.a = v, 0.0, 1.0, d / 2.0).set_ease(Tween.EASE_OUT)
 	tw.tween_callback(_settle_view)
+
+
+## The top card `v` of the way through being turned over right to left about its
+## upright middle, resting at `home`: edge on at the half, leaning left the way it
+## turns as a step note does (note_pile.gd _flip()), lifted a little and shaded as
+## it turns away from the light.
+func _flip_at(v: float, home: Vector2) -> void:
+	var top: Control = top_node()
+	var a := v * PI
+	top.scale = Vector2(absf(cos(a)), 1.0 + 0.04 * sin(a))
+	top.position = home - Vector2(top.size.x * 0.08 * sin(a), 0)
+	var shade := 1.0 - 0.35 * sin(a)
+	top.modulate = Color(shade, shade, shade, top.modulate.a)
 
 
 ## The Key Card, as big as the Region Card and lined up with it, rises from under

@@ -13,7 +13,7 @@ const DURATION := {
 	"play_cards": 0.35, "tally": 0.6, "verdict": 0.4, "gain_xp": 0.35, "damage": T.DAMAGE,
 	"pay_time": 0.2, "poison_pending": 0.3, "knock_out": 0.45, "downgrade": T.TURN, "trash": 0.3,
 	"upgrade": T.TURN, "discard": 0.35, "gather_shuffle": 0.45, "stage_banner": 1.2, "draw": 0.35,
-	"ending": 0.4, "xp_lost": 0.9, "soak_damage": 0.5,
+	"ending": 0.4, "xp_lost": 0.9,
 	"zoom_out": T.ZOOM, "zoom_in": T.ZOOM, "turn_card": T.TURN, "key_peek": T.KEY_PEEK,
 }
 ## The steps that reveal the next Encounter on the Deck (specs/012 research R8):
@@ -21,7 +21,7 @@ const DURATION := {
 const REVEAL := ["key_peek", "zoom_in"]
 ## The steps a long sequence never hurries: the reveal, and what is to be seen
 ## going: a Time Penalty's cards leaving the Deck, damage, and XP won, spent or lost.
-const OWN_TIME := REVEAL + ["pay_time", "damage", "soak_damage", "gain_xp", "upgrade", "xp_lost"]
+const OWN_TIME := REVEAL + ["pay_time", "damage", "gain_xp", "upgrade", "xp_lost"]
 
 
 ## action: {kind, cards (the cards played or chosen), id (one card)}. kind is one of
@@ -68,12 +68,7 @@ static func build(before: Dictionary, action: Dictionary, result: Dictionary, af
 			elif after.phase == "final_soak":
 				steps.append(_step("damage", [], {"amount": after.damage_due, "early": 0, "element": ""}, "hand"))
 		"soak":
-			# The damage leaves the Soak meter for the cards that take it, in the order
-			# chosen, before they Downgrade (specs/011 follow-up).
-			var due: int = before.get("damage_due", 0)
-			var st := _step("soak_damage", action.cards.duplicate(), {"due": due}, "soak")
-			st.duration = paced(due)
-			steps.append(st)
+			# The cards chosen Downgrade; nothing flies to them (specs/015).
 			_level_steps(steps, before, after, before.hand)
 		"upgrade":
 			_level_steps(steps, before, after, before.hand)

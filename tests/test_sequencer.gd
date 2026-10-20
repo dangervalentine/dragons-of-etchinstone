@@ -39,8 +39,6 @@ func _act(g, action: Dictionary, call: Callable) -> String:
 				"%s: a Time Penalty keeps its time, each card seen to go" % action.kind)
 		if st.kind == "damage":
 			eq(st.duration, T.DAMAGE, "%s: damage keeps its time" % action.kind)
-		if st.kind == "soak_damage":
-			eq(st.duration, Sequencer.paced(st.values.due), "%s: each mark of damage seen to go" % action.kind)
 		if st.kind == "gain_xp":
 			eq(st.duration, Sequencer.paced(mini(st.values.amount, T.XP_STARS)), "%s: each XP star seen to go" % action.kind)
 		if st.kind == "draw":
@@ -238,9 +236,9 @@ func test_finish_with_unspent_xp_adds_xp_lost() -> void:
 	ok(not steps.any(func(s): return s.kind == "xp_lost"), "none when every XP was spent")
 
 
-## Taking the damage first sends it to the cards chosen, in that order (specs/011
-## follow-up), then they Downgrade.
-func test_soaking_sends_the_damage_to_the_chosen_cards() -> void:
+## Taking the damage Downgrades the cards chosen at once: nothing flies to them
+## first (specs/015).
+func test_soaking_downgrades_the_chosen_cards() -> void:
 	for game_seed in range(1, 120):
 		var g = Game.new(db, {"seed": game_seed, "dragon": "rodving", "difficulty": "normal"})
 		g.phase = "penalty"
@@ -256,10 +254,7 @@ func test_soaking_sends_the_damage_to_the_chosen_cards() -> void:
 		if g.soak(picks) != "":
 			continue
 		var steps: Array = Sequencer.build(before, {"kind": "soak", "cards": picks}, {}, ViewState.snapshot(g))
-		eq(steps[0].kind, "soak_damage", "the damage moves first")
-		eq(steps[0].cards, picks, "to the cards chosen, in order")
-		eq(steps[0].values.due, 2, "all of it")
-		ok(steps.slice(1).all(func(s): return s.kind == "downgrade" or s.kind == "trash"), "then they Downgrade")
+		ok(not steps.is_empty() and steps.all(func(s): return s.kind == "downgrade" or s.kind == "trash"), "they Downgrade, nothing first")
 		return
 	ok(false, "no seed could Soak 2 damage")
 

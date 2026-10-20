@@ -522,12 +522,12 @@ func _game() -> void:
 			if not ui.vs.soak.covered and ui.vs.cards[id].eligible:
 				_press({"type": "card", "id": id})
 		await _shot("soak_covered")
-		# The damage flies from the Soak meter to the cards taking it.
+		# The cards taking the damage Downgrade.
 		ui.dispatch({"type": "primary"})
 		for i in 12:
 			await process_frame
 		n += 1
-		root.get_texture().get_image().save_png("%s/%02d_soak_damage_flight.png" % [out, n])
+		root.get_texture().get_image().save_png("%s/%02d_soak_downgrading.png" % [out, n])
 		ui.animator.skip()
 	if g.phase == "upgrade":
 		await _shot("after_battle_upgrade")
@@ -536,12 +536,12 @@ func _game() -> void:
 			if ui.vs.cards[id].get("eligible", false):
 				up = id
 				break
-		# Chosen, the card turns to its next Level as the XP flies to it as stars.
+		# Chosen, the card turns to its next Level as the purse's bar empties.
 		ui.dispatch({"type": "card", "id": up})
 		for i in 8:
 			await process_frame
 		n += 1
-		root.get_texture().get_image().save_png("%s/%02d_upgrade_stars.png" % [out, n])
+		root.get_texture().get_image().save_png("%s/%02d_upgrade_spending.png" % [out, n])
 		await create_timer(0.6).timeout
 		await _shot("upgrade_chosen")
 		_press({"type": "inspect", "id": g.hand[0]})
