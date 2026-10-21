@@ -70,7 +70,9 @@ func _init() -> void:
 		box.add_child(count)
 		UI.ignore_mouse(box)
 		b.add_child(box)
-		b.pressed.connect(func(): intent.emit({"type": "help", "id": pile, "source": b}))
+		# The Discard opens on the cards in it; the other piles explain themselves.
+		var kind := "pile" if pile == "discard" else "help"
+		b.pressed.connect(func(): intent.emit({"type": kind, "id": pile, "source": b}))
 		_row.add_child(b)
 		_piles.append(b)
 		_counts[pile] = count

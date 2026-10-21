@@ -523,6 +523,8 @@ func dispatch(intent: Dictionary) -> void:
 			var g := GlossaryPopover.new()
 			_overlays.add_child(g)
 			g.show_entry(intent.id, anchor, plan.content)
+		"pile":
+			_inspect_pile(intent.id)
 		"inspect_key":
 			_inspect_key()
 		"inspect":
@@ -779,9 +781,10 @@ func _act(action: Dictionary, call: Callable) -> void:
 	if game.phase != phase_before and (game.phase == "challenge" or game.phase.begins_with("final")):
 		_reset_draft()
 	var steps := Sequencer.build(before, action, game.result, after)
-	# A Time Penalty's cards show their faces as they go to the Discard.
+	# A Time Penalty's cards show their faces as they go to the Discard, and the
+	# Discard's as it comes back under the next Region's card.
 	for st in steps:
-		if st.kind == "pay_time":
+		if st.kind == "pay_time" or st.kind == "gather_shuffle" and st.values.get("from", "") == "discard":
 			st.values["models"] = {}
 			for id in st.cards:
 				st.values.models[id] = ViewState.plain_card(game, db, id)
@@ -893,7 +896,7 @@ func _banner(values: Dictionary, duration: float) -> void:
 		var d: Dictionary = game.dragon
 		var art_name: String = Art.dragon(d.id)
 		b.show_banner("%s, %s" % [d.name, d.title], "The Final Journey" if values.phase == "final_journey" else "The Final Enemy",
-			UI.art_crop(art_name, Art.head(art_name, UI.is_painted(art_name))), T.ether(d.early_damage.element), duration)
+			UI.head(art_name), T.ether(d.early_damage.element), duration, UI.head_tint(art_name, T.ether(d.early_damage.element)))
 	else:
 		b.show_banner("Region %d" % values.region, db.region(values.region).name, "sigil_region", T.GOLD, duration)
 
@@ -918,6 +921,20 @@ func _inspect(id: String) -> void:
 	var o := InspectOverlay.new()
 	_overlays.add_child(o)
 	o.setup(db, vs.cards[id], plan.content)
+
+
+## The cards in a pile, each at its current Level, the last to arrive first.
+func _inspect_pile(pile: String) -> void:
+	if game == null:
+		return
+	var ids: Array = game.get(pile).duplicate()
+	ids.reverse()
+	var models := []
+	for id in ids:
+		models.append({"id": id, "level": game.cards[id].level})
+	var o := InspectOverlay.new()
+	_overlays.add_child(o)
+	o.setup_pile(db, models, pile, plan.content)
 
 
 ## An overlay opened from the Settings menu reopens it when closed, as the X or

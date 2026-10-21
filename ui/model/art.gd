@@ -49,9 +49,9 @@ const HEADS := {
 ## composition: centred on its face, eye to snout, and from the top of its crest,
 ## antlers, horns or flames, so nothing of it rises past where the head is put.
 const PAINTED_HEADS := {
-	"grimroch": Rect2(310, 112, 110, 110),
+	"grimroch": Rect2(226, 48, 160, 160),
 	"helsang": Rect2(315, 40, 160, 160),
-	"rodving": Rect2(283, 20, 150, 150),
+	"rodving": Rect2(228, 55, 145, 145),
 	"vuurhast": Rect2(279, 40, 130, 130),
 }
 ## Where the whole of each dragon lies in its art, the box round all it draws, for
@@ -62,13 +62,11 @@ const BODIES := {
 	"rodving": Rect2(45, 24, 383, 448),
 	"vuurhast": Rect2(64, 4, 358, 486),
 }
-## The same in each dragon's painted picture.
-const PAINTED_BODIES := {
-	"grimroch": Rect2(60, 77, 345, 365),
-	"helsang": Rect2(38, 30, 402, 433),
-	"rodving": Rect2(22, 14, 422, 440),
-	"vuurhast": Rect2(72, 28, 355, 434),
-}
+## The same in each dragon's painted picture: one box for all four, the Dragon Card's
+## room under its figures, so a dragon is drawn on the card where it is placed on its
+## artboard (tools/dragon_template.svg draws the card round it: its
+## edge, the ladders over the dragon, and the feet on 490).
+const PAINTED_BODY := Rect2(41.1, 10, 429.7, 480)
 
 
 ## How each silhouette idles; see ui/fx/shaders/creature_idle.gdshader.
@@ -284,8 +282,8 @@ static func head(name: String, painted := false) -> Rect2:
 
 ## The region of `name` its whole body fills, or all of it where none is marked.
 static func body(name: String, painted := false) -> Rect2:
-	if painted and PAINTED_BODIES.has(name):
-		return PAINTED_BODIES[name]
+	if painted and DRAGONS.values().has(name):
+		return PAINTED_BODY
 	return BODIES.get(name, FULL)
 
 

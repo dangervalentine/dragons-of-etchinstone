@@ -282,6 +282,10 @@ func _check_deck_steps(action: Dictionary, before: Dictionary, after: Dictionary
 		eq([p.values.kind, p.values.index, p.values.hardship], [after.encounter.kind, after.encounter.index, after.encounter.hardship],
 			"%s: it names the engine's Encounter" % what)
 		eq(p.values.target, zoom.values.target, "%s: the panel lit is the one zoomed into" % what)
+		# Poison lands only once the Deck has zoomed into the Encounter.
+		if after.phase == "poison":
+			var hurt: int = kinds.rfind("damage")
+			ok(hurt > kinds.find("zoom_in") and steps[hurt].values.get("poison", false), "%s: the poison lands after the zoom" % what)
 	else:
 		ok(not kinds.has("key_peek"), "%s: no Key Card in the Final Battle" % what)
 	if what in ["start", "setup"]:
@@ -299,5 +303,17 @@ func _check_deck_steps(action: Dictionary, before: Dictionary, after: Dictionary
 		eq(steps[turn].values, {"from": 0, "to": after.region}, "setup: Region 1's card")
 	if what == "finish" and after.region != before.region or (what == "finish" and after.phase == "final_journey"):
 		var turn: int = kinds.find("turn_card")
-		ok(turn > kinds.find("gather_shuffle") and turn < kinds.find("stage_banner"), "a Region change turns the card")
+		ok(turn > kinds.rfind("discard") and turn < kinds.find("gather_shuffle") and kinds.find("gather_shuffle") < kinds.find("stage_banner"),
+			"a Region change empties the Deck, turns the card, then gathers the Discard under it")
 		eq(steps[turn].values.to, "dragon" if after.phase == "final_journey" else after.region, "to the next card")
+		var bare := before.duplicate(true)
+		for i in turn:
+			bare = Sequencer.apply(bare, steps[i])
+		ok(bare.deck.is_empty() and bare.hand.is_empty(), "%s: nothing under the card as it turns" % what)
+		eq(steps[kinds.find("gather_shuffle")].values.get("from"), "discard", "%s: the Deck comes back from the Discard" % what)
+		# Every card in the Discard as the card turns is seen coming back, and nothing else.
+		var back: Array = steps[kinds.find("gather_shuffle")].cards.duplicate()
+		var pile: Array = bare.discard.duplicate()
+		back.sort()
+		pile.sort()
+		eq(back, pile, "%s: the whole Discard comes back under the card" % what)

@@ -217,6 +217,39 @@ func pass_to(m: Dictionary, from: Rect2, to: Rect2, delay: float, d: float, land
 	_tweens.append(tw)
 
 
+## pass_to() the other way: a card comes out of the pile whose icon is at `from` (a
+## global rect) after `delay`, growing to the top card's size as it goes to `to` (a
+## global rect, the top card's), and is gone as it lands under it; `landed` is
+## called then. In reduced motion it shows at the top card and fades.
+func pass_from(m: Dictionary, from: Rect2, to: Rect2, delay: float, d: float, landed: Callable) -> void:
+	var view := CardView.new()
+	view.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(view)
+	view.set_model(m)
+	view.size = to.size
+	view.pivot_offset = to.size / 2.0
+	view.position = from.get_center() - global_position - to.size / 2.0
+	view.scale = Vector2.ONE * minf(1.0, from.size.y * 1.2 / maxf(1.0, to.size.y))
+	view.modulate.a = 0.0
+	_passing.append(view)
+	var tw := create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+	if UI.reduced_motion:
+		view.position = to.position - global_position
+		view.scale = Vector2.ONE
+		tw.tween_property(view, "modulate:a", 1.0, d * 0.4).set_delay(delay)
+		tw.tween_property(view, "modulate:a", 0.0, d * 0.4).set_delay(delay + d * 0.6)
+	else:
+		# Fading in only as it leaves the icon, then whole until it is under the card.
+		tw.tween_property(view, "modulate:a", 1.0, d * 0.2).set_delay(delay)
+		tw.tween_property(view, "position", to.position - global_position, d).set_delay(delay)
+		tw.tween_property(view, "scale", Vector2.ONE, d).set_delay(delay)
+	tw.chain().tween_callback(func():
+		landed.call()
+		_passing.erase(view)
+		view.queue_free())
+	_tweens.append(tw)
+
+
 ## A card in the Hand goes back to the Deck as a drawn one came, in reverse: after
 ## `delay` it moves and grows together from its place to `to` (a global rect, the
 ## top card's), and is gone as it lands; `landed` is called then. It leaves the
@@ -234,6 +267,35 @@ func undraw(id: String, to: Rect2, delay: float, d: float, landed: Callable) -> 
 	else:
 		tw.tween_property(view, "position", to.position - global_position, d).set_delay(delay)
 		tw.tween_property(view, "size", to.size, d).set_delay(delay)
+	tw.chain().tween_callback(func():
+		landed.call()
+		_passing.erase(view)
+		view.queue_free())
+	_tweens.append(tw)
+
+
+## A card in the Hand goes to the pile whose icon is at `to` (a global rect) as a
+## Time Penalty's does: after `delay` it moves from its place and shrinks into the
+## icon, fading only as it goes in; `landed` is called as it arrives. It leaves the
+## Hand at once. In reduced motion it fades where it is.
+func send_to(id: String, to: Rect2, delay: float, d: float, landed: Callable) -> void:
+	var view: Control = _cards.get(id)
+	if view == null:
+		return
+	_cards.erase(id)
+	_passing.append(view)
+	view.z_index = 5
+	view.pivot_offset = view.size / 2.0
+	var end := to.get_center() - global_position - view.size / 2.0
+	var shrink := Vector2.ONE * minf(1.0, to.size.y * 1.2 / maxf(1.0, view.size.y))
+	var tw := create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+	if UI.reduced_motion:
+		tw.tween_property(view, "modulate:a", 0.0, d).set_delay(delay)
+	else:
+		tw.tween_property(view, "position", end, d).set_delay(delay)
+		tw.tween_property(view, "scale", shrink, d).set_delay(delay)
+		tw.tween_property(view, "rotation", 0.0, d).set_delay(delay)
+		tw.tween_property(view, "modulate:a", 0.0, d * 0.2).set_delay(delay + d * 0.8)
 	tw.chain().tween_callback(func():
 		landed.call()
 		_passing.erase(view)

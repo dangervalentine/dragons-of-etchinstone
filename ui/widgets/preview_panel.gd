@@ -49,6 +49,14 @@ var _kind := ""
 var _phase := ""
 var _math := {}
 var _preview = null
+## How tightly the sum's rows are set, so the widest fits across the card: 0 as
+## designed; 1 with narrower gaps between the columns; 2 with each two-word caption
+## on two lines; 3 with the numerals at the smallest size read too; 4 with each
+## sum's terms together, flush right, sharing no columns; 5 with each sum on a row of
+## its own width, centred, sharing no columns at all; 6 with the total and target
+## of a sum too wide still on a line of their own under its terms.
+var _tight := 0
+const TIGHTEST := 6
 
 
 func _init() -> void:
@@ -130,6 +138,21 @@ func _build_sum(p: Dictionary, m: Dictionary) -> void:
 	# row, though it adds to one), any other terms, the total and the target. The
 	# verdict comes straight under the first sum, who strikes first under the
 	# Initiative; then the damage, then any other cost.
+	var room: float = text_room - get_theme_stylebox("panel").get_minimum_size().x
+	for tight in TIGHTEST + 1:
+		_tight = tight
+		if _build_rows(p, m, room) <= room or tight == TIGHTEST:
+			return
+		for c in _sum.get_children():
+			_sum.remove_child(c)
+			c.free()
+		_totals = {}
+		_verdict = null
+
+
+## The sum's rows, verdict and costs at the present tightness; returns how wide the
+## widest row is.
+func _build_rows(p: Dictionary, m: Dictionary, room: float) -> float:
 	var extra_n := 0
 	var boosted := false
 	for s in m.sums:
@@ -159,7 +182,32 @@ func _build_sum(p: Dictionary, m: Dictionary) -> void:
 	for line in [damage, status]:
 		if line != null:
 			_sum.add_child(line)
-	_align(rows)
+	if _tight < 5:
+		return _align(rows)
+	var width := 0.0
+	for row in rows:
+		if _tight >= 6 and row.get_combined_minimum_size().x > room:
+			var out := _split(row)
+			_sum.add_child(out)
+			_sum.move_child(out, row.get_index() + 1)
+			width = maxf(width, out.get_combined_minimum_size().x)
+		width = maxf(width, row.get_combined_minimum_size().x)
+	return width
+
+
+## The total and target of `row`, from its "=" on, moved to a row of their own under
+## the terms, both centred.
+static func _split(row: HBoxContainer) -> HBoxContainer:
+	var out := HBoxContainer.new()
+	out.add_theme_constant_override("separation", row.get_theme_constant("separation"))
+	out.alignment = BoxContainer.ALIGNMENT_CENTER
+	out.tooltip_text = row.tooltip_text
+	var at: int = row.get_meta("equals")
+	while row.get_child_count() > at:
+		var c := row.get_child(at)
+		row.remove_child(c)
+		out.add_child(c)
+	return out
 
 
 ## The term a sum's first column shows: the Spell, the Element; never the Boost.
@@ -184,19 +232,32 @@ static func _extras(s: Dictionary) -> Array:
 ## empty, so each column lines up down the card.
 func _grid_row(s: Dictionary, boosted: bool, extra_n: int) -> HBoxContainer:
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 4 if _final() else T.S)
+	row.add_theme_constant_override("separation", 4 if _final() or _tight >= 1 else T.S)
 	row.tooltip_text = s.label
+	if _tight >= 5:
+		row.alignment = BoxContainer.ALIGNMENT_CENTER
 	var lead = _lead_of(s)
-	row.add_child(_term(lead, true) if lead != null else _gap())
-	if boosted:
-		var boost = _boost_of(s)
-		row.add_child(_term(boost, false) if boost != null else _gap())
 	var extras := _extras(s)
-	for i in extra_n:
-		row.add_child(_term(extras[i], false) if i < extras.size() else _gap())
+	if _tight >= 4:
+		# Only the sum's own terms, as one column.
+		var terms := UI.hbox(T.S)
+		terms.alignment = BoxContainer.ALIGNMENT_END
+		terms.mouse_filter = Control.MOUSE_FILTER_PASS
+		for t in [lead, _boost_of(s)] + extras:
+			if t != null:
+				terms.add_child(_term(t, t == lead))
+		row.add_child(terms)
+	else:
+		row.add_child(_term(lead, true) if lead != null else _gap())
+		if boosted:
+			var boost = _boost_of(s)
+			row.add_child(_term(boost, false) if boost != null else _gap())
+		for i in extra_n:
+			row.add_child(_term(extras[i], false) if i < extras.size() else _gap())
+	row.set_meta("equals", row.get_child_count())
 	row.add_child(_sign("="))
 	var colour: Color = T.VERDICT[s.result].color if T.VERDICT.has(s.result) else T.INK
-	var total := _cell(str(s.total), s.label, colour, TOTAL)
+	var total := _cell(str(s.total), s.label, colour, TOTAL if _tight < 3 else [TERM[0], T.TEXT_MIN])
 	var value_label: Label = total.get_child(0)
 	value_label.set_meta("value", int(s.total))
 	_totals[s.id] = value_label
@@ -204,8 +265,9 @@ func _grid_row(s: Dictionary, boosted: bool, extra_n: int) -> HBoxContainer:
 	# The Final Battle's Attack and Move are set against the tiers, which the dragon's
 	# face lists and the verdict names: no target.
 	if _final() and s.id != "initiative":
-		row.add_child(_sign(""))
-		row.add_child(_gap())
+		if _tight < 5:
+			row.add_child(_sign(""))
+			row.add_child(_gap())
 		return row
 	row.add_child(_sign("/"))
 	var target_name: String = {"hp": "HP", "initiative": "Enemy" if _kind == "enemy" else "Dragon", "mp": "MP"}.get(s.target.icon, "")
@@ -222,11 +284,13 @@ func _gap() -> Control:
 	return c
 
 
-## Each column as wide as its widest cell, down every row.
-static func _align(rows: Array) -> void:
+## Each column as wide as its widest cell, down every row; returns how wide the
+## rows then are.
+static func _align(rows: Array) -> float:
 	if rows.is_empty():
-		return
+		return 0.0
 	var n: int = rows[0].get_child_count()
+	var width := 0.0
 	for j in n:
 		var w := 0.0
 		for row in rows:
@@ -235,6 +299,8 @@ static func _align(rows: Array) -> void:
 		for row in rows:
 			if j < row.get_child_count():
 				row.get_child(j).custom_minimum_size.x = w
+		width += w
+	return width + maxi(0, n - 1) * rows[0].get_theme_constant("separation")
 
 
 ## A line of the card's own words: an icon and what it says, at one size and type
@@ -249,7 +315,7 @@ func _say(icon: String, text: String, colour: Color, beside := 0.0) -> HBoxConta
 	i.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	line.add_child(i)
 	var l := UI.label(text, VERDICT, colour, true)
-	var room := maxf(80.0, text_room - T.NOTE_ICON - T.S - (beside + T.S if beside > 0.0 else 0.0))
+	var room := maxf(80.0, text_room - get_theme_stylebox("panel").get_minimum_size().x - T.NOTE_ICON - T.S - (beside + T.S if beside > 0.0 else 0.0))
 	var wide: float = UI.font(VERDICT[0]).get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, VERDICT[1]).x + 2.0
 	l.custom_minimum_size.x = minf(wide, room)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -381,7 +447,7 @@ func _term(t: Dictionary, first: bool) -> Control:
 		colour = T.BAD
 	elif t.note.begins_with("enhanced") or t.source == "reserve":
 		colour = T.GOLD
-	var c := _cell(text, t.label, colour, TERM)
+	var c := _cell(text, t.label, colour, TERM if _tight < 3 else [TERM[0], T.TEXT_MIN])
 	c.tooltip_text = t.label + (": " + t.note if t.note != "" else "")
 	c.mouse_filter = Control.MOUSE_FILTER_PASS
 	return c
@@ -405,7 +471,7 @@ func _cell(text: String, caption: String, colour: Color, type: Array, icon := ""
 	else:
 		top = value
 	c.add_child(top)
-	var cap := UI.label(caption, T.LABEL, T.INK_MUTED)
+	var cap := UI.label(caption.replace(" ", "\n") if _tight >= 2 else caption, T.LABEL, T.INK_MUTED)
 	cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	c.add_child(cap)
 	return c
@@ -414,7 +480,7 @@ func _cell(text: String, caption: String, colour: Color, type: Array, icon := ""
 func _sign(text: String) -> Control:
 	var l := UI.label(text, T.NUMERAL_S, T.INK_MUTED)
 	l.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-	l.custom_minimum_size = Vector2(14, _row_h())
+	l.custom_minimum_size = Vector2(14 if _tight < 1 else 10, _row_h())
 	return l
 
 

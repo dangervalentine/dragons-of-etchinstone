@@ -157,7 +157,9 @@ func _fit() -> void:
 	if model.is_empty():
 		return
 	var painted := UI.is_painted(model.art)
-	var at := art_rect(size, Art.body(model.art, painted), Art.head(model.art, painted))
+	# A painted dragon is placed on its artboard as it is to lie on the card, its head
+	# already clear of the HP Tiers; only the silhouettes are moved to clear it.
+	var at := art_rect(size, Art.body(model.art, painted), Art.FULL if painted else Art.head(model.art))
 	_creature.position = at.position
 	_creature.size = at.size
 	# The figures in one centred row.

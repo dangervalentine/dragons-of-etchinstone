@@ -28,6 +28,7 @@ func render(vs: Dictionary) -> void:
 		c.queue_free()
 	_layout = Control.new()
 	add_child(_layout)
+	_score = null
 	apply_layout(_content)
 	var e: Dictionary = vs.ending
 	var colour: Color = T.GOLD if e.won else T.BAD
@@ -39,13 +40,7 @@ func render(vs: Dictionary) -> void:
 	var left := UI.vbox(T.M)
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	left.custom_minimum_size.x = 560
-	left.alignment = BoxContainer.ALIGNMENT_CENTER
-	var sigil := Creature.new()
-	sigil.custom_minimum_size = Vector2(220, 220)
-	sigil.setup(vs.stage.art, colour if e.won else Color(T.INK_MUTED, 0.6), vs.stage.element if e.won else "")
-	sigil.crop = Art.head(vs.stage.art, UI.is_painted(vs.stage.art))
-	sigil.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	left.add_child(sigil)
+	left.alignment = BoxContainer.ALIGNMENT_BEGIN
 	var head := ("%s is defeated" % e.dragon) if e.won else "You have perished"
 	# The verdict, inscribed in a slab of stone (feature 006).
 	var slab := UI.slab(colour, 16)
@@ -58,19 +53,56 @@ func render(vs: Dictionary) -> void:
 	else:
 		left.add_child(UI.label("Lost on %s." % e.where if e.where != "" else "The hunt has failed.", ["body_bold", T.BODY[1]], T.INK, true))
 		left.add_child(UI.label(e.why, T.BODY, T.INK_MUTED, true))
+	# The whole dragon, and beside its top where the win placed on the leaderboard.
+	# The dragon is drawn larger than the room left, running off the foot of the screen.
+	var stage := Control.new()
+	stage.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	stage.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var row := UI.hbox(T.L)
+	stage.add_child(row)
+	# The box round all the dragon draws holds the place in the row, so the lines beside
+	# it start at its top; the art is whole and unclipped around it, so a tail swaying
+	# past the box is still drawn.
+	# A painted dragon's full-body picture where there is one; its plain picture is
+	# cut to the Dragon Card.
+	var body: String = vs.stage.art + "-full" if UI.is_painted(vs.stage.art + "-full") else vs.stage.art
+	var drawn := _drawn(body)
+	var place := Control.new()
+	place.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	place.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	row.add_child(place)
+	var sigil := Creature.new()
+	sigil.setup(body, colour if e.won else Color(T.INK_MUTED, 0.6), vs.stage.element if e.won else "")
+	place.add_child(sigil)
+	var placings := UI.vbox(T.S)
+	placings.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	placings.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	for i in e.get("placing", []).size():
+		var line := UI.hbox(T.S)
+		var mark := UI.icon_rect("crown", 32, T.GOLD)
+		mark.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		line.add_child(mark)
+		var said := UI.label(e.placing[i], ["body_bold", T.BODY[1]], T.GOLD, true)
+		said.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		line.add_child(said)
+		placings.add_child(line)
+	row.add_child(placings)
+	stage.resized.connect(func():
+		var aspect := drawn.size.x / drawn.size.y
+		var tall := clampf(stage.size.y * 1.2, 220.0, 600.0)
+		tall = minf(tall, (stage.size.x - 360.0) / aspect)
+		var k := tall / drawn.size.y
+		place.custom_minimum_size = drawn.size * k
+		sigil.position = -drawn.position * k
+		sigil.size = Vector2(512, 512) * k
+		row.size = Vector2(stage.size.x, tall))
+	left.add_child(stage)
 	root.add_child(left)
 
+	# What the cards scored, the way to the leaderboard, and what next.
 	var right := UI.vbox(T.M)
 	right.custom_minimum_size.x = 440
 	right.alignment = BoxContainer.ALIGNMENT_CENTER
-	var score_row := UI.hbox(T.M)
-	score_row.add_child(UI.icon_rect("crown", 72, T.GOLD))
-	_score = UI.label("0", T.TITLE, T.GOLD)
-	score_row.add_child(_score)
-	var cap := UI.label("SCORE", T.HEADING, T.INK_MUTED)
-	cap.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	score_row.add_child(cap)
-	right.add_child(score_row)
 	if e.won:
 		var table := UI.slab(T.LINE_SOFT, 14)
 		var rows := UI.vbox(6)
@@ -82,19 +114,26 @@ func render(vs: Dictionary) -> void:
 			rows.add_child(line)
 		if e.trashed > 0:
 			rows.add_child(UI.label("%d %s Trashed, scoring nothing" % [e.trashed, "card" if e.trashed == 1 else "cards"], T.LABEL, T.INK_MUTED))
+		# The score, the sum of the rows above it.
+		var rule := ColorRect.new()
+		rule.color = T.LINE_SOFT
+		rule.custom_minimum_size.y = 2
+		rows.add_child(rule)
+		var total := UI.hbox(T.S)
+		var crown := UI.icon_rect("crown", 40, T.GOLD)
+		crown.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		total.add_child(crown)
+		var cap := UI.label("SCORE", T.HEADING, T.INK_MUTED)
+		cap.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		total.add_child(cap)
+		total.add_child(UI.spacer())
+		_score = UI.label("0", T.NUMERAL_L, T.GOLD)
+		total.add_child(_score)
+		rows.add_child(total)
 		table.add_child(rows)
 		right.add_child(table)
 	else:
 		right.add_child(UI.label("A lost hunt scores nothing.", T.BODY, T.INK_MUTED))
-	# Where the win placed on the leaderboard, then the way to it.
-	for i in e.get("placing", []).size():
-		var line := UI.hbox(T.S)
-		var mark := UI.icon_rect("crown", 32, T.GOLD)
-		if i > 0:
-			mark.modulate.a = 0.0
-		line.add_child(mark)
-		line.add_child(UI.label(e.placing[i], ["body_bold", T.BODY[1]], T.GOLD))
-		right.add_child(line)
 	var board := UI.button("Leaderboard", "quiet", "trophy")
 	board.pressed.connect(func(): intent.emit({"type": "records", "page": "leaderboard", "from": "ending"}))
 	right.add_child(board)
@@ -124,12 +163,27 @@ func render(vs: Dictionary) -> void:
 		burst.scale_amount_min = 3.0
 		burst.scale_amount_max = 7.0
 		burst.color = T.GOLD
-		burst.position = _content.position + Vector2(140, 200)
+		burst.position = _content.position + Vector2(200, 380)
 		add_child(burst)
 		burst.emitting = true
 	_target = e.score
-	if UI.reduced_motion or _target == 0:
+	if _score == null:
+		pass  # A lost hunt has no score to count up.
+	elif UI.reduced_motion or _target == 0:
 		_score.text = str(_target)
 	else:
 		create_tween().tween_method(func(v: float): _score.text = str(int(v)), 0.0, float(_target), 1.0).set_ease(Tween.EASE_OUT)
 	again.grab_focus.call_deferred(true)
+
+
+## The box round all a dragon's art draws, in its 512 units: measured from a painted
+## picture, whose dragons don't each fill the box they share (Art.PAINTED_BODY).
+static func _drawn(art: String) -> Rect2:
+	if not UI.is_painted(art):
+		return Art.body(art)
+	var image := UI.art(art).get_image()
+	if image.is_compressed():
+		image.decompress()
+	var used := Rect2(image.get_used_rect())
+	var unit := 512.0 / image.get_width()
+	return Rect2(used.position * unit, used.size * unit)

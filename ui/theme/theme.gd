@@ -4,6 +4,7 @@ extends RefCounted
 const T = preload("res://ui/theme/tokens.gd")
 const StoneStyle = preload("res://ui/theme/stone_style.gd")
 const Haptics = preload("res://ui/fx/haptics.gd")
+const Art = preload("res://ui/model/art.gd")
 
 ## Set from the settings; travel and shake are replaced by fades when true.
 static var reduced_motion := false
@@ -61,6 +62,22 @@ static func art_crop(name: String, region: Rect2) -> Texture2D:
 	a.atlas = tex
 	a.region = Rect2(region.position * k, region.size * k)
 	return a
+
+
+## A creature's head, as the places that face it show it: its painted head picture
+## (art/painted/<name>-head.png) whole where there is one, or the head cut from its
+## painted picture, or from its silhouette.
+static func head(name: String) -> Texture2D:
+	if is_painted(name + "-head"):
+		return art(name + "-head")
+	if is_painted(name):
+		return art_crop(name, Art.head(name, true))
+	return art_crop(Art.head_art(name), Art.head(name))
+
+
+## The colour head() is drawn in: a silhouette tinted `colour`, a painted head in its own.
+static func head_tint(name: String, colour: Color) -> Color:
+	return Color.WHITE if is_painted(name + "-head") or is_painted(name) else colour
 
 
 static func icon(name: String) -> Texture2D:

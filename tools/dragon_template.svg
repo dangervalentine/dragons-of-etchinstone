@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dragon artboard: the Dragon Card (ui/widgets/dragon_card.gd) drawn in the art's
+     512 units, for the fixed body box 41.1, 10, 429.7 x 480. Art placed here renders
+     on the card where it sits here. The card's band and figure row lie above the
+     artboard; nothing of the dragon is drawn there. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+	<g id="card">
+		<!-- The card's edge: art outside it is cut off. -->
+		<rect x="27.4" y="-130.8" width="457.1" height="640" rx="18" fill="none" stroke="#c0392b" stroke-width="1.5"/>
+		<!-- Name band and the row of figures, above the art. -->
+		<rect x="27.4" y="-130.8" width="457.1" height="67.2" fill="#1d1b22" opacity="0.6"/>
+		<rect x="82.3" y="-44.4" width="347.4" height="48" fill="#7f8c8d" opacity="0.35"/>
+		<!-- The two ladders, drawn over the dragon. -->
+		<rect x="36.6" y="19.6" width="109.7" height="172.8" fill="#2980b9" opacity="0.25" stroke="#2980b9"/>
+		<rect x="365.7" y="19.6" width="109.7" height="172.8" fill="#c0392b" opacity="0.25" stroke="#c0392b"/>
+		<g font-family="Arial" font-size="11" fill="#333">
+			<text x="45" y="36">MP ladder</text>
+			<text x="374" y="36">HP ladder</text>
+			<text x="374" y="50">keep the head out</text>
+			<text x="45" y="-110" fill="#fff">name band</text>
+			<text x="90" y="-25">figures</text>
+		</g>
+	</g>
+	<g id="frame">
+		<!-- The body box: the code fits this box to the room under the figures. -->
+		<rect x="41.1" y="10" width="429.7" height="480" fill="none" stroke="#27ae60" stroke-dasharray="6 4"/>
+		<!-- Feet: the breathing scales about y 486. -->
+		<line x1="0" y1="490" x2="512" y2="490" stroke="#27ae60"/>
+		<text x="45" y="484" font-family="Arial" font-size="11" fill="#27ae60">feet</text>
+	</g>
+</svg>

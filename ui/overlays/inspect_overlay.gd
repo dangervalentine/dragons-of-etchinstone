@@ -61,6 +61,127 @@ func setup(db, model: Dictionary, content: Rect2, key := false) -> void:
 	appear()
 
 
+## Opened from a pile in the header: the cards in it, each at its current Level, as
+## large as lets PILE_AT_ONCE of them show at once, the rest reached by scrolling,
+## under the pile's name and what it is. Dragging (or the wheel) scrolls; a tap
+## anywhere that is not a drag closes, as on one card.
+const PILE_AT_ONCE := 12
+## The grids PILE_AT_ONCE cards can be laid out in, as columns × rows.
+const PILE_GRIDS := [Vector2i(6, 2), Vector2i(4, 3), Vector2i(3, 4), Vector2i(2, 6), Vector2i(12, 1)]
+## How far a press may move and still be a tap.
+const TAP_SLOP := 12.0
+
+var _scroll: ScrollContainer
+var _press_at = null
+var _dragged := false
+
+
+func setup_pile(db, models: Array, pile: String, content: Rect2) -> void:
+	set_dim(0.93)
+	close_outside = false
+	var entry: Dictionary = Glossary.entry(pile)
+	var head := UI.vbox(T.XS)
+	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	head.position = content.position
+	head.size.x = content.size.x
+	var n := models.size()
+	var title := UI.label("%s · %d CARD%s" % [entry.name.to_upper(), n, "" if n == 1 else "S"], T.SUBHEAD, T.GOLD)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	head.add_child(title)
+	var about := UI.label(entry.text, T.LABEL, T.INK, true)
+	about.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	about.custom_minimum_size.x = minf(content.size.x, 720.0)
+	about.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	head.add_child(about)
+	add_child(head)
+	var top: float = head.get_combined_minimum_size().y + T.M
+	var area := Rect2(content.position + Vector2(0, top), Vector2(content.size.x, content.size.y - top - 40))
+	if n == 0:
+		var none := UI.label("No cards in the %s yet." % entry.name, T.BODY, T.INK_MUTED)
+		none.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		none.position = Vector2(area.position.x, area.get_center().y - 20)
+		none.size.x = area.size.x
+		add_child(none)
+	else:
+		_pile_grid(db, models, area)
+	var hint := UI.label("Tap anywhere to close" if n <= PILE_AT_ONCE else "Drag to scroll · tap to close", T.LABEL, T.INK_MUTED)
+	hint.position = Vector2(content.position.x, content.end.y - 30)
+	hint.size.x = content.size.x
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	add_child(hint)
+	appear()
+
+
+## The faces in a grid within `area`, scrolling down past the first PILE_AT_ONCE.
+func _pile_grid(db, models: Array, area: Rect2) -> void:
+	var gap: float = T.M
+	var bar := 16.0
+	# The grid of PILE_AT_ONCE that gives the largest face.
+	var best := Vector2i(6, 2)
+	var h := 0.0
+	for g in PILE_GRIDS:
+		var by_h: float = (area.size.y - (g.y - 1) * gap) / g.y
+		var by_w: float = (area.size.x - bar - (g.x - 1) * gap) / g.x / T.CARD_ASPECT
+		var fit := minf(minf(by_h, by_w), 440.0)
+		if fit > h:
+			h = fit
+			best = g
+	var sz := Vector2(floorf(h * T.CARD_ASPECT), floorf(h))
+	var cols: int = mini(best.x, models.size())
+	var grid := GridContainer.new()
+	grid.columns = cols
+	grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	grid.add_theme_constant_override("h_separation", int(gap))
+	grid.add_theme_constant_override("v_separation", int(gap))
+	for model in models:
+		var face := _face(db, db.mage(model.id), model.level, sz)
+		face.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		grid.add_child(face)
+	# Centred across the screen, the scroll bar clear of the cards at its right.
+	var width: float = cols * sz.x + (cols - 1) * gap + bar
+	var box := CenterContainer.new()
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.custom_minimum_size.x = width
+	box.add_child(grid)
+	_scroll = ScrollContainer.new()
+	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	# The overlay reads every press itself, so a drag scrolls and a tap closes; the
+	# scroll bar still takes its own.
+	_scroll.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_scroll.position = Vector2(area.get_center().x - width / 2.0, area.position.y)
+	_scroll.size = Vector2(width, area.size.y)
+	_scroll.add_child(box)
+	add_child(_scroll)
+	UI.ignore_mouse(box)
+
+
+func _gui_input(event: InputEvent) -> void:
+	if _scroll == null and close_outside:
+		super(event)
+		return
+	if event is InputEventMouseButton:
+		var wheel := {MOUSE_BUTTON_WHEEL_UP: -1, MOUSE_BUTTON_WHEEL_DOWN: 1}
+		if wheel.has(event.button_index):
+			if event.pressed and _scroll != null:
+				_scroll.scroll_vertical += wheel[event.button_index] * 80
+			accept_event()
+		elif event.button_index == MOUSE_BUTTON_LEFT:
+			if event.pressed:
+				_press_at = event.position
+				_dragged = false
+			elif _press_at != null:
+				_press_at = null
+				if not _dragged:
+					close()
+			accept_event()
+	elif event is InputEventMouseMotion and _press_at != null:
+		if not _dragged and event.position.distance_to(_press_at) > TAP_SLOP:
+			_dragged = true
+		if _dragged and _scroll != null:
+			_scroll.scroll_vertical -= int(event.relative.y)
+		accept_event()
+
+
 ## Every face gets the same frame, so the columns line up; only the current one shows it.
 func _framed(face: Control, current: bool) -> Control:
 	var p := PanelContainer.new()

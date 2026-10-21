@@ -330,8 +330,11 @@ func _fit_result() -> void:
 	_refitting = true
 	var key := "%s|%d" % [size, result_vs.hash()]
 	var roomy: bool = size.y >= T.NOTE_ROOMY_H and key != _compact_key
-	if preview.roomy != roomy:
+	# The sum's rows are set to fit the content's width, which the card may be given
+	# only after it was filled.
+	if preview.roomy != roomy or preview.text_room != content_rect().size.x:
 		preview.roomy = roomy
+		preview.text_room = content_rect().size.x
 		_render_result()
 		_fit()
 	if preview.roomy and content_height() > content_room():

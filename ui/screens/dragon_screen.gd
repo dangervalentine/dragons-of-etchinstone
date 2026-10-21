@@ -94,7 +94,7 @@ func _build() -> void:
 		var line := Flavor.line(id)
 		var flavour: Control = UI.label(line, T.LABEL, T.INK_MUTED, true) if line != "" else null
 		# The head alone, still; the whole of the chosen one lies on its card beside.
-		var tile: Button = ChoiceTile.make(d.name, d.title, UI.art_crop(Art.head_art(art), Art.head(art, UI.is_painted(Art.head_art(art)))), T.ether(d.early_damage.element), null, 80.0, flavour)
+		var tile: Button = ChoiceTile.make(d.name, d.title, UI.head(art), T.ether(d.early_damage.element), UI.head_tint(art, T.ether(d.early_damage.element)), 80.0, flavour)
 		tile.custom_minimum_size.y = 160
 		tile.pressed.connect(_choose.bind(id))
 		dragons.add_child(tile)

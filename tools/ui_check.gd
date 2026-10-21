@@ -507,15 +507,17 @@ func eq_region(where: String, g) -> void:
 	_ok(g.region == 2 and g.phase == "challenge", "%s: on to Region 2 (%d, %s)" % [where, g.region, g.phase])
 
 
-## `gathered`: the Deck's count once gathered, which the stack must show by the time
-## the card turns.
+## `gathered`: the Deck's count once gathered. The card turns with nothing under
+## it, and the stack shows the gathered count by the new Region's banner.
 func _watch_deck(where: String, gathered := -1) -> void:
 	var deck = ui.play.deck
 	var seen := []
 	var on_step := func(kind: String):
 		seen.append(kind)
 		if kind == "turn_card" and gathered >= 0:
-			_ok(deck.count == gathered, "%s: the stack refilled to %d before the turn (%d)" % [where, gathered, deck.count])
+			_ok(deck.count == 0, "%s: the stack emptied before the turn (%d)" % [where, deck.count])
+		if kind == "stage_banner" and gathered >= 0 and seen.has("turn_card"):
+			_ok(deck.count == gathered, "%s: the stack refilled to %d after the turn (%d)" % [where, gathered, deck.count])
 	ui.animator.step_started.connect(on_step)
 	var region: Rect2 = ui.play._regions.encounter.get_global_rect().grow(1)
 	var others := [ui.play.header.get_global_rect(), ui.play._hand_panel.get_global_rect(), ui.play._regions.actions.get_global_rect()]

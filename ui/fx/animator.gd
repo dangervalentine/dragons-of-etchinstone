@@ -37,6 +37,10 @@ var _steps: Array = []
 var _waiting := false
 ## The step the sequence waits after (a key_peek), until it has been reached.
 var _wait_at := -1
+## Poison lands later in this sequence, once the Deck has zoomed into the Encounter:
+## the Soak's note stays off the Deck until it does, so the Encounter is revealed
+## and waited on on the card, not under the note.
+var _poison_at := -1
 
 
 func is_playing() -> bool:
@@ -63,6 +67,7 @@ func play(steps: Array, play_screen: Control, after_vs: Dictionary) -> void:
 	_steps = steps
 	_waiting = false
 	_wait_at = steps.find_custom(func(st): return st.kind == "key_peek")
+	_poison_at = steps.find_custom(func(st): return st.kind == "damage" and st.values.get("poison", false) and st.values.amount > 0)
 	_master = _build(0)
 
 
@@ -128,6 +133,7 @@ func _to_wait() -> void:
 	flight.clear()
 	screen.deck.finish()
 	screen.render(_after)
+	_hold_note()
 	screen.deck.show_reveal(_after.key_face, peek.values.get("target", _after.zoom))
 	_master = _build(from)
 	_wait_at = -1
@@ -159,6 +165,7 @@ func _finish() -> void:
 	_playing = false
 	_waiting = false
 	_wait_at = -1
+	_poison_at = -1
 	if _master != null and _master.is_valid():
 		_master.kill()
 	for tw in _tweens:
@@ -175,6 +182,15 @@ func _finish() -> void:
 	screen.render(_after)
 	screen.settle()
 	finished.emit()
+
+
+## Before the poison lands, the Deck shows the state on show without the Soak's note.
+func _hold_note() -> void:
+	if _poison_at < 0:
+		return
+	var bare := _after.duplicate()
+	bare.note = null
+	screen.deck.render(bare)
 
 
 func _keep(tw: Tween) -> Tween:
@@ -222,6 +238,10 @@ func _run(st: Dictionary, d: float) -> void:
 			_keep(flight.tint(Color(T.BAD, 0.16), d))
 			for id in screen.hand.ids():
 				UI.shake(screen.hand.card(id), 10.0)
+			if st.values.get("poison", false) and _poison_at >= 0:
+				# The poison lands: the Soak's note is laid on the Deck.
+				_poison_at = -1
+				screen.deck.render(_after)
 		"pay_time":
 			_pay_time(st, d)
 			_keep(flight.float_text("−%d time" % st.cards.size(), screen.point("deck") + Vector2(0, 50), T.BAD, 30, d * 2.0, "time"))
@@ -247,17 +267,20 @@ func _run(st: Dictionary, d: float) -> void:
 			for id in st.cards:
 				_away(id, "trash", d, true)
 		"discard":
+			if st.values.from == "hand":
+				_discard_hand(st, d)
+				return
 			for id in st.cards:
-				if st.values.from == "deck":
-					_keep(flight.ghost("card_back", screen.point("deck"), screen.point("discard"), d, T.INK_MUTED, 44))
-					screen.header.bump("deck", -1)
-					screen.deck.bump(-1)
-					screen.header.bump("discard", 1)
-				else:
-					_away(id, "discard", d, false)
+				_keep(flight.ghost("card_back", screen.point("deck"), screen.point("discard"), d, T.INK_MUTED, 44))
+				screen.header.bump("deck", -1)
+				screen.deck.bump(-1)
+				screen.header.bump("discard", 1)
 		"gather_shuffle":
 			if st.values.get("undraw", false):
 				_undraw(st, d)
+				return
+			if st.values.get("from", "") == "discard":
+				_regather(st, d)
 				return
 			for id in st.cards:
 				var v: Control = screen.hand.card(id)
@@ -276,6 +299,7 @@ func _run(st: Dictionary, d: float) -> void:
 			var n: int = maxi(1, st.cards.size())
 			screen.deck.cover_draw(T.STAGGER * (n - 1) + T.DRAW_FLY)
 			screen.render(_after, true, screen.deck.top_rect())
+			_hold_note()
 		"zoom_out":
 			screen.deck.zoom_out(d)
 		"turn_card":
@@ -312,6 +336,17 @@ func _pay_time(st: Dictionary, d: float) -> void:
 			_keep(_later(delay + fly, land))
 
 
+## The Hand is done with: each card leaves its place one after another, in Hand
+## order, and shrinks into the Discard's icon in the header, as a Time Penalty's do.
+func _discard_hand(st: Dictionary, d: float) -> void:
+	var n: int = st.cards.size()
+	var fly := minf(T.DRAW_FLY, d)
+	var gap: float = 0.0 if n < 2 else minf(T.STAGGER, maxf(0.0, d - fly) / (n - 1))
+	var to: Rect2 = screen.header.pile_rect("discard")
+	for i in n:
+		screen.hand.send_to(st.cards[i], to, gap * i, fly, func(): screen.header.bump("discard", 1))
+
+
 ## The starting cards go back to the Deck as a Hand is drawn, in reverse: the last
 ## card first, each moving and growing from its place to where the Region Card will
 ## first lie, raised (deck_stack.gd raised_rect()), gone as it lands under the note
@@ -331,6 +366,35 @@ func _undraw(st: Dictionary, d: float) -> void:
 		if i == n - 1:
 			land = func(): screen.deck.set_count(gathered)
 		screen.hand.undraw(ids[i], to, gap * i, fly, land)
+
+
+## A new Region: with the card turned over on the bare ground, the Discard comes
+## back as the Deck, each card out of the Discard's icon one after another, face
+## up, growing to the top card's size as it goes in under it.
+func _regather(st: Dictionary, d: float) -> void:
+	var n: int = st.cards.size()
+	var fly := minf(T.DRAW_FLY, d)
+	var gap: float = 0.0 if n < 2 else minf(T.STAGGER, maxf(0.0, d - fly) / (n - 1))
+	var models: Dictionary = st.values.get("models", {})
+	var from: Rect2 = screen.header.pile_rect("discard")
+	var to: Rect2 = screen.deck.top_rect()
+	var gathered: int = st.values.deck.size()
+	screen.deck.cover_pass(gap * (n - 1) + fly)
+	# The stack is whole by the end of the step, however the last flight is timed.
+	_keep(_later(d * 0.9, func(): screen.deck.set_count(gathered)))
+	for i in n:
+		var delay := gap * i
+		_keep(_later(delay, func(): screen.header.bump("discard", -1)))
+		var land := func():
+			screen.header.bump("deck", 1)
+			screen.deck.set_count(maxi(screen.deck.count, mini(i + 1, gathered)))
+		if models.has(st.cards[i]):
+			screen.hand.pass_from(models[st.cards[i]], from, to, delay, fly, land)
+		else:
+			_keep(flight.ghost("card_back", from.get_center(), to.get_center(), fly, T.INK_MUTED, 40, delay))
+			_keep(_later(delay + fly, land))
+
+
 func _strike(ids: Array, d: float) -> void:
 	var target: Vector2 = screen.point("encounter")
 	for i in ids.size():

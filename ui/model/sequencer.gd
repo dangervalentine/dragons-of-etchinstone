@@ -60,7 +60,7 @@ static func build(before: Dictionary, action: Dictionary, result: Dictionary, af
 			_strike(steps, action, result)
 			if before.phase == "final_journey" and after.phase == "final_enemy":
 				steps.append(_step("zoom_out", [], {}, "deck"))
-				steps.append(_step("discard", before.hand.duplicate(), {"from": "hand"}, "discard"))
+				steps.append(_hand_discard(before.hand))
 				_pay_time(steps, before, after, before.hand)
 				steps.append(_step("stage_banner", [], {"region": after.region, "phase": after.phase}, "screen"))
 				_draw_step(steps, after.hand)
@@ -83,22 +83,33 @@ static func build(before: Dictionary, action: Dictionary, result: Dictionary, af
 				if not after.hand.has(id) or after.region != before.region or after.phase == "final_journey":
 					if not before.discard.has(id) and (after.discard.has(id) or _gathered(before, after)) and action.cards.has(id):
 						spent.append(id)
-			if not spent.is_empty():
-				steps.append(_step("discard", spent, {"from": "hand"}, "discard"))
 			if _gathered(before, after):
-				var all: Array = before.hand.filter(func(id): return not spent.has(id)) + spent + before.discard
-				steps.append(_step("gather_shuffle", all, {"deck": _deck_before_draw(after, [])}, "deck"))
-				# The next Region's side of the card, the other card, or the dragon's.
+				# The Region is done with: the whole Hand and what is left of the Deck go to
+				# the Discard, leaving the Region Card alone on the ground.
+				var rest: Array = before.hand.filter(func(id): return not spent.has(id))
+				if not spent.is_empty() or not rest.is_empty():
+					steps.append(_hand_discard(spent + rest))
+				if not before.deck.is_empty():
+					steps.append(_step("discard", before.deck.duplicate(), {"from": "deck"}, "discard"))
+				# Turned over to the next Region's side, the other card, or the dragon's,
+				# with nothing under it; then the Discard comes back under it as the Deck.
 				steps.append(_step("turn_card", [], {"from": before.region,
 					"to": "dragon" if after.phase == "final_journey" else after.region}, "deck"))
+				var all: Array = before.discard + spent + rest + before.deck
+				var back := _step("gather_shuffle", all, {"deck": _deck_before_draw(after, []), "from": "discard"}, "deck")
+				back.duration = minf(T.DRAW_FLY + T.STAGGER * (all.size() - 1), 1.2)
+				steps.append(back)
 				steps.append(_step("stage_banner", [], {"region": after.region, "phase": after.phase}, "screen"))
 				_draw_step(steps, after.hand)
 				_reveal(steps, after)
 			else:
+				if not spent.is_empty():
+					steps.append(_hand_discard(spent))
 				var kept: Array = before.hand.filter(func(id): return not spent.has(id))
 				_draw_step(steps, after.hand.filter(func(id): return not kept.has(id)))
 				if after.phase == "poison":
-					# The new Encounter shows first; then the poison lands on the new Hand.
+					# The new Encounter shows first; once the Deck has zoomed into it, the
+					# poison lands on the new Hand, before any card can be chosen to Soak it.
 					_reveal(steps, after)
 					steps.append(_step("damage", [], {"amount": after.damage_due, "early": 0, "element": "", "poison": true}, "hand"))
 				elif _levels_fell(before, after):
@@ -115,11 +126,11 @@ static func build(before: Dictionary, action: Dictionary, result: Dictionary, af
 			var key: String = before.deck[0]
 			steps.append(_step("zoom_out", [], {}, "deck"))
 			steps.append(_step("discard", [key], {"from": "deck"}, "discard"))
-			steps.append(_step("discard", [action.id], {"from": "hand"}, "discard"))
+			steps.append(_hand_discard([action.id]))
 			_reveal(steps, after)
 		"regroup":
 			steps.append(_step("zoom_out", [], {}, "deck"))
-			steps.append(_step("discard", [action.id], {"from": "hand"}, "discard"))
+			steps.append(_hand_discard([action.id]))
 			var rest: Array = before.hand.filter(func(id): return id != action.id)
 			steps.append(_step("gather_shuffle", rest, {"deck": _deck_before_draw(after, []), "keep_discard": true}, "deck"))
 			_draw_step(steps, after.hand)
@@ -235,6 +246,13 @@ static func _draw_step(steps: Array, ids: Array) -> void:
 	var st := _step("draw", ids.duplicate(), {}, "hand")
 	st.duration = minf(T.DRAW_FLY + T.STAGGER * (ids.size() - 1), 1.2)
 	steps.append(st)
+
+
+## Cards leaving the Hand for the Discard, one after another as a Hand is drawn.
+static func _hand_discard(ids: Array) -> Dictionary:
+	var st := _step("discard", ids.duplicate(), {"from": "hand"}, "discard")
+	st.duration = minf(T.DRAW_FLY + T.STAGGER * maxi(0, ids.size() - 1), 1.2)
+	return st
 
 
 static func _gathered(before: Dictionary, after: Dictionary) -> bool:
