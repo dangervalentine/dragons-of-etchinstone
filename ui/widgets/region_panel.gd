@@ -81,8 +81,7 @@ func render(p: Dictionary, hardship_id = null, live_badges := false) -> void:
 	var tint: Color = T.ether(p.element)
 	# A Journey with a painted map (art/painted/journeys/, a preview of the feature 008
 	# art) shows it, drawn under the frame, in place of its silhouette.
-	var map_path := "res://art/painted/journeys/%s.png" % p.art
-	_map = load(map_path) if p.kind == "journey" and p.art != "" and ResourceLoader.exists(map_path) else null
+	_map = UI.painted("journeys/" + p.art) if p.kind == "journey" and p.art != "" else null
 	_creature.visible = p.art != "" and _map == null
 	if p.art != "" and _creature.art_name != p.art:
 		_creature.setup(p.art, Color(tint.lightened(0.45), 0.55), p.element, false)

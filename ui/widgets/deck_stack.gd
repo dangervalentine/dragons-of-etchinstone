@@ -62,7 +62,8 @@ const PLAYING := ["challenge", "poison", "final_journey", "final_enemy", "setup"
 ## large as the zoom made it (every part of it is a share of its size, so it stays
 ## sharp), clipped to the face, the Encounter's panel lit and the rest of the card
 ## stepped back round it; along the foot, the reading strip. Pressing it (not the
-## panel's badges, which explain themselves) shows the Key Card that named it.
+## panel's badges, which explain themselves) zooms back out to the whole card with
+## the Key Card that named it risen over it (look_out()).
 class LandedFace extends Control:
 	signal intent(data: Dictionary)
 	var card = load("res://ui/widgets/region_card.gd").new()
@@ -98,7 +99,7 @@ class LandedFace extends Control:
 		_stone.changed.connect(queue_redraw)
 		gui_input.connect(func(e: InputEvent):
 			if e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT and not e.pressed and panel != null:
-				intent.emit({"type": "inspect_key"}))
+				intent.emit({"type": "look_out"}))
 
 	## The card `m`, lit at `k`'s panel, which carries the Key Card's `hardship` and
 	## explains its badges when pressed.
@@ -207,6 +208,11 @@ var _dip := 0.0
 ## Whether the Key Card is up, waiting for zoom_in() to slide it back down.
 var _peek_up := false
 var _strip_key := []
+## Whether the player has zoomed out of the Encounter to look at the whole card,
+## the Key Card risen over it, until a press zooms back in (look_out()).
+var _looking := false
+## Over the Deck while looking: any press on it zooms back in.
+var _catch := Control.new()
 
 
 func _init() -> void:
@@ -230,7 +236,18 @@ func _init() -> void:
 	for face in [landed, dragon_face]:
 		_faces.add_child(face)
 		face.visible = false
-	landed.intent.connect(func(data): intent.emit(data))
+	landed.intent.connect(func(data):
+		if data.type == "look_out":
+			look_out(T.ZOOM)
+		else:
+			intent.emit(data))
+	_catch.mouse_filter = Control.MOUSE_FILTER_STOP
+	_catch.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	_catch.visible = false
+	_catch.gui_input.connect(func(e: InputEvent):
+		if e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT and not e.pressed:
+			look_in(T.ZOOM))
+	_table.add_child(_catch)
 	dragon_face.intent.connect(func(data): intent.emit(data))
 	add_child(pile)
 	pile.intent.connect(func(data): intent.emit(data))
@@ -391,6 +408,9 @@ func render(state: Dictionary) -> void:
 		_hold_faces(false)
 	_place()
 	_update_note(is_inside_tree())
+	# Anything to read on the Deck brings the view back to the Encounter first.
+	if _looking and note_on:
+		look_in(T.ZOOM)
 
 
 ## Zoomed out at once, with no motion: the start of a game, before its first reveal.
@@ -430,6 +450,8 @@ func finish() -> void:
 	_tweens = []
 	held = false
 	_zooming = false
+	_looking = false
+	_catch.visible = false
 	_clip_tops(false)
 	region_card.set_focus("", 0.0)
 	region_card.set_rim(0.0)
@@ -630,6 +652,8 @@ func _place() -> void:
 		face.size = f.size
 		face.pivot_offset = f.size / 2.0
 	landed.lay_out(_landing(Rect2(Vector2.ZERO, f.size)))
+	_catch.position = f.position
+	_catch.size = f.size
 	var nr := _note_rect()
 	pile.lay_out(nr)
 	_render_top()
@@ -947,6 +971,107 @@ func zoom_in(target: String, d: float) -> void:
 		tw.tween_property(face, "modulate:a", 1.0, d * 0.4)
 	tw.tween_method(_set_stack_rect, cr, f, d)
 	tw.chain().tween_callback(_land)
+
+
+## The player's look at the whole card: from the landed face out to the Region Card,
+## its Encounter's panel still lit, and the Key Card that named it rising over its
+## top as it settles, as the reveal left them (peek()). A press zooms back in.
+func look_out(d: float) -> void:
+	var top: Control = top_node()
+	if _looking or held or _zooming or view != "face" or zoomed == "" or top == null or not _peeks() \
+			or not landed.visible or note_on:
+		return
+	_looking = true
+	_catch.visible = true
+	held = true
+	_hold_faces(true)
+	var f := face_rect(size)
+	var cr := card_rect(size, "card", true)
+	var key_face = vs.get("key_face")
+	_dip = dip(peek_h(cr.size)) if key_face != null else 0.0
+	var home := Rect2(cr.position + Vector2(0, _dip), cr.size)
+	if key_face != null:
+		_peek.size = cr.size
+		_peek.set_model(key_face, ["encounter"])
+		_peek.lit = 1.0
+		_peek.modulate.a = 1.0
+		_peek.position = key_rect(size, false).position
+	view = "card"
+	var at := _landing(f)
+	_zooming = true
+	_clip_tops(true)
+	top.scale = Vector2.ONE
+	top.modulate = Color.WHITE
+	top.pivot_offset = Vector2.ZERO
+	top.visible = true
+	landed.visible = false
+	region_card.set_focus(zoomed, 1.0)
+	_clip_peek(home.end.y)
+	var done := func():
+		_zooming = false
+		_peek_up = key_face != null
+		_clip_tops(false)
+		_place()
+	if UI.reduced_motion:
+		_card_at(home.position, home.size)
+		region_card.set_rim(1.0)
+		region_card.set_numbers(1.0)
+		_set_stack_rect(home)
+		top.modulate.a = 0.0
+		var tw := _keep(create_tween().set_parallel(true))
+		tw.tween_property(top, "modulate:a", 1.0, d)
+		if key_face != null:
+			_peek.position = key_rect(size, true).position
+			_peek.modulate.a = 0.0
+			_peek.visible = true
+			tw.tween_property(_peek, "modulate:a", 1.0, d)
+		tw.chain().tween_callback(done)
+		return
+	var from := Rect2(at.card.position + f.position, at.card.size)
+	_card_at(from.position, from.size)
+	var tw := _keep(create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT))
+	tw.tween_method(func(v: float):
+		var r := _lerp_rect(from, home, v)
+		_card_at(r.position, r.size)
+		region_card.set_rim(v)
+		region_card.set_numbers(v), 0.0, 1.0, d)
+	tw.tween_method(_set_stack_rect, f, home, d)
+	if key_face != null:
+		# The Key Card rises over the top as the card comes to rest.
+		# Kept out of sight until then: the card grown past the face may not cover it.
+		var rise := minf(T.PEEK_RISE, d)
+		tw.tween_callback(func(): _peek.visible = true).set_delay(d - rise)
+		tw.tween_property(_peek, "position", key_rect(size, true).position, rise) \
+			.set_ease(Tween.EASE_OUT).set_delay(d - rise)
+	tw.chain().tween_callback(done)
+
+
+## Back in from the player's look at the whole card to the Encounter, the Key Card
+## sliding back down as on a reveal (zoom_in()).
+func look_in(d: float) -> void:
+	if not _looking or _zooming:
+		return
+	_looking = false
+	_catch.visible = false
+	zoom_in(zoomed, d)
+
+
+## At once, the player's look at the whole card ended, back on the Encounter: a
+## sequence starting plays from the face.
+func stop_look() -> void:
+	if not _looking and not _catch.visible:
+		return
+	for tw in _tweens:
+		if tw != null and tw.is_valid():
+			tw.kill()
+	_tweens = []
+	_looking = false
+	_catch.visible = false
+	_zooming = false
+	_clip_tops(false)
+	region_card.set_rim(0.0)
+	region_card.set_numbers(1.0)
+	_land()
 
 
 ## The top card at `at`, `size`, laid out afresh (not scaled), so it stays sharp.

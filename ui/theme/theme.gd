@@ -38,15 +38,23 @@ static func font(name: String) -> Font:
 ## from art/painted/ when there is one (a preview of the feature 008 art).
 static func art(name: String) -> Texture2D:
 	if is_painted(name):
-		if not _icons.has("painted/" + name):
-			_icons["painted/" + name] = load("res://art/painted/%s.png" % name)
-		return _icons["painted/" + name]
+		return painted(name)
 	return icon("../creatures/" + name)
 
 
 ## Whether the art has a painted picture in art/painted/, drawn in its own colours.
 static func is_painted(name: String) -> bool:
-	return painted_art and ResourceLoader.exists("res://art/painted/%s.png" % name)
+	return painted_art and painted(name) != null
+
+
+## The picture art/painted/<name>.png, or null when there is none or it cannot be
+## loaded (not yet imported, say), so the art falls back to its silhouette.
+static func painted(name: String) -> Texture2D:
+	var key := "painted/" + name
+	if not _icons.has(key):
+		var path := "res://art/painted/%s.png" % name
+		_icons[key] = load(path) as Texture2D if ResourceLoader.exists(path) else null
+	return _icons[key]
 
 
 static func art_rect(name: String, side: float, color: Color = T.INK) -> TextureRect:
@@ -57,6 +65,8 @@ static func art_rect(name: String, side: float, color: Color = T.INK) -> Texture
 ## Part of a creature's art, `region` in its 512 units, as a texture of its own.
 static func art_crop(name: String, region: Rect2) -> Texture2D:
 	var tex := art(name)
+	if tex == null:
+		return null
 	var k := tex.get_width() / 512.0
 	var a := AtlasTexture.new()
 	a.atlas = tex

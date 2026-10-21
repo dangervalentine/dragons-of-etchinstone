@@ -8,7 +8,6 @@ extends Node
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
 const BoardResponse = preload("res://ui/model/board_response.gd")
-const Sequencer = preload("res://ui/model/sequencer.gd")
 
 signal started
 signal finished
@@ -55,6 +54,7 @@ func play(steps: Array, play_screen: Control, after_vs: Dictionary) -> void:
 	if _playing:
 		skip()
 	screen = play_screen
+	screen.deck.stop_look()
 	screen.detail.hide_card()
 	_after = after_vs
 	_tallies = steps.any(func(st): return st.kind == "tally")
@@ -217,24 +217,21 @@ func _run(st: Dictionary, d: float) -> void:
 				screen.preview.reveal()
 				screen.preview.play_tally(d)
 		"verdict":
+			# The verdict lands on the result note itself; nothing is laid over the Deck.
 			if screen.preview.visible:
 				screen.preview.reveal_verdict(d)
-			var look: Dictionary = T.VERDICT.get(st.values.outcome, {})
-			if not look.is_empty():
-				_keep(flight.float_text(look.text, screen.point("encounter"), look.color, 40, d * 2.2, look.icon))
 		"gain_xp":
-			var to: Vector2 = screen.point("preview")
-			var n: int = mini(st.values.amount, T.XP_STARS)
-			var pace := _pace(n, d)
-			for i in n:
-				_keep(flight.ghost("xp", screen.point("encounter"), to, pace.x, T.GOLD, 34, i * pace.y))
-			_keep(flight.float_text("+%d XP" % st.values.amount, to, T.GOLD, 36, d * 1.5))
+			# The XP counts up in its pill beside the verdict, on the note.
+			if screen.preview.visible:
+				screen.preview.count_xp(d)
 		"damage":
 			var amount: int = st.values.amount
 			if amount > 0:
 				var e: String = st.values.element
 				var icon := e if e != "" else "hp"
 				_keep(flight.float_text("−%d" % amount, screen.point("hand"), T.BAD, 52, d * 1.6, icon))
+				if screen.preview.visible:
+					screen.preview.pulse_cost("damage", d)
 			_keep(flight.tint(Color(T.BAD, 0.16), d))
 			for id in screen.hand.ids():
 				UI.shake(screen.hand.card(id), 10.0)
@@ -243,10 +240,13 @@ func _run(st: Dictionary, d: float) -> void:
 				_poison_at = -1
 				screen.deck.render(_after)
 		"pay_time":
+			# The cards are seen leaving the Deck; the note's Time pill answers them.
 			_pay_time(st, d)
-			_keep(flight.float_text("−%d time" % st.cards.size(), screen.point("deck") + Vector2(0, 50), T.BAD, 30, d * 2.0, "time"))
+			if screen.preview.visible:
+				screen.preview.pulse_cost("time", d)
 		"poison_pending":
-			_keep(flight.ghost("poison", screen.point("encounter"), screen.point("deck"), d, T.GOOD, 44))
+			if screen.preview.visible:
+				screen.preview.pulse_cost("poison", d)
 		"knock_out":
 			_keep(flight.float_text("KNOCKED OUT", screen.point("hand") + Vector2(0, -60), T.BAD, 48, d * 2.5, "down_arrow"))
 			for id in st.cards:
@@ -258,11 +258,11 @@ func _run(st: Dictionary, d: float) -> void:
 			for id in st.cards:
 				_level(id, st, minf(d, T.TURN))
 			if st.kind == "upgrade" and st.values.get("spent", 0) > 0 and screen.xp_purse.visible:
-				screen.xp_purse.count_to(int(screen.xp_purse.amount.text) - st.values.spent, d)
+				screen.xp_purse.count_to(roundi(screen.xp_purse._left) - st.values.spent, d)
 		"xp_lost":
 			if screen.xp_purse.visible:
+				# The purse counts itself down and fades: nothing is laid over it.
 				screen.xp_purse.fade_out(d)
-				_keep(flight.float_text("\u2212%d XP" % st.values.amount, screen.xp_purse.point(), T.INK_MUTED, 30, d * 1.6, "xp"))
 		"trash":
 			for id in st.cards:
 				_away(id, "trash", d, true)
@@ -432,26 +432,6 @@ func _level(id: String, st: Dictionary, d: float) -> void:
 	var c: Color = T.GOLD if up else T.BAD
 	_keep(flight.float_text("Level %d" % st.values.level, v.global_position + Vector2(v.size.x / 2.0, v.size.y * 0.2), c, 30, d * 2.0,
 		"crown" if up else "down_arrow"))
-
-
-## While Upgrades are chosen: the purse's figure and bar count from `from_xp` to
-## what is left as a card takes its XP, or back as an Upgrade is taken back. Nothing
-## flies between the purse and the card (specs/015).
-func spend(play_screen: Control, id: String, from_xp: int, to_xp: int) -> void:
-	screen = play_screen
-	var v: Control = screen.hand.card(id)
-	if v == null or not screen.xp_purse.is_visible_in_tree() or from_xp == to_xp:
-		return
-	screen.xp_purse.amount.text = str(from_xp)
-	screen.xp_purse.count_to(to_xp, Sequencer.paced(absi(from_xp - to_xp)))
-
-
-## How long each of `n` marks or stars flies, and the gap between one leaving and
-## the next, for all of them to land within `d`: slow enough each is seen to go.
-static func _pace(n: int, d: float) -> Vector2:
-	var fly := minf(T.MOTE_FLY, d)
-	var gap: float = 0.0 if n < 2 else minf(T.MOTE_STAGGER, maxf(0.0, d - fly) / (n - 1))
-	return Vector2(fly, gap)
 
 
 ## A card leaves the Hand for a pile.

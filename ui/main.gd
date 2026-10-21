@@ -591,14 +591,12 @@ func _on_card(id: String) -> void:
 			else:
 				_refuse("That card cannot Soak: %s." % card.get("reason", "").to_lower(), id)
 		"upgrade":
-			# Chosen, the card turns to show its next Level and its XP flies to it;
-			# chosen again, it turns back. Nothing is spent until Confirm.
+			# Chosen, the card turns to show its next Level and the purse's bar drains
+			# by its cost; chosen again, it turns back. Nothing is spent until Confirm.
 			var card: Dictionary = vs.cards.get(id, {})
 			if draft.picks.has(id) or card.get("eligible", false):
-				var xp_before: int = vs.xp
 				draft.toggle_pick(id)
 				_refresh()
-				animator.spend(play, id, xp_before, vs.xp)
 			else:
 				_refuse("That card cannot be Upgraded: %s." % card.get("reason", ""), id)
 		"challenge", "final_journey", "final_enemy":

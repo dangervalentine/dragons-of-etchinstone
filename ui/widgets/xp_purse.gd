@@ -13,6 +13,8 @@ var _icon: Control
 var _bar := Control.new()
 var _total := 0
 var _left := 0.0
+## The bar and figure counting to what is left (count_to()).
+var _count: Tween
 ## Whether to say how the Encounter went above the XP.
 var recap := true
 
@@ -37,8 +39,13 @@ func render(vs: Dictionary) -> void:
 	for c in _box.get_children():
 		_box.remove_child(c)
 		c.queue_free()
+	# Drawn again as Upgrades are chosen or taken back, the bar drains or fills from
+	# where it stood to what is left; a new purse starts full.
+	var draining := amount != null and int(vs.get("xp_total", vs.xp)) == _total and not is_equal_approx(_left, vs.xp)
 	_total = int(vs.get("xp_total", vs.xp))
-	_left = float(vs.xp)
+	if not draining:
+		_kill_count()
+		_left = float(vs.xp)
 	var r: Dictionary = vs.recap if recap else {}
 	if not r.is_empty():
 		var look: Dictionary = T.VERDICT[r.outcome]
@@ -59,7 +66,7 @@ func render(vs: Dictionary) -> void:
 	_icon = UI.icon_rect("xp", T.NOTE_ICON, T.GOLD)
 	_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	purse.add_child(_icon)
-	amount = UI.label(str(vs.xp), T.HEADING, T.GOLD)
+	amount = UI.label(str(roundi(_left)), T.HEADING, T.GOLD)
 	amount.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	purse.add_child(amount)
 	var cap := UI.label("XP to spend", T.BODY, T.INK)
@@ -69,6 +76,8 @@ func render(vs: Dictionary) -> void:
 	_box.add_child(_bar)
 	_bar.queue_redraw()
 	_box.add_child(UI.label(vs.prompt.text, T.LABEL, T.INK_MUTED, true))
+	if draining:
+		count_to(vs.xp, T.FILL)
 
 
 ## The bar: gold for the XP left, emptying from the right as it is spent, its
@@ -104,16 +113,20 @@ func star_point() -> Vector2:
 	return _icon.global_position + _icon.size / 2.0 if _icon != null and _icon.is_inside_tree() else point()
 
 
-## Count the XP figure and its bar down (or up) to `n`.
+## Count the XP figure and its bar down (or up) from where they stand to `n`.
 func count_to(n: int, duration: float) -> void:
-	if amount == null:
-		return
-	var from := int(amount.text)
-	if UI.reduced_motion or not amount.is_inside_tree():
+	_kill_count()
+	if UI.reduced_motion or not is_inside_tree():
 		_set_left(n)
 		return
-	# Bound to the figure, so the count stops if the purse is drawn again under it.
-	amount.create_tween().tween_method(_set_left, float(from), float(n), duration).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	# Bound to the purse, not its figure, so drawing the purse again does not cut it off.
+	_count = create_tween()
+	_count.tween_method(_set_left, _left, float(n), duration).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+
+
+func _kill_count() -> void:
+	if _count != null and _count.is_valid():
+		_count.kill()
 
 
 ## The XP left unspent fades away as the Upgrade step ends: it is lost.
@@ -121,7 +134,4 @@ func fade_out(duration: float) -> void:
 	for c in [amount, _icon]:
 		if c != null and c.is_inside_tree():
 			c.create_tween().tween_property(c, "modulate:a", 0.0, duration)
-	if amount != null and amount.is_inside_tree() and not UI.reduced_motion:
-		amount.create_tween().tween_method(_set_left, _left, 0.0, duration)
-	else:
-		_set_left(0.0)
+	count_to(0, duration)

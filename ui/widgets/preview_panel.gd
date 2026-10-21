@@ -41,6 +41,10 @@ var _sum := VBoxContainer.new()
 ## The total labels in the sum, by sum id, with the value each shows when settled.
 var _totals := {}
 var _verdict: Control = null
+## The figure of the XP the verdict brings, which counts up in its pill as it is won.
+var _xp: Label = null
+## The pill of each cost of the Play, by cost id, which stirs as the cost is paid.
+var _cost_pills := {}
 ## The height asked for so far for each Encounter and step, so the panel does not
 ## change size as cards are placed: it is sized for its fullest look at once.
 var _needed := {}
@@ -79,6 +83,8 @@ func render(vs: Dictionary) -> void:
 	_sum.visible = false
 	_totals = {}
 	_verdict = null
+	_xp = null
+	_cost_pills = {}
 	var p = vs.preview
 	var enc = vs.encounter
 	_kind = enc.kind if enc != null else ""
@@ -148,6 +154,8 @@ func _build_sum(p: Dictionary, m: Dictionary) -> void:
 			c.free()
 		_totals = {}
 		_verdict = null
+		_xp = null
+		_cost_pills = {}
 
 
 ## The sum's rows, verdict and costs at the present tightness; returns how wide the
@@ -333,6 +341,8 @@ func _verdict_line(p: Dictionary) -> Control:
 	if p.rewards.xp > 0:
 		xp = _pill("+%d" % p.rewards.xp, "xp", "", T.GOLD, "xp")
 		xp.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		_xp = xp.get_meta("label")
+		_xp.set_meta("value", int(p.rewards.xp))
 	var line := _say(look.icon, p.verdict_text, T.BAD if p.fatal else look.color,
 		xp.custom_minimum_size.x if xp != null else 0.0)
 	if xp != null:
@@ -360,6 +370,7 @@ func _cost_line(p: Dictionary, m: Dictionary, ids: Array) -> Control:
 		var label: String = str(c.value) if c.value > 0 else c.text
 		var help: String = {"damage": "soak", "time": "time", "poison": "poison", "reserve": "reserve", "knock_out": "knock_out"}[c.id]
 		var pill := _pill(label, c.icon, c.element, T.BAD, help)
+		_cost_pills[c.id] = pill
 		var why: Array = m.damage_terms if c.id == "damage" else (m.time_terms if c.id == "time" else [])
 		pill.tooltip_text = c.text
 		if not why.is_empty():
@@ -396,6 +407,8 @@ func play_tally(duration: float) -> void:
 		_count(_totals[id], 0, _totals[id].get_meta("value"), duration)
 	if _verdict != null:
 		_verdict.modulate.a = 0.0
+	if _xp != null:
+		_xp.text = "+0"
 
 
 func reveal_verdict(duration: float) -> void:
@@ -409,6 +422,32 @@ func reveal_verdict(duration: float) -> void:
 	create_tween().tween_property(_verdict, "scale", Vector2.ONE, duration).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
+## The XP the Encounter brings counts up in its pill beside the verdict, the pill
+## lighting up as it fills; nothing flies to it.
+func count_xp(duration: float) -> void:
+	if _xp == null:
+		return
+	_count(_xp, 0, _xp.get_meta("value"), duration, "+%d")
+	_stir(_xp.get_parent().get_parent().get_parent(), duration)
+
+
+## The pill of the cost `id` lights up as that cost is paid (the damage taken, the Time
+## Penalty's cards leaving the Deck, the Poison laid on it).
+func pulse_cost(id: String, duration: float) -> void:
+	var pill: Control = _cost_pills.get(id)
+	if pill != null and pill.is_inside_tree():
+		_stir(pill, duration)
+
+
+## A brightening and settle, in place: the panel clips what it holds, so a pill
+## never grows past its own room.
+func _stir(c: Control, duration: float) -> void:
+	var up := minf(duration * 0.3, 0.2)
+	var tw := c.create_tween()
+	tw.tween_property(c, "modulate", Color(1.7, 1.7, 1.7), up).set_ease(Tween.EASE_OUT)
+	tw.tween_property(c, "modulate", Color.WHITE, maxf(duration - up, 0.3)).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+
+
 ## Put everything in its final state at once.
 func settle() -> void:
 	for id in _totals:
@@ -417,6 +456,8 @@ func settle() -> void:
 	if _verdict != null:
 		_verdict.modulate.a = 1.0
 		_verdict.scale = Vector2.ONE
+	if _xp != null:
+		_xp.text = "+%d" % _xp.get_meta("value")
 
 
 func _final() -> bool:
@@ -427,13 +468,13 @@ func _row_h() -> float:
 	return ROW_H_FINAL if _final() else ROW_H
 
 
-func _count(l: Label, from: int, to: int, duration: float) -> void:
+func _count(l: Label, from: int, to: int, duration: float, fmt := "%d") -> void:
 	if UI.reduced_motion or not l.is_inside_tree():
-		l.text = str(to)
+		l.text = fmt % to
 		return
 	var show := func(v: float) -> void:
 		if is_instance_valid(l):
-			l.text = str(roundi(v))
+			l.text = fmt % roundi(v)
 	show.call(from)
 	# Bound to the label, so the count stops if the box is redrawn under it.
 	l.create_tween().tween_method(show, float(from), float(to), duration).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
@@ -526,6 +567,7 @@ func _pill(text: String, icon_name: String, element: String, colour: Color, help
 	var l := UI.label(text, T.NUMERAL_S if text.is_valid_int() or text.begins_with("+") else T.LABEL_BOLD, T.INK)
 	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(l)
+	b.set_meta("label", l)
 	if element != "":
 		row.add_child(UI.icon_rect(element, T.NOTE_ICON, T.ether_ink(element)))
 	UI.ignore_mouse(row)

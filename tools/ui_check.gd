@@ -73,6 +73,7 @@ func _run() -> void:
 		UI.reduced_motion = false
 	await _open("phone-tall")
 	await _skip_walk("phone-tall")
+	await _look_walk("phone-tall")
 	await _open("phone-16x9")
 	await _play("phone-16x9 animated", 5, "normal", true)
 	await _open("desktop")
@@ -464,6 +465,44 @@ func _skip_walk(where: String) -> void:
 		_ok(deck.view == "face" and not deck.held, "%s: the face, zoomed in" % w)
 		_ok(deck.landed.key == ui.vs.zoom, "%s: on the Encounter (%s, %s)" % [w, deck.landed.key, ui.vs.zoom])
 		_ok(deck.region_card.rim == 0.0 and not deck._peek.visible and not deck._peek_up, "%s: nothing left lit or raised" % w)
+
+
+## Pressing the Encounter face zooms out to the whole Region Card, its Encounter
+## still lit and the Key Card that named it risen over its top; a press on the
+## Deck then zooms back in, as a reveal's zoom does.
+func _look_walk(where: String) -> void:
+	ui.start_game({"seed": 5, "dragon": "rodving", "difficulty": "normal", "cavalier": false, "glass_cannon": false})
+	ui.animator.skip()
+	await process_frame
+	var deck = ui.play.deck
+	deck.pile.finish()
+	if deck.note_on or not deck.landed.visible:
+		_fail("%s: no bare Encounter face to press" % where)
+		return
+	var zoom: String = deck.zoomed
+	deck.landed.gui_input.emit(_release())
+	_ok(deck.held and deck._catch.visible, "%s: the face pressed zooms out" % where)
+	await create_timer(T.ZOOM + 0.2).timeout
+	_ok(deck.view == "card" and deck.region_card.visible and not deck.landed.visible, "%s: out on the whole Region Card" % where)
+	_ok(deck._peek.visible and deck._peek_up and deck._peek.lit == 1.0, "%s: the Key Card risen over it, its number lit" % where)
+	_ok(deck._peek.position.is_equal_approx(DeckStack.key_rect(deck.size, true).position), "%s: the Key Card at its peek" % where)
+	_ok(deck.region_card.focus_key == zoom and deck.region_card.rim == 1.0, "%s: its Encounter still lit" % where)
+	deck._catch.gui_input.emit(_release())
+	await create_timer(T.ZOOM + 0.2).timeout
+	_ok(deck.view == "face" and not deck.held and not deck._catch.visible, "%s: a second press zooms back in" % where)
+	_ok(deck.landed.visible and deck.landed.key == zoom, "%s: back on the Encounter" % where)
+	_ok(deck.region_card.rim == 0.0 and not deck._peek.visible and not deck._peek_up, "%s: nothing left lit or raised after the look" % where)
+	# A sequence starting while out on the card plays from the face.
+	deck.landed.gui_input.emit(_release())
+	deck.stop_look()
+	_ok(deck.view == "face" and not deck.held and not deck._catch.visible and not deck._peek.visible, "%s: a look ends at once for a sequence" % where)
+
+
+func _release() -> InputEventMouseButton:
+	var ev := InputEventMouseButton.new()
+	ev.button_index = MOUSE_BUTTON_LEFT
+	ev.pressed = false
+	return ev
 
 
 ## A press anywhere, as the player's finger or mouse.

@@ -142,6 +142,8 @@ const SEQUENCE_MAX := 3.0
 ## sliding back.
 const ZOOM := 0.55
 const TURN := 0.5
+## The Soak's meter filling and the XP purse's bar draining as cards are chosen.
+const FILL := 0.5
 const PEEK_RISE := 0.25
 const PEEK_FALL := 0.2
 ## A drawn card's flight from the top card, at its size, to its place in the Hand

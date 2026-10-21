@@ -28,7 +28,7 @@ static func make(title: String, desc: String, emblem: Variant = "", colour: Colo
 	var tint: Color = emblem_colour if emblem_colour != null else colour
 	if emblem is Texture2D:
 		row.add_child(UI.texture_rect(emblem, emblem_side, tint))
-	elif emblem != "":
+	elif emblem is String and emblem != "":
 		row.add_child(UI.icon_rect(emblem, emblem_side, tint))
 	var col := UI.vbox(0)
 	col.alignment = BoxContainer.ALIGNMENT_CENTER
