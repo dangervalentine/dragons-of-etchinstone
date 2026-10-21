@@ -146,10 +146,11 @@ func _to_wait() -> void:
 ## How long a step plays in reduced motion: a short fade, but the stage banner
 ## keeps its time to be read, and so does the Key Card, its number and its panel
 ## lighting up one after the other (specs/012 FR-011, specs/014 FR-010), and a
-## Time Penalty, damage and XP, each card, mark or star seen as it goes.
+## Time Penalty, damage and XP, each card, mark or star seen as it goes; and the
+## shuffle, its words held long enough to read (specs/016 research R6).
 static func reduced_duration(st: Dictionary) -> float:
 	match st.kind:
-		"stage_banner", "key_peek", "pay_time", "damage", "gain_xp", "upgrade", "xp_lost":
+		"stage_banner", "key_peek", "pay_time", "damage", "gain_xp", "upgrade", "xp_lost", "shuffle":
 			return st.duration
 	return minf(st.duration, T.FAST * 2.0)
 
@@ -300,6 +301,14 @@ func _run(st: Dictionary, d: float) -> void:
 			screen.deck.cover_draw(T.STAGGER * (n - 1) + T.DRAW_FLY)
 			screen.render(_after, true, screen.deck.top_rect())
 			_hold_note()
+		"shuffle":
+			# Under the card on top, which lies there already (specs/016).
+			var models: Dictionary = st.values.get("models", {})
+			var faces := []
+			for id in st.cards:
+				if models.has(id):
+					faces.append(models[id])
+			screen.deck.shuffle(faces, d)
 		"zoom_out":
 			screen.deck.zoom_out(d)
 		"turn_card":

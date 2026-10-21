@@ -142,6 +142,17 @@ const SEQUENCE_MAX := 3.0
 ## sliding back.
 const ZOOM := 0.55
 const TURN := 0.5
+## The Deck riffled under the card on top whenever it is shuffled (feature 016),
+## as NextQuest riffles its cards: up to SHUFFLE_PEELS Mage Cards peel out from
+## under it one after another, each out and back in a share SHUFFLE_ARC of the
+## time, out SHUFFLE_PEEL of the way a Key Card rises, tilted SHUFFLE_TILT degrees
+## and shrunk to SHUFFLE_SCALE at the height of its arc.
+const SHUFFLE := 0.9
+const SHUFFLE_PEELS := 5
+const SHUFFLE_ARC := 0.45
+const SHUFFLE_PEEL := 0.6
+const SHUFFLE_TILT := 2.0
+const SHUFFLE_SCALE := 0.96
 ## The Soak's meter filling and the XP purse's bar draining as cards are chosen.
 const FILL := 0.5
 const PEEK_RISE := 0.25

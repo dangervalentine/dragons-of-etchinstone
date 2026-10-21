@@ -418,6 +418,7 @@ func start_game(opts: Dictionary) -> void:
 			empty.levels[id] = game.cards[id].level
 		var after := ViewState.snapshot(game)
 		var steps := Sequencer.build(empty, {"kind": "start", "cards": []}, {}, after)
+		_show_faces(steps)
 		# Start from an empty Hand so the first one is dealt.
 		var bare: Dictionary = vs.duplicate()
 		bare.hand = []
@@ -425,6 +426,17 @@ func start_game(opts: Dictionary) -> void:
 		# The Deck starts zoomed out on the Region Card, for the first reveal.
 		play.deck.show_card()
 		animator.play(steps, play, vs)
+
+
+## A Time Penalty's cards show their faces as they go to the Discard, the
+## Discard's as it comes back under the next Region's card, and the few peeling out
+## from under it as the Deck is shuffled (specs/016).
+func _show_faces(steps: Array) -> void:
+	for st in steps:
+		if st.kind == "pay_time" or st.kind == "shuffle" or st.kind == "gather_shuffle" and st.values.get("from", "") == "discard":
+			st.values["models"] = {}
+			for id in st.cards:
+				st.values.models[id] = ViewState.plain_card(game, db, id)
 
 
 ## Rebuild the view state and show it. `animate` lets cards glide to new places.
@@ -591,11 +603,12 @@ func _on_card(id: String) -> void:
 			else:
 				_refuse("That card cannot Soak: %s." % card.get("reason", "").to_lower(), id)
 		"upgrade":
-			# Chosen, the card turns to show its next Level and the purse's bar drains
-			# by its cost; chosen again, it turns back. Nothing is spent until Confirm.
+			# Each tap turns the card a Level up and drains the purse's bar by its cost,
+			# while the XP and its Levels allow; then each tap turns it a Level back,
+			# down to where it began. Nothing is spent until Confirm.
 			var card: Dictionary = vs.cards.get(id, {})
 			if draft.picks.has(id) or card.get("eligible", false):
-				draft.toggle_pick(id)
+				draft.step_upgrade(id, card.get("can_raise", false))
 				_refresh()
 			else:
 				_refuse("That card cannot be Upgraded: %s." % card.get("reason", ""), id)
@@ -697,7 +710,7 @@ func _on_primary() -> void:
 		"upgrade":
 			var affordable := false
 			for id in vs.hand:
-				affordable = affordable or (vs.cards[id].get("eligible", false) and not draft.picks.has(id))
+				affordable = affordable or vs.cards[id].get("can_raise", false)
 			if Settings.warn_unspent_xp and vs.xp > 0 and affordable:
 				_confirm_unspent_xp()
 				return
@@ -779,13 +792,7 @@ func _act(action: Dictionary, call: Callable) -> void:
 	if game.phase != phase_before and (game.phase == "challenge" or game.phase.begins_with("final")):
 		_reset_draft()
 	var steps := Sequencer.build(before, action, game.result, after)
-	# A Time Penalty's cards show their faces as they go to the Discard, and the
-	# Discard's as it comes back under the next Region's card.
-	for st in steps:
-		if st.kind == "pay_time" or st.kind == "gather_shuffle" and st.values.get("from", "") == "discard":
-			st.values["models"] = {}
-			for id in st.cards:
-				st.values.models[id] = ViewState.plain_card(game, db, id)
+	_show_faces(steps)
 	_refresh(false, false)
 	if steps.is_empty():
 		play.render(vs, true)

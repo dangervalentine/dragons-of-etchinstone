@@ -29,12 +29,19 @@ static func snapshot(game) -> Dictionary:
 	var levels := {}
 	for id in game.cards:
 		levels[id] = game.cards[id].level
-	# What Upgrading each card in the Hand would cost, so an Upgrade shows its own.
+	# What each Level up from its own would cost each card in the Hand, so an
+	# Upgrade, of one Level or several, shows its own.
 	var costs := {}
 	for id in game.hand:
+		var steps := []
+		var level: int = game.cards[id].level
 		var cost = game.level_data(id).upgrade_cost
-		if cost != null:
-			costs[id] = cost
+		while cost != null:
+			steps.append(cost)
+			level += 1
+			cost = game.db.mage_level(id, level).upgrade_cost
+		if not steps.is_empty():
+			costs[id] = steps
 	return {
 		"phase": game.phase, "region": game.region, "xp": game.xp, "damage_due": game.damage_due,
 		"deck": game.deck.duplicate(), "hand": game.hand.duplicate(),
@@ -238,7 +245,7 @@ static func _input_region(game, draft, vs: Dictionary) -> String:
 			return "commit" if draft.mode == "none" and vs.preview.status == "ready" else "hand"
 		"upgrade":
 			for id in vs.hand:
-				if vs.cards[id].eligible and not vs.cards[id].turned:
+				if vs.cards[id].get("can_raise", false):
 					return "hand"
 	return "commit"
 
@@ -670,15 +677,19 @@ static func _card(game, draft, db, id: String, vs: Dictionary) -> Dictionary:
 				c.eligible = false
 				c.reason = "Covered"
 		"upgrade":
-			# A chosen card shows the Level it will be Upgraded to; its cost is taken
-			# from the XP left when it is chosen and given back when it is not.
-			var cost = lv.upgrade_cost
+			# A chosen card shows the Level it will be Upgraded to, once per tap while
+			# the XP left and its Levels allow, then a Level back per tap down to where
+			# it began. What is chosen is taken from the XP left until Confirm.
+			var staged: int = draft.picks.count(id)
+			var cost = db.mage_level(id, c.level + staged).upgrade_cost
 			c.selection_order = draft.picks.find(id)
-			c.turned = c.selection_order >= 0
+			c.turned = staged > 0
+			c["can_raise"] = not c.downgraded and cost != null and cost <= vs.xp
 			if c.turned:
 				c.state = "selected"
-				c.note = "%d XP" % cost
+				c.note = "%d XP" % _card_cost(game, db, id, staged)
 				c.note_icon = "xp"
+				c.alt = _alt(game, db, id, c.level + staged, "If Upgraded")
 			elif c.downgraded:
 				c.eligible = false
 				c.reason = "Downgraded"
@@ -691,16 +702,27 @@ static func _card(game, draft, db, id: String, vs: Dictionary) -> Dictionary:
 			else:
 				c.note = "%d XP" % cost
 				c.note_icon = "xp"
-			if cost != null and not c.downgraded:
+			if not c.turned and cost != null and not c.downgraded:
 				c.alt = _alt(game, db, id, c.level + 1, "If Upgraded")
 	return c
+
+
+## The XP taking card `id` up `levels` Levels from its own costs.
+static func _card_cost(game, db, id: String, levels: int) -> int:
+	var cost := 0
+	for k in levels:
+		cost += int(db.mage_level(id, game.cards[id].level + k).upgrade_cost)
+	return cost
 
 
 ## The XP the Upgrades chosen but not yet confirmed will take.
 static func staged_cost(game, draft) -> int:
 	var cost := 0
+	var counted := {}
 	for id in draft.picks:
-		cost += int(game.level_data(id).upgrade_cost)
+		if not counted.has(id):
+			counted[id] = true
+			cost += _card_cost(game, game.db, id, draft.picks.count(id))
 	return cost
 
 
@@ -838,10 +860,10 @@ static func _prompt(game, draft, vs: Dictionary) -> Dictionary:
 		"upgrade":
 			var affordable := false
 			for id in vs.hand:
-				affordable = affordable or (vs.cards[id].eligible and not vs.cards[id].turned)
+				affordable = affordable or vs.cards[id].get("can_raise", false)
 			p.step = "Upgrade"
 			if not draft.picks.is_empty():
-				p.text = "Tap a card again to take its Upgrade back. Unspent XP is lost."
+				p.text = "Tap a card again to Upgrade it further, or take its Upgrades back. Unspent XP is lost."
 			elif game.xp <= 0:
 				p.text = "No XP to spend."
 			elif affordable:

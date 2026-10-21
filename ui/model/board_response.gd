@@ -35,7 +35,7 @@ const TABLE := {
 
 ## Sequence steps the board leaves to the cards, the counters and the banner.
 const QUIET_STEPS := ["tally", "gain_xp", "pay_time", "poison_pending", "downgrade", "trash",
-	"discard", "gather_shuffle", "stage_banner", "draw", "ending"]
+	"discard", "gather_shuffle", "shuffle", "stage_banner", "draw", "ending"]
 
 
 ## The event a sequence step stands for, or "" when the board stays quiet.
