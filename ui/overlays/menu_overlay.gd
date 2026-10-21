@@ -16,6 +16,9 @@ const GROUND_NAMES := ["Lattice", "Ripples", "Columns", "Rain"]
 ## The widest the card grows, and the width of the column naming each setting.
 const WIDTH_MAX := 1040.0
 const NAME_W := 150.0
+## Taps on the title this close together count toward the triple tap that, in
+## development, unlocks every dragon.
+const TAP_GAP_MS := 500
 
 signal intent(data: Dictionary)
 
@@ -24,6 +27,9 @@ var _ground_tiles := {}
 var _window_tiles := {}
 ## The card, to check that it fits.
 var panel: Control
+var _title: Label
+var _taps := 0
+var _last_tap_ms := 0
 
 
 ## `area` is the room the card has; it is never wider. `window_row` shows the
@@ -38,6 +44,9 @@ func setup(in_game: bool, area := Rect2(16, 16, 1248, 688), window_row := Window
 	var title := UI.label("SETTINGS", T.HEADING, T.GOLD)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	title.mouse_filter = Control.MOUSE_FILTER_STOP
+	title.gui_input.connect(_on_title_input)
+	_title = title
 	top.add_child(title)
 	var close_button := make_close_button()
 	top.add_child(close_button)
@@ -166,3 +175,24 @@ func _refresh() -> void:
 		_ground_tiles[n].selected = Settings.ground == n
 	for key in _window_tiles:
 		_window_tiles[key].selected = Settings.window_mode == key
+
+
+## For development: three quick taps on the title unlock every dragon.
+func _on_title_input(event: InputEvent) -> void:
+	# A touch arrives as the mouse press it is emulated as; counting both would
+	# count it twice.
+	if not (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed):
+		return
+	var now := Time.get_ticks_msec()
+	_taps = _taps + 1 if now - _last_tap_ms <= TAP_GAP_MS else 1
+	_last_tap_ms = now
+	if _taps < 3:
+		return
+	_taps = 0
+	Settings.unlock_all()
+	intent.emit({"type": "dragons_unlocked"})
+	_title.text = "ALL DRAGONS UNLOCKED"
+	if is_inside_tree():
+		get_tree().create_timer(1.5).timeout.connect(func():
+			if is_instance_valid(_title):
+				_title.text = "SETTINGS")

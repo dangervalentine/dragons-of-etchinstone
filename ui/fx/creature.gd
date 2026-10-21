@@ -149,6 +149,16 @@ static func _idle(layer: TextureRect, name: String, tint: Color) -> void:
 	m.set_shader_parameter("phase", float(hash(name) % 628) / 100.0)
 
 
+## Draws the art as one flat `tint` cut to its shape, painted or not, or, with a
+## clear tint, back in its own colours. Call after setup().
+func silhouette(tint: Color) -> void:
+	var m: ShaderMaterial = _picture.material
+	var flat := tint.a > 0.0
+	m.set_shader_parameter("painted", UI.is_painted(art_name) and not flat)
+	if flat:
+		m.set_shader_parameter("tint", tint)
+
+
 func set_held(on: bool) -> void:
 	held = on
 	_apply_motion()

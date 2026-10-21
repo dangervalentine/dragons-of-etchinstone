@@ -6,7 +6,9 @@ extends Control
 ## Tiers down the right (the Final Enemy); and the whole dragon, large, filling the
 ## card under its figures behind the two ladders (art_rect()). The Deck zooms into
 ## one column or the other. Every part is a share of the card's size, as on the
-## Region Card; the printed code is not shown.
+## Region Card; the printed code is not shown. A locked dragon's card keeps its
+## secrets: the dragon a single dark tone on bare stone, neither in its Ether's
+## colour, no figures, and in the band a lock and question marks for its name.
 
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
@@ -43,6 +45,19 @@ var model := {}
 ## Each figure tells on hover what it means, as on the choice of dragon; on the
 ## Deck the card takes no part in the mouse. Set before render().
 var explain := false
+## A dragon not yet unlocked. Changing it redraws the card.
+var locked := false:
+	set(v):
+		if v == locked:
+			return
+		locked = v
+		if not model.is_empty():
+			var m := model
+			model = {}
+			render(m)
+## The locked dragon's one tone, and its name.
+const LOCKED_TONE := Color("0d0b10", 0.9)
+const LOCKED_NAME := "? ? ?"
 var _creature := Creature.new()
 var _chips: Array = []
 var _rows := {"figures": [], "mp": [], "hp": []}
@@ -73,6 +88,11 @@ func render(m: Dictionary) -> void:
 	var e: String = m.element
 	if m.art != "" and _creature.art_name != m.art:
 		_creature.setup(m.art, Color(T.ether(e).lightened(0.3), 0.6), e, false)
+	_creature.silhouette(LOCKED_TONE if locked else Color(0, 0, 0, 0))
+	if locked:
+		_fit()
+		queue_redraw()
+		return
 	_rows.figures.append([_chip({"icon": "initiative", "text": str(d.initiative), "color": T.BG_BAND})])
 	var ed: Dictionary = d.early_damage
 	_rows.figures.append([_chip({"icon": "attack_badge", "text": str(ed.value), "color": T.ether(ed.element),
@@ -199,14 +219,18 @@ func _draw() -> void:
 		return
 	var card := Rect2(Vector2.ZERO, size)
 	draw_style_box(_stone, card)
-	draw_colored_polygon(_stone.part(card, Rect2(0, size.y * LAYOUT.band.end.y, size.x, size.y * (1.0 - LAYOUT.band.end.y))),
-		Color(T.ether(model.element), 0.22))
+	if not locked:
+		draw_colored_polygon(_stone.part(card, Rect2(0, size.y * LAYOUT.band.end.y, size.x, size.y * (1.0 - LAYOUT.band.end.y))),
+			Color(T.ether(model.element), 0.22))
 	var b: Rect2 = LAYOUT.band
 	var band := Rect2(size * b.position, size * b.size)
 	draw_colored_polygon(_stone.part(card, band), T.BG_BAND)
 	# Its foot torn as a Mage Card's band is, edged in gold.
 	UI.draw_torn_edge(self, band.position.x, band.end.x, band.end.y, band.size.y * 0.12, hash(model.id), T.BG_BAND,
 		T.muted(T.GOLD), maxf(1.0, size.y * 0.003))
+	if locked:
+		_draw_locked_band(band)
+		return
 	var heading := UI.font(T.HEADING[0])
 	var name: String = model.name.to_upper()
 	var fs := maxi(6, roundi(band.size.y * 0.5))
@@ -219,3 +243,16 @@ func _draw() -> void:
 	var ls := maxi(6, roundi(band.size.y * 0.24))
 	var lw := label.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, ls).x
 	draw_string(label, Vector2(band.get_center().x - lw / 2.0, band.position.y + band.size.y * 0.88), title, HORIZONTAL_ALIGNMENT_LEFT, -1, ls, T.GOLD)
+
+
+## The locked band: the lock, then question marks where the name would be, in gold.
+func _draw_locked_band(band: Rect2) -> void:
+	var heading := UI.font(T.HEADING[0])
+	var fs := maxi(6, roundi(band.size.y * 0.5))
+	var nw := heading.get_string_size(LOCKED_NAME, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+	var side := roundf(band.size.y * 0.5)
+	var gap := side * 0.4
+	var x := band.get_center().x - (side + gap + nw) / 2.0
+	var top := band.position.y + (band.size.y - side) / 2.0 - band.size.y * 0.04
+	draw_texture_rect(UI.icon("lock"), Rect2(x, top, side, side), false, T.GOLD)
+	draw_string(heading, Vector2(x + side + gap, band.position.y + band.size.y * 0.66), LOCKED_NAME, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, T.INK)

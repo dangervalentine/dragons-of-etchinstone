@@ -1,13 +1,17 @@
 extends RefCounted
 ## The few things remembered between games: the motion preference, the ground the
-## board stands on, whether a desktop window is full screen and the options of the
-## last game started. Kept in a small file on the device.
+## board stands on, whether a desktop window is full screen, the options of the
+## last game started and which dragons have been unlocked. Kept in a small file on the device.
 
 const PATH := "user://settings.cfg"
 const MOTION := ["system", "reduced", "full"]
 ## How a desktop game's window opens (feature 008).
 const WINDOW := ["windowed", "fullscreen"]
 const DEFAULT_OPTIONS := {"dragon": "rodving", "difficulty": "normal", "cavalier": false, "glass_cannon": false}
+
+## The dragons locked on a fresh install. What unlocks each is to come; for now,
+## in development, a triple tap on the menu's title unlocks them all.
+const LOCKED_AT_START := ["vuurhast", "grimroch", "helsang"]
 
 ## The ground patterns (feature 006): art/stone/ground-<n>.png, picked in the menu.
 const GROUNDS := 4
@@ -19,6 +23,8 @@ static var last_options := DEFAULT_OPTIONS.duplicate()
 ## Ask before leaving the Upgrade step with XP that could still Upgrade a card; off
 ## once the player ticks "Don't show this again".
 static var warn_unspent_xp := true
+## The dragons of LOCKED_AT_START unlocked since.
+static var unlocked: Array = []
 
 
 static func load_all() -> void:
@@ -32,6 +38,8 @@ static func load_all() -> void:
 	var w = cfg.get_value("display", "window", "windowed")
 	window_mode = w if WINDOW.has(w) else "windowed"
 	warn_unspent_xp = cfg.get_value("play", "warn_unspent_xp", true) == true
+	var u = cfg.get_value("progress", "unlocked", [])
+	unlocked = Array(u).filter(func(id): return LOCKED_AT_START.has(id)) if u is Array else []
 	var opts = cfg.get_value("game", "last_options", {})
 	if opts is Dictionary:
 		for key in DEFAULT_OPTIONS:
@@ -46,7 +54,19 @@ static func save_all() -> void:
 	cfg.set_value("display", "window", window_mode)
 	cfg.set_value("game", "last_options", last_options)
 	cfg.set_value("play", "warn_unspent_xp", warn_unspent_xp)
+	cfg.set_value("progress", "unlocked", unlocked)
 	cfg.save(PATH)
+
+
+## Whether the dragon cannot yet be chosen.
+static func is_locked(dragon_id: String) -> bool:
+	return LOCKED_AT_START.has(dragon_id) and not unlocked.has(dragon_id)
+
+
+## Unlocks every dragon and remembers it.
+static func unlock_all() -> void:
+	unlocked = LOCKED_AT_START.duplicate()
+	save_all()
 
 
 ## Whether to replace travel and shaking with fades: the player's choice, or the

@@ -1,6 +1,6 @@
 extends RefCounted
 ## The words written for this project around the game: the landing page's
-## subtitle and a line of flavour for each dragon. They live in data/flavor.json,
+## subtitle, a line of flavour for each dragon, and for each what unlocks it. They live in data/flavor.json,
 ## meant to be edited by hand; a missing or broken file leaves the old tagline and
 ## no flavour lines rather than stopping the game.
 
@@ -18,6 +18,15 @@ static func subtitle() -> String:
 ## The dragon's flavour line, or "" when it has none.
 static func line(dragon_id: String) -> String:
 	var dragons = _read().get("dragons", {})
+	if not (dragons is Dictionary):
+		return ""
+	var text = dragons.get(dragon_id, "")
+	return text if text is String else ""
+
+
+## What unlocks the dragon, shown under it while it is locked, or "" when unsaid.
+static func unlock(dragon_id: String) -> String:
+	var dragons = _read().get("unlock", {})
 	if not (dragons is Dictionary):
 		return ""
 	var text = dragons.get(dragon_id, "")

@@ -75,12 +75,18 @@ Or open the folder in the Godot editor and press F5.
 The rules engine has no dependency on the interface. It and the interface's own
 logic (the view state, the player's draft, the animation sequencer, the layout and
 the glossary) are covered by a headless test suite, followed by a UI check that
-plays seeded games through the real screens at every window size in the layout
-matrix:
+plays seeded games through the real screens:
 
 ```sh
-./tools/test.sh
+./tools/test.sh                 # quick: unit tests, UI check at the smallest phone (~1 min)
+./tools/test.sh full            # UI check at every window size in the layout matrix (~3.5 min)
+./tools/test.sh unit rules game # only tests/test_*.gd files whose names contain these
+./tools/test.sh ui deck divert  # only these UI check walks
 ```
+
+The UI check's walks are `notes screens marks play deck skip look ending resize
+divert arrange`. Run the quick check while working, the walks or unit files that
+cover a change to look at it closely, and `full` before a commit.
 
 Screenshots of every screen at every size, for review by eye:
 

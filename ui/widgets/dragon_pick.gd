@@ -3,6 +3,7 @@ extends Button
 ## taps. The chosen one is edged in its Ether's colour and the others are dimmed
 ## but still read; before any choice none is dimmed. Each figure on the card
 ## explains itself on hover, and a tap on a figure still chooses the dragon.
+## A locked dragon cannot be chosen; its card shows it locked (DragonCard.locked).
 
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
@@ -20,6 +21,8 @@ var selected := false: set = set_selected
 var any_chosen := false: set = set_any_chosen
 var accent: Color = T.GOLD
 var card: Control
+## Set before the tile is shown; a locked dragon cannot be chosen.
+var locked := false: set = set_locked
 
 
 static func make(dragon_model: Dictionary, colour: Color) -> Button:
@@ -69,7 +72,19 @@ func card_rect() -> Rect2:
 	return Rect2(Vector2((size.x - s.x) / 2.0, size.y - GLOW - s.y).round(), s.round())
 
 
+func set_locked(on: bool) -> void:
+	locked = on
+	disabled = on
+	focus_mode = Control.FOCUS_NONE if on else Control.FOCUS_ALL
+	mouse_default_cursor_shape = Control.CURSOR_FORBIDDEN if on else Control.CURSOR_ARROW
+	if card != null:
+		card.locked = on
+	_shade()
+
+
 func _fit() -> void:
+	if card == null:
+		return
 	var r := card_rect()
 	card.position = r.position
 	card.size = r.size

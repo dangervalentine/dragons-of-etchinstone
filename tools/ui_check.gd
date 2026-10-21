@@ -1,9 +1,13 @@
 extends SceneTree
-## Drives the real screens through seeded games at every window size in the layout
-## matrix and checks what a player would trip over: anything outside the screen or
-## under a notch, controls too small to tap, text too small to read, anything that
-## scrolls, and any difference from the same game played on the engine alone.
-## godot --headless --path . -s tools/ui_check.gd
+## Drives the real screens through seeded games and checks what a player would trip
+## over: anything outside the screen or under a notch, controls too small to tap, text
+## too small to read, anything that scrolls, and any difference from the same game
+## played on the engine alone.
+## godot --headless --path . -s tools/ui_check.gd -- [full] [walk ...]
+## Quick by default: every walk once, at the smallest phone. "full" walks every window
+## size in the layout matrix, and the Deck with reduced motion at two of them. Naming
+## walks runs only those: notes screens marks play deck skip look ending resize
+## divert arrange.
 
 const Solver = preload("res://ui/model/layout_solver.gd")
 const T = preload("res://ui/theme/tokens.gd")
@@ -44,6 +48,10 @@ var db = CardDB.new()
 var _last_notes: Array = []
 var _last_note_key := ""
 var _piles_of_three := 0
+## Every window size in the matrix, or only the smallest phone.
+var _full := false
+## The walks named on the command line; none means all of them.
+var _only: Array = []
 
 
 func _initialize() -> void:
@@ -56,41 +64,68 @@ func _clear_history() -> void:
 
 
 func _run() -> void:
-	await _note_motion()
-	for name in Solver.MATRIX:
+	var args := OS.get_cmdline_user_args()
+	_full = args.has("full")
+	for a in args:
+		if a != "full":
+			_only.append(a)
+	# Quick: every walk once, at the smallest phone, where the layout is tightest.
+	var sizes: Array = Solver.MATRIX.keys() if _full else ["phone-16x9"]
+	if _want("notes"):
+		await _note_motion()
+	for name in sizes:
 		await _open(name)
-		await _screens_and_overlays(name)
-		await _marks_walk(name)
-		await _play(name, 11, "casual", false)
-	for name in Solver.MATRIX:
-		await _open(name)
-		await _deck_walk(name)
-	for name in ["phone-16x9", "desktop"]:
-		await _open(name)
-		UI.reduced_motion = true
-		await _deck_walk(name + " reduced motion")
-		UI.reduced_motion = false
-	await _open("phone-tall")
-	await _skip_walk("phone-tall")
-	await _look_walk("phone-tall")
-	await _open("phone-16x9")
-	await _play("phone-16x9 animated", 5, "normal", true)
-	await _open("desktop")
-	await _ending_placing("desktop")
-	await _open("phone-tall")
-	await _ending_placing("phone-tall")
-	await _open("desktop")
-	await _resize_mid_turn()
-	await _open("phone-16x9")
-	await _divert_walk("phone-16x9")
-	await _open("phone-16x9")
-	await _arrange_walk("phone-16x9")
-	await _overlay_over_lifted_cards("phone-16x9")
-	await _unspent_xp_walk("phone-16x9")
-	_ok(_piles_of_three > 0, "a result, a Soak and the XP to spend were seen piled up on the Deck")
-	print("ui check: %d checks, %d failed (%d space checks)" % [checks, failures, space_checks])
+		if _want("screens"):
+			await _screens_and_overlays(name)
+		if _want("marks"):
+			await _marks_walk(name)
+		if _want("play"):
+			await _play(name, 11, "casual", false)
+	if _want("deck"):
+		for name in sizes:
+			await _open(name)
+			await _deck_walk(name)
+		for name in ["phone-16x9", "desktop"] if _full else ["phone-16x9"]:
+			await _open(name)
+			UI.reduced_motion = true
+			await _deck_walk(name + " reduced motion")
+			UI.reduced_motion = false
+	if _want("skip"):
+		await _open("phone-tall")
+		await _skip_walk("phone-tall")
+	if _want("look"):
+		await _open("phone-tall")
+		await _look_walk("phone-tall")
+	if _want("play"):
+		await _open("phone-16x9")
+		await _play("phone-16x9 animated", 5, "normal", true)
+	if _want("ending"):
+		await _open("desktop")
+		await _ending_placing("desktop")
+		await _open("phone-tall")
+		await _ending_placing("phone-tall")
+	if _want("resize"):
+		await _open("desktop")
+		await _resize_mid_turn()
+	if _want("divert"):
+		await _open("phone-16x9")
+		await _divert_walk("phone-16x9")
+	if _want("arrange"):
+		await _open("phone-16x9")
+		await _arrange_walk("phone-16x9")
+		await _overlay_over_lifted_cards("phone-16x9")
+		await _unspent_xp_walk("phone-16x9")
+	# Only a whole run sees every kind of note piled up.
+	if _only.is_empty():
+		_ok(_piles_of_three > 0, "a result, a Soak and the XP to spend were seen piled up on the Deck")
+	print("ui check (%s): %d checks, %d failed (%d space checks)" % ["full" if _full else "quick", checks, failures, space_checks])
 	ui.free()
 	quit(1 if failures > 0 else 0)
+
+
+## Whether `walk` is to be run: every walk unless some were named.
+func _want(walk: String) -> bool:
+	return _only.is_empty() or _only.has(walk)
 
 
 ## The notes as cards (specs/015 contracts/note-pile.md), on a pile of their own in

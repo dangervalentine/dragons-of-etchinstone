@@ -44,11 +44,13 @@ static func ink_rect(text: String, fs: int) -> Rect2:
 ## numbers of one card keep a common size and only shrink where they must.
 static func fit(text: String, window: Rect2, most := 0) -> Dictionary:
 	var ref := ink_rect(text, 100)
-	if ref.size.x <= 0.0 or ref.size.y <= 0.0:
+	# A window not laid out yet has no room for any size: nothing is shaped for it.
+	if ref.size.x <= 0.0 or ref.size.y <= 0.0 or window.size.x < 1.0 or window.size.y < 1.0:
 		return {"fs": 1, "pos": window.get_center(), "ink": Rect2()}
 	var fs := int(minf(window.size.x / (ref.size.x / 100.0 + 2.0 * OUTLINE), window.size.y / (ref.size.y / 100.0 + 2.0 * OUTLINE)))
 	if most > 0:
 		fs = mini(fs, most)
+	fs = maxi(fs, 1)
 	# Hinting changes the outline from size to size, so the estimate is checked at
 	# its own size and stepped down until it truly fits.
 	var ink := ink_rect(text, fs)

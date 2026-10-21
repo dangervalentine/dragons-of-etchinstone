@@ -475,6 +475,10 @@ func dispatch(intent: Dictionary) -> void:
 		"setup_dragon":
 			menu = intent.options.duplicate()
 			_show_dragons()
+		"dragons_unlocked":
+			# The dragon screen under the menu shows them unlocked at once.
+			if screen != null and screen.get_script() == DragonScreen:
+				screen.setup(db, screen.options)
 		"records":
 			var from: String = intent.get("from", "title")
 			if from == "menu":

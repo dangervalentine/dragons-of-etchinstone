@@ -13,6 +13,7 @@ const DragonPick = preload("res://ui/widgets/dragon_pick.gd")
 const DragonCard = preload("res://ui/widgets/dragon_card.gd")
 const ViewState = preload("res://ui/model/view_state.gd")
 const Flavor = preload("res://ui/model/flavor.gd")
+const Settings = preload("res://ui/model/settings.gd")
 
 signal intent(data: Dictionary)
 
@@ -44,7 +45,7 @@ var _content := Rect2(16, 16, 1248, 688)
 func setup(card_db, opts: Dictionary) -> void:
 	db = card_db
 	options = opts.duplicate()
-	if not db.dragon_ids().has(options.get("dragon", "")):
+	if not db.dragon_ids().has(options.get("dragon", "")) or Settings.is_locked(options.dragon):
 		options.dragon = ""
 	_build()
 
@@ -93,11 +94,13 @@ func _build() -> void:
 	for id in ids:
 		var d: Dictionary = db.dragon(id)
 		var tile: Button = DragonPick.make(ViewState.dragon_card_model(d), T.ether(d.early_damage.element))
+		tile.locked = Settings.is_locked(id)
 		tile.pressed.connect(_choose.bind(id))
 		table.add_child(_cell(tile, ids.find(id), 0, 0))
 		_tiles["dragon:" + id] = tile
 	for id in ids:
-		var line := UI.label(Flavor.line(id), T.LABEL, T.INK_MUTED, true)
+		# A locked dragon says instead what unlocks it.
+		var line := UI.label(Flavor.unlock(id) if Settings.is_locked(id) else Flavor.line(id), T.LABEL, T.INK_MUTED, true)
 		line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		line.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 		line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -184,6 +187,8 @@ func _rank(id: String) -> int:
 
 ## Choosing a card changes only the marks, so focus stays on the card.
 func _choose(id: String) -> void:
+	if Settings.is_locked(id):
+		return
 	if id == options.dragon:
 		return
 	options.dragon = id
