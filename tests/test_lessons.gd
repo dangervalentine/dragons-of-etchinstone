@@ -94,11 +94,11 @@ func test_every_step_is_well_formed() -> void:
 			var where := "%s: %s" % [Lessons.lesson(i).id, s.get("text", "").left(30)]
 			ok(s.get("text", "") != "", "text " + where)
 			ok(Lessons.WAITS.has(s.get("wait", "")), "wait " + where)
-			var target: String = s.get("target", "")
-			var known := Lessons.TARGETS.has(target)
-			for p in Lessons.TARGET_PREFIXES:
-				known = known or (target.begins_with(p) and target.length() > p.length())
-			ok(known, "target %s %s" % [target, where])
+			for target in s.get("target", "").split("|"):
+				var known := Lessons.TARGETS.has(target)
+				for p in Lessons.TARGET_PREFIXES:
+					known = known or (target.begins_with(p) and target.length() > p.length())
+				ok(known, "target %s %s" % [target, where])
 			for term in Lessons.terms(s.text):
 				ok(Glossary.has(term), "term %s %s" % [term, where])
 			for c in s.get("concepts", []):
@@ -171,6 +171,9 @@ func test_victory() -> void:
 	eq(g.hand.size(), 4, "drawn back up")
 	ok(g.hand.has("DOE-A10"), "the Reserve stayed")
 	eq(g.cards["DOE-A10"].level, 3, "the Reserve was Upgraded")
+	eq(g.cards["DOE-A06"].level, 3, "Fleet Footed was Upgraded")
+	ok(g.discard.has("DOE-A06"), "and discarded at its new Level")
+	eq(g.xp, 0, "no XP wasted")
 
 
 # --- Lesson 3: a Narrow Victory ---
@@ -196,14 +199,16 @@ func test_loss() -> void:
 	eq(g.encounter().kind, "enemy", "an enemy")
 	eq(g.encounter().index, 4, "Enemy 4")
 	eq(_best(g, true), "loss", "nothing can win")
+	for id in g.hand:
+		ok(g.level_data(id).basic.type == "move" and g.level_data(id).enhanced.type == "move", "only Move spells: " + id)
 	var r = g.preview(_step_of(3, "play").expect)
-	eq(r.attack, 6, "3 + 3")
+	eq(r.attack, 3, "1 (no action fits) + 2")
 	eq(r.damage, 3, "3 damage")
 	eq(r.early, false, "no Early Damage")
 	g.play(_step_of(3, "play").expect)
 	eq(g.phase, "penalty", "damage to Soak")
 	eq(g.damage_due, 3, "3 due")
-	ok(g.soak(["DOE-A01"]) != "", "Brute Force alone cannot Soak 3")
+	ok(g.soak(["DOE-A15"]) != "", "Burning Bridges alone cannot Soak 3")
 	eq(g.soak(["DOE-A06"]), "", "Fleet Footed can")
 	eq(g.cards["DOE-A06"].level, 1, "Downgraded")
 	g = _follow(3)

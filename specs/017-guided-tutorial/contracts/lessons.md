@@ -63,7 +63,7 @@ Every id must be listed by at least one step; `test_lessons` checks this (SC-004
 11. **card:DOE-A10** · *next* · `upgrade`, `unspent_xp`: Spend the 7 XP. Tap Rain of
     Blood, your Reserve, to raise it a Level: it stays in your Hand. XP left unspent is
     lost.
-12. **primary** · *upgrade* `{picks: [A10]}` · `cleanup`: Confirm. The Upgrade is made,
+12. **primary** · *upgrade* `{picks: [A10, A06]}` (owner review: spend all 7 XP, Rain of Blood 3 + Fleet Footed 4) · `cleanup`: Confirm. The Upgrade is made,
     then Cleanup: your Action Set is discarded, and you draw back up to four. Hint:
     "Upgrade Rain of Blood, once, then confirm."
 13. **deck** · *sequence*: the draw.
@@ -86,6 +86,12 @@ Every id must be listed by at least one step; `test_lessons` checks this (SC-004
 7. **xp** · *upgrade* `{}` (any Upgrade, or none) · `cleanup`: Spend the XP if you like, then confirm. Lesson complete.
 
 ## Lesson 4: A Loss, and Soaking the damage (`loss`)
+
+As built (owner review): the Hand is all Move spells (River Swiftness, Fleet Footed,
+Burning Bridges, Motivated Flight), so no Spell's action fits a fight and each counts
+1; the guided set is Burning Bridges, Fleet Footed as Element, Motivated Flight as
+Boost: 1 + 2 = 3 against 13 HP. The steps below keep their shape; their figures are
+in `ui/model/lessons.gd`.
 
 1. **encounter** · *next* · `outcomes`, `divert`: This enemy has 13 HP. Nothing in your
    Hand reaches half of it. When an Encounter cannot be won, you may [[divert|Divert]]

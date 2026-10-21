@@ -1977,7 +1977,7 @@ func _play_lesson(i: int, where: String) -> void:
 	_inspect_screen("%s complete" % where)
 	match i:
 		1:
-			_ok(ui.game.cards["DOE-A10"].level == 3 and ui.game.hand.size() == 4, "%s: Rain of Blood Upgraded, the Hand drawn up" % where)
+			_ok(ui.game.cards["DOE-A10"].level == 3 and ui.game.cards["DOE-A06"].level == 3 and ui.game.hand.size() == 4, "%s: Rain of Blood and Fleet Footed Upgraded, the Hand drawn up" % where)
 		2:
 			_ok(ui.game.phase == "challenge", "%s: the Journey crossed" % where)
 		3:
@@ -1992,7 +1992,7 @@ func _play_lesson(i: int, where: String) -> void:
 ## the message before with its light; a term opens the Glossary over the mark, which
 ## is still there when it closes.
 func _lesson_reading(at: String) -> void:
-	_ok(ui.coach._dims.all(func(d): return d.visible and d.mouse_filter == Control.MOUSE_FILTER_STOP), "%s: nothing under a message being read can be pressed" % at)
+	_ok(ui.coach._dims.all(func(d): return d.visible and d.mouse_filter == Control.MOUSE_FILTER_STOP and d._has_point(Vector2(1, 1))), "%s: nothing under a message being read can be pressed" % at)
 	var text: String = ui.coach._text.text
 	ui.coach.back.emit()
 	await _settle()
@@ -2034,16 +2034,25 @@ func _coach_checks(at: String, s: Dictionary) -> void:
 	if not ui.plan.undersized:
 		_ok(ui.plan.safe.grow(1.0).encloses(bubble), "%s: the message at %s is inside the safe area" % [at, str(bubble)])
 	var target: Rect2 = ui._coach_rect(s.target)
-	_ok(coach.lit == target, "%s: the lit rect is the target's" % at)
+	_ok(coach.lit.grow(0.5).encloses(target) and target.grow(0.5).encloses(coach.lit), "%s: the lit rect %s is the target's %s" % [at, str(coach.lit), str(target)])
 	if s.target != "screen" and not (s.target == "picker" and target == Rect2()):
 		_ok(target.size.x > 0 and target.size.y > 0, "%s: %s is there to light" % [at, s.target])
 		_ok(view.encloses(target), "%s: %s at %s is inside the view" % [at, s.target, str(target)])
 		_ok(not bubble.intersects(target.grow(T.COACH_PAD - 1.0)), "%s: the message at %s covers %s at %s" % [at, str(bubble), s.target, str(target)])
+	# Everything lit with the target is there, undimmed and clear of the message.
+	var also: Array = Array(s.target.split("|")).slice(1)
+	for t in also:
+		var r: Rect2 = ui._coach_rect(t)
+		_ok(r.has_area() and coach.pressed.any(func(p): return p.grow(0.5).encloses(r)), "%s: %s is lit as well" % [at, t])
+		if s.wait == "next":
+			_ok(not coach._dims[0]._has_point(r.get_center() - coach.global_position), "%s: %s is not dimmed" % [at, t])
+	for p in coach.pressed:
+		_ok(not bubble.intersects((p as Rect2).grow(T.COACH_PAD - 1.0)), "%s: the message at %s covers what is lit at %s" % [at, str(bubble), str(p)])
 	if s.wait != "next":
 		# Acting: nothing dimmed, the button to press rimmed and left clear.
 		_ok(coach._dims.all(func(d): return not d.visible), "%s: nothing is dimmed while the player acts" % at)
 		if ["dragon", "setup", "play", "soak", "upgrade"].has(s.wait) and s.target != "primary":
-			_ok(coach.pressed.size() == 1, "%s: the button to press is rimmed" % at)
+			_ok(coach.pressed.size() == 1 + also.size(), "%s: the button to press is rimmed" % at)
 		for p in coach.pressed:
 			_ok(not bubble.intersects((p as Rect2).grow(T.COACH_PAD - 1.0)), "%s: the message at %s covers the button to press at %s" % [at, str(bubble), str(p)])
 		_ok(not coach._buttons.visible, "%s: the message has no button of its own" % at)

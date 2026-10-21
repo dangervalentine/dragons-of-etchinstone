@@ -34,8 +34,10 @@ var bubble := PanelContainer.new()
 var lit := Rect2()
 ## Returns the lit rect now; called every frame while shown.
 var target: Callable
-## On an action step, the global rects of the buttons that carry the move on (Play,
-## Confirm, Continue): rimmed too, and kept clear of the bubble.
+## Whatever is lit with the target, as global rects: on a read step what it is
+## compared with (the foe's Initiative and the Element's), on an action step the
+## button that carries the move on (Play, Confirm, Continue). Each is rimmed, left
+## undimmed and kept clear of the bubble.
 var pressed := []
 ## Returns `pressed` now; called every frame while shown.
 var press: Callable
@@ -57,11 +59,11 @@ func _init() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	visible = false
-	for i in 4:
-		var d := ColorRect.new()
-		d.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		add_child(d)
-		_dims.append(d)
+	var d := Dim.new()
+	d.set_anchors_preset(Control.PRESET_FULL_RECT)
+	d.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(d)
+	_dims.append(d)
 	bubble.add_theme_stylebox_override("panel", UI.tooltip_box())
 	bubble.mouse_filter = Control.MOUSE_FILTER_STOP
 	var col := UI.vbox(T.M)
@@ -84,9 +86,9 @@ func _init() -> void:
 
 
 ## A step: `text` (BBCode) beside what `at` returns (a global rect, or an empty one
-## to light nothing). Read, it offers Skip, Back when `can_back`, and Next; acted on,
-## no button at all (owner review), since the way on is the game's own button,
-## which `on` returns (an Array of global rects) to be rimmed as well.
+## to light nothing), with whatever `on` returns (an Array of global rects) lit too.
+## Read, it offers Skip, Back when `can_back`, and Next; acted on, no button at all
+## (owner review), since the way on is the game's own button.
 func show_step(text: String, at: Callable, reading: bool, can_back: bool, content: Rect2, on := Callable()) -> void:
 	var buttons := []
 	if reading:
@@ -95,7 +97,7 @@ func show_step(text: String, at: Callable, reading: bool, can_back: bool, conten
 		buttons.append({"id": "back", "label": "Back", "kind": "normal"})
 	if reading:
 		buttons.append({"id": "next", "label": "Next", "kind": "primary"})
-	press = on if not reading else Callable()
+	press = on
 	pressed = press.call() if press.is_valid() else []
 	_show(text, at, reading, buttons, content)
 
@@ -172,7 +174,7 @@ func _show(text: String, at: Callable, reading: bool, buttons: Array, content: R
 	_buttons.visible = not buttons.is_empty()
 	visible = true
 	for d in _dims:
-		d.color = Color(T.BG_BASE, T.COACH_DIM)
+		d.colour = Color(T.BG_BASE, T.COACH_DIM)
 		d.visible = reading
 	_set_dims_filter(Control.MOUSE_FILTER_STOP if reading else Control.MOUSE_FILTER_IGNORE)
 	var glide := was_shown and not UI.reduced_motion and is_inside_tree()
@@ -229,18 +231,13 @@ func _measure(width: float) -> Vector2:
 func _place(animate: bool) -> void:
 	var view := get_viewport_rect().size if is_inside_tree() else _content.end
 	var hole := lit.grow(T.COACH_PAD) if lit.has_area() else Rect2()
-	var bands: Array
-	if not hole.has_area():
-		bands = [Rect2(Vector2.ZERO, view), Rect2(), Rect2(), Rect2()]
-	else:
-		bands = [Rect2(0, 0, view.x, hole.position.y),
-			Rect2(0, hole.end.y, view.x, view.y - hole.end.y),
-			Rect2(0, hole.position.y, hole.position.x, hole.size.y),
-			Rect2(hole.end.x, hole.position.y, view.x - hole.end.x, hole.size.y)]
-	for i in 4:
-		var r: Rect2 = bands[i]
-		_dims[i].position = r.position - global_position
-		_dims[i].size = Vector2(maxf(r.size.x, 0.0), maxf(r.size.y, 0.0))
+	# Every lit thing is a hole in the dimming: the target and anything lit with it.
+	var holes := []
+	for r in [lit] + pressed:
+		if (r as Rect2).has_area():
+			holes.append(Rect2((r as Rect2).grow(T.COACH_PAD).position - global_position, (r as Rect2).grow(T.COACH_PAD).size))
+	_dims[0].holes = holes
+	_dims[0].queue_redraw()
 	var room: Rect2 = _content if _content.has_area() else Rect2(Vector2.ZERO, view)
 	var spot := _spot(hole, room)
 	_measure(spot.width)
@@ -311,6 +308,36 @@ func _covers_press(r: Rect2) -> bool:
 static func _clamped(p: Vector2, s: Vector2, room: Rect2) -> Vector2:
 	return Vector2(clampf(p.x, room.position.x, maxf(room.position.x, room.end.x - s.x)),
 		clampf(p.y, room.position.y, maxf(room.position.y, room.end.y - s.y)))
+
+
+## The screen darkened but for its holes, which also let presses through.
+class Dim extends Control:
+	var holes: Array = []
+	var colour := Color.BLACK
+
+	func _draw() -> void:
+		# Cut the view along every hole's edges and fill each piece outside them.
+		var xs := [0.0, size.x]
+		var ys := [0.0, size.y]
+		for h in holes:
+			xs.append_array([clampf(h.position.x, 0.0, size.x), clampf(h.end.x, 0.0, size.x)])
+			ys.append_array([clampf(h.position.y, 0.0, size.y), clampf(h.end.y, 0.0, size.y)])
+		xs.sort()
+		ys.sort()
+		for i in xs.size() - 1:
+			for j in ys.size() - 1:
+				var cell := Rect2(xs[i], ys[j], xs[i + 1] - xs[i], ys[j + 1] - ys[j])
+				if cell.has_area() and not _in_hole(cell.get_center()):
+					draw_rect(cell, colour)
+
+	func _has_point(point: Vector2) -> bool:
+		return not _in_hole(point)
+
+	func _in_hole(point: Vector2) -> bool:
+		for h in holes:
+			if (h as Rect2).has_point(point):
+				return true
+		return false
 
 
 func _draw() -> void:

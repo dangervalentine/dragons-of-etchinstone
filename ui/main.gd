@@ -547,10 +547,21 @@ func _show_coach() -> void:
 	var target: String = s.target
 	# A move made with the screen's own button (Play, Confirm, Continue): that button
 	# is rimmed too, so it is plain what to press.
-	var on := Callable()
-	if ["dragon", "setup", "play", "soak", "upgrade"].has(s.wait) and target != "primary":
-		on = func(): return _coach_press()
-	coach.show_step(Lessons.text(s.text), func(): return _coach_rect(target), tutorial.reading(), tutorial.can_back(), plan.get("content", Rect2()), on)
+	# A step may light several things, "a|b": the first is what the message is beside,
+	# the rest are lit with it.
+	var parts: Array = Array(target.split("|"))
+	var first: String = parts[0]
+	var also: Array = parts.slice(1)
+	if ["dragon", "setup", "play", "soak", "upgrade"].has(s.wait) and first != "primary":
+		also.append("primary")
+	var on := func():
+		var out := []
+		for t in also:
+			var r := _coach_rect(t)
+			if r.has_area():
+				out.append(r)
+		return out
+	coach.show_step(Lessons.text(s.text), func(): return _coach_rect(first), tutorial.reading(), tutorial.can_back(), plan.get("content", Rect2()), on)
 
 
 ## The button that carries a lesson's move on, as an Array of global rects.
@@ -560,6 +571,7 @@ func _coach_press() -> Array:
 
 
 func _coach_rect(target: String) -> Rect2:
+	target = target.get_slice("|", 0)
 	if target == "screen" or screen == null or not screen.has_method("coach_rect"):
 		return Rect2()
 	return screen.coach_rect(target)
