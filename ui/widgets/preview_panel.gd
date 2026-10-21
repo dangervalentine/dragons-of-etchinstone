@@ -456,7 +456,9 @@ func _term(t: Dictionary, first: bool) -> Control:
 ## A number over a small label (and an icon beside the number when given).
 func _cell(text: String, caption: String, colour: Color, type: Array, icon := "") -> VBoxContainer:
 	var c := UI.vbox(0)
-	c.alignment = BoxContainer.ALIGNMENT_CENTER
+	# With captions on two lines the cells differ in height: the numbers keep one
+	# line along their tops.
+	c.alignment = BoxContainer.ALIGNMENT_BEGIN if _tight >= 2 else BoxContainer.ALIGNMENT_CENTER
 	c.custom_minimum_size.y = _row_h()
 	var top: Control
 	var value := UI.label(text, type, colour)
@@ -480,6 +482,8 @@ func _cell(text: String, caption: String, colour: Color, type: Array, icon := ""
 func _sign(text: String) -> Control:
 	var l := UI.label(text, T.NUMERAL_S, T.INK_MUTED)
 	l.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	# Along the numbers' tops, though a cell beside it is taller (two-line captions).
+	l.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	l.custom_minimum_size = Vector2(14 if _tight < 1 else 10, _row_h())
 	return l
 
