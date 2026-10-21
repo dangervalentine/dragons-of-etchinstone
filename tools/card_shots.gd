@@ -1,15 +1,17 @@
 extends SceneTree
 ## A screenshot of every printed card, each alone on the table: the sixteen Mage
 ## Cards at their starting Level, both sides of both Region Cards (Regions 1 to 4),
-## and each dragon's Dragon Card. The cards are the game's own widgets, filled from
-## the card data as play fills them, drawn over the running game's theme.
-## godot --path . -s tools/card_shots.gd -- <out dir> [mage|region|dragon ...]
-## (all three kinds when none are named)
+## each Enemy and Journey panel of them alone, as the Deck zooms into it, and each
+## dragon's Dragon Card. The cards are the game's own widgets, filled from the card
+## data as play fills them, drawn over the running game's theme.
+## godot --path . -s tools/card_shots.gd -- <out dir> [mage|region|enemy|journey|dragon ...]
+## (every kind when none are named)
 
 const T = preload("res://ui/theme/tokens.gd")
 const ViewState = preload("res://ui/model/view_state.gd")
 const CardView = preload("res://ui/widgets/card_view.gd")
 const RegionCard = preload("res://ui/widgets/region_card.gd")
+const RegionPanel = preload("res://ui/widgets/region_panel.gd")
 const DragonCard = preload("res://ui/widgets/dragon_card.gd")
 const Game = preload("res://engine/game.gd")
 const HistoryStore = preload("res://ui/model/history_store.gd")
@@ -18,6 +20,8 @@ const WINDOW := Vector2i(1440, 900)
 ## Each kind's width on the table, in design units; the height follows its shape.
 const MAGE_W := 320.0
 const BIG_W := 440.0
+## A panel alone is shown at the scale of a Region Card this wide.
+const PANEL_CARD_W := 900.0
 const MARGIN := 24.0
 
 var out := "."
@@ -30,7 +34,7 @@ func _initialize() -> void:
 	var args := OS.get_cmdline_user_args()
 	if args.size() > 0:
 		out = args[0]
-	var kinds: Array = Array(args.slice(1)) if args.size() > 1 else ["mage", "region", "dragon"]
+	var kinds: Array = Array(args.slice(1)) if args.size() > 1 else ["mage", "region", "enemy", "journey", "dragon"]
 	_run(kinds)
 
 
@@ -57,6 +61,9 @@ func _run(kinds: Array) -> void:
 		await _mages()
 	if kinds.has("region"):
 		await _regions()
+	for kind in ["enemy", "journey"]:
+		if kinds.has(kind):
+			await _panels(kind)
 	if kinds.has("dragon"):
 		await _dragons()
 	quit()
@@ -88,6 +95,22 @@ func _regions() -> void:
 		var c := RegionCard.new()
 		var m := ViewState.region_card_model(ui.db, r)
 		await _shoot(c, RegionCard.card_size(BIG_W), "region/region_%d" % r, func(): c.render(m))
+
+
+## Each `kind` panel ("enemy" or "journey") of Regions 1 to 4 alone, at its size on
+## a Region Card PANEL_CARD_W wide, its number plate faded as the zoomed Deck fades it.
+func _panels(kind: String) -> void:
+	DirAccess.make_dir_recursive_absolute("%s/%s" % [out, kind])
+	for r in range(1, 5):
+		var m := ViewState.region_card_model(ui.db, r)
+		for p in m.panels:
+			if p.kind != kind:
+				continue
+			var v := RegionPanel.new()
+			var size := RegionCard.panel_rect(RegionCard.card_size(PANEL_CARD_W), p.key).size
+			await _shoot(v, size, "%s/region_%d_%d" % [kind, r, p.index], func():
+				v.number_alpha = 0.0
+				v.render(p))
 
 
 ## Each dragon's Dragon Card.

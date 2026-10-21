@@ -47,12 +47,16 @@ func render(enc: Dictionary) -> void:
 	var d: Dictionary = enc.data
 	# An enemy keeps its cropped look from the first frame, whatever redraws it.
 	var art_name: String = enc.get("art", "")
-	set_look(enc.element, "sigil_" + str(enc.element), art_name,
-		enemy_crop(art_name, _panel) if enemy and art_name != "" else Art.FULL)
 	# A Journey with a painted map (art/painted/journeys/, a preview of the feature
-	# 008 art) fills the panel with it in place of its silhouette.
+	# 008 art) fills the panel with it in place of its silhouette, which is never
+	# loaded (the export leaves it out).
 	var map_path := "res://art/painted/journeys/%s.png" % art_name
 	var painted := not enemy and art_name != "" and ResourceLoader.exists(map_path)
+	if painted:
+		set_look(enc.element, "")
+	else:
+		set_look(enc.element, "sigil_" + str(enc.element), art_name,
+			enemy_crop(art_name, _panel) if enemy and art_name != "" else Art.FULL)
 	_map.texture = load(map_path) if painted else null
 	_map.visible = painted
 	if painted:

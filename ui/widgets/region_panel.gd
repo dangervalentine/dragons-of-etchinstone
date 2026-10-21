@@ -84,7 +84,8 @@ func render(p: Dictionary, hardship_id = null, live_badges := false) -> void:
 	var map_path := "res://art/painted/journeys/%s.png" % p.art
 	_map = load(map_path) if p.kind == "journey" and p.art != "" and ResourceLoader.exists(map_path) else null
 	_creature.visible = p.art != "" and _map == null
-	if p.art != "" and _creature.art_name != p.art:
+	# The silhouette a map replaces is never loaded (the export leaves it out).
+	if p.art != "" and _map == null and _creature.art_name != p.art:
 		_creature.setup(p.art, Color(tint.lightened(0.45), 0.55), p.element, false)
 	if p.kind == "enemy":
 		var e: Dictionary = p.enemy
