@@ -11,7 +11,7 @@ const EVENTS := ["place", "take_back", "fuse", "divert", "regroup", "play", "hit
 const KINDS := ["flare", "shudder", "sweep", "dim"]
 ## Every step kind ui/fx/animator.gd handles.
 const STEPS := ["play_cards", "tally", "verdict", "gain_xp", "damage", "pay_time", "poison_pending",
-	"knock_out", "downgrade", "upgrade", "trash", "discard", "gather_shuffle", "stage_banner", "draw", "ending"]
+	"knock_out", "downgrade", "upgrade", "trash", "discard", "gather_shuffle", "shuffle", "stage_banner", "draw", "ending"]
 
 
 func test_every_event_has_a_moving_and_a_still_form() -> void:

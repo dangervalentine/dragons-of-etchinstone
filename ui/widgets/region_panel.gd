@@ -81,8 +81,7 @@ func render(p: Dictionary, hardship_id = null, live_badges := false) -> void:
 	var tint: Color = T.ether(p.element)
 	# A Journey with a painted map (art/painted/journeys/, a preview of the feature 008
 	# art) shows it, drawn under the frame, in place of its silhouette.
-	var map_path := "res://art/painted/journeys/%s.png" % p.art
-	_map = load(map_path) if p.kind == "journey" and p.art != "" and ResourceLoader.exists(map_path) else null
+	_map = UI.painted("journeys/" + p.art) if p.kind == "journey" and p.art != "" else null
 	_creature.visible = p.art != "" and _map == null
 	# The silhouette a map replaces is never loaded (the export leaves it out).
 	if p.art != "" and _map == null and _creature.art_name != p.art:

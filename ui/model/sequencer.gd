@@ -4,7 +4,9 @@ extends RefCounted
 ## view_state.snapshot), the action that was taken, and the engine's result.
 ## Pure: tests replay the steps on the before snapshot and expect the after one.
 ##
-## A step is {kind, cards, from, to, values, anchor, duration}.
+## A step is {kind, cards, from, to, values, anchor, duration}. The Deck's own steps
+## are zoom_out, turn_card, gather_shuffle (cards coming back into it), shuffle (the
+## Deck shuffled under the card on top, specs/016), key_peek and zoom_in.
 
 const T = preload("res://ui/theme/tokens.gd")
 const ViewState = preload("res://ui/model/view_state.gd")
@@ -15,13 +17,15 @@ const DURATION := {
 	"upgrade": T.TURN, "discard": 0.35, "gather_shuffle": 0.45, "stage_banner": 1.2, "draw": 0.35,
 	"ending": 0.4, "xp_lost": 0.9,
 	"zoom_out": T.ZOOM, "zoom_in": T.ZOOM, "turn_card": T.TURN, "key_peek": T.KEY_PEEK,
+	"shuffle": T.SHUFFLE,
 }
 ## The steps that reveal the next Encounter on the Deck (specs/012 research R8):
 ## they keep their own timing, so a long sequence never hurries the Key Card.
 const REVEAL := ["key_peek", "zoom_in"]
 ## The steps a long sequence never hurries: the reveal, and what is to be seen
-## going: a Time Penalty's cards leaving the Deck, damage, and XP won, spent or lost.
-const OWN_TIME := REVEAL + ["pay_time", "damage", "gain_xp", "upgrade", "xp_lost"]
+## going: a Time Penalty's cards leaving the Deck, damage, and XP won, spent or lost;
+## and the Deck shuffled under the card on top (specs/016 research R5).
+const OWN_TIME := REVEAL + ["pay_time", "damage", "gain_xp", "upgrade", "xp_lost", "shuffle"]
 
 
 ## action: {kind, cards (the cards played or chosen), id (one card)}. kind is one of
@@ -30,6 +34,8 @@ static func build(before: Dictionary, action: Dictionary, result: Dictionary, af
 	var steps := []
 	match action.kind:
 		"start":
+			# Region 1's card already lies on the Deck (DeckStack.show_card()).
+			_shuffle_step(steps, after.hand + after.deck, after.region)
 			steps.append(_step("stage_banner", [], {"region": after.region, "phase": after.phase}, "screen"))
 			_draw_step(steps, after.hand)
 			_reveal(steps, after)
@@ -42,6 +48,8 @@ static func build(before: Dictionary, action: Dictionary, result: Dictionary, af
 			steps.append(back)
 			# The Region Card is laid on top of the Deck (rulebook Setup, step 4).
 			steps.append(_step("turn_card", [], {"from": 0, "to": after.region}, "deck"))
+			# Then shuffled under it (rulebook Setup, step 1; specs/016).
+			_shuffle_step(steps, back.values.deck, after.region)
 			steps.append(_step("stage_banner", [], {"region": after.region, "phase": after.phase}, "screen"))
 			_draw_step(steps, after.hand)
 			_reveal(steps, after)
@@ -99,6 +107,9 @@ static func build(before: Dictionary, action: Dictionary, result: Dictionary, af
 				var back := _step("gather_shuffle", all, {"deck": _deck_before_draw(after, []), "from": "discard"}, "deck")
 				back.duration = minf(T.DRAW_FLY + T.STAGGER * (all.size() - 1), 1.2)
 				steps.append(back)
+				# Reshuffled under the next Region's card, or the dragon's (rulebook End of
+				# the Region and The Final Battle, step 1; specs/016).
+				_shuffle_step(steps, back.values.deck, after.region)
 				steps.append(_step("stage_banner", [], {"region": after.region, "phase": after.phase}, "screen"))
 				_draw_step(steps, after.hand)
 				_reveal(steps, after)
@@ -171,6 +182,9 @@ static func apply(state: Dictionary, step: Dictionary) -> Dictionary:
 			for id in step.cards:
 				s.deck.erase(id)
 				s.hand.append(id)
+		"shuffle":
+			# Only shown: the gather before it already holds the engine's order.
+			pass
 	return s
 
 
@@ -214,9 +228,12 @@ static func _level_steps(steps: Array, before: Dictionary, after: Dictionary, id
 		elif now > was:
 			var st := _step("upgrade", [id], {"level": now, "from": was}, "hand")
 			# The XP it cost, which flies from the purse to the card (specs/011 R7): its
-			# own cost, though other cards were Upgraded with it.
+			# own cost, for every Level it rose, though other cards were Upgraded with it.
 			if before.get("xp", 0) > after.get("xp", 0) and before.get("costs", {}).has(id):
-				st.values["spent"] = before.costs[id]
+				var spent := 0
+				for cost in before.costs[id].slice(0, now - was):
+					spent += int(cost)
+				st.values["spent"] = spent
 				st.duration = maxf(T.TURN, paced(st.values.spent))
 			steps.append(st)
 
@@ -238,6 +255,22 @@ static func _reveal(steps: Array, after: Dictionary) -> void:
 ## How long `n` damage marks or XP stars take, flying one after another.
 static func paced(n: int) -> float:
 	return minf(T.MOTE_FLY + T.MOTE_STAGGER * maxi(0, n - 1), T.MOTE_MAX)
+
+
+## The Deck shuffled under the card on top, once that card lies there and every
+## card coming back has landed (specs/016): nothing to show for an empty Deck. Its
+## cards are the few seen peeling out from under the card, taken from the Deck in
+## an order of their own, never the new one, which stays hidden.
+static func _shuffle_step(steps: Array, deck: Array, region: int) -> void:
+	if deck.is_empty():
+		return
+	var ids := deck.duplicate()
+	ids.sort()
+	var from := (region * 3) % ids.size()
+	var peel := []
+	for i in mini(ids.size(), T.SHUFFLE_PEELS):
+		peel.append(ids[(from + i) % ids.size()])
+	steps.append(_step("shuffle", peel, {"count": deck.size()}, "deck"))
 
 
 static func _draw_step(steps: Array, ids: Array) -> void:

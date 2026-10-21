@@ -9,7 +9,6 @@ const Solver = preload("res://ui/model/layout_solver.gd")
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
 const DeckStack = preload("res://ui/widgets/deck_stack.gd")
-const InspectOverlay = preload("res://ui/overlays/inspect_overlay.gd")
 const Game = preload("res://engine/game.gd")
 const CardDB = preload("res://engine/card_db.gd")
 const CardView = preload("res://ui/widgets/card_view.gd")
@@ -73,6 +72,7 @@ func _run() -> void:
 		UI.reduced_motion = false
 	await _open("phone-tall")
 	await _skip_walk("phone-tall")
+	await _look_walk("phone-tall")
 	await _open("phone-16x9")
 	await _play("phone-16x9 animated", 5, "normal", true)
 	await _open("desktop")
@@ -418,7 +418,7 @@ static func _near(a: Rect2, b: Rect2, px: float) -> bool:
 ## would (specs/014 FR-011): every card at its place, the face zoomed in, nothing
 ## left lit or raised.
 func _skip_walk(where: String) -> void:
-	for at in ["draw", "key_lit", "panel_lit"]:
+	for at in ["shuffle", "draw", "key_lit", "panel_lit"]:
 		ui.start_game({"seed": 5, "dragon": "rodving", "difficulty": "normal", "cavalier": false, "glass_cannon": false})
 		var deck = ui.play.deck
 		var reached := [false]
@@ -445,6 +445,7 @@ func _skip_walk(where: String) -> void:
 		await process_frame
 		var w := "%s pressed at %s" % [where, at]
 		_check_waiting(w)
+		_ok(deck._shuffle_t == -1.0 and not deck._shuffle_label.visible, "%s: the Deck lies square" % w)
 		_ok(deck._peek.global_position.is_equal_approx(deck.global_position + DeckStack.key_rect(deck.size, true).position),
 			"%s: the Key Card is up" % w)
 		# A second press goes on: the Key Card slides down and the Deck zooms in. On a
@@ -464,6 +465,44 @@ func _skip_walk(where: String) -> void:
 		_ok(deck.view == "face" and not deck.held, "%s: the face, zoomed in" % w)
 		_ok(deck.landed.key == ui.vs.zoom, "%s: on the Encounter (%s, %s)" % [w, deck.landed.key, ui.vs.zoom])
 		_ok(deck.region_card.rim == 0.0 and not deck._peek.visible and not deck._peek_up, "%s: nothing left lit or raised" % w)
+
+
+## Pressing the Encounter face zooms out to the whole Region Card, its Encounter
+## still lit and the Key Card that named it risen over its top; a press on the
+## Deck then zooms back in, as a reveal's zoom does.
+func _look_walk(where: String) -> void:
+	ui.start_game({"seed": 5, "dragon": "rodving", "difficulty": "normal", "cavalier": false, "glass_cannon": false})
+	ui.animator.skip()
+	await process_frame
+	var deck = ui.play.deck
+	deck.pile.finish()
+	if deck.note_on or not deck.landed.visible:
+		_fail("%s: no bare Encounter face to press" % where)
+		return
+	var zoom: String = deck.zoomed
+	deck.landed.gui_input.emit(_release())
+	_ok(deck.held and deck._catch.visible, "%s: the face pressed zooms out" % where)
+	await create_timer(T.ZOOM + 0.2).timeout
+	_ok(deck.view == "card" and deck.region_card.visible and not deck.landed.visible, "%s: out on the whole Region Card" % where)
+	_ok(deck._peek.visible and deck._peek_up and deck._peek.lit == 1.0, "%s: the Key Card risen over it, its number lit" % where)
+	_ok(deck._peek.position.is_equal_approx(DeckStack.key_rect(deck.size, true).position), "%s: the Key Card at its peek" % where)
+	_ok(deck.region_card.focus_key == zoom and deck.region_card.rim == 1.0, "%s: its Encounter still lit" % where)
+	deck._catch.gui_input.emit(_release())
+	await create_timer(T.ZOOM + 0.2).timeout
+	_ok(deck.view == "face" and not deck.held and not deck._catch.visible, "%s: a second press zooms back in" % where)
+	_ok(deck.landed.visible and deck.landed.key == zoom, "%s: back on the Encounter" % where)
+	_ok(deck.region_card.rim == 0.0 and not deck._peek.visible and not deck._peek_up, "%s: nothing left lit or raised after the look" % where)
+	# A sequence starting while out on the card plays from the face.
+	deck.landed.gui_input.emit(_release())
+	deck.stop_look()
+	_ok(deck.view == "face" and not deck.held and not deck._catch.visible and not deck._peek.visible, "%s: a look ends at once for a sequence" % where)
+
+
+func _release() -> InputEventMouseButton:
+	var ev := InputEventMouseButton.new()
+	ev.button_index = MOUSE_BUTTON_LEFT
+	ev.pressed = false
+	return ev
 
 
 ## A press anywhere, as the player's finger or mouse.
@@ -525,8 +564,13 @@ func _watch_deck(where: String, gathered := -1) -> void:
 	var peek_at = null
 	# The reveal's beats in order, and what was lit when the zoom began (specs/014).
 	var beats := []
+	# The Deck shuffled under the card on top (specs/016): where the card lay as it began.
+	var shuffle_top := [null]
+	var worded := [false]
 	var on_beat := func(beat: String):
 		beats.append(beat)
+		if beat == "shuffle" and deck.top_node() != null:
+			shuffle_top[0] = deck.top_node().get_global_rect()
 		if beat == "zoom" and beats.has("panel_lit"):
 			_ok(deck.region_card.focus_key == deck.zoomed, "%s: the panel lit is the one zoomed into (%s, %s)" % [where, deck.region_card.focus_key, deck.zoomed])
 			_ok(deck.region_card.rim > 0.99 and deck._peek.lit > 0.99, "%s: both lit as the zoom starts" % where)
@@ -585,6 +629,25 @@ func _watch_deck(where: String, gathered := -1) -> void:
 					peek_at = deck._peek.position
 				elif UI.reduced_motion and deck._peek.position != peek_at:
 					still = false
+		if deck._shuffle_t >= 0.0 or deck._shuffle_label.visible:
+			_ok(deck.view == "card" and deck.top_node() != null and deck.top_node().visible, "%s: shuffled under the whole card on top" % where)
+			if shuffle_top[0] != null:
+				_ok(_near(deck.top_node().get_global_rect(), shuffle_top[0], 0.5), "%s: the card on top stays put while the Deck is shuffled" % where)
+			for c in deck._peels:
+				if c.visible:
+					# Where it is placed, and its corners as tilted (a tilt only ever
+					# reaches a little past the Deck's side, which clips it).
+					var r := Rect2(deck._riffle.global_position + c.position, c.size)
+					_ok(region.grow(0.5).encloses(r), "%s: the card peeling stays on the Deck (%s)" % [where, r])
+					var xf: Transform2D = c.get_global_transform()
+					for corner in [Vector2.ZERO, Vector2(c.size.x, 0), c.size, Vector2(0, c.size.y)]:
+						_ok(region.grow(T.DECK_EDGE).has_point(xf * corner), "%s: a tilted corner stays by the Deck (%s)" % [where, xf * corner])
+					_ok(c.get_parent() == deck._riffle and deck._riffle.get_index() < deck._tops.get_index(), "%s: and under the card on top" % where)
+					_ok(c.model != null and c.model.has("id"), "%s: a Mage Card peels, face up" % where)
+			if UI.reduced_motion:
+				if deck._shuffle_t >= 0.0:
+					still = false
+				worded[0] = worded[0] or deck._shuffle_label.visible
 		var drawn: int = seen.rfind("draw")
 		if drawn >= 0 and drawn > seen.rfind("zoom_in") and not seen.has("zoom_in"):
 			_ok(deck.view == "card", "%s: between the draw and the zoom the whole top card shows" % where)
@@ -597,7 +660,13 @@ func _watch_deck(where: String, gathered := -1) -> void:
 	_ok(seen.has("zoom_in"), "%s: the reveal played (%s)" % [where, str(seen)])
 	if seen.has("key_peek"):
 		_ok(waited == 1, "%s: the reveal waited on the player once (%d)" % [where, waited])
-		_ok(beats == ["key_lit", "panel_lit", "zoom"], "%s: the number lights, then the panel, then the zoom (%s)" % [where, str(beats)])
+		_ok(beats.filter(func(b): return b != "shuffle") == ["key_lit", "panel_lit", "zoom"], "%s: the number lights, then the panel, then the zoom (%s)" % [where, str(beats)])
+	if seen.has("shuffle"):
+		_ok(beats.count("shuffle") == 1 and beats[0] == "shuffle", "%s: shuffled once, before the Key Card rises (%s)" % [where, str(beats)])
+		if UI.reduced_motion:
+			_ok(worded[0], "%s: in reduced motion the Deck says it was shuffled" % where)
+	_ok(deck._shuffle_t == -1.0 and not deck._shuffle_label.visible, "%s: the Deck lies square once shuffled" % where)
+	_ok(seen.has("shuffle") == (where.ends_with(" start") or where.ends_with(" region change")), "%s: shuffled only where the Deck is (%s)" % [where, str(seen)])
 	_ok(deck.region_card.rim == 0.0 and not deck._peek.visible and not deck._peek_up and deck._peek.lit == 0.0,
 		"%s: nothing is left lit or raised once the zoom lands" % where)
 	if seen.has("draw"):
@@ -1492,19 +1561,15 @@ func _arrange_walk(where: String) -> void:
 	_ok(ui.vs.preview.status == ("incomplete" if enemy else "ready"), "%s: an outcome shows at once, but for the Boost's aim" % where)
 	_ok(ui.play.labels.get_child_count() == 4, "%s: a label over each card" % where)
 	_cards_on_screen(where + " dealt")
-	# Pressing the Encounter face shows the Key Card that named it, its Key Card part lifted.
-	var face: Control = ui.play.landed
-	var up := InputEventMouseButton.new()
-	up.button_index = MOUSE_BUTTON_LEFT
-	up.pressed = false
-	face.gui_input.emit(up)
-	var top = ui._top_overlay()
-	_ok(top != null and top.get_script() == InspectOverlay, "%s: pressing the Encounter opens its Key Card" % where)
-	if top != null:
-		_ok(top.find_children("*", "Label", true, false).any(func(l): return l.text.begins_with("KEY CARD")), "%s: and says it is the Key Card" % where)
-		await _settle()
-		_inspect_screen(where + " key card")
-	ui._close_overlays()
+	# Pressing the Encounter face zooms out to the Region Card with the Key Card that
+	# named it risen over it, opening nothing; a second press zooms back in.
+	var deck = ui.play.deck
+	ui.play.landed.gui_input.emit(_release())
+	_ok(ui._top_overlay() == null and deck._catch.visible, "%s: pressing the Encounter zooms out, opening nothing" % where)
+	await create_timer(T.ZOOM + 0.2).timeout
+	_inspect_screen(where + " key card")
+	deck._catch.gui_input.emit(_release())
+	await create_timer(T.ZOOM + 0.2).timeout
 	await _settle()
 	_ok(not ui.play.landed.find_children("*", "Label", true, false).any(func(l): return l.text.contains("Key Card")), "%s: the face has no Key Card line" % where)
 	if enemy:

@@ -9,6 +9,10 @@ var _box := VBoxContainer.new()
 var _meter := Control.new()
 var _due := 1
 var _total := 0
+## How much of the damage the meter shows covered: it fills to `_total` as cards
+## are chosen, and back as they are put back (-1 before it has shown any).
+var _shown := -1.0
+var _fill: Tween
 
 
 func _init() -> void:
@@ -27,8 +31,16 @@ func needed_height(width: float) -> float:
 
 func render(vs: Dictionary) -> void:
 	var s: Dictionary = vs.soak
+	var same_due := maxi(1, s.due) == _due and _shown >= 0.0
 	_due = maxi(1, s.due)
 	_total = s.total
+	if _fill != null and _fill.is_valid():
+		_fill.kill()
+	if same_due and not is_equal_approx(_shown, _total) and is_visible_in_tree() and not UI.reduced_motion:
+		_fill = create_tween()
+		_fill.tween_method(_show, _shown, float(_total), T.FILL).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	else:
+		_shown = _total
 	if _meter.get_parent() != null:
 		_box.remove_child(_meter)
 	for c in _box.get_children():
@@ -50,14 +62,19 @@ func render(vs: Dictionary) -> void:
 func _draw_meter() -> void:
 	var r := Rect2(Vector2.ZERO, _meter.size)
 	_meter.draw_style_box(UI.box(T.BG_RAISED, T.LINE_SOFT, 1, 10, 0), r)
-	var frac := clampf(_total / float(_due), 0.0, 1.0)
+	var frac := clampf(_shown / float(_due), 0.0, 1.0)
 	if frac > 0.0:
 		_meter.draw_style_box(UI.box(T.GOOD if frac >= 1.0 else T.GOLD, Color.TRANSPARENT, 0, 10, 0),
 			Rect2(r.position, Vector2(maxf(20.0, r.size.x * frac), r.size.y)))
 	var font := UI.font("display_bold")
-	var text := "%d / %d" % [_total, _due]
+	var text := "%d / %d" % [roundi(_shown), _due]
 	var sz := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 24)
 	_meter.draw_string(font, Vector2((r.size.x - sz.x) / 2.0, r.size.y / 2.0 + 9), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 24, T.INK)
+
+
+func _show(v: float) -> void:
+	_shown = v
+	_meter.queue_redraw()
 
 
 ## Global centre of the meter, where the damage leaves from as cards Soak it.

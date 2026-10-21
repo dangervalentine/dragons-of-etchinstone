@@ -18,7 +18,8 @@ var fuse_pick: Array = []
 var mode := "none"                    # none, divert, regroup, fuse_pick, fuse_element
 var mode_pick: Variant = null         # the card a Divert or Regroup will discard, until confirmed
 var give_up_reserve := false
-var picks: Array = []                 # ordered picks for setup and Soak
+var picks: Array = []                 # ordered picks for setup and Soak; in Upgrade, once per Level
+var lowering: Array = []              # Upgrade: cards whose taps now take Levels back
 var held: Variant = null              # the card picked up, to trade places with another
 var reserve: Variant = null           # the card the player put in the Reserve place
 var with_reserve := true              # false in the Final Enemy, which keeps no Reserve
@@ -36,6 +37,7 @@ func reset(count := 1, reserve_place := true) -> void:
 	mode_pick = null
 	give_up_reserve = false
 	picks = []
+	lowering = []
 	held = null
 	reserve = null
 
@@ -376,7 +378,9 @@ func drop(id: String) -> void:
 		sets[slot[0]].erase(slot[1])
 	if fuse != null and (fuse.top == id or fuse.bottom == id):
 		fuse = null
-	picks.erase(id)
+	while picks.has(id):
+		picks.erase(id)
+	lowering.erase(id)
 	if held == id:
 		held = null
 	if reserve == id:
@@ -389,6 +393,20 @@ func toggle_pick(id: String) -> void:
 		picks.erase(id)
 	else:
 		picks.append(id)
+
+
+## A tap in the Upgrade step: one Level more while `can_raise`, else one Level
+## back, and back down to where the card began before it climbs again.
+func step_upgrade(id: String, can_raise: bool) -> void:
+	if can_raise and not lowering.has(id):
+		picks.append(id)
+		return
+	picks.erase(id)
+	if picks.has(id):
+		if not lowering.has(id):
+			lowering.append(id)
+	else:
+		lowering.erase(id)
 
 
 ## The action Dictionary the engine's play() or play_final() takes.
@@ -422,6 +440,7 @@ func duplicate_draft():
 	d.mode_pick = mode_pick
 	d.give_up_reserve = give_up_reserve
 	d.picks = picks.duplicate()
+	d.lowering = lowering.duplicate()
 	d.held = held
 	d.reserve = reserve
 	d.with_reserve = with_reserve

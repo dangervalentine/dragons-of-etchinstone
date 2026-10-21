@@ -8,6 +8,10 @@ const T = preload("res://ui/theme/tokens.gd")
 
 var db = CardDB.new()
 var kinds_seen := {}
+## In the game being played: the shuffles shown, and the Deck gathered for a new
+## Region or the Final Battle.
+var shuffles := 0
+var gathers := 0
 
 
 ## Plays one action, builds its steps, and checks them against the engine.
@@ -29,6 +33,10 @@ func _act(g, action: Dictionary, call: Callable) -> String:
 		elif not Sequencer.OWN_TIME.has(st.kind):
 			total += st.duration
 		kinds_seen[st.kind] = true
+		if st.kind == "shuffle":
+			shuffles += 1
+	if action.kind == "finish" and Sequencer._gathered(before, after):
+		gathers += 1
 	# The rise, the number and the panel lit, and the zoom (specs/014 FR-012).
 	ok(reveal <= 3.0 + 0.001, "%s reveals its Encounter within 3 seconds (%.2f)" % [action.kind, reveal])
 	for st in steps:
@@ -76,11 +84,17 @@ func _soak_ids(g) -> Array:
 
 func test_steps_replay_to_the_engine_state_for_whole_games() -> void:
 	var games := 0
+	var reached_final := 0
 	for game_seed in 40:
 		var g = Game.new(db, {"seed": game_seed, "dragon": db.dragon_ids()[game_seed % 4],
 			"difficulty": ["normal", "casual", "hard", "impossible"][game_seed % 4]})
 		var guard := 0
+		shuffles = 0
+		gathers = 0
+		var set_up: bool = g.phase == "setup"
+		var final := false
 		while g.phase != "won" and g.phase != "lost" and guard < 300:
+			final = final or g.phase == "final_journey"
 			guard += 1
 			var err := ""
 			match g.phase:
@@ -130,11 +144,18 @@ func test_steps_replay_to_the_engine_state_for_whole_games() -> void:
 			if err != "":
 				errors.append("seed %d refused in %s: %s" % [game_seed, g.phase, err])
 				break
+		# Shown once after setup (a game with none starts in ui/main.gd, tested on its
+		# own) and once for each new Region or the Final Battle: 5 in all (SC-001).
+		eq(shuffles, gathers + (1 if set_up else 0), "seed %d: a shuffle for each shuffle of the Deck" % game_seed)
+		if final and set_up:
+			eq(shuffles, 5, "seed %d: five shuffles to reach the dragon" % game_seed)
+		reached_final += 1 if final else 0
 		games += 1
 	eq(games, 40, "games played")
+	ok(reached_final > 0, "some games reach the Final Battle (%d)" % reached_final)
 	for kind in ["play_cards", "tally", "verdict", "gain_xp", "damage", "pay_time", "downgrade", "trash",
 			"upgrade", "discard", "gather_shuffle", "stage_banner", "draw", "ending", "knock_out", "poison_pending",
-			"zoom_out", "zoom_in", "key_peek", "turn_card"]:
+			"zoom_out", "zoom_in", "key_peek", "turn_card", "shuffle"]:
 		ok(kinds_seen.has(kind), "saw a %s step" % kind)
 
 
@@ -166,6 +187,79 @@ func test_long_sequences_are_compressed_to_three_seconds() -> void:
 		if not Sequencer.OWN_TIME.has(st.kind):
 			total += st.duration
 	ok(total <= 3.0, "within the limit, the reveal aside")
+
+
+## The Deck shuffled under the card on top only where the engine shuffles it
+## (specs/016 contracts/deck-shuffle.md): once the card lies there and the cards
+## coming back have landed, before the banner and the first draw.
+func _check_shuffle(action: Dictionary, before: Dictionary, after: Dictionary, steps: Array) -> void:
+	var kinds: Array = steps.map(func(st): return st.kind)
+	var what: String = action.kind
+	var gathered: bool = what == "finish" and Sequencer._gathered(before, after)
+	if not (what in ["start", "setup"] or gathered):
+		ok(not kinds.has("shuffle"), "%s in %s: no shuffle" % [what, before.phase])
+		return
+	var deck_size: int = after.hand.size() + after.deck.size()
+	if deck_size == 0:
+		ok(not kinds.has("shuffle"), "%s: nothing to shuffle" % what)
+		return
+	eq(kinds.count("shuffle"), 1, "%s: one shuffle" % what)
+	var at: int = kinds.find("shuffle")
+	eq(steps[at].values.count, deck_size, "%s: the whole Deck is shuffled" % what)
+	eq(steps[at].duration, T.SHUFFLE, "%s: the shuffle keeps its own time" % what)
+	var peel: Array = steps[at].cards
+	var dealt: Array = after.hand + after.deck
+	eq(peel.size(), mini(deck_size, T.SHUFFLE_PEELS), "%s: a few of the Deck's cards peel" % what)
+	ok(peel.all(func(id): return dealt.has(id)), "%s: each one of the Deck's" % what)
+	ok(peel != dealt.slice(0, peel.size()), "%s: never in the new order" % what)
+	ok(at < kinds.find("stage_banner") and at < kinds.find("draw"), "%s: shuffled before the banner and the draw" % what)
+	if what != "start":
+		var turn: int = kinds.find("turn_card")
+		var gather: int = kinds.rfind("gather_shuffle")
+		ok(turn >= 0 and turn < at and gather >= 0 and gather < at, "%s: the card lies on top and the cards are back first" % what)
+		eq(steps[gather].values.deck.size(), deck_size, "%s: the Deck gathered is the one shuffled" % what)
+		if gathered:
+			eq(steps[turn].values.to, "dragon" if after.phase == "final_journey" else after.region, "%s: under the next card" % what)
+
+
+## A game with no setup to choose (Normal) starts as ui/main.gd start_game does:
+## Region 1's card already on the Deck, shuffled under it, then the first Hand.
+func test_a_game_with_no_setup_is_shuffled_under_region_1() -> void:
+	var g = Game.new(db, {"seed": 2, "dragon": "rodving", "difficulty": "normal"})
+	eq(g.phase, "challenge", "Normal has no setup to choose")
+	var empty := {"phase": "setup", "region": 1, "deck": [], "hand": [], "discard": [], "trash": [], "levels": {}, "offer": []}
+	for id in g.cards:
+		empty.levels[id] = g.cards[id].level
+	var after: Dictionary = ViewState.snapshot(g)
+	var steps: Array = Sequencer.build(empty, {"kind": "start", "cards": []}, {}, after)
+	_check_shuffle({"kind": "start"}, empty, after, steps)
+	var kinds: Array = steps.map(func(st): return st.kind)
+	eq(kinds.slice(0, 3), ["shuffle", "stage_banner", "draw"], "shuffled, then the banner, then the Hand")
+
+
+## The shuffle adds its own time to a new Region and takes none from the rest
+## (specs/016 SC-002).
+func test_the_shuffle_keeps_its_own_time() -> void:
+	ok(T.SHUFFLE <= 1.0, "a shuffle adds at most a second")
+	var g = Game.new(db, {"seed": 4, "dragon": "rodving", "difficulty": "normal"})
+	var before: Dictionary = ViewState.snapshot(g)
+	# The last Encounter of Region 1 finished: Region 2 is gathered from the Discard.
+	var after: Dictionary = before.duplicate(true)
+	after.region = 2
+	after.discard = []
+	before.discard = before.deck.slice(0, 6)
+	before.deck = before.deck.slice(6)
+	var steps: Array = Sequencer.build(before, {"kind": "finish", "cards": []}, {}, after)
+	var kinds: Array = steps.map(func(st): return st.kind)
+	ok(kinds.has("shuffle"), "a new Region is shuffled")
+	var without: Array = Sequencer.build(before, {"kind": "finish", "cards": []}, {}, after).filter(func(st): return st.kind != "shuffle")
+	var a := 0.0
+	var b := 0.0
+	for st in steps:
+		a += st.duration
+	for st in without:
+		b += st.duration
+	ok(absf(a - b - T.SHUFFLE) < 0.001, "the rest keep their time (%.2f with, %.2f without)" % [a, b])
 
 
 ## A game stopped in the Upgrade step with this much XP to spend.
@@ -214,7 +308,25 @@ func test_upgrades_together_each_carry_their_own_cost() -> void:
 	var up: Array = steps.filter(func(s): return s.kind == "upgrade")
 	eq(up.size(), 2, "one step for each")
 	for st in up:
-		eq(st.values.get("spent"), before.costs[st.cards[0]], "%s spent its own cost" % st.cards[0])
+		eq(st.values.get("spent"), before.costs[st.cards[0]][0], "%s spent its own cost" % st.cards[0])
+
+
+## A card Upgraded two Levels at once shows what both Levels cost.
+func test_upgrade_by_two_levels_carries_both_costs() -> void:
+	var g = _upgrading(99)
+	var before: Dictionary = ViewState.snapshot(g)
+	var id = null
+	for other in g.hand:
+		if before.costs.get(other, []).size() >= 2:
+			id = other
+			break
+	ok(id != null, "a card can rise two Levels")
+	eq(g.upgrade(id), "", "the first Level")
+	eq(g.upgrade(id), "", "the second Level")
+	var steps: Array = Sequencer.build(before, {"kind": "upgrade", "cards": [id]}, {}, ViewState.snapshot(g))
+	var up: Array = steps.filter(func(s): return s.kind == "upgrade")
+	eq(up.size(), 1, "one step for the card")
+	eq(up[0].values.get("spent"), before.costs[id][0] + before.costs[id][1], "both Levels' cost")
 
 
 ## XP left when the Upgrade step ends is lost, and the steps say how much.
@@ -265,6 +377,7 @@ func test_soaking_downgrades_the_chosen_cards() -> void:
 func _check_deck_steps(action: Dictionary, before: Dictionary, after: Dictionary, steps: Array) -> void:
 	var kinds: Array = steps.map(func(st): return st.kind)
 	var what: String = action.kind
+	_check_shuffle(action, before, after, steps)
 	var reveals: bool = (what in ["start", "setup", "divert", "regroup"]) or (what == "finish" and not (after.phase in ["won", "lost"])) \
 		or (what == "play_final" and before.phase == "final_journey" and after.phase == "final_enemy")
 	if not reveals:

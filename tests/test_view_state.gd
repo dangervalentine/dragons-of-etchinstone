@@ -309,6 +309,39 @@ func test_upgrades_chosen_take_from_the_xp_left_until_confirmed() -> void:
 	eq(vs.xp, cost, "and its XP is given back")
 
 
+## Tapped again while the XP allows, a card climbs another Level; once it can climb
+## no higher, each tap takes a Level back down to where it began, then it climbs again.
+func test_upgrade_taps_climb_then_come_back_down() -> void:
+	var g = _game()
+	g.phase = "upgrade"
+	var id = null
+	for other in g.hand:
+		g.cards[other].level = 1
+		if g.level_data(other).upgrade_cost != null and db.mage_level(other, 2).upgrade_cost != null:
+			id = other
+			break
+	ok(id != null, "a card that can rise two Levels from Level 1")
+	var first: int = g.level_data(id).upgrade_cost
+	var second: int = db.mage_level(id, 2).upgrade_cost
+	# Enough for two Levels, not a third.
+	var third = db.mage_level(id, 3).upgrade_cost
+	g.xp = first + second + (third - 1 if third != null and third > 0 else 0)
+	var d = Draft.new()
+	var levels := []
+	for i in 5:
+		var vs: Dictionary = ViewState.build(g, d, db)
+		d.step_upgrade(id, vs.cards[id].can_raise)
+		vs = ViewState.build(g, d, db)
+		levels.append(CardViewScript.shown_level(vs.cards[id]))
+	eq(levels, [2, 3, 2, 1, 2], "up while it can, back down to its own Level, then up again")
+	var vs: Dictionary = ViewState.build(g, d, db)
+	eq(vs.xp, g.xp - first, "one Level's cost taken")
+	d.step_upgrade(id, true)
+	vs = ViewState.build(g, d, db)
+	eq(vs.xp, g.xp - first - second, "two Levels' cost taken")
+	eq(vs.cards[id].note, "%d XP" % (first + second), "the card says what both cost")
+
+
 ## A card chosen to Soak shows the Level it will be Downgraded to, or 0 if Trashed.
 func test_soak_picks_show_the_level_they_fall_to() -> void:
 	var g = _game()

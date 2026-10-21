@@ -1,6 +1,7 @@
 extends SceneTree
 ## One screenshot of each main screen, at the Pixel 9 Pro's landscape resolution.
 ## godot --path . -s tools/design_shots.gd -- <out dir>
+## With "deck", "notes" or "shuffle" after the out dir, only those shots.
 
 const WINDOW := Vector2i(2142, 960)
 
@@ -23,6 +24,9 @@ func _initialize() -> void:
 		return
 	if args.size() > 1 and args[1] == "notes":
 		_run_notes()
+		return
+	if args.size() > 1 and args[1] == "shuffle":
+		_run_shuffle()
 		return
 	_run(args.size() > 1 and args[1] == "deck")
 
@@ -253,6 +257,44 @@ func _notes() -> void:
 	deck.clear_result(0.0)
 	ui._refresh(false)
 const T = preload("res://ui/theme/tokens.gd")
+
+
+## With "shuffle" after the out dir, the Deck shuffled under the card on top
+## (specs/016): at a game's start under Region 1's, at the end of Region 1 under
+## Region 2's and after Region 4 under the Dragon Card, each early, midway and late.
+func _run_shuffle() -> void:
+	DisplayServer.window_set_size(WINDOW)
+	for i in 5:
+		await process_frame
+	ui = load("res://scenes/main.tscn").instantiate()
+	root.add_child(ui)
+	for i in 5:
+		await process_frame
+	ui.start_game({"seed": 5, "dragon": "rodving", "difficulty": "normal", "cavalier": false, "glass_cannon": false})
+	await _shuffle_shots("shuffle_region1")
+	for to in [2, 5]:
+		await create_timer(0.3).timeout
+		ui.animator.skip()
+		var g = ui.game
+		if to == 5:
+			g.region = 4
+		g.discard.append_array(g.deck)
+		g.deck = []
+		g.phase = "upgrade"
+		g._action = {"cards": {}, "fuse": null, "reserve": null}
+		ui._refresh(false)
+		ui._act({"kind": "finish", "cards": []}, func(): return ui.game.finish())
+		await _shuffle_shots("shuffle_dragon" if to == 5 else "shuffle_region2")
+	quit()
+
+
+func _shuffle_shots(name: String) -> void:
+	await _until(ui.play.deck.reveal_beat, "shuffle")
+	var at := 0.0
+	for share in [0.2, 0.45, 0.7]:
+		await create_timer(T.SHUFFLE * (share - at)).timeout
+		at = share
+		_grab("%s_%d" % [name, int(share * 100)])
 
 
 ## Wait until `sig` carries `what`.

@@ -4,9 +4,12 @@ extends "res://tests/base.gd"
 
 const Solver = preload("res://ui/model/layout_solver.gd")
 const T = preload("res://ui/theme/tokens.gd")
+const UI = preload("res://ui/theme/theme.gd")
 const DeckStack = preload("res://ui/widgets/deck_stack.gd")
 const RegionCard = preload("res://ui/widgets/region_card.gd")
 const DragonCard = preload("res://ui/widgets/dragon_card.gd")
+const Game = preload("res://engine/game.gd")
+const ViewState = preload("res://ui/model/view_state.gd")
 
 
 func _plan(name: String, final := false) -> Dictionary:
@@ -181,3 +184,117 @@ func test_the_hardship_is_the_effect_that_is_not_the_encounters_own() -> void:
 	eq(DeckStack.hardship_of({"effects": ["ambush", "ranged"]}, {"effect": "ranged"}), "ambush", "Ambush on a Ranged Enemy")
 	eq(DeckStack.hardship_of({"effects": ["ranged"]}, {"effect": "ranged"}), null, "no Hardship")
 	eq(DeckStack.hardship_of({"effects": ["night_travel"]}, {"effect": null}), "night_travel", "a Journey's Hardship")
+
+
+## The Deck shuffled under the card on top (specs/016 contracts/deck-shuffle.md),
+## as NextQuest riffles: the cards peel out one after another and back in.
+func test_each_card_peels_out_and_back_in_turn() -> void:
+	for n in [1, 2, 5]:
+		var peaks := []
+		for k in n:
+			eq(DeckStack.peel_at(k, n, 0.0), 0.0, "%d cards, %d: under the top card at the start" % [n, k])
+			ok(is_zero_approx(DeckStack.peel_at(k, n, 1.0)), "%d cards, %d: back under it at the end" % [n, k])
+			var best := 0.0
+			var at := 0.0
+			var t := 0.0
+			while t <= 1.0:
+				var v := DeckStack.peel_at(k, n, t)
+				ok(v >= 0.0 and v <= 1.0, "%d cards, %d at %.2f: between under and out (%.3f)" % [n, k, t, v])
+				if v > best:
+					best = v
+					at = t
+				t += 0.01
+			ok(best > 0.99, "%d cards, %d: all the way out once (%.3f)" % [n, k, best])
+			peaks.append(at)
+		var sorted := peaks.duplicate()
+		sorted.sort()
+		eq(peaks, sorted, "%d cards: out one after another" % n)
+	ok(DeckStack.peel_at(1, 5, 0.2) > 0.0 and DeckStack.peel_at(0, 5, 0.2) > 0.0, "the next starts before the last is home")
+
+
+func test_the_peel_stays_on_the_deck_short_of_the_key_card_at_every_shape() -> void:
+	for name in Solver.MATRIX:
+		var region: Vector2 = _plan(name).regions.encounter.size
+		var whole := Rect2(Vector2.ZERO, region)
+		var cr := DeckStack.card_rect(region, "card", true)
+		var cards := {"region": cr, "dragon": DeckStack.card_rect(region, "card", false),
+			# Raised, as Region 1's card lies at the start until the first reveal.
+			"raised": Rect2(cr.position - Vector2(0, DeckStack.rise_room(cr.size)), cr.size)}
+		for what in cards:
+			var card: Rect2 = cards[what]
+			var lift := DeckStack.peel_lift(region, card)
+			var out := Rect2(card.position + Vector2(0, lift), card.size)
+			ok(whole.grow(0.5).encloses(out), "%s %s: the peeled card stays on the Deck (%s in %s)" % [name, what, out, whole])
+			ok(absf(lift) <= DeckStack.peek_h(card.size) * T.SHUFFLE_PEEL + 0.01, "%s %s: out less far than a Key Card rises (%.0f)" % [name, what, lift])
+			ok(absf(lift) >= T.DECK_EDGE - 0.01, "%s %s: out far enough to be seen (%.0f)" % [name, what, lift])
+		ok(DeckStack.peel_lift(region, cards.region) < 0.0, "%s: out above the card, where a Key Card rises" % name)
+		# Raised, out wherever there is more room, above or below.
+		var raised: Rect2 = cards.raised
+		var reach := DeckStack.peek_h(raised.size) * T.SHUFFLE_PEEL
+		eq(absf(DeckStack.peel_lift(region, raised)), maxf(clampf(raised.position.y, 0.0, reach), clampf(region.y - raised.end.y, 0.0, reach)),
+			"%s: raised, out where the room is" % name)
+
+
+func test_only_a_few_cards_peel() -> void:
+	eq(DeckStack.peel_count([]), 0, "none from an empty Deck")
+	eq(DeckStack.peel_count(["a", "b"]), 2, "a small Deck, all of it")
+	eq(DeckStack.peel_count(Array(range(16))), T.SHUFFLE_PEELS, "a full Deck, a few")
+
+
+## A Deck sized as the play screen holds it, with a Region Card on top.
+func _live_deck() -> DeckStack:
+	var d := DeckStack.new()
+	d.size = Vector2(400, 628)
+	d.count = 12
+	d.view = "card"
+	d._show_top(ViewState.region_card_model(CardDB.new(), 1))
+	d._stack_rect = DeckStack.card_rect(d.size, "card", true)
+	return d
+
+
+## Mage Cards face up, as the Deck holds them.
+func _faces(n: int) -> Array:
+	var g = Game.new(CardDB.new(), {"seed": 1, "difficulty": "normal"})
+	return g.deck.slice(0, n).map(func(id): return ViewState.plain_card(g, g.db, id))
+
+
+func test_finishing_a_shuffle_squares_the_deck() -> void:
+	var was: bool = UI.reduced_motion
+	UI.reduced_motion = false
+	var d := _live_deck()
+	var beats := []
+	d.reveal_beat.connect(func(b): beats.append(b))
+	var top_at := d.region_card.position
+	d.shuffle(_faces(7), T.SHUFFLE)
+	eq(d._shuffle_t, 0.0, "the shuffle is under way")
+	eq(beats, ["shuffle"], "and says so once")
+	eq(d._peel_n, T.SHUFFLE_PEELS, "a few cards peel")
+	ok(d._peels.all(func(c): return c.get_parent() == d._riffle), "under the top card")
+	ok(not d._shuffle_label.visible, "with motion, no words")
+	d._shuffle_t = 0.5
+	d._place_peels()
+	ok(d._peels.any(func(c): return c.visible), "midway, a card is out")
+	d.finish()
+	eq(d._shuffle_t, -1.0, "finished, the Deck lies square")
+	ok(not d._peels.any(func(c): return c.visible), "and every card is back under the top card")
+	eq(d.region_card.position, top_at, "the card on top never moved")
+	UI.reduced_motion = was
+	d.free()
+
+
+func test_reduced_motion_shuffles_still() -> void:
+	var was: bool = UI.reduced_motion
+	UI.reduced_motion = true
+	var d := _live_deck()
+	d.shuffle(_faces(7), T.SHUFFLE)
+	eq(d._shuffle_t, -1.0, "nothing is moved")
+	ok(not d._peels.any(func(c): return c.visible), "no card peels")
+	ok(d._shuffle_label.visible, "the Deck says it was shuffled")
+	var words: Label = d._shuffle_label.get_child(0)
+	eq(words.text, "Deck shuffled", "in words")
+	ok(words.get_theme_font_size("font_size") >= T.TEXT_MIN, "big enough to read")
+	ok(Rect2(Vector2.ZERO, d.size).encloses(Rect2(d._shuffle_label.position, d._shuffle_label.size)), "on the Deck")
+	d.finish()
+	ok(not d._shuffle_label.visible, "finished, the words are gone")
+	UI.reduced_motion = was
+	d.free()

@@ -9,6 +9,9 @@ extends Control
 ##   the Key Card, as big as the Region Card, which rises from under it to show the
 ##     Encounter it names and any Hardship, lights its number and then that panel,
 ##     and stays up until zoom_in() slides it back down (peek());
+##   while the Deck is shuffled, a few of its Mage Cards, as big as the top card,
+##     peeling out from under it one after another and back in under the rest, as
+##     NextQuest riffles its cards (shuffle(), specs/016);
 ##   the top card, whole while the view is zoomed out;
 ##   the face being played against: the top card's panel for that Encounter, grown
 ##     to fill the left side with a few lines under it saying what its marks mean
@@ -62,7 +65,8 @@ const PLAYING := ["challenge", "poison", "final_journey", "final_enemy", "setup"
 ## large as the zoom made it (every part of it is a share of its size, so it stays
 ## sharp), clipped to the face, the Encounter's panel lit and the rest of the card
 ## stepped back round it; along the foot, the reading strip. Pressing it (not the
-## panel's badges, which explain themselves) shows the Key Card that named it.
+## panel's badges, which explain themselves) zooms back out to the whole card with
+## the Key Card that named it risen over it (look_out()).
 class LandedFace extends Control:
 	signal intent(data: Dictionary)
 	var card = load("res://ui/widgets/region_card.gd").new()
@@ -98,7 +102,7 @@ class LandedFace extends Control:
 		_stone.changed.connect(queue_redraw)
 		gui_input.connect(func(e: InputEvent):
 			if e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT and not e.pressed and panel != null:
-				intent.emit({"type": "inspect_key"}))
+				intent.emit({"type": "look_out"}))
 
 	## The card `m`, lit at `k`'s panel, which carries the Key Card's `hardship` and
 	## explains its badges when pressed.
@@ -206,7 +210,21 @@ var _zooming := false
 var _dip := 0.0
 ## Whether the Key Card is up, waiting for zoom_in() to slide it back down.
 var _peek_up := false
+## How far through being shuffled the Deck is, 0 to 1, or -1 when it is not
+## (shuffle()); the Mage Cards peeling out from under the top card meanwhile, under
+## it on the table; and, under reduced motion, the words that say it was instead.
+var _shuffle_t := -1.0
+var _riffle := Control.new()
+var _peels: Array = []
+var _peel_n := 0
+var _peel_under: Array = []
+var _shuffle_label := PanelContainer.new()
 var _strip_key := []
+## Whether the player has zoomed out of the Encounter to look at the whole card,
+## the Key Card risen over it, until a press zooms back in (look_out()).
+var _looking := false
+## Over the Deck while looking: any press on it zooms back in.
+var _catch := Control.new()
 
 
 func _init() -> void:
@@ -215,7 +233,7 @@ func _init() -> void:
 	_table.clip_contents = true
 	_table.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_table)
-	for c in [_edges, _peek_clip, _tops, _faces]:
+	for c in [_edges, _peek_clip, _riffle, _tops, _faces]:
 		c.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_table.add_child(c)
 	_edges.draw.connect(_draw_edges)
@@ -230,7 +248,23 @@ func _init() -> void:
 	for face in [landed, dragon_face]:
 		_faces.add_child(face)
 		face.visible = false
-	landed.intent.connect(func(data): intent.emit(data))
+	landed.intent.connect(func(data):
+		if data.type == "look_out":
+			look_out(T.ZOOM)
+		else:
+			intent.emit(data))
+	_catch.mouse_filter = Control.MOUSE_FILTER_STOP
+	_catch.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	_catch.visible = false
+	_catch.gui_input.connect(func(e: InputEvent):
+		if e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT and not e.pressed:
+			look_in(T.ZOOM))
+	_table.add_child(_catch)
+	_shuffle_label.add_theme_stylebox_override("panel", UI.box(T.CARD_EDGE, T.CARD_EDGE_LINE, 2, T.RADIUS_M, T.S))
+	_shuffle_label.add_child(UI.label("Deck shuffled", T.BODY, T.INK))
+	_shuffle_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_shuffle_label.visible = false
+	_table.add_child(_shuffle_label)
 	dragon_face.intent.connect(func(data): intent.emit(data))
 	add_child(pile)
 	pile.intent.connect(func(data): intent.emit(data))
@@ -260,6 +294,37 @@ static func edge_rects(stack: Rect2, n: int) -> Array:
 	for i in range(edges(n), 0, -1):
 		out.append(Rect2(stack.position + Vector2.ONE * EDGE_STEP * i + JITTER[i - 1], stack.size))
 	return out
+
+
+## How far, and which way, the Mage Cards under a top card at `card` peel out from
+## under it while the Deck is shuffled (specs/016 research R4, after NextQuest's
+## riffle): up into the room a Key Card rises into, or, where the card lies raised
+## at the start, down into the room under it; SHUFFLE_PEEL of a Key Card's rise,
+## and never further than the Deck has room. Negative is up.
+static func peel_lift(deck_size: Vector2, card: Rect2) -> float:
+	var reach := peek_h(card.size) * T.SHUFFLE_PEEL
+	var up := clampf(card.position.y, 0.0, reach)
+	var down := clampf(deck_size.y - card.end.y, 0.0, reach)
+	return -up if up >= down else down
+
+
+## How far out from under the top card the `k`th of `n` peeling cards is, 0 to 1,
+## `t` of the way through the shuffle: each in turn, the next starting before the
+## last is home, out and back in one eased arc.
+static func peel_at(k: int, n: int, t: float) -> float:
+	var arc := 1.0 if n < 2 else T.SHUFFLE_ARC
+	var start := 0.0 if n < 2 else (1.0 - arc) * k / (n - 1)
+	var p := clampf((t - start) / arc, 0.0, 1.0)
+	return _ease_cubic(1.0 - absf(2.0 * p - 1.0))
+
+
+static func _ease_cubic(v: float) -> float:
+	return 4.0 * v * v * v if v < 0.5 else 1.0 - pow(-2.0 * v + 2.0, 3.0) / 2.0
+
+
+## Which of the Deck's cards peel, and how many: up to SHUFFLE_PEELS of `ids`.
+static func peel_count(ids: Array) -> int:
+	return mini(ids.size(), T.SHUFFLE_PEELS)
 
 
 ## Where the face sits on a Deck of `deck_size`: all of it but the edges' margin.
@@ -391,6 +456,9 @@ func render(state: Dictionary) -> void:
 		_hold_faces(false)
 	_place()
 	_update_note(is_inside_tree())
+	# Anything to read on the Deck brings the view back to the Encounter first.
+	if _looking and note_on:
+		look_in(T.ZOOM)
 
 
 ## Zoomed out at once, with no motion: the start of a game, before its first reveal.
@@ -430,6 +498,8 @@ func finish() -> void:
 	_tweens = []
 	held = false
 	_zooming = false
+	_looking = false
+	_catch.visible = false
 	_clip_tops(false)
 	region_card.set_focus("", 0.0)
 	region_card.set_rim(0.0)
@@ -441,6 +511,10 @@ func finish() -> void:
 		c.scale = Vector2.ONE
 		c.modulate = Color.WHITE
 	_peek.visible = false
+	_shuffle_t = -1.0
+	_put_peels_away()
+	_shuffle_label.visible = false
+	_shuffle_label.modulate.a = 1.0
 	pile.finish()
 	if not vs.is_empty():
 		render(vs)
@@ -614,7 +688,7 @@ func _landing(f: Rect2) -> Dictionary:
 ## Lay every layer out for the current view, with nothing in motion.
 func _place() -> void:
 	var f := face_rect(size)
-	for c in [_table, _edges, _tops, _faces, pile]:
+	for c in [_table, _edges, _riffle, _tops, _faces, pile]:
 		c.position = Vector2.ZERO
 		c.size = size
 	# While the card grows in or out of a panel it is clipped to the face, as the
@@ -630,6 +704,8 @@ func _place() -> void:
 		face.size = f.size
 		face.pivot_offset = f.size / 2.0
 	landed.lay_out(_landing(Rect2(Vector2.ZERO, f.size)))
+	_catch.position = f.position
+	_catch.size = f.size
 	var nr := _note_rect()
 	pile.lay_out(nr)
 	_render_top()
@@ -653,6 +729,7 @@ func _place() -> void:
 			face.visible = false
 	# While the Deck is prepared, its edges hang from the note lying in the card's place.
 	_stack_rect = (nr if _preparing() else f) if showing_face else cr
+	_place_shuffle_label()
 	_edges.queue_redraw()
 
 
@@ -949,6 +1026,107 @@ func zoom_in(target: String, d: float) -> void:
 	tw.chain().tween_callback(_land)
 
 
+## The player's look at the whole card: from the landed face out to the Region Card,
+## its Encounter's panel still lit, and the Key Card that named it rising over its
+## top as it settles, as the reveal left them (peek()). A press zooms back in.
+func look_out(d: float) -> void:
+	var top: Control = top_node()
+	if _looking or held or _zooming or view != "face" or zoomed == "" or top == null or not _peeks() \
+			or not landed.visible or note_on:
+		return
+	_looking = true
+	_catch.visible = true
+	held = true
+	_hold_faces(true)
+	var f := face_rect(size)
+	var cr := card_rect(size, "card", true)
+	var key_face = vs.get("key_face")
+	_dip = dip(peek_h(cr.size)) if key_face != null else 0.0
+	var home := Rect2(cr.position + Vector2(0, _dip), cr.size)
+	if key_face != null:
+		_peek.size = cr.size
+		_peek.set_model(key_face, ["encounter"])
+		_peek.lit = 1.0
+		_peek.modulate.a = 1.0
+		_peek.position = key_rect(size, false).position
+	view = "card"
+	var at := _landing(f)
+	_zooming = true
+	_clip_tops(true)
+	top.scale = Vector2.ONE
+	top.modulate = Color.WHITE
+	top.pivot_offset = Vector2.ZERO
+	top.visible = true
+	landed.visible = false
+	region_card.set_focus(zoomed, 1.0)
+	_clip_peek(home.end.y)
+	var done := func():
+		_zooming = false
+		_peek_up = key_face != null
+		_clip_tops(false)
+		_place()
+	if UI.reduced_motion:
+		_card_at(home.position, home.size)
+		region_card.set_rim(1.0)
+		region_card.set_numbers(1.0)
+		_set_stack_rect(home)
+		top.modulate.a = 0.0
+		var tw := _keep(create_tween().set_parallel(true))
+		tw.tween_property(top, "modulate:a", 1.0, d)
+		if key_face != null:
+			_peek.position = key_rect(size, true).position
+			_peek.modulate.a = 0.0
+			_peek.visible = true
+			tw.tween_property(_peek, "modulate:a", 1.0, d)
+		tw.chain().tween_callback(done)
+		return
+	var from := Rect2(at.card.position + f.position, at.card.size)
+	_card_at(from.position, from.size)
+	var tw := _keep(create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT))
+	tw.tween_method(func(v: float):
+		var r := _lerp_rect(from, home, v)
+		_card_at(r.position, r.size)
+		region_card.set_rim(v)
+		region_card.set_numbers(v), 0.0, 1.0, d)
+	tw.tween_method(_set_stack_rect, f, home, d)
+	if key_face != null:
+		# The Key Card rises over the top as the card comes to rest.
+		# Kept out of sight until then: the card grown past the face may not cover it.
+		var rise := minf(T.PEEK_RISE, d)
+		tw.tween_callback(func(): _peek.visible = true).set_delay(d - rise)
+		tw.tween_property(_peek, "position", key_rect(size, true).position, rise) \
+			.set_ease(Tween.EASE_OUT).set_delay(d - rise)
+	tw.chain().tween_callback(done)
+
+
+## Back in from the player's look at the whole card to the Encounter, the Key Card
+## sliding back down as on a reveal (zoom_in()).
+func look_in(d: float) -> void:
+	if not _looking or _zooming:
+		return
+	_looking = false
+	_catch.visible = false
+	zoom_in(zoomed, d)
+
+
+## At once, the player's look at the whole card ended, back on the Encounter: a
+## sequence starting plays from the face.
+func stop_look() -> void:
+	if not _looking and not _catch.visible:
+		return
+	for tw in _tweens:
+		if tw != null and tw.is_valid():
+			tw.kill()
+	_tweens = []
+	_looking = false
+	_catch.visible = false
+	_zooming = false
+	_clip_tops(false)
+	region_card.set_rim(0.0)
+	region_card.set_numbers(1.0)
+	_land()
+
+
 ## The top card at `at`, `size`, laid out afresh (not scaled), so it stays sharp.
 func _card_at(at: Vector2, card_size: Vector2) -> void:
 	var top: Control = top_node()
@@ -987,6 +1165,101 @@ func cover_pass(t: float) -> void:
 	var tw := _keep(create_tween())
 	tw.tween_interval(t)
 	tw.tween_callback(func(): z_index = 0)
+
+
+## The Deck shuffled under the card on top for `d` seconds (specs/016
+## contracts/deck-shuffle.md), as NextQuest riffles its cards: the Mage Cards just
+## under it, face up as the Deck is held (`models`, never in the new order), peel
+## out from under it one after another, a little tilted and smaller at the height
+## of their arc, and slide back in to lie under the rest, the top card still over
+## them. Under reduced motion nothing moves; "Deck shuffled" shows on the top card
+## instead. Ended at once by finish().
+func shuffle(models: Array, d: float) -> void:
+	reveal_beat.emit("shuffle")
+	if UI.reduced_motion:
+		_shuffle_label.modulate.a = 0.0
+		_shuffle_label.visible = true
+		_place_shuffle_label()
+		var tw := _keep(create_tween())
+		tw.tween_property(_shuffle_label, "modulate:a", 1.0, d * 0.2)
+		tw.tween_interval(d * 0.6)
+		tw.tween_property(_shuffle_label, "modulate:a", 0.0, d * 0.2)
+		tw.tween_callback(func():
+			_shuffle_label.visible = false
+			_shuffle_label.modulate.a = 1.0)
+		return
+	var n := peel_count(models)
+	if n == 0 or top_node() == null:
+		return
+	_peel_n = n
+	_peel_under = []
+	_peel_under.resize(n)
+	_peel_under.fill(false)
+	while _peels.size() < n:
+		var c := CardFace.new()
+		c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		c.visible = false
+		_riffle.add_child(c)
+		_peels.append(c)
+	for k in n:
+		var c: CardFace = _peels[k]
+		c.size = _stack_rect.size
+		c.set_model(models[k])
+		# The first to peel lies on top of the others, just under the top card.
+		_riffle.move_child(c, -1)
+	_shuffle_t = 0.0
+	_place_peels()
+	var tw := _keep(create_tween())
+	tw.tween_method(func(v: float):
+		_shuffle_t = v
+		_place_peels(), 0.0, 1.0, d)
+	tw.tween_callback(func():
+		_shuffle_t = -1.0
+		_put_peels_away())
+
+
+## Each peeling card where `_shuffle_t` has it: lined up under the top card, out
+## by its share of peel_lift(), tilted (the halves of a riffle each their own way)
+## and a little smaller as it goes; at the height of its arc it goes in under every
+## other card, to the bottom of the pile.
+func _place_peels() -> void:
+	var lift := peel_lift(size, _stack_rect)
+	for k in _peels.size():
+		var c: CardFace = _peels[k]
+		if k >= _peel_n or _shuffle_t < 0.0:
+			c.visible = false
+			continue
+		var start := 0.0 if _peel_n < 2 else (1.0 - T.SHUFFLE_ARC) * k / (_peel_n - 1)
+		var v := peel_at(k, _peel_n, _shuffle_t)
+		c.visible = _shuffle_t > start
+		c.size = _stack_rect.size
+		# Pivoting on the edge that stays under the top card.
+		c.pivot_offset = Vector2(c.size.x / 2.0, c.size.y if lift < 0.0 else 0.0)
+		c.position = _stack_rect.position + Vector2(0, lift * v)
+		c.rotation = deg_to_rad(T.SHUFFLE_TILT) * v * (1.0 if k % 2 == 0 else -1.0)
+		c.scale = Vector2.ONE * (1.0 - (1.0 - T.SHUFFLE_SCALE) * v)
+		if not _peel_under[k] and _shuffle_t >= start + (1.0 if _peel_n < 2 else T.SHUFFLE_ARC) * 0.5:
+			_peel_under[k] = true
+			_riffle.move_child(c, 0)
+
+
+func _put_peels_away() -> void:
+	_peel_n = 0
+	for c in _peels:
+		c.visible = false
+		c.rotation = 0.0
+		c.scale = Vector2.ONE
+
+
+## The reduced-motion words centred on the lower third of the top card.
+func _place_shuffle_label() -> void:
+	if not _shuffle_label.visible:
+		return
+	_shuffle_label.reset_size()
+	var r := _stack_rect
+	var s := _shuffle_label.get_combined_minimum_size()
+	_shuffle_label.size = s
+	_shuffle_label.position = Vector2(r.get_center().x - s.x / 2.0, r.position.y + r.size.y * 5.0 / 6.0 - s.y / 2.0)
 
 
 static func _lerp_rect(a: Rect2, b: Rect2, v: float) -> Rect2:

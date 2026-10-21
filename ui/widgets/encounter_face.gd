@@ -50,14 +50,13 @@ func render(enc: Dictionary) -> void:
 	# A Journey with a painted map (art/painted/journeys/, a preview of the feature
 	# 008 art) fills the panel with it in place of its silhouette, which is never
 	# loaded (the export leaves it out).
-	var map_path := "res://art/painted/journeys/%s.png" % art_name
-	var painted := not enemy and art_name != "" and ResourceLoader.exists(map_path)
+	_map.texture = UI.painted("journeys/" + art_name) if not enemy and art_name != "" else null
+	var painted := _map.texture != null
 	if painted:
 		set_look(enc.element, "")
 	else:
 		set_look(enc.element, "sigil_" + str(enc.element), art_name,
 			enemy_crop(art_name, _panel) if enemy and art_name != "" else Art.FULL)
-	_map.texture = load(map_path) if painted else null
 	_map.visible = painted
 	if painted:
 		_creature.visible = false
