@@ -56,6 +56,8 @@ var _only: Array = []
 
 func _initialize() -> void:
 	_clear_history()
+	# The walks choose every dragon; locks are not what they check.
+	Settings.unlock_for_run = true
 	_run()
 
 

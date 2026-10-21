@@ -100,7 +100,7 @@ func _ready() -> void:
 	HistoryStore.load_all()
 	menu = Settings.last_options.duplicate()
 	# Options remembered from an older version may name a dragon or difficulty that is gone.
-	if not db.dragon_ids().has(menu.get("dragon")):
+	if not db.dragon_ids().has(menu.get("dragon")) or Settings.is_locked(menu.dragon):
 		menu.dragon = Settings.DEFAULT_OPTIONS.dragon
 	if not Game.DIFFICULTY.has(menu.get("difficulty")):
 		menu.difficulty = Settings.DEFAULT_OPTIONS.difficulty
@@ -389,6 +389,12 @@ func _show_ending() -> void:
 
 func start_game(opts: Dictionary) -> void:
 	menu = opts.duplicate()
+	# No game starts without a dragon it may hunt: none chosen, or a locked one,
+	# hunts the default.
+	if not db.dragon_ids().has(menu.get("dragon", "")) or Settings.is_locked(menu.dragon):
+		menu.dragon = Settings.DEFAULT_OPTIONS.dragon
+	opts = opts.duplicate()
+	opts.dragon = menu.dragon
 	menu.erase("seed")
 	Settings.last_options = menu.duplicate()
 	Settings.save_all()

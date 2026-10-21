@@ -25,6 +25,9 @@ static var last_options := DEFAULT_OPTIONS.duplicate()
 static var warn_unspent_xp := true
 ## The dragons of LOCKED_AT_START unlocked since.
 static var unlocked: Array = []
+## Every dragon open for this run only, never saved: set by the tools that walk
+## every dragon, so they neither meet a lock nor unlock the player's dragons.
+static var unlock_for_run := false
 
 
 static func load_all() -> void:
@@ -60,7 +63,7 @@ static func save_all() -> void:
 
 ## Whether the dragon cannot yet be chosen.
 static func is_locked(dragon_id: String) -> bool:
-	return LOCKED_AT_START.has(dragon_id) and not unlocked.has(dragon_id)
+	return LOCKED_AT_START.has(dragon_id) and not unlocked.has(dragon_id) and not unlock_for_run
 
 
 ## Unlocks every dragon and remembers it.

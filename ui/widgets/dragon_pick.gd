@@ -3,11 +3,14 @@ extends Button
 ## taps. The chosen one is edged in its Ether's colour and the others are dimmed
 ## but still read; before any choice none is dimmed. Each figure on the card
 ## explains itself on hover, and a tap on a figure still chooses the dragon.
-## A locked dragon cannot be chosen; its card shows it locked (DragonCard.locked).
+## Until it is chosen a card's colours are muted toward grey; chosen, they come
+## back full. A locked dragon cannot be chosen; its card shows it locked
+## (DragonCard.locked).
 
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
 const DragonCard = preload("res://ui/widgets/dragon_card.gd")
+const DESATURATE = preload("res://ui/fx/shaders/desaturate.gdshader")
 
 ## How bright an unchosen dragon is, and one under the pointer or in focus.
 const DIM := Color(0.5, 0.5, 0.55)
@@ -15,6 +18,8 @@ const DIM_HOVER := Color(0.78, 0.78, 0.8)
 ## The edge around the chosen card, and the glow beyond it.
 const EDGE := 4
 const GLOW := 14
+## How far toward grey an unchosen card's colours are muted, 0 to 1.
+const MUTED := 0.65
 
 var selected := false: set = set_selected
 ## Whether any dragon is chosen; until one is, none is dimmed.
@@ -23,6 +28,9 @@ var accent: Color = T.GOLD
 var card: Control
 ## Set before the tile is shown; a locked dragon cannot be chosen.
 var locked := false: set = set_locked
+## Holds the card, drawn as one picture so the whole of it can be muted at once.
+var _group := CanvasGroup.new()
+var _muting: Tween
 
 
 static func make(dragon_model: Dictionary, colour: Color) -> Button:
@@ -35,8 +43,12 @@ static func make(dragon_model: Dictionary, colour: Color) -> Button:
 		b.add_theme_stylebox_override(state, StyleBoxEmpty.new())
 	b.card = DragonCard.new()
 	b.card.explain = true
-	b.add_child(b.card)
+	b._group.material = ShaderMaterial.new()
+	b._group.material.shader = DESATURATE
+	b.add_child(b._group)
+	b._group.add_child(b.card)
 	b.card.render(dragon_model)
+	b._set_mute(MUTED)
 	b.resized.connect(b._fit)
 	b.mouse_entered.connect(b._shade)
 	b.mouse_exited.connect(b._shade)
@@ -53,8 +65,28 @@ func _get_minimum_size() -> Vector2:
 
 
 func set_selected(on: bool) -> void:
+	if on == selected:
+		return
 	selected = on
 	_shade()
+	# Chosen, the colours pop back in; let go, they fade out again.
+	var to := 0.0 if on else MUTED
+	if _muting != null:
+		_muting.kill()
+	if UI.reduced_motion or not is_inside_tree():
+		_set_mute(to)
+		return
+	_muting = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	_muting.tween_method(_set_mute, _mute_amount(), to, T.BASE if on else T.FAST)
+
+
+func _mute_amount() -> float:
+	return _group.material.get_shader_parameter("amount")
+
+
+## Grey the card by `amount`, 0 to 1.
+func _set_mute(amount: float) -> void:
+	_group.material.set_shader_parameter("amount", amount)
 
 
 func set_any_chosen(on: bool) -> void:
