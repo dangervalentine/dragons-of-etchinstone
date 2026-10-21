@@ -52,6 +52,8 @@ var _stone := StoneStyle.new("well", 0.5)
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	clip_contents = true
+	# Clipped, the stone's drop shadow would show only in the bottom corners.
+	_stone.casts_shadow = false
 	_creature.held = true
 	add_child(_creature)
 	resized.connect(_fit)
@@ -126,8 +128,9 @@ static func art_rect(card_size: Vector2, body: Rect2, head := Art.FULL) -> Rect2
 ## The words for each figure: the opening figures, each Armor, and each tier with
 ## what its ladder is.
 func _explain(d: Dictionary) -> void:
+	# Passed on, so a tap on a figure still reaches whatever holds the card.
 	var tip := func(c: Control, text: String, icon: String) -> void:
-		c.mouse_filter = Control.MOUSE_FILTER_STOP
+		c.mouse_filter = Control.MOUSE_FILTER_PASS
 		HelpTip.show(c, text, icon)
 	tip.call(_rows.figures[0][0], DragonStats.initiative_text(d), "initiative")
 	tip.call(_rows.figures[1][0], "%s\n\n%s" % [DragonStats.early_damage_text(d), DragonStats.ether_text(d)], "attack")

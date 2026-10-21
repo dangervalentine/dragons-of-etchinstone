@@ -52,6 +52,13 @@ var round_radius := 0.0:
 		round_radius = v
 		emit_changed()
 
+## Whether a raised block casts its shadow. A card that clips to its own bounds
+## leaves it off, or the shadow shows only in the corners outside its rounding.
+var casts_shadow := true:
+	set(v):
+		casts_shadow = v
+		emit_changed()
+
 ## The points along each rounded corner.
 const ARC := 8
 
@@ -117,7 +124,7 @@ func _draw(ci: RID, rect: Rect2) -> void:
 	var recessed: bool = RECESSED.has(kind) or pressed
 	var pts := outline(rect)
 	# A raised block casts a hard shadow straight down onto the ground; no blur.
-	if not recessed:
+	if not recessed and casts_shadow:
 		var drop := Vector2(0, 8) if kind == "slab" else Vector2(0, 6)
 		var shadow := PackedVector2Array()
 		for p in pts:

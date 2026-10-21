@@ -1302,9 +1302,9 @@ func _setup_steps(where: String) -> void:
 	await _settle()
 
 
-## Play from the landing page: four dragons in Ether order, none chosen and
-## Continue waiting; then the figures of the chosen one only, each explaining
-## itself, following each choice; Back and Escape return to the landing page, and
+## Play from the landing page: four Dragon Cards in Ether order, none chosen and
+## Continue waiting; then each choice marks its card alone, its figures each
+## explaining itself; Back and Escape return to the landing page, and
 ## Play again starts with none chosen.
 func _dragon_walk(where: String) -> void:
 	await _play_from_landing(where)
@@ -1320,7 +1320,7 @@ func _dragon_walk(where: String) -> void:
 		ui.screen._choose(id)
 		await process_frame
 		_inspect_screen("%s dragons %s" % [where, id])
-		_ok(_shows_only(id), "%s: only %s's figures are shown" % [where, id])
+		_ok(_shows_only(id), "%s: only %s is marked, all four cards shown" % [where, id])
 		_ok(_explains(ui.screen.card),"%s: %s's figures explain themselves" % [where, id])
 	var other: String = ui.db.dragon_ids()[1]
 	ui.screen._choose(other)
@@ -1357,23 +1357,25 @@ func _shows_none() -> bool:
 func _explains(stats: Control) -> bool:
 	if stats == null:
 		return false
-	var tips: Array = stats.find_children("*", "Control", true, false).filter(func(c): return c.tooltip_text != "" and c.mouse_filter == Control.MOUSE_FILTER_STOP)
+	var tips: Array = stats.find_children("*", "Control", true, false).filter(func(c): return c.tooltip_text != "" and c.mouse_filter != Control.MOUSE_FILTER_IGNORE)
 	var text := "\n".join(tips.map(func(c): return c.tooltip_text))
 	return ["Initiative", "Early Damage", "The dragon's Ether", "Armor", "The Final Journey", "The Final Enemy", "Final Journey tier", "Final Enemy tier"].all(func(k): return text.contains(k))
 
 
-## The dragon screen marks `id` alone and shows its Dragon Card and no other's,
-## whole on screen at the card's printed shape.
+## The dragon screen marks `id` alone, its card the chosen one, and shows all four
+## Dragon Cards whole on screen at the card's printed shape.
 func _shows_only(id: String) -> bool:
 	var s = ui.screen
 	var marked: Array = s._tiles.keys().filter(func(k): return s._tiles[k].selected)
 	var cards: Array = s.find_children("*", "Control", true, false).filter(func(c): return c.get_script() == DragonCard and c.is_visible_in_tree())
-	if marked != ["dragon:" + id] or cards != [s.card] or s._next.disabled:
+	if marked != ["dragon:" + id] or cards.size() != 4 or not cards.has(s.card) or s._next.disabled:
 		return false
-	var r: Rect2 = s.card.get_global_rect()
 	var shape: Vector2 = DragonCard.card_size(1.0)
-	return s.card.model.get("id", "") == id and s.get_viewport_rect().encloses(r) \
-		and r.size.x > 0.0 and absf(r.size.x / r.size.y - shape.x / shape.y) < 0.01
+	for c in cards:
+		var r: Rect2 = c.get_global_rect()
+		if not s.get_viewport_rect().encloses(r) or r.size.x <= 0.0 or absf(r.size.x / r.size.y - shape.x / shape.y) > 0.01:
+			return false
+	return s.card.model.get("id", "") == id
 
 
 ## Place a card the way a player does: tap it, then tap its place in the role strip.

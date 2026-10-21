@@ -1,36 +1,42 @@
 extends Control
-## The first setup step: choose a dragon. Four tiles on the right show each
-## dragon's head, name, title and a line of flavour; on the left, as tall as they
-## are, lies the chosen dragon's Dragon Card as the Final Battle shows it, the only
-## one shown, so one dragon is read at a time, each figure on it explaining itself
-## on hover. The page opens with none chosen and an empty place where the card will
-## lie; Continue, to the difficulty and alternate rules, waits for a choice. Back
-## returns to the landing page.
+## The first setup step: choose a dragon. A table of two rows: the four Dragon
+## Cards side by side, as the Final Battle shows them, and under each its line of
+## flavour, which stays still when its card is pressed. The player taps a card to
+## choose it: the chosen one is edged in its Ether's colour,
+## the others dimmed but still read. Each figure on a card explains itself on
+## hover. The page opens with none chosen; Continue, to the difficulty and
+## alternate rules, waits for a choice. Back returns to the landing page.
 
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
-const ChoiceTile = preload("res://ui/widgets/choice_tile.gd")
-const Art = preload("res://ui/model/art.gd")
+const DragonPick = preload("res://ui/widgets/dragon_pick.gd")
 const DragonCard = preload("res://ui/widgets/dragon_card.gd")
 const ViewState = preload("res://ui/model/view_state.gd")
 const Flavor = preload("res://ui/model/flavor.gd")
-const StoneStyle = preload("res://ui/theme/stone_style.gd")
 
 signal intent(data: Dictionary)
 
-## The cards' order, top to bottom and left to right, by each dragon's Ether.
+## The cards' order, left to right, by each dragon's Ether.
 const ETHER_ORDER := ["fire", "lightning", "water", "shadow"]
+## Lines kept for each dragon's flavour.
+const FLAVOUR_LINES := 3
+## The table's rules between cells, and its outer border.
+const RULE := 2
+const TABLE_RADIUS := 8
+## How bright the flavour of a dragon not chosen is.
+const DIM := Color(0.5, 0.5, 0.55)
 
 var heading := "Hunt a Dragon"
 var db
 var options := {}
 var _tiles := {}
-## The chosen dragon's Dragon Card, rebuilt with the side on each choice.
+## Each dragon's line of flavour, under its card, by id.
+var _flavours := {}
+## The chosen dragon's Dragon Card, or null before a choice.
 var card: Control
-## Where the card lies: an empty place before a choice, the card after.
-var _side: Control
-var _card: PanelContainer
 var _next: Button
+var _table: GridContainer
+var _bottom: Control
 var _layout := Control.new()
 var _content := Rect2(16, 16, 1248, 688)
 
@@ -59,51 +65,52 @@ func _build() -> void:
 		remove_child(c)
 		c.queue_free()
 	_tiles = {}
+	_flavours = {}
 	_layout = Control.new()
 	add_child(_layout)
 	apply_layout(_content)
 	var root := UI.vbox(T.S)
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_layout.add_child(root)
-	var row := UI.hbox(T.S)
-	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	root.add_child(row)
 
-	# Left: the chosen dragon's card, as tall as the four tiles beside it.
-	var place := PanelContainer.new()
-	place.custom_minimum_size.x = 380
-	place.size_flags_stretch_ratio = 0.6
-	place.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(place)
-	_card = place
-	_side = Control.new()
-	_side.resized.connect(_fit_card)
-	place.add_child(_side)
-	_fill_side()
-
-	# Right: the four dragons.
-	var dragons := GridContainer.new()
-	dragons.columns = 2
-	dragons.add_theme_constant_override("h_separation", T.S)
-	dragons.add_theme_constant_override("v_separation", T.S)
-	dragons.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	dragons.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	for id in ordered_ids():
+	# A table: the four cards, each the thing to tap, over their lines of flavour,
+	# centred down the screen. The frame shows through the gaps between the cells
+	# as the table's rules.
+	var frame := PanelContainer.new()
+	var rules := UI.box(T.LINE_SOFT, T.LINE_SOFT, RULE, TABLE_RADIUS, RULE)
+	frame.add_theme_stylebox_override("panel", rules)
+	var table := GridContainer.new()
+	table.columns = 4
+	table.add_theme_constant_override("h_separation", RULE)
+	table.add_theme_constant_override("v_separation", RULE)
+	frame.add_child(table)
+	root.add_child(UI.spacer())
+	root.add_child(frame)
+	root.add_child(UI.spacer())
+	_layout.resized.connect(_fit_cards)
+	_table = table
+	var ids := ordered_ids()
+	for id in ids:
 		var d: Dictionary = db.dragon(id)
-		var art := Art.dragon(id)
-		var line := Flavor.line(id)
-		var flavour: Control = UI.label(line, T.LABEL, T.INK_MUTED, true) if line != "" else null
-		# The head alone, still; the whole of the chosen one lies on its card beside.
-		var tile: Button = ChoiceTile.make(d.name, d.title, UI.head(art), T.ether(d.early_damage.element), UI.head_tint(art, T.ether(d.early_damage.element)), 80.0, flavour)
-		tile.custom_minimum_size.y = 160
+		var tile: Button = DragonPick.make(ViewState.dragon_card_model(d), T.ether(d.early_damage.element))
 		tile.pressed.connect(_choose.bind(id))
-		dragons.add_child(tile)
+		table.add_child(_cell(tile, ids.find(id), 0, 0))
 		_tiles["dragon:" + id] = tile
-	row.add_child(dragons)
+	for id in ids:
+		var line := UI.label(Flavor.line(id), T.LABEL, T.INK_MUTED, true)
+		line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		line.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+		line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		line.custom_minimum_size.y = UI.font(T.LABEL[0]).get_height(T.LABEL[1]) * FLAVOUR_LINES
+		table.add_child(_cell(line, ids.find(id), 1, T.S))
+		_flavours[id] = line
+		# Its height follows its width; the cards make room for it.
+		line.resized.connect(_fit_cards)
 
 	# Continue at the screen's bottom right, where the next step keeps Set out. Back
 	# is in the title bar.
 	var bottom := UI.hbox(T.S)
+	_bottom = bottom
 	bottom.custom_minimum_size.y = T.TAP_MIN
 	bottom.add_child(UI.spacer())
 	_next = UI.button("Continue", "primary")
@@ -112,6 +119,7 @@ func _build() -> void:
 	bottom.add_child(_next)
 	root.add_child(bottom)
 	_refresh()
+	_fit_cards.call_deferred()
 	# With none chosen no card takes focus, so none looks chosen; the first arrow
 	# or Tab press focuses the first card.
 	if options.dragon != "":
@@ -128,6 +136,40 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 
 
+## A cell of the table at `column` and `row` holding `content`, held `margin` in
+## from its rules; the table's corner cells take its rounding.
+func _cell(content: Control, column: int, row: int, margin: int) -> PanelContainer:
+	var cell := PanelContainer.new()
+	cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var face := UI.box(T.BG_SURFACE, Color.TRANSPARENT, 0, 0, margin)
+	var r := TABLE_RADIUS - RULE
+	face.corner_radius_top_left = r if row == 0 and column == 0 else 0
+	face.corner_radius_top_right = r if row == 0 and column == 3 else 0
+	face.corner_radius_bottom_left = r if row == 1 and column == 0 else 0
+	face.corner_radius_bottom_right = r if row == 1 and column == 3 else 0
+	cell.add_theme_stylebox_override("panel", face)
+	cell.add_child(content)
+	return cell
+
+
+## The row of cards as tall as a card at the table's column width, or as the
+## screen leaves room for under it, beside the flavour and Continue.
+func _fit_cards() -> void:
+	if _table == null or not is_instance_valid(_table):
+		return
+	# Measured on the layout, which keeps its size, not on the column, which grows
+	# when the cards outgrow it.
+	var cols := float(_table.columns)
+	var width := (_layout.size.x - (cols + 1.0) * RULE) / cols - 2.0 * DragonPick.GLOW
+	var lines := 0.0
+	for line in _flavours.values():
+		lines = maxf(lines, line.get_combined_minimum_size().y)
+	var room := _layout.size.y - _bottom.custom_minimum_size.y - lines - 2.0 * T.S - 3.0 * RULE - 3.0 * T.S
+	var h := minf(DragonCard.card_size(maxf(1.0, width)).y + 2.0 * DragonPick.GLOW, room)
+	for tile in _tiles.values():
+		tile.custom_minimum_size.y = maxf(tile.get_minimum_size().y, floorf(h))
+
+
 ## The dragons by their Ether: Fire, Lightning, Water, Shadow.
 func ordered_ids() -> Array:
 	var ids: Array = db.dragon_ids().duplicate()
@@ -140,67 +182,22 @@ func _rank(id: String) -> int:
 	return at if at >= 0 else ETHER_ORDER.size()
 
 
-## The chosen dragon's Dragon Card, as large as the side holds it, centred.
-func _fill_side() -> void:
-	for c in _side.get_children():
-		_side.remove_child(c)
-		c.queue_free()
-	card = null
-	_card.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
-	if options.dragon == "":
-		_fill_empty()
-		return
-	card = DragonCard.new()
-	card.explain = true
-	_side.add_child(card)
-	_fit_card()
-	card.render(ViewState.dragon_card_model(db.dragon(options.dragon)))
-
-
-## Before any choice: an empty place the card's shape, a prompt at its middle.
-func _fill_empty() -> void:
-	var stone := StoneStyle.new("plinth", 0.6)
-	stone.edge = Color(0, 0, 0, 0)
-	for side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
-		stone.set_content_margin(side, T.M)
-	var place := PanelContainer.new()
-	place.add_theme_stylebox_override("panel", stone)
-	_side.add_child(place)
-	var prompt := UI.vbox(T.XS)
-	prompt.alignment = BoxContainer.ALIGNMENT_CENTER
-	place.add_child(prompt)
-	var hint := UI.label("Choose a dragon", T.HEADING, T.INK_MUTED)
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	prompt.add_child(hint)
-	var more := UI.label("Its Dragon Card, with its Armor, Initiative and the tiers of the Final Battle, shows here.", T.LABEL, Color(T.INK_MUTED, 0.8), true)
-	more.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	prompt.add_child(more)
-	_fit_card()
-
-
-## The card, or the empty place, at the card's printed shape, as large as fits the
-## side, centred in it.
-func _fit_card() -> void:
-	if _side.get_child_count() == 0:
-		return
-	var s: Vector2 = DragonCard.card_size(_side.size.x)
-	if s.y > _side.size.y:
-		s = DragonCard.card_size(_side.size.y * s.x / s.y)
-	var c: Control = _side.get_child(0)
-	c.size = s
-	c.position = ((_side.size - s) / 2.0).round()
-
-
-## Choosing a card changes only the marks and the side, so focus stays on the card.
+## Choosing a card changes only the marks, so focus stays on the card.
 func _choose(id: String) -> void:
 	if id == options.dragon:
 		return
 	options.dragon = id
 	_refresh()
-	_fill_side()
 
 
 func _refresh() -> void:
+	var chosen: bool = options.dragon != ""
 	for id in db.dragon_ids():
-		_tiles["dragon:" + id].selected = options.dragon == id
-	_next.disabled = options.dragon == ""
+		var tile = _tiles["dragon:" + id]
+		tile.selected = options.dragon == id
+		tile.any_chosen = chosen
+		var line: Label = _flavours[id]
+		line.add_theme_color_override("font_color", T.INK if options.dragon == id else T.INK_MUTED)
+		line.modulate = Color.WHITE if options.dragon == id or not chosen else DIM
+	card = _tiles["dragon:" + options.dragon].card if chosen else null
+	_next.disabled = not chosen
