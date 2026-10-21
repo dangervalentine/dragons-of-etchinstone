@@ -9,6 +9,7 @@ extends SceneTree
 ## (sizes from layout_solver.gd MATRIX; "desktop" when none are named)
 
 const Solver = preload("res://ui/model/layout_solver.gd")
+const Settings = preload("res://ui/model/settings.gd")
 const HistoryStore = preload("res://ui/model/history_store.gd")
 
 ## Games tried, in order, until one reaches the Soak after its first Play.
@@ -22,6 +23,7 @@ var _shots: Array = []
 func _initialize() -> void:
 	# Games played here are recorded in their own folder, never the player's records.
 	HistoryStore.use_empty("user://tool_history/")
+	Settings.use_for_tools()
 	var args := OS.get_cmdline_user_args()
 	if args.size() > 0:
 		out = args[0]

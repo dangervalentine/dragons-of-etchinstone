@@ -8,6 +8,7 @@ extends SceneTree
 ## (every kind when none are named)
 
 const T = preload("res://ui/theme/tokens.gd")
+const Settings = preload("res://ui/model/settings.gd")
 const ViewState = preload("res://ui/model/view_state.gd")
 const CardView = preload("res://ui/widgets/card_view.gd")
 const RegionCard = preload("res://ui/widgets/region_card.gd")
@@ -31,6 +32,7 @@ var _stage: Control
 
 func _initialize() -> void:
 	HistoryStore.use_empty("user://tool_history/")
+	Settings.use_for_tools()
 	var args := OS.get_cmdline_user_args()
 	if args.size() > 0:
 		out = args[0]

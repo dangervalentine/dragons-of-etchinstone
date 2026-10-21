@@ -24,6 +24,12 @@ Battle:
 - How to Play: the rules in this project's own words, written for the digital game,
   readable from the landing page, the in-game menu or the H key without disturbing a
   game in progress, with labelled example cards and links into the Glossary
+- Learn to Play: six short lessons played on the real screens under the real rules,
+  each from a table of its own (setting out with Rodving, a Victory, a Narrow
+  Victory on a Journey, a Loss and its Soak, a Fuse, the end of a Region), with a
+  message beside whatever is being explained and the move to make held to the
+  lesson's. Offered on the first Play, kept as finished lesson by lesson, and never
+  recorded
 
 The play screen keeps everything for a turn in view: the Encounter, your Action
 Set, your Hand and the controls. The left side is the Deck and nothing else, as held
@@ -85,7 +91,7 @@ plays seeded games through the real screens:
 ```
 
 The UI check's walks are `notes screens marks play deck skip look ending resize
-divert arrange`. Run the quick check while working, the walks or unit files that
+divert arrange lessons`. Run the quick check while working, the walks or unit files that
 cover a change to look at it closely, and `full` before a commit.
 
 Screenshots of every screen at every size, for review by eye:

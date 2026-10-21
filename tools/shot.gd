@@ -4,7 +4,9 @@ extends SceneTree
 ## godot --path . -s tools/shot.gd -- <output dir> [size name ...]
 
 const Solver = preload("res://ui/model/layout_solver.gd")
+const Settings = preload("res://ui/model/settings.gd")
 const Rulebook = preload("res://ui/model/rulebook.gd")
+const Lessons = preload("res://ui/model/lessons.gd")
 
 const HistoryStore = preload("res://ui/model/history_store.gd")
 
@@ -15,6 +17,7 @@ var ui
 func _initialize() -> void:
 	# Games played here are recorded in their own folder, never the player's records.
 	HistoryStore.use_empty("user://tool_history/")
+	Settings.use_for_tools()
 	var args := OS.get_cmdline_user_args()
 	if args.size() > 0:
 		out = args[0]
@@ -141,6 +144,42 @@ func _game(dir: String) -> void:
 	_press({"type": "menu"})
 	await _shot(dir + "/15_menu")
 	ui._close_overlays()
+	ui.dispatch({"type": "to_title"})
+	await _lessons(dir)
+
+
+## Learn to Play (specs/017): a read step and an action step on each screen it uses,
+## the lesson-complete choice, the summary and the list.
+func _lessons(dir: String) -> void:
+	ui.start_lesson(0)
+	await _shot(dir + "/16a_lesson_welcome")
+	ui.coach.next.emit()
+	await _shot(dir + "/16b_lesson_dragon_continue")
+	ui.start_lesson(1)
+	await _shot(dir + "/16c_lesson_deck")
+	ui.coach.next.emit()
+	await _shot(dir + "/16d_lesson_key")
+	for i in 3:
+		ui.coach.next.emit()
+	await _shot(dir + "/16e_lesson_arrange")
+	_press({"type": "card", "id": "DOE-A03"})
+	_press({"type": "card", "id": "DOE-A06"})
+	for i in 3:
+		ui.coach.next.emit()
+	_press({"type": "set_boost_to", "set": 0, "to": "attack"})
+	await _shot(dir + "/16f_lesson_play")
+	ui.start_lesson(4)
+	ui.coach.next.emit()
+	await _shot(dir + "/16g_lesson_fuse_pair")
+	ui.lesson_index = Lessons.count() - 1
+	ui.tutorial.index = ui.tutorial.lesson.steps.size()
+	ui._show_coach()
+	await _shot(dir + "/16h_lesson_complete")
+	ui.dispatch({"type": "lesson_finish"})
+	await _shot(dir + "/16i_lesson_summary")
+	ui.dispatch({"type": "lesson_list"})
+	await _shot(dir + "/16j_lesson_list")
+	Settings.use_for_tools()
 	ui.dispatch({"type": "to_title"})
 
 

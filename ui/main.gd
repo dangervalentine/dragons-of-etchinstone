@@ -38,6 +38,10 @@ const MenuOverlay = preload("res://ui/overlays/menu_overlay.gd")
 const SizeNotice = preload("res://ui/overlays/size_notice.gd")
 const WindowSizer = preload("res://ui/model/window_sizer.gd")
 const HeaderBar = preload("res://ui/widgets/header_bar.gd")
+const Lessons = preload("res://ui/model/lessons.gd")
+const Tutorial = preload("res://ui/model/tutorial.gd")
+const CoachMark = preload("res://ui/overlays/coach_mark.gd")
+const LessonsScreen = preload("res://ui/screens/lessons_screen.gd")
 
 var db = CardDB.new()
 var game: Variant = null
@@ -90,6 +94,16 @@ var _records_from := "title"
 ## The record the last game left, and where it placed.
 var _last_record := {}
 var _placing := {}
+## The lesson being played (specs/017), or null in a game of one's own; and which.
+var tutorial: Variant = null
+var lesson_index := -1
+## The lesson's coach mark, between the flying cards and the overlays.
+var coach := CoachMark.new()
+## Whether the coach mark holds the summary, which outlasts the last lesson.
+var _summary_shown := false
+## What the coach mark shows now: [screen, lesson, step, Back offered]. A step shown
+## already is not shown again, only fitted to the window.
+var _coach_key := []
 
 
 func _ready() -> void:
@@ -124,6 +138,22 @@ func _ready() -> void:
 	# Cards rise over the rest of the screen by z_index (held 1, dragged 2, played 5),
 	# which outranks the order the layers are added in, so the overlays sit higher still.
 	_overlays.z_index = 10
+	# The coach mark is over every card and under every overlay (specs/017).
+	add_child(coach)
+	move_child(coach, _overlays.get_index())
+	coach.z_index = 9
+	coach.next.connect(func():
+		tutorial.next()
+		_show_coach())
+	coach.back.connect(func():
+		tutorial.back()
+		_show_coach())
+	coach.skip.connect(func(): dispatch({"type": "lesson_leave"}))
+	coach.chosen.connect(func(id): dispatch({"type": id}))
+	coach.term.connect(func(id, anchor):
+		var g := GlossaryPopover.new()
+		_overlays.add_child(g)
+		g.show_entry(id, anchor, plan.content))
 	title_bar.intent.connect(dispatch)
 	# Cards under an overlay hold still, so only what can be seen is animated.
 	_overlays.child_entered_tree.connect(func(_n):
@@ -247,6 +277,7 @@ func _on_resize() -> void:
 		elif o.get_script() == RulebookOverlay and not o.is_queued_for_deletion():
 			o.relayout(plan.content.grow(-T.M))
 	_update_notice()
+	_show_coach.call_deferred()
 
 
 ## Show an open settings menu the window mode as it is now.
@@ -388,6 +419,10 @@ func _show_ending() -> void:
 
 
 func start_game(opts: Dictionary) -> void:
+	# A game of one's own is not a lesson.
+	if tutorial != null:
+		_end_lesson()
+		game = null
 	menu = opts.duplicate()
 	# No game starts without a dragon it may hunt: none chosen, or a locked one,
 	# hunts the default.
@@ -401,7 +436,6 @@ func start_game(opts: Dictionary) -> void:
 	var with_seed := opts.duplicate()
 	if not with_seed.has("seed"):
 		with_seed["seed"] = randi()
-	var empty := {"phase": "setup", "region": 1, "deck": [], "hand": [], "discard": [], "trash": [], "levels": {}, "offer": []}
 	# A game still in progress is left for the new one.
 	if game != null and game.phase != "won" and game.phase != "lost":
 		_record("abandoned")
@@ -420,18 +454,193 @@ func start_game(opts: Dictionary) -> void:
 	_switch(play)
 	_refresh(false)
 	if game.phase == "challenge":
-		for id in game.cards:
-			empty.levels[id] = game.cards[id].level
-		var after := ViewState.snapshot(game)
-		var steps := Sequencer.build(empty, {"kind": "start", "cards": []}, {}, after)
-		_show_faces(steps)
-		# Start from an empty Hand so the first one is dealt.
-		var bare: Dictionary = vs.duplicate()
-		bare.hand = []
-		play.render(bare)
-		# The Deck starts zoomed out on the Region Card, for the first reveal.
-		play.deck.show_card()
-		animator.play(steps, play, vs)
+		_deal_start()
+
+
+## The first Hand of a game, or of a lesson's table, is dealt from the Deck.
+func _deal_start() -> void:
+	var empty := {"phase": "setup", "region": game.region, "deck": [], "hand": [], "discard": [], "trash": [], "levels": {}, "offer": []}
+	for id in game.cards:
+		empty.levels[id] = game.cards[id].level
+	var after := ViewState.snapshot(game)
+	var steps := Sequencer.build(empty, {"kind": "start", "cards": []}, {}, after)
+	_show_faces(steps)
+	# Start from an empty Hand so the first one is dealt.
+	var bare: Dictionary = vs.duplicate()
+	bare.hand = []
+	play.render(bare)
+	# The Deck starts zoomed out on the Region Card, for the first reveal.
+	play.deck.show_card()
+	animator.play(steps, play, vs)
+
+
+# ---------------------------------------------------------------- lessons (specs/017)
+
+## Learn to Play: lesson i, from its start (contracts/tutorial-flow.md).
+func start_lesson(i: int) -> void:
+	_close_overlays()
+	# A game of one's own still in progress is left for the lesson, as for a new game.
+	if tutorial == null and game != null and game.phase != "won" and game.phase != "lost":
+		_record("abandoned")
+	tutorial = Tutorial.new(Lessons.lesson(i))
+	lesson_index = i
+	coach.hide_mark()
+	if i == 0:
+		game = null
+		vs = {}
+		play = null
+		var d := DragonScreen.new()
+		d.setup(db, {"dragon": DragonScreen.LESSON_DRAGON}, true)
+		d.intent.connect(dispatch)
+		_switch(d)
+		_show_coach.call_deferred()
+	else:
+		_stage_lesson(i)
+
+
+## The lesson's table on the play screen; a challenge table's Hand is dealt.
+func _stage_lesson(i: int) -> void:
+	game = Game.new(db, {"dragon": DragonScreen.LESSON_DRAGON, "difficulty": "normal", "seed": 0})
+	var err: String = game.stage(Lessons.table(i, db.mage_ids()))
+	assert(err == "", "lesson %d does not stage: %s" % [i, err])
+	clock.reset()
+	_recorded = true
+	_last_record = {}
+	_placing = {}
+	_lost_at = ""
+	_reset_draft()
+	play = PlayScreen.new()
+	play.flight = _flight
+	play.intent.connect(dispatch)
+	_switch(play)
+	_refresh(false)
+	if game.phase == "challenge":
+		_deal_start()
+	_show_coach.call_deferred()
+
+
+## Shows the lesson's current step over the screen, or its end; nothing while a
+## sequence plays, since the screen is still catching up.
+func _show_coach() -> void:
+	if tutorial == null or screen == null:
+		if not _summary_shown:
+			coach.hide_mark()
+		return
+	if animator.is_playing():
+		coach.hide_mark()
+		return
+	var key := [screen.get_instance_id(), lesson_index, tutorial.index, tutorial.can_back()]
+	if coach.visible and key == _coach_key:
+		coach.set_content(plan.get("content", Rect2()))
+		return
+	_coach_key = key
+	if tutorial.finished():
+		_lesson_complete()
+		return
+	var s: Dictionary = tutorial.step()
+	if s.wait == "sequence":
+		# Nothing more is coming: the move made no sequence to wait for.
+		tutorial.sequence_done()
+		_coach_key = []
+		_show_coach()
+		return
+	var target: String = s.target
+	# A move made with the screen's own button (Play, Confirm, Continue): that button
+	# is rimmed too, so it is plain what to press.
+	var on := Callable()
+	if ["dragon", "setup", "play", "soak", "upgrade"].has(s.wait) and target != "primary":
+		on = func(): return _coach_press()
+	coach.show_step(Lessons.text(s.text), func(): return _coach_rect(target), tutorial.reading(), tutorial.can_back(), plan.get("content", Rect2()), on)
+
+
+## The button that carries a lesson's move on, as an Array of global rects.
+func _coach_press() -> Array:
+	var r := _coach_rect("primary")
+	return [r] if r.has_area() else []
+
+
+func _coach_rect(target: String) -> Rect2:
+	if target == "screen" or screen == null or not screen.has_method("coach_rect"):
+		return Rect2()
+	return screen.coach_rect(target)
+
+
+## A lesson's last step reached: it is finished for good, and the player chooses
+## what next.
+func _lesson_complete() -> void:
+	var id: String = Lessons.lesson(lesson_index).id
+	if not Settings.lessons.has(id):
+		Settings.lessons.append(id)
+		Settings.save_all()
+	var last := lesson_index == Lessons.count() - 1
+	var buttons := [{"id": "lesson_leave", "label": "Leave", "kind": "quiet"},
+		{"id": "lesson_list", "label": "Lessons", "kind": "normal"},
+		{"id": "lesson_finish" if last else "lesson_next", "label": "Finish" if last else "Next lesson", "kind": "primary"}]
+	coach.show_choice("[b]Lesson %d complete:[/b] %s." % [lesson_index + 1, Lessons.lesson(lesson_index).title],
+		buttons, plan.get("content", Rect2()))
+
+
+## Whether the lesson lets this move be made; if not, says what it wants instead.
+func _lesson_allows(kind: String, payload = null) -> bool:
+	if tutorial == null:
+		return true
+	var err: String = tutorial.check(kind, payload)
+	if err == "":
+		return true
+	_refuse(err, "", "Lesson")
+	return false
+
+
+## The places of the Hand as the lessons name them: "0/spell", "0/element",
+## "0/boost" and "reserve".
+func _lesson_places() -> Dictionary:
+	var out := {}
+	if game == null:
+		return out
+	for role in Draft.ROLES:
+		out["0/" + role] = draft.sets[0].get(role)
+	out["reserve"] = draft.reserve_card(game.hand)
+	return out
+
+
+func _show_lessons() -> void:
+	game = null
+	vs = {}
+	play = null
+	var l := LessonsScreen.new()
+	l.setup(db)
+	l.intent.connect(dispatch)
+	_switch(l)
+
+
+## Out of the lesson being played, leaving its table behind.
+func _end_lesson() -> void:
+	_summary_shown = false
+	tutorial = null
+	lesson_index = -1
+	coach.hide_mark()
+	_close_overlays()
+
+
+## The first Play on a device that has never played or begun the lessons offers
+## them, once (contracts/tutorial-flow.md "First-launch offer"). True when offered.
+func _offer_lessons() -> bool:
+	if Settings.tutorial_offered or not Settings.lessons.is_empty() or not HistoryStore.records.is_empty():
+		return false
+	Settings.tutorial_offered = true
+	Settings.save_all()
+	var c := ConfirmDialog.new()
+	_overlays.add_child(c)
+	c.setup("New to Etchinstone? Learn to Play takes about ten minutes.", "Learn to Play", "Play")
+	var chose := [false]
+	c.confirmed.connect(func():
+		chose[0] = true
+		_close_overlays()
+		start_lesson(0))
+	c.tree_exiting.connect(func():
+		if not chose[0] and screen != null and screen.get_script() == TitleScreen:
+			_show_dragons.call_deferred())
+	return true
 
 
 ## A Time Penalty's cards show their faces as they go to the Discard, the
@@ -466,7 +675,45 @@ func dispatch(intent: Dictionary) -> void:
 	if animator.is_playing():
 		animator.skip()
 		return
+	_dispatch(intent)
+	if tutorial != null and play != null and screen == play and game != null:
+		tutorial.draft_changed(_lesson_places())
+	_show_coach()
+
+
+func _dispatch(intent: Dictionary) -> void:
 	match intent.type:
+		"lessons":
+			if Settings.lessons.is_empty():
+				start_lesson(0)
+			else:
+				_end_lesson()
+				_show_lessons()
+		"lesson":
+			if Tutorial.is_open(intent.index, Settings.lessons):
+				start_lesson(intent.index)
+		"lesson_setup":
+			if _lesson_allows("dragon", intent.options.get("dragon", "")):
+				tutorial.acted("dragon")
+				_stage_lesson(lesson_index)
+		"lesson_next":
+			if lesson_index >= 0 and lesson_index < Lessons.count() - 1:
+				start_lesson(lesson_index + 1)
+		"lesson_list":
+			_end_lesson()
+			_show_lessons()
+		"lesson_finish":
+			Settings.tutorial_done = true
+			Settings.save_all()
+			coach.show_choice(Lessons.text(Lessons.SUMMARY), [
+				{"id": "lesson_list", "label": "Lessons", "kind": "normal"},
+				{"id": "lesson_leave", "label": "Leave", "kind": "primary"}], plan.get("content", Rect2()))
+			# The summary is the lessons' end; nothing more to show over it.
+			tutorial = null
+			_summary_shown = true
+		"lesson_leave":
+			_end_lesson()
+			_show_title()
 		"start":
 			start_game(intent.options)
 		"play_again":
@@ -480,6 +727,8 @@ func dispatch(intent: Dictionary) -> void:
 			_show_rules()
 		"setup_dragon":
 			menu = intent.options.duplicate()
+			if intent.get("from", "") == "title" and _offer_lessons():
+				return
 			_show_dragons()
 		"dragons_unlocked":
 			# The dragon screen under the menu shows them unlocked at once.
@@ -532,6 +781,11 @@ func dispatch(intent: Dictionary) -> void:
 			r.open(plan.content.grow(-T.M), intent.get("section", ""), db)
 			_return_to_menu(r, intent)
 		"leave":
+			# Leaving a lesson loses nothing of the player's: no question.
+			if tutorial != null:
+				_end_lesson()
+				_show_title()
+				return
 			var c := ConfirmDialog.new()
 			_overlays.add_child(c)
 			c.setup("Abandon this run? It cannot be resumed.", "Abandon run", "Keep playing")
@@ -583,7 +837,14 @@ func dispatch(intent: Dictionary) -> void:
 			draft.toggle_boost_to(intent.set)
 			_refresh()
 		"fuse_element":
+			var kept = draft.duplicate_draft()
 			draft.choose_fuse_element(intent.element)
+			if tutorial != null:
+				if not _lesson_allows("fuse_element", draft.fuse):
+					draft = kept
+					_refresh()
+					return
+				tutorial.acted("fuse_element")
 			draft.settle(game.hand)
 			_refresh(true)
 			_respond("fuse", intent.element)
@@ -681,8 +942,14 @@ func _on_action(id: String) -> void:
 				draft.unfuse()
 				draft.settle(game.hand)
 			else:
+				if not _lesson_allows("fuse_begin"):
+					return
+				if tutorial != null:
+					tutorial.acted("fuse_begin")
 				draft.begin_mode("fuse_pick")
 		"divert", "regroup":
+			if not _lesson_allows("divert"):
+				return
 			draft.begin_mode(id)
 		"give_up_reserve":
 			draft.give_up_reserve = not draft.give_up_reserve
@@ -706,9 +973,13 @@ func _on_primary() -> void:
 	match game.phase:
 		"setup":
 			var picks: Array = draft.picks.duplicate()
+			if not _lesson_allows("setup", picks):
+				return
 			_act({"kind": "setup", "cards": picks}, func(): return game.choose_setup_cards(picks))
 		"challenge":
 			var a: Dictionary = draft.to_action()
+			if not _lesson_allows("play", a):
+				return
 			_act({"kind": "play", "cards": _played(a)}, func(): return game.play(a))
 		"final_journey", "final_enemy":
 			var a: Dictionary = draft.to_action()
@@ -716,12 +987,18 @@ func _on_primary() -> void:
 			_act({"kind": "play_final", "cards": _played(a)}, func(): return game.play_final(a))
 		"penalty", "poison", "final_soak":
 			var picks: Array = draft.picks.duplicate()
+			if not _lesson_allows("soak", picks):
+				return
 			_act({"kind": "soak", "cards": picks}, func(): return game.soak(picks))
 		"upgrade":
+			# The one Upgrade gate: the Upgrades and Cleanup are this one confirm.
+			if not _lesson_allows("upgrade", draft.picks.duplicate()):
+				return
 			var affordable := false
 			for id in vs.hand:
 				affordable = affordable or vs.cards[id].get("can_raise", false)
-			if Settings.warn_unspent_xp and vs.xp > 0 and affordable:
+			# A lesson says itself what unspent XP costs, without the question.
+			if Settings.warn_unspent_xp and vs.xp > 0 and affordable and tutorial == null:
 				_confirm_unspent_xp()
 				return
 			_finish_upgrade()
@@ -791,6 +1068,9 @@ func _act(action: Dictionary, call: Callable) -> void:
 		_record(game.phase)
 	else:
 		_save_marker()
+	if tutorial != null:
+		# The Upgrade Phase's confirm is one lesson step: the Upgrades, then Cleanup.
+		tutorial.acted("upgrade" if action.kind == "finish" else action.kind)
 	var after := ViewState.snapshot(game)
 	match action.kind:
 		"divert":
@@ -822,6 +1102,9 @@ func _reset_draft() -> void:
 func _on_sequence_done() -> void:
 	if game != null and (game.phase == "won" or game.phase == "lost"):
 		_show_ending()
+	if tutorial != null:
+		tutorial.sequence_done()
+		_show_coach()
 
 
 func _refuse(text: String, card_id := "", title := "") -> void:
@@ -1000,14 +1283,15 @@ func _clock_active() -> bool:
 ## Keep the game in progress, so it is recorded even if the app does not live to
 ## see it end.
 func _save_marker() -> void:
-	if game == null or _recorded or game.phase == "won" or game.phase == "lost":
+	# A lesson is never recorded (specs/017 FR-019).
+	if tutorial != null or game == null or _recorded or game.phase == "won" or game.phase == "lost":
 		return
 	HistoryStore.save_marker(PlayHistory.marker_for(game, clock.elapsed_ms, _started_at, int(Time.get_unix_time_from_system())))
 
 
 ## Record the game in progress as won, lost or abandoned; once only.
 func _record(outcome: String) -> void:
-	if game == null or _recorded:
+	if tutorial != null or game == null or _recorded:
 		return
 	_recorded = true
 	var now := int(Time.get_unix_time_from_system())

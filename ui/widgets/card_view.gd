@@ -292,6 +292,15 @@ func _mark_at(at: Vector2) -> String:
 	return ""
 
 
+## The global rect of the Ether sigil beside the card's name: what a lesson lights
+## to show a card's Ether (specs/017 research R6).
+func ether_rect() -> Rect2:
+	var rects: Array = _face.sigil_rects()
+	if rects.is_empty():
+		return Rect2()
+	return _face.get_global_transform() * (rects[0] as Rect2)
+
+
 ## Hovering a part of the card explains just that part: what the term means, not
 ## its figures, which the card itself shows (and may be previewing at another Level).
 func part_help(at: Vector2) -> String:

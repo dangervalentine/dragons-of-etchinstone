@@ -91,6 +91,7 @@ func render(vs: Dictionary) -> void:
 		b.clip_text = true
 		b.custom_minimum_size = Vector2(T.TAP_MIN, T.TAP_MIN)
 		b.set_meta("cell", cell)
+		b.set_meta("id", a.id)
 		var id: String = a.id
 		b.pressed.connect(func(): intent.emit({"type": "action", "id": id}))
 		_actions.add_child(b)
@@ -110,6 +111,15 @@ func render(vs: Dictionary) -> void:
 	_was_enabled = p.enabled
 	if _ready:
 		_glow()
+
+
+## The secondary button for action `id` (fuse, divert…), or null: what a lesson
+## lights (specs/017 contracts/coach-mark.md).
+func button(id: String) -> Control:
+	for b in _actions.get_children():
+		if b.get_meta("id", "") == id and not b.is_queued_for_deletion():
+			return b
+	return null
 
 
 ## While the Key Card waits on the Deck with its Encounter lit (specs/014): the

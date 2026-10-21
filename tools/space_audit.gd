@@ -6,6 +6,7 @@ extends SceneTree
 ## godot --path . -s tools/space_audit.gd -- [--baseline <file> | --compare <file>]
 
 const Solver = preload("res://ui/model/layout_solver.gd")
+const Settings = preload("res://ui/model/settings.gd")
 
 ## The window sizes SC-002 is judged at: the minimum ones.
 const SIZES := ["phone-16x9", "phone-small"]
@@ -16,6 +17,7 @@ var results := {}
 
 
 func _initialize() -> void:
+	Settings.use_for_tools()
 	_run()
 
 

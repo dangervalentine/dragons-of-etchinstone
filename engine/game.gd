@@ -12,6 +12,8 @@ extends RefCounted
 ##   final_enemy    play_final()
 ##   final_soak     soak()
 ##   won / lost
+##
+## stage(table) sets out a staged moment of a game instead (the lessons, specs/017).
 
 const Rules = preload("res://engine/rules.gd")
 
@@ -97,6 +99,80 @@ func _finish_setup(ids: Array) -> void:
 		_shuffle(deck)
 	_draw(HAND_SIZE)
 	phase = "challenge"
+
+
+## Sets out a staged moment of a game, for the lessons (specs/017, research R2): the
+## piles, the cards' Levels, the Region and the phase. `table` holds `phase` ("setup"
+## or "challenge"), `region`, `levels` (cards not listed are Level 2), `deck` (index 0
+## is the Key Card), `hand` (in dealt order), `discard` (or "rest": every card not
+## placed, in id order), `trash`, and for setup `setup_offer`, `setup_picks` and
+## `setup_level`. Everything is checked first; a refused table changes nothing.
+func stage(table: Dictionary) -> String:
+	var t_phase: String = table.get("phase", "challenge")
+	if t_phase != "setup" and t_phase != "challenge":
+		return "A table starts in setup or in the Challenge Phase."
+	var t_region: int = table.get("region", 1)
+	if t_region < 1 or t_region > 4:
+		return "A table is in Region 1 to 4."
+	var t_deck: Array = table.get("deck", [])
+	var t_hand: Array = table.get("hand", [])
+	var t_trash: Array = table.get("trash", [])
+	var t_discard = table.get("discard", [])
+	if t_discard is String and t_discard == "rest":
+		t_discard = []
+		for id in db.mage_ids():
+			if not t_deck.has(id) and not t_hand.has(id) and not t_trash.has(id):
+				t_discard.append(id)
+		t_discard.sort()
+	var placed: Array = t_deck + t_hand + t_discard + t_trash
+	for id in db.mage_ids():
+		if placed.count(id) != 1:
+			return "Every card must lie in exactly one pile."
+	if placed.size() != db.mage_ids().size():
+		return "Every card must lie in exactly one pile."
+	if t_hand.size() > HAND_SIZE:
+		return "A Hand holds at most %d cards." % HAND_SIZE
+	var levels: Dictionary = table.get("levels", {})
+	for id in levels:
+		if not cards.has(id) or levels[id] < 1 or levels[id] > 4:
+			return "A card's Level is 1 to 4."
+	var offer: Array = table.get("setup_offer", [])
+	if t_phase == "setup":
+		if not t_hand.is_empty():
+			return "No Hand is dealt before setup."
+		var picks: int = table.get("setup_picks", 0)
+		if picks < 1 or picks >= offer.size():
+			return "Setup chooses some of the cards offered, not all."
+		for id in offer:
+			if not t_deck.has(id):
+				return "The cards offered come from the Deck."
+	elif t_deck.is_empty():
+		return "A Challenge needs a Key Card on the Deck."
+
+	for id in cards:
+		cards[id].level = levels.get(id, 2)
+	deck = t_deck.duplicate()
+	hand = t_hand.duplicate()
+	discard = t_discard.duplicate()
+	trash = t_trash.duplicate()
+	region = t_region
+	phase = t_phase
+	setup_offer = offer.duplicate() if t_phase == "setup" else []
+	setup_picks = table.get("setup_picks", 0) if t_phase == "setup" else 0
+	setup_level = table.get("setup_level", 2) if t_phase == "setup" else 2
+	xp = 0
+	diverts = 0
+	damage_due = 0
+	damage_element = ""
+	downgraded = []
+	result = {}
+	faced = {}
+	_action = {}
+	_discard_reserve = false
+	_pending_poison = 0
+	_regrouped = false
+	carried_damage = 0
+	return ""
 
 
 func key_card():

@@ -98,6 +98,18 @@ const NOTE_ICON := 30
 ## its flight off to the left again as a discard (feature 015).
 const NOTE_DEAL := 0.35
 const NOTE_DISCARD := 0.35
+## The lesson coach mark (feature 017, contracts/coach-mark.md): how dark the screen
+## round the lit part is while a message is read; while the player acts, nothing is
+## dimmed.
+const COACH_DIM := 0.72
+## The rim round the lit part: how far it stands off the target, and its width.
+const COACH_PAD := 8.0
+const COACH_RIM := 3.0
+## The message bubble: its distance from the rim and its widest.
+const COACH_GAP := 16.0
+const COACH_MAX_W := 560.0
+## The coach mark's fade in, when motion is not reduced.
+const COACH_FADE := 0.2
 ## How far, in degrees, a note is turned off the table, as a dealt or thrown card is.
 const NOTE_TURN := 14.0
 ## The tilt, in degrees, each note lies at by its depth under the top one, so the

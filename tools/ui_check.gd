@@ -7,7 +7,7 @@ extends SceneTree
 ## Quick by default: every walk once, at the smallest phone. "full" walks every window
 ## size in the layout matrix, and the Deck with reduced motion at two of them. Naming
 ## walks runs only those: notes screens marks play deck skip look ending resize
-## divert arrange.
+## divert arrange lessons.
 
 const Solver = preload("res://ui/model/layout_solver.gd")
 const T = preload("res://ui/theme/tokens.gd")
@@ -31,6 +31,8 @@ const RecordsScreen = preload("res://ui/screens/records_screen.gd")
 const MenuOverlay = preload("res://ui/overlays/menu_overlay.gd")
 const WindowSizer = preload("res://ui/model/window_sizer.gd")
 const NotePile = preload("res://ui/widgets/note_pile.gd")
+const Lessons = preload("res://ui/model/lessons.gd")
+const LessonsScreen = preload("res://ui/screens/lessons_screen.gd")
 
 ## Games played here are recorded in their own folder, never the player's records.
 const HISTORY_DIR := "user://tool_history/"
@@ -63,6 +65,8 @@ func _initialize() -> void:
 
 func _clear_history() -> void:
 	HistoryStore.use_empty(HISTORY_DIR)
+	# Settings and lesson progress of the walks' own, never the player's (specs/017).
+	Settings.use_for_tools()
 
 
 func _run() -> void:
@@ -112,6 +116,14 @@ func _run() -> void:
 	if _want("divert"):
 		await _open("phone-16x9")
 		await _divert_walk("phone-16x9")
+	if _want("lessons"):
+		for name in sizes:
+			await _open(name)
+			await _lessons_walk(name)
+		await _open("phone-16x9")
+		UI.reduced_motion = true
+		await _lessons_walk("phone-16x9 reduced motion", true)
+		UI.reduced_motion = false
 	if _want("arrange"):
 		await _open("phone-16x9")
 		await _arrange_walk("phone-16x9")
@@ -731,7 +743,8 @@ func _inspect_screen(where: String) -> void:
 		return
 	var safe: Rect2 = ui.plan.safe.grow(1.0)
 	var view := Rect2(Vector2.ZERO, Vector2(host.size)).grow(1.0)
-	var nodes: Array = ui.screen.find_children("*", "Control", true, false) + ui._overlays.find_children("*", "Control", true, false)
+	var nodes: Array = ui.screen.find_children("*", "Control", true, false) + ui._overlays.find_children("*", "Control", true, false) \
+		+ ui.coach.find_children("*", "Control", true, false)
 	if ui.title_bar.visible:
 		nodes += ui.title_bar.find_children("*", "Control", true, false)
 	# Every screen has the menu button, in the same place.
@@ -1743,3 +1756,295 @@ func _divert_walk(where: String) -> void:
 	ui.play._input(ev)
 	_ok(deck.pile.refusal_text() == "", "%s: a press anywhere takes it off" % where)
 	await _settle()
+
+
+# ---------------------------------------------------------------- lessons (specs/017)
+
+## Learn to Play through the real screens (contracts/coach-mark.md "UI check
+## invariants", contracts/tutorial-flow.md): the first Play's offer; each lesson played
+## by the presses a player makes, one wrong move in each refused as a Lesson card;
+## every message inside the view with its target lit; the summary, the list, resuming,
+## and nothing ever recorded.
+func _lessons_walk(where: String, reduced := false) -> void:
+	ui._close_overlays()
+	if not reduced:
+		await _first_launch_offer(where)
+	var records_before: int = HistoryStore.records.size()
+	var last_before: Dictionary = Settings.last_options.duplicate()
+	Settings.lessons = []
+	Settings.tutorial_done = false
+	for i in Lessons.count():
+		if reduced and i != 1:
+			continue
+		await _play_lesson(i, "%s lesson %d" % [where, i + 1])
+	if reduced:
+		ui.dispatch({"type": "lesson_leave"})
+		await _settle()
+		return
+	_ok(Settings.lessons == Lessons.ids(), "%s: every lesson is marked finished, %s" % [where, str(Settings.lessons)])
+	_ok(Settings.last_options == last_before, "%s: the lessons leave the last game's options alone" % where)
+	# The summary, then out.
+	ui.dispatch({"type": "lesson_finish"})
+	await _settle()
+	_ok(Settings.tutorial_done and ui.coach.visible, "%s: Finish shows the summary and completes the tutorial" % where)
+	_inspect_screen("%s summary" % where)
+	ui.dispatch({"type": "lesson_leave"})
+	await _settle()
+	_ok(ui.screen.get_script() == TitleScreen and not ui.coach.visible, "%s: Leave goes to the landing page" % where)
+	# The list: all six Done, any replayed, leaving half way keeps the mark.
+	ui.dispatch({"type": "lessons"})
+	await _settle()
+	_ok(ui.screen.get_script() == LessonsScreen, "%s: Learn to Play opens the list once a lesson is done" % where)
+	_inspect_screen("%s lesson list" % where)
+	var tiles: Dictionary = ui.screen._tiles
+	_ok(tiles.size() == 6 and tiles.values().all(func(b): return b.text.contains("Done") and not b.disabled), "%s: six lessons, all Done and open" % where)
+	ui.dispatch({"type": "lesson", "index": 3})
+	await _settle()
+	_ok(ui.tutorial != null and ui.lesson_index == 3, "%s: a finished lesson can be played again" % where)
+	ui.dispatch({"type": "lesson_leave"})
+	await _settle()
+	_ok(Settings.lessons.size() == 6, "%s: leaving a replay half way keeps every mark" % where)
+	await _replay_first_lesson(where)
+	# Resuming: two done, the third next, the rest not yet open.
+	Settings.lessons = ["setting_out", "victory"]
+	ui.dispatch({"type": "lessons"})
+	await _settle()
+	_inspect_screen("%s lesson list, two done" % where)
+	_ok(ui.screen.continue_button.text == "Continue: Lesson 3", "%s: Continue is the first unfinished lesson" % where)
+	for i in 6:
+		var b: Button = ui.screen._tiles["lesson:%d" % i]
+		_ok(b.disabled == (i > 2), "%s: lesson %d open is %s" % [where, i + 1, str(not b.disabled)])
+	ui.dispatch({"type": "lesson", "index": 4})
+	await _settle()
+	_ok(ui.tutorial == null, "%s: a lesson not yet open does not start" % where)
+	ui.dispatch({"type": "to_title"})
+	await _settle()
+	_ok(HistoryStore.records.size() == records_before, "%s: no lesson was recorded" % where)
+	_ok(not FileAccess.file_exists(HISTORY_DIR + HistoryStore.MARKER), "%s: no lesson left a game in progress" % where)
+
+
+## Lesson 1 again from the list, in real time with nothing settled by hand (owner
+## report: no message showed and Continue could not be pressed, as a glide begun
+## during the fade in left the mark see-through, its dimming still catching presses).
+func _replay_first_lesson(where: String) -> void:
+	ui.dispatch({"type": "lessons"})
+	await _settle()
+	ui.dispatch({"type": "lesson", "index": 0})
+	await create_timer(T.COACH_FADE + T.MOVE + 0.2).timeout
+	_ok(ui.screen.get_script() == DragonScreen and ui.coach.visible and ui.coach.modulate.a > 0.99,
+		"%s replay: lesson 1 shows its first message (alpha %.2f)" % [where, ui.coach.modulate.a])
+	ui.coach.next.emit()
+	await create_timer(T.COACH_FADE + T.MOVE + 0.2).timeout
+	_ok(ui.coach.modulate.a > 0.99 and ui.coach._dims.all(func(d): return not d.visible), "%s replay: the Continue step shows, nothing dimmed" % where)
+	_ok(ui.coach.pressed.size() == 1 and ui.coach.pressed[0] == ui.screen._next.get_global_rect(), "%s replay: Continue is rimmed" % where)
+	_ok(not ui.screen._next.disabled, "%s replay: Continue can be pressed" % where)
+	ui.screen._next.pressed.emit()
+	await _settle()
+	_ok(ui.screen == ui.play and ui.game.phase == "setup", "%s replay: Continue goes on to the setup table" % where)
+	ui.dispatch({"type": "lesson_leave"})
+	await _settle()
+
+
+## The first Play with nothing played and no lesson begun offers the lessons, once.
+func _first_launch_offer(where: String) -> void:
+	# Nothing ever played: the walks before this one have recorded games.
+	_clear_history()
+	Settings.lessons = []
+	Settings.tutorial_offered = false
+	ui._show_title()
+	await _settle()
+	ui.screen._play()
+	await _settle()
+	var offer: Array = ui._overlays.get_children().filter(func(o): return o.get_script() == ConfirmDialog)
+	_ok(offer.size() == 1, "%s: the first Play offers the lessons" % where)
+	_inspect_screen("%s first-launch offer" % where)
+	ui._close_overlays()
+	await _settle()
+	_ok(Settings.tutorial_offered, "%s: the offer is made once" % where)
+	ui._show_title()
+	await _settle()
+	ui.screen._play()
+	await _settle()
+	_ok(ui.screen.get_script() == DragonScreen and ui._overlays.get_child_count() == 0, "%s: the second Play goes to the dragons" % where)
+	ui._show_title()
+	await _settle()
+
+
+## One lesson from its start to its end, as a player plays it.
+func _play_lesson(i: int, where: String) -> void:
+	ui.start_lesson(i)
+	await _settle()
+	var wrong_done := false
+	var guard := 0
+	while ui.tutorial != null and not ui.tutorial.finished() and guard < 60:
+		guard += 1
+		await _settle()
+		if ui.tutorial == null or ui.tutorial.finished():
+			break
+		var s: Dictionary = ui.tutorial.step()
+		var at := "%s step %d (%s)" % [where, ui.tutorial.index + 1, s.wait]
+		_coach_checks(at, s)
+		var e: Dictionary = s.get("expect", {})
+		if i == 1 and ui.tutorial.index == 2:
+			await _lesson_reading(at)
+		match s.wait:
+			"next":
+				ui.coach.next.emit()
+			"dragon":
+				_ok(ui.screen.get_script() == DragonScreen and ui.screen.lesson, "%s: the dragon screen in lesson mode" % at)
+				for id in ui.screen.ordered_ids():
+					_ok(ui.screen.is_locked(id) == (id != "rodving"), "%s: only Rodving can be chosen (%s)" % [at, id])
+					if id != "rodving":
+						_ok(ui.screen._flavours[id].text == DragonScreen.LESSON_LINE, "%s: %s says why it is locked" % [at, id])
+				ui.screen._next.pressed.emit()
+				await _settle()
+				# FR-009: no difficulty screen, no alternate rule.
+				_ok(ui.screen == ui.play and ui.game.phase == "setup", "%s: Continue goes straight to the setup table" % at)
+				_ok(not ui.game.options.get("cavalier", false) and not ui.game.options.get("glass_cannon", false), "%s: no alternate rule" % at)
+			"setup", "soak":
+				if not wrong_done:
+					wrong_done = true
+					var pool: Array = ui.game.setup_offer if ui.game.phase == "setup" else ui.game.hand
+					var wrong: String = pool.filter(func(id): return not e.picks.has(id) and ui.vs.cards.get(id, {}).get("eligible", true))[0]
+					ui.dispatch({"type": "card", "id": wrong})
+					ui.dispatch({"type": "primary"})
+					await _settle()
+					await _refused(at)
+					ui.dispatch({"type": "card", "id": wrong})
+				for id in e.picks:
+					ui.dispatch({"type": "card", "id": id})
+				ui.dispatch({"type": "primary"})
+			"arrange":
+				# Swap the cards into the places asked for: tap one, then the other.
+				for key in e.places:
+					var want: String = e.places[key]
+					var there = ui._lesson_places().get(key)
+					if there != want:
+						ui.dispatch({"type": "card", "id": want})
+						ui.dispatch({"type": "card", "id": there})
+						await _settle()
+				_ok(ui.tutorial.step() != s, "%s: the arrangement moves the lesson on" % at)
+			"play":
+				if not wrong_done:
+					wrong_done = true
+					var a: Dictionary = ui.draft.to_action()
+					# Element and Boost traded: a different Action Set, held back.
+					ui.dispatch({"type": "card", "id": a.element})
+					ui.dispatch({"type": "card", "id": a.boost})
+					ui.dispatch({"type": "primary"})
+					await _settle()
+					await _refused(at)
+					ui.dispatch({"type": "card", "id": a.boost})
+					ui.dispatch({"type": "card", "id": a.element})
+					await _settle()
+				if ui.vs.sets[0].get("show_boost_to", false):
+					ui.dispatch({"type": "set_boost_to", "set": 0, "to": e.boost_to})
+				ui.dispatch({"type": "primary"})
+			"upgrade":
+				if e.has("picks") and not wrong_done:
+					wrong_done = true
+					var wrong: String = ui.game.hand.filter(func(id): return not e.picks.has(id) and ui.vs.cards[id].get("can_raise", false))[0]
+					ui.dispatch({"type": "card", "id": wrong})
+					ui.dispatch({"type": "primary"})
+					await _settle()
+					await _refused(at)
+					var tries := 0
+					while ui.draft.picks.has(wrong) and tries < 5:
+						tries += 1
+						ui.dispatch({"type": "card", "id": wrong})
+				for id in e.get("picks", []):
+					ui.dispatch({"type": "card", "id": id})
+				ui.dispatch({"type": "primary"})
+			"fuse_begin":
+				ui.dispatch({"type": "action", "id": "fuse"})
+			"fuse_element":
+				ui.dispatch({"type": "card", "id": e.top})
+				ui.dispatch({"type": "card", "id": e.bottom})
+				await _settle()
+				# The picker springs open.
+				await create_timer(T.BASE + 0.5).timeout
+				_coach_checks(at + " picker open", s)
+				ui.dispatch({"type": "fuse_element", "element": "water"})
+				await _settle()
+				await _refused(at)
+				ui.dispatch({"type": "fuse_element", "element": e.element})
+			"sequence":
+				pass
+		await _settle()
+	_ok(ui.tutorial != null and ui.tutorial.finished(), "%s: played to its end" % where)
+	_ok(Settings.lessons.has(Lessons.lesson(i).id), "%s: marked finished" % where)
+	_ok(ui.coach.visible, "%s: the lesson-complete choice shows" % where)
+	_inspect_screen("%s complete" % where)
+	match i:
+		1:
+			_ok(ui.game.cards["DOE-A10"].level == 3 and ui.game.hand.size() == 4, "%s: Rain of Blood Upgraded, the Hand drawn up" % where)
+		2:
+			_ok(ui.game.phase == "challenge", "%s: the Journey crossed" % where)
+		3:
+			_ok(ui.game.cards["DOE-A06"].level == 1, "%s: Fleet Footed Soaked the damage" % where)
+		4:
+			_ok(ui.game.discard.has("DOE-A02") and ui.game.discard.has("DOE-A03"), "%s: both Fused cards discarded" % where)
+		5:
+			_ok(ui.game.region == 2 and ui.game.hand.size() == 4 and ui.game.deck.size() == 12, "%s: Region 2 dealt" % where)
+
+
+## A message being read (US2): nothing under the dimming can be pressed; Back shows
+## the message before with its light; a term opens the Glossary over the mark, which
+## is still there when it closes.
+func _lesson_reading(at: String) -> void:
+	_ok(ui.coach._dims.all(func(d): return d.visible and d.mouse_filter == Control.MOUSE_FILTER_STOP), "%s: nothing under a message being read can be pressed" % at)
+	var text: String = ui.coach._text.text
+	ui.coach.back.emit()
+	await _settle()
+	ui.coach.settle()
+	_ok(ui.tutorial.index == 1 and ui.coach.lit == ui._coach_rect(ui.tutorial.step().target), "%s: Back shows the message before, lit as it was" % at)
+	ui.coach.next.emit()
+	await _settle()
+	_ok(ui.coach._text.text == text, "%s: and Next comes back" % at)
+	ui.coach.term.emit("key_card", Rect2(ui.coach.bubble.get_global_rect().get_center(), Vector2.ZERO))
+	await _settle()
+	_ok(ui._overlays.get_children().any(func(o): return o.get_script() == GlossaryPopover), "%s: a term opens its Glossary entry" % at)
+	_inspect_screen(at + " glossary over the lesson")
+	ui._close_overlays()
+	await _settle()
+	_ok(ui.coach.visible and ui.coach._text.text == text, "%s: the same message is there when it closes" % at)
+
+
+func _refused(at: String) -> void:
+	var pile = ui.play.deck.pile if ui.play != null else null
+	_ok(pile != null and pile.refusal_text() != "", "%s: the wrong move is refused on the Deck" % at)
+	if pile != null:
+		ui.play.deck.clear_refusal()
+	await _settle()
+
+
+## The coach mark of a step at rest: shown, inside the view and the safe area, its
+## target lit and the message clear of it.
+func _coach_checks(at: String, s: Dictionary) -> void:
+	if s.wait == "sequence":
+		return
+	var coach = ui.coach
+	coach.settle()
+	_ok(coach.visible, "%s: the message shows" % at)
+	if not coach.visible:
+		return
+	var view := Rect2(Vector2.ZERO, Vector2(host.size)).grow(1.0)
+	var bubble: Rect2 = coach.bubble.get_global_rect()
+	_ok(view.encloses(bubble), "%s: the message at %s is inside the view" % [at, str(bubble)])
+	if not ui.plan.undersized:
+		_ok(ui.plan.safe.grow(1.0).encloses(bubble), "%s: the message at %s is inside the safe area" % [at, str(bubble)])
+	var target: Rect2 = ui._coach_rect(s.target)
+	_ok(coach.lit == target, "%s: the lit rect is the target's" % at)
+	if s.target != "screen" and not (s.target == "picker" and target == Rect2()):
+		_ok(target.size.x > 0 and target.size.y > 0, "%s: %s is there to light" % [at, s.target])
+		_ok(view.encloses(target), "%s: %s at %s is inside the view" % [at, s.target, str(target)])
+		_ok(not bubble.intersects(target.grow(T.COACH_PAD - 1.0)), "%s: the message at %s covers %s at %s" % [at, str(bubble), s.target, str(target)])
+	if s.wait != "next":
+		# Acting: nothing dimmed, the button to press rimmed and left clear.
+		_ok(coach._dims.all(func(d): return not d.visible), "%s: nothing is dimmed while the player acts" % at)
+		if ["dragon", "setup", "play", "soak", "upgrade"].has(s.wait) and s.target != "primary":
+			_ok(coach.pressed.size() == 1, "%s: the button to press is rimmed" % at)
+		for p in coach.pressed:
+			_ok(not bubble.intersects((p as Rect2).grow(T.COACH_PAD - 1.0)), "%s: the message at %s covers the button to press at %s" % [at, str(bubble), str(p)])
+		_ok(not coach._buttons.visible, "%s: the message has no button of its own" % at)
+	_inspect_screen(at)

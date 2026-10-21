@@ -138,6 +138,7 @@ about 8 seconds and is fine whenever the right file is unclear.
 | Theme, colours, stone | `card_contrast stone_contrast` |
 | A widget `ui/widgets/<name>.gd` | its own `test_<name>.gd` where one exists (`deck_stack`, `region_card`, `region_panel`, `note_pile`, `stat_chip`, `preview_panel`, `place_labels`, `card_face_layout`) |
 | `ui/model/art.gd`, `ui/fx/creature.gd`, painted art | `art creature` |
+| Lessons, the coach mark (`ui/model/lessons.gd`, `tutorial.gd`), `Game.stage` | `lessons tutorial game` |
 
 ### UI check walks
 
@@ -154,10 +155,12 @@ about 8 seconds and is fine whenever the right file is unclear.
 | `resize` | Resizing the window mid-turn |
 | `divert` | A Divert taken through the screen, and a refused move's note |
 | `arrange` | Ordering the Hand by tap, swap, drag and keyboard; a lifted card under an overlay; the unspent XP question |
+| `lessons` | Learn to Play: the first Play's offer, all six lessons through the screens (each message and what it lights, one wrong move refused in each), the summary, the list and resuming, nothing recorded |
 
 Pick the walks by what the change touches: a widget on the Deck → `deck skip look`;
 the Hand or card placement → `arrange play`; notes → `notes divert`; a screen or
-overlay → `screens`; card faces and marks → `marks play`.
+overlay → `screens`; card faces and marks → `marks play`; the lessons, the coach mark
+or anything a lesson lights → `lessons`.
 
 ### Reading results
 

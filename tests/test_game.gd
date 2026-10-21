@@ -624,3 +624,91 @@ func test_the_faced_encounter_is_kept_until_the_next_hand() -> void:
 	eq(g.faced.encounter.kind, "journey", "its Encounter")
 	g.finish()
 	eq(g.faced, {}, "cleared once the next Hand is drawn")
+
+
+# --- staging a table (specs/017 research R2) ---
+
+func _rest(used: Array) -> Array:
+	var out := []
+	for id in db.mage_ids():
+		if not used.has(id):
+			out.append(id)
+	out.sort()
+	return out
+
+
+func _lesson_table() -> Dictionary:
+	var hand := ["DOE-A10", "DOE-A14", "DOE-A06", "DOE-A03"]
+	return {"phase": "challenge", "region": 1, "levels": {"DOE-A03": 3},
+		"deck": ["DOE-A05"] + _rest(["DOE-A05"] + hand), "hand": hand, "discard": [], "trash": []}
+
+
+func test_stage_sets_out_a_challenge_table() -> void:
+	var g = Game.new(db, {"seed": 1, "dragon": "rodving"})
+	g.xp = 5
+	g.diverts = 1
+	eq(g.stage(_lesson_table()), "", "accepted")
+	eq(g.deck[0], "DOE-A05", "the Key Card")
+	eq(g.hand, ["DOE-A10", "DOE-A14", "DOE-A06", "DOE-A03"], "hand in dealt order")
+	eq(g.cards["DOE-A03"].level, 3, "a listed Level")
+	eq(g.cards["DOE-A10"].level, 2, "an unlisted card is Level 2")
+	eq(g.phase, "challenge", "phase")
+	eq(g.region, 1, "region")
+	eq(g.xp, 0, "xp reset")
+	eq(g.diverts, 0, "diverts reset")
+	eq(g.encounter().kind, "enemy", "the Key Card's Encounter")
+
+
+func test_stage_sets_out_a_setup_table() -> void:
+	var g = Game.new(db, {"seed": 1, "dragon": "rodving"})
+	var offer := ["DOE-A03", "DOE-A06", "DOE-A10", "DOE-A12", "DOE-A15"]
+	var t := {"phase": "setup", "region": 1, "deck": offer + _rest(offer), "hand": [],
+		"setup_offer": offer, "setup_picks": 1, "setup_level": 3}
+	eq(g.stage(t), "", "accepted")
+	eq(g.phase, "setup", "phase")
+	eq(g.setup_offer, offer, "offer")
+	eq(g.setup_picks, 1, "picks")
+	eq(g.setup_level, 3, "level")
+	eq(g.hand, [], "no hand yet")
+	eq(g.choose_setup_cards(["DOE-A03"]), "", "the pick is accepted")
+	eq(g.cards["DOE-A03"].level, 3, "raised")
+	eq(g.hand.size(), 4, "a Hand is dealt")
+
+
+func test_stage_places_the_rest_in_the_discard_pile() -> void:
+	var g = Game.new(db, {"seed": 1, "dragon": "rodving"})
+	var hand := ["DOE-A05", "DOE-A10", "DOE-A13", "DOE-A01"]
+	var t := {"phase": "challenge", "region": 1, "deck": ["DOE-A09"], "hand": hand, "discard": "rest"}
+	eq(g.stage(t), "", "accepted")
+	eq(g.deck, ["DOE-A09"], "deck")
+	eq(g.discard, _rest(["DOE-A09"] + hand), "the rest, in id order")
+
+
+func test_stage_refuses_a_bad_table_and_changes_nothing() -> void:
+	var bad := []
+	var t := _lesson_table()
+	t.deck = t.deck.slice(0, t.deck.size() - 1)
+	bad.append(["a card missing", t])
+	t = _lesson_table()
+	t.discard = ["DOE-A05"]
+	bad.append(["a card in two piles", t])
+	t = _lesson_table()
+	t.discard = t.deck.slice(0)
+	t.deck = []
+	bad.append(["no Key Card", t])
+	t = _lesson_table()
+	t.hand = t.hand + [t.deck.pop_back()]
+	bad.append(["a Hand of five", t])
+	t = _lesson_table()
+	t.region = 5
+	bad.append(["Region 5", t])
+	t = {"phase": "setup", "region": 1, "deck": _rest(["DOE-A03"]), "hand": [], "discard": [],
+		"trash": ["DOE-A03"], "setup_offer": ["DOE-A03", "DOE-A06"], "setup_picks": 1, "setup_level": 3}
+	bad.append(["an offered card not in the Deck", t])
+	for b in bad:
+		var g = Game.new(db, {"seed": 1, "dragon": "rodving"})
+		var deck: Array = g.deck.duplicate()
+		var hand: Array = g.hand.duplicate()
+		ok(g.stage(b[1]) != "", "refused: " + b[0])
+		eq(g.deck, deck, "deck unchanged: " + b[0])
+		eq(g.hand, hand, "hand unchanged: " + b[0])

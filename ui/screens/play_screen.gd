@@ -313,6 +313,74 @@ func point(anchor: String) -> Vector2:
 	return size / 2.0
 
 
+## The global rect a lesson step lights (specs/017 contracts/coach-mark.md "Target
+## vocabulary"), or an empty rect when there is nothing there to light.
+func coach_rect(target: String) -> Rect2:
+	if target == "deck":
+		return deck.top_rect()
+	if target == "key":
+		# The reading strip under the landed Encounter names it and its Hardship, as
+		# the Key Card's strip did when it rose (tasks T023, the fallback).
+		return _shown(landed.strip)
+	if target == "encounter":
+		return _shown(landed.panel)
+	if target == "hand":
+		return hand_rect()
+	if target == "aim":
+		var r := Rect2()
+		for b in aims.buttons(0):
+			r = _merge(r, _shown(b))
+		return r
+	if target == "primary":
+		return _shown(actions.primary)
+	if target == "picker":
+		return _shown(picker._panel) if picker.visible else Rect2()
+	if target == "soak":
+		return _shown(soak_meter)
+	if target == "xp":
+		return _shown(xp_purse)
+	if target.begins_with("chip:"):
+		return _shown(landed.panel.chip(target.substr(5))) if landed.panel != null else Rect2()
+	if target.begins_with("card:"):
+		var r := Rect2()
+		for id in target.substr(5).split("+"):
+			r = _merge(r, card_rect(id))
+		return r
+	if target.begins_with("ether:"):
+		var v: Control = hand.card(target.substr(6))
+		return v.ether_rect() if v != null and v.visible else Rect2()
+	if target.begins_with("place:"):
+		return labels.label_rect(target.substr(6))
+	if target.begins_with("action:"):
+		return _shown(actions.button(target.substr(7)))
+	return Rect2()
+
+
+## The Hand's well: every place, its label and its card.
+func hand_rect() -> Rect2:
+	return _hand_panel.get_global_rect() if _hand_panel.visible else Rect2()
+
+
+## Where a Hand card rests (its home, not wherever a glide has it now).
+func card_rect(id: String) -> Rect2:
+	var v: Control = hand.card(id)
+	if v == null or not v.visible:
+		return Rect2()
+	return Rect2(hand.global_position + v.home.position, v.home.size)
+
+
+static func _shown(c: Control) -> Rect2:
+	return c.get_global_rect() if c != null and c.is_visible_in_tree() else Rect2()
+
+
+static func _merge(a: Rect2, b: Rect2) -> Rect2:
+	if a.size == Vector2.ZERO:
+		return b
+	if b.size == Vector2.ZERO:
+		return a
+	return a.merge(b)
+
+
 func encounter_node() -> Control:
 	return deck.face_node()
 

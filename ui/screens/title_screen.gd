@@ -1,7 +1,7 @@
 extends Control
 ## The landing page: the game's name cut into a lintel of stone and the story in a
-## line, and below them the ways in: Play on its own row, then How to
-## Play, the Leaderboard and the Glossary. Settings and the History are in
+## line, and below them the ways in: Play and Learn to Play (the lessons,
+## specs/017) on one row, then How to Play, the Leaderboard and the Glossary. Settings and the History are in
 ## the menu, from the title bar. Play leads on to the choice of dragon
 ## (dragon_screen.gd). A flat woodcut tear, The Tear of the story, sits faint behind.
 
@@ -82,10 +82,19 @@ func _build() -> void:
 	_column.add_child(subtitle)
 
 	# Play across the column, then the other ways in side by side beneath it.
+	var first := UI.hbox(T.S)
 	var play := UI.button("Play", "primary")
 	play.custom_minimum_size.y = T.TAP_MIN
+	play.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	play.size_flags_stretch_ratio = 2.0
 	play.pressed.connect(_play)
-	_ways.add_child(play)
+	first.add_child(play)
+	var lessons := UI.button("Learn to Play", "normal")
+	lessons.custom_minimum_size.y = T.TAP_MIN
+	lessons.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lessons.pressed.connect(func(): intent.emit({"type": "lessons"}))
+	first.add_child(lessons)
+	_ways.add_child(first)
 	var ways := UI.hbox(T.S)
 	var learn := UI.button("How to Play", "normal", "book")
 	learn.pressed.connect(func(): intent.emit({"type": "rulebook"}))
@@ -138,4 +147,4 @@ func _cap_height(font: Font, size: int) -> float:
 func _play() -> void:
 	var o := options.duplicate()
 	o.dragon = ""
-	intent.emit({"type": "setup_dragon", "options": o})
+	intent.emit({"type": "setup_dragon", "options": o, "from": "title"})

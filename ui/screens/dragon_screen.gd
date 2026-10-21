@@ -6,6 +6,10 @@ extends Control
 ## the others dimmed but still read. Each figure on a card explains itself on
 ## hover. The page opens with none chosen; Continue, to the difficulty and
 ## alternate rules, waits for a choice. Back returns to the landing page.
+##
+## In a lesson (specs/017, FR-008) only Rodving can be chosen and is chosen already;
+## the others are locked with a line saying why, Continue goes straight to the
+## lesson's setup, and Back leaves the lesson.
 
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
@@ -26,6 +30,9 @@ const RULE := 2
 const TABLE_RADIUS := 8
 ## How bright the flavour of a dragon not chosen is.
 const DIM := Color(0.5, 0.5, 0.55)
+## The lessons' dragon, and what every other dragon says in a lesson.
+const LESSON_DRAGON := "rodving"
+const LESSON_LINE := "The lessons are played against Rodving."
 
 var heading := "Hunt a Dragon"
 var db
@@ -40,14 +47,34 @@ var _table: GridContainer
 var _bottom: Control
 var _layout := Control.new()
 var _content := Rect2(16, 16, 1248, 688)
+## Whether this is Learn to Play's first lesson: Rodving only.
+var lesson := false
 
 
-func setup(card_db, opts: Dictionary) -> void:
+func setup(card_db, opts: Dictionary, in_lesson := false) -> void:
 	db = card_db
 	options = opts.duplicate()
-	if not db.dragon_ids().has(options.get("dragon", "")) or Settings.is_locked(options.dragon):
+	lesson = in_lesson
+	if lesson:
+		options.dragon = LESSON_DRAGON
+	elif not db.dragon_ids().has(options.get("dragon", "")) or Settings.is_locked(options.dragon):
 		options.dragon = ""
 	_build()
+
+
+## Whether a dragon cannot be chosen here: locked, or not the lesson's dragon.
+func is_locked(id: String) -> bool:
+	return id != LESSON_DRAGON if lesson else Settings.is_locked(id)
+
+
+## What a lesson step lights here (specs/017 contracts/coach-mark.md): a dragon's
+## tile, or Continue.
+func coach_rect(target: String) -> Rect2:
+	if _tiles.has(target):
+		return _tiles[target].get_global_rect()
+	if target == "primary" and _next != null:
+		return _next.get_global_rect()
+	return Rect2()
 
 
 func apply_layout(content: Rect2) -> void:
@@ -56,8 +83,11 @@ func apply_layout(content: Rect2) -> void:
 	_layout.size = content.size
 
 
-## Back to the landing page, keeping the dragon chosen.
+## Back to the landing page, keeping the dragon chosen; in a lesson, out of it.
 func back() -> void:
+	if lesson:
+		intent.emit({"type": "lesson_leave"})
+		return
 	intent.emit({"type": "to_title", "options": options.duplicate()})
 
 
@@ -94,13 +124,18 @@ func _build() -> void:
 	for id in ids:
 		var d: Dictionary = db.dragon(id)
 		var tile: Button = DragonPick.make(ViewState.dragon_card_model(d), T.ether(d.early_damage.element))
-		tile.locked = Settings.is_locked(id)
+		tile.locked = is_locked(id)
 		tile.pressed.connect(_choose.bind(id))
 		table.add_child(_cell(tile, ids.find(id), 0, 0))
 		_tiles["dragon:" + id] = tile
 	for id in ids:
 		# A locked dragon says instead what unlocks it.
-		var line := UI.label(Flavor.unlock(id) if Settings.is_locked(id) else Flavor.line(id), T.LABEL, T.INK_MUTED, true)
+		var words: String = Flavor.line(id)
+		if lesson and is_locked(id):
+			words = LESSON_LINE
+		elif is_locked(id):
+			words = Flavor.unlock(id)
+		var line := UI.label(words, T.LABEL, T.INK_MUTED, true)
 		line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		line.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 		line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -118,7 +153,11 @@ func _build() -> void:
 	bottom.add_child(UI.spacer())
 	_next = UI.button("Continue", "primary")
 	_next.custom_minimum_size.x = 240
-	_next.pressed.connect(func(): intent.emit({"type": "setup_rules", "options": options.duplicate()}))
+	_next.pressed.connect(func():
+		if lesson:
+			intent.emit({"type": "lesson_setup", "options": options.duplicate()})
+		else:
+			intent.emit({"type": "setup_rules", "options": options.duplicate()}))
 	bottom.add_child(_next)
 	root.add_child(bottom)
 	_refresh()
@@ -187,7 +226,7 @@ func _rank(id: String) -> int:
 
 ## Choosing a card changes only the marks, so focus stays on the card.
 func _choose(id: String) -> void:
-	if Settings.is_locked(id):
+	if is_locked(id):
 		return
 	if id == options.dragon:
 		return

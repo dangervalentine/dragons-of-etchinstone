@@ -13,7 +13,7 @@
 #   tools/test.sh ui [full] [walk ...]
 #                                 the UI check only, or only the walks named:
 #                                 notes screens marks play deck skip look ending
-#                                 resize divert arrange
+#                                 resize divert arrange lessons
 cd "$(dirname "$0")/.." || exit 1
 
 errors() {
