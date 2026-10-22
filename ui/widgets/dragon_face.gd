@@ -2,8 +2,8 @@ extends "res://ui/widgets/face_frame.gd"
 ## The dragon in the Final Battle. On the Final Journey only the road to its lair
 ## shows (art/painted/roads/), the ladder of Move totals and the Time Penalty each
 ## leaves laid over it. When the Final Enemy begins the road gives way to the lair
-## and the dragon comes up whole in its upper half, its battle figures and the ladder
-## of Attack totals laid over the lower.
+## and the dragon comes up whole in its lower half, standing on the lair's floor, its
+## battle figures and the ladder of Attack totals laid over the sky above it.
 
 const StatChip = preload("res://ui/widgets/stat_chip.gd")
 const DragonStats = preload("res://ui/widgets/dragon_stats.gd")
@@ -260,10 +260,10 @@ func _fill(room: Rect2) -> void:
 
 
 ## Lay out the picture and the figures; `crossing` animates the turn from the road to
-## the dragon. The dragon has the top half and the figures lie over the other: the
-## Move ladder over the road's sky, with no dragon yet, then the battle figures
-## below the dragon once it is faced. The silhouette road, where there is no painted
-## one, has the bottom half and fades in battle.
+## the dragon. The figures always lie over the top half, the sky: the Move ladder
+## over the road, with no dragon yet, then the battle figures once it is faced. The
+## dragon stands in the bottom half, its feet on the lair's floor. The silhouette
+## road, where there is no painted one, has the bottom half too and fades in battle.
 func _place(crossing: bool) -> void:
 	var w := _stage.size.x
 	var h := _stage.size.y
@@ -273,9 +273,9 @@ func _place(crossing: bool) -> void:
 	var half := floorf(h / 2.0)
 	var top := Rect2(0, 0, w, half)
 	var bottom := Rect2(0, half, w, h - half)
-	var beast := _square_in(top)
+	var beast := _square_in(bottom)
 	var road := _square_in(bottom)
-	var panel := (top if journey else bottom).grow_individual(-INSET, -T.S, -INSET, -T.S)
+	var panel := top.grow_individual(-INSET, -T.S, -INSET, -T.S)
 	_fill(panel)
 	_fit_ladder(panel)
 	if _tween != null and _tween.is_valid():
@@ -298,7 +298,7 @@ func _place(crossing: bool) -> void:
 		_panel.modulate.a = 1.0
 		return
 	# The dragon is faced: the figures fade off the road, the road gives way to the
-	# lair, the dragon comes up in it, and the battle figures settle below.
+	# lair, the dragon comes up in it, and the battle figures settle in the sky.
 	_panel.modulate.a = 0.0
 	_panel.position = panel.position
 	_tween = create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
