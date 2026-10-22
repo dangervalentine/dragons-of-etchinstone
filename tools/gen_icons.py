@@ -51,8 +51,11 @@ def ring(cx, cy, outer, inner):
 
 def badge(cutout):
     """A Hardship, enemy Ability or Journey Peril: a solid disc with its picture cut
-    out of it, as printed. Shapes nested inside a cut-out are solid again."""
-    return path(DISC + " " + cutout)
+    out of it, as printed, and the picture filled black instead of left clear so it
+    reads as white on black over any card art. Tinting leaves the black alone. The
+    black disc sits just inside the white rim so no dark fringe shows at the edge.
+    Shapes nested inside a cut-out are solid again."""
+    return '<circle cx="24" cy="24" r="21" fill="#000000"/>' + path(DISC + " " + cutout)
 
 
 def burst(cx, cy, outer, inner, points=8):
