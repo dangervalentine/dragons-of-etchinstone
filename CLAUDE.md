@@ -19,7 +19,7 @@ the Bash tool, not PowerShell.
 godot --path .                                        # run the game
 tools/test.sh [full | unit [name ...] | ui [full] [walk ...]]   # tests (see below)
 godot --path . -s tools/shot.gd -- build/screenshots/matrix [size ...]  # screenshots at every window size
-scripts/install.sh [android|ios|web|all]              # export, install, launch, screenshot (macOS paths)
+scripts/install.sh [android|ios|web|all]              # export, install, launch, screenshot (macOS, or Windows under Git Bash)
 python3 tools/gen_cards.py data/cards.json            # regenerate card data (checks consistency too)
 python3 tools/gen_icons.py                            # regenerate art/icons/
 ```

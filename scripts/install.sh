@@ -1,10 +1,13 @@
 #!/bin/sh
-# Build the game and put it on the running Android emulator and/or iOS simulator,
-# or serve the web build locally.
+# Build the game and put it on the running Android emulator or connected phone
+# and/or iOS simulator, or serve the web build locally. Runs on macOS, and on
+# Windows under Git Bash (Android and web only; iOS needs Xcode).
 #
 #   install.sh [android|ios|web|all]      (default: all = android + ios + web)
 #
 # Environment:
+#   ANDROID_HOME    Android SDK (default: ~/Library/Android/sdk on macOS,
+#                   %LOCALAPPDATA%\Android\Sdk on Windows)
 #   ANDROID_SERIAL  adb device to use (default: the first one that is online)
 #   IOS_SIM         simulator UDID to use (default: the first booted iPhone)
 #   WEB_PORT        port for the local web server (default: 8765)
@@ -16,9 +19,26 @@ APP_ID="com.dangervalentine.etchinstone"
 NAME="dragons-of-etchinstone"
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT" || exit 1
-export ANDROID_HOME="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
-export JAVA_HOME="${JAVA_HOME:-$(/usr/libexec/java_home -v 17 2>/dev/null)}"
-ADB="$ANDROID_HOME/platform-tools/adb"
+if [ -z "$ANDROID_HOME" ]; then
+	if [ -n "$LOCALAPPDATA" ]; then
+		ANDROID_HOME="$LOCALAPPDATA/Android/Sdk"
+	else
+		ANDROID_HOME="$HOME/Library/Android/sdk"
+	fi
+fi
+# Windows sets it as C:\...; the shell wants /c/...
+command -v cygpath > /dev/null 2>&1 && ANDROID_HOME=$(cygpath -u "$ANDROID_HOME")
+export ANDROID_HOME
+if [ -z "$JAVA_HOME" ] && [ -x /usr/libexec/java_home ]; then
+	JAVA_HOME=$(/usr/libexec/java_home -v 17 2>/dev/null)
+fi
+export JAVA_HOME
+# The adb on PATH first: a second adb of another build restarts the adb server, which
+# drops a phone connected over wireless debugging.
+ADB=$(command -v adb 2>/dev/null || echo "$ANDROID_HOME/platform-tools/adb")
+# Windows has a python3 that only opens the Microsoft Store.
+PYTHON=python3
+python3 -c "" > /dev/null 2>&1 || PYTHON=python
 SHOTS="$ROOT/build/screenshots"
 LOGS="$ROOT/build/logs"
 mkdir -p "$SHOTS" "$LOGS"
@@ -30,8 +50,15 @@ export_preset() {
 	godot --headless --path "$ROOT" --export-debug "$1" > "$LOGS/export-$2.log" 2>&1
 }
 
+# The devices adb sees. The server is started on its own first: on Windows, a server
+# started by a piped command keeps the pipe open, and the reader waits for ever.
+adb_devices() {
+	"$ADB" start-server > /dev/null 2>&1
+	"$ADB" devices 2> /dev/null
+}
+
 android() {
-	serial="${ANDROID_SERIAL:-$("$ADB" devices | awk 'NR>1 && $2=="device" {print $1; exit}')}"
+	serial="${ANDROID_SERIAL:-$(adb_devices | awk 'NR>1 && $2=="device" {print $1; exit}')}"
 	if [ -z "$serial" ]; then
 		echo "SKIP android: no emulator or device is online. Available emulators:"
 		"$ANDROID_HOME/emulator/emulator" -list-avds 2>/dev/null | sed 's/^/    /'
@@ -45,6 +72,17 @@ android() {
 		echo "FAIL android: export produced no APK (see build/logs/export-android.log)"
 		return 1
 	fi
+	# Godot's export runs the SDK's adb, which can restart the adb server; a phone on
+	# wireless debugging takes a few seconds to be found again.
+	tries=0
+	until adb_devices | awk -v s="$serial" '$1==s && $2=="device" {f=1} END {exit !f}'; do
+		tries=$((tries + 1))
+		if [ "$tries" -ge 30 ]; then
+			echo "FAIL android: $serial went offline during the export and did not come back"
+			return 1
+		fi
+		sleep 1
+	done
 	if ! "$ADB" -s "$serial" install -r "$apk" > "$LOGS/install-android.log" 2>&1; then
 		echo "FAIL android: install on $serial failed (see build/logs/install-android.log)"
 		return 1
@@ -61,6 +99,10 @@ android() {
 }
 
 ios() {
+	if ! command -v xcrun > /dev/null 2>&1; then
+		echo "SKIP ios: needs Xcode, which this machine does not have"
+		return 1
+	fi
 	sim="${IOS_SIM:-$(xcrun simctl list devices booted | awk -F '[()]' '/iPhone/ {print $(NF-3); exit}')}"
 	if [ -z "$sim" ]; then
 		echo "SKIP ios: no iPhone simulator is booted. Available simulators:"
@@ -117,8 +159,8 @@ web() {
 		return 1
 	fi
 	# Serve without caching, so a reload always shows the build just exported.
-	if ! lsof -nP -iTCP:"$port" -sTCP:LISTEN > /dev/null 2>&1; then
-		nohup python3 -I -c '
+	if ! curl -fs -o /dev/null "http://127.0.0.1:$port/index.pck"; then
+		nohup "$PYTHON" -I -c '
 import http.server, sys
 class H(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):
