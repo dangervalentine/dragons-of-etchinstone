@@ -1,9 +1,9 @@
 extends "res://ui/widgets/face_frame.gd"
-## The dragon in the Final Battle: the dragon above, the road to it below, each in
-## half the face. On the Final Journey the road is faced and the dragon waits faint
-## above, the ladder of Move totals and the Time Penalty each leaves laid over it.
-## When the Final Enemy begins the dragon comes up solid and the road fades, its
-## battle figures and the ladder of Attack totals laid over the road.
+## The dragon in the Final Battle. On the Final Journey only the road to its lair
+## shows (art/painted/roads/), the ladder of Move totals and the Time Penalty each
+## leaves laid over it. When the Final Enemy begins the road gives way to the lair
+## and the dragon comes up whole in its upper half, its battle figures and the ladder
+## of Attack totals laid over the lower.
 
 const StatChip = preload("res://ui/widgets/stat_chip.gd")
 const DragonStats = preload("res://ui/widgets/dragon_stats.gd")
@@ -19,7 +19,7 @@ const CROSSING := 0.9
 const NAME_MIN := 16
 ## How far the figures keep in from the face's sides.
 const INSET := 2 * T.M
-## How strongly the picture not faced shows: the dragon on the road, the road in battle.
+## How strongly the silhouette road shows in battle, where there is no painted one.
 const FAINT := 0.35
 
 var _shown := {}
@@ -30,6 +30,12 @@ var _stage := Control.new()
 var _scene := Control.new()
 var _road := Creature.new()
 var _beast := Creature.new()
+## Painted behind the whole field: the road to this dragon's lair on the Final Journey
+## (art/painted/roads/), and the lair itself once the dragon is faced
+## (art/painted/lairs/, the Dragon Card's). Where there is no road picture the
+## silhouette road stands in.
+var _approach := _backdrop_rect()
+var _lair := _backdrop_rect()
 var _panel := VBoxContainer.new()
 ## The lines the panel can do without, in the order they go when it runs short.
 var _spare: Array = []
@@ -40,6 +46,10 @@ var _tween: Tween
 
 func _init() -> void:
 	super._init()
+	# Over the Ether pattern, under everything drawn on the face.
+	for b in [_lair, _approach]:
+		add_child(b)
+		move_child(b, _field.get_index() + 1)
 	_stage.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_stage.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_scene.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -111,8 +121,12 @@ func _build(enc: Dictionary) -> void:
 		band.add_child(UI.icon_rect("sigil_" + d.id, 44, T.ether_ink(enc.element)))
 		body.add_child(_stage)
 		_road.setup(enc.scene, Color(colour.lightened(0.75), 1.0), "", false)
-		_beast.setup(enc.art, Color(colour.lightened(0.4), 0.9), enc.element)
-	_road.visible = true
+		# The full-body picture, whole and uncut (the ending screen's).
+		var whole: String = enc.art + "-full"
+		_beast.setup(whole if UI.is_painted(whole) else enc.art, Color(colour.lightened(0.4), 0.9), enc.element, false)
+		_approach.texture = UI.painted("roads/" + enc.art)
+		_lair.texture = UI.painted("lairs/" + enc.art)
+	_road.visible = _approach.texture == null
 
 	for c in _panel.get_children():
 		_panel.remove_child(c)
@@ -170,6 +184,12 @@ func _build(enc: Dictionary) -> void:
 		rows.reverse()
 	for r in rows:
 		_panel.add_child(r)
+	# The lines laid straight on the painted road or lair, edged dark so a pale sky
+	# never swallows them; the rungs carry their own dark boxes.
+	for c in _panel.get_children():
+		if c is Label:
+			c.add_theme_color_override("font_outline_color", Color(T.BG_BASE, 0.9))
+			c.add_theme_constant_override("outline_size", 8)
 	# Every size in the panel as built, for _grow() to scale from.
 	for c in _sized(_panel):
 		c.set_meta("base_min", c.custom_minimum_size)
@@ -240,10 +260,10 @@ func _fill(room: Rect2) -> void:
 
 
 ## Lay out the picture and the figures; `crossing` animates the turn from the road to
-## the dragon. The dragon always has the top half and the road the bottom, each as
-## large as its half holds. Whichever is not faced is faded, and the figures lie
-## over it: the Move ladder over the faint dragon on the road, the battle figures
-## over the faint road once the dragon is faced.
+## the dragon. The dragon has the top half and the figures lie over the other: the
+## Move ladder over the road's sky, with no dragon yet, then the battle figures
+## below the dragon once it is faced. The silhouette road, where there is no painted
+## one, has the bottom half and fades in battle.
 func _place(crossing: bool) -> void:
 	var w := _stage.size.x
 	var h := _stage.size.y
@@ -264,24 +284,29 @@ func _place(crossing: bool) -> void:
 	_scene.size = Vector2(w, h)
 	_road.position = road.position
 	_road.size = road.size
-	_road.visible = true
+	_road.visible = _approach.texture == null
 	_beast.position = beast.position
 	_beast.size = beast.size
 	_beast.crop = Art.FULL
 	_panel.size = panel.size
 	if not crossing:
 		_panel.position = panel.position
-		_beast.modulate.a = FAINT if journey else 1.0
+		_beast.modulate.a = 0.0 if journey else 1.0
 		_road.modulate.a = 1.0 if journey else FAINT
+		_approach.modulate.a = 1.0 if journey else 0.0
+		_lair.modulate.a = 0.0 if journey else 1.0
 		_panel.modulate.a = 1.0
 		return
-	# The dragon is faced: the figures fade off the road, the road dims, the dragon
-	# comes up solid, and the battle figures settle over the road.
+	# The dragon is faced: the figures fade off the road, the road gives way to the
+	# lair, the dragon comes up in it, and the battle figures settle below.
 	_panel.modulate.a = 0.0
 	_panel.position = panel.position
 	_tween = create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
 	_tween.tween_property(_beast, "modulate:a", 1.0, CROSSING)
 	_tween.tween_property(_road, "modulate:a", FAINT, CROSSING * 0.6)
+	# The road gives way to the lair.
+	_tween.tween_property(_lair, "modulate:a", 1.0, CROSSING)
+	_tween.tween_property(_approach, "modulate:a", 0.0, CROSSING)
 	_tween.tween_property(_panel, "modulate:a", 1.0, CROSSING * 0.5).set_delay(CROSSING * 0.6)
 
 
@@ -350,3 +375,20 @@ func _chip(opts: Dictionary) -> Control:
 	var c: Control = StatChip.make(opts)
 	c.help.connect(func(id, source): intent.emit({"type": "help", "id": id, "source": source}))
 	return c
+
+
+static func _backdrop_rect() -> TextureRect:
+	var t := TextureRect.new()
+	t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	t.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return t
+
+
+## The painted backdrops cover the field under the band.
+func _fit() -> void:
+	super._fit()
+	var field := Rect2(EDGE, BAND_H, size.x - 2 * EDGE, size.y - BAND_H - EDGE)
+	for b in [_approach, _lair]:
+		b.position = field.position
+		b.size = field.size

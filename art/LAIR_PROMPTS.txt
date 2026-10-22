@@ -172,3 +172,83 @@ High in the sky above a volcanic land at dusk: a wide, open sky of a few large, 
 
 vuurhast:
 A wide, flat plateau of bare stone on a mountain summit in a storm: the ground is one broad, smooth, level slab of pale grey rock that fills the whole lower third of the picture from edge to edge, flat and empty, marked only by a few faint cracks. Far behind it, small and distant, tall narrow rock peaks rise at the left and right edges under low banks of storm cloud, drawn as a few large, smooth shapes across a pale slate-grey sky that is lightest in the middle. Amber-orange sparks and arcs crackle through the distant clouds, with one forked lightning bolt striking a far peak. A flat vector illustration of an empty landscape seen from the side, made as the background of a game card: minimalistic graphic design in flat colour, made of big, simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at most a single hard-edged darker shade tone. A limited, muted palette of a few close tones, low in contrast, with the Ether's colour as the only bright one. A tall portrait composition seen from a low eye level: the horizon sits about a third of the way up the picture, and everything above it is one wide, calm, plain area that is lightest in the middle and darkens slowly toward the top corners. The whole lower third of the picture is a broad, flat, level open floor, plain and empty from edge to edge, and the scene's landmarks stand only far behind it, small in the distance at the left and right edges, no higher than the middle of the picture. The place is empty and uninhabited, silent and ancient.
+
+
+APPROACHES (the Final Journey: the road to each dragon's lair)
+=============================================================
+Drawn behind the Final Journey on the dragon face (ui/widgets/dragon_face.gd), where
+the lair above takes over for the Final Enemy. The Move ladder lies over the top
+half, so that half is plain sky; the faint dragon waits there too. 832 x 1216 (the
+face's field is about 0.65 : 1). Each prompt is SUBJECT + ETHER + APPROACH STYLE.
+
+APPROACH STYLE
+--------------
+A flat vector illustration of an empty landscape seen from the side, made as the
+background of a game card: minimalistic graphic design in flat colour, made of big,
+simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at
+most a single hard-edged darker shade tone. A limited, muted palette of soft middle
+tones, close together and low in contrast, with the Ether's colour as the only bright
+one. A tall portrait composition: a road begins wide in the foreground at the bottom
+of the picture and narrows as it winds away into the distance, ending at the
+destination, small and far off, just below the middle of the picture. The whole upper
+half of the picture is a calm, plain sky, lightest low down near the horizon and
+darkening slowly toward the top. The place is empty and uninhabited, silent and
+ancient.
+
+
+GRIMROCH (water)
+----------------
+SUBJECT:
+A path of packed snow crossing a wide frozen lake toward a vast glacier, with the
+dark mouth of an ice cave far off in its wall, under a pale, cold sky.
+
+ETHER:
+Icy blue light glows from the cave mouth far off, with curling wisps of frost and
+mist drifting low over the ice.
+
+HELSANG (shadow)
+----------------
+SUBJECT:
+An old stone causeway running through a misty burial ground of leaning standing
+stones toward a great grass-covered barrow mound with a dark doorway, far off, under
+a violet-grey twilight sky.
+
+ETHER:
+Violet light glows from the barrow's doorway far off, with curling wisps of smoke
+drifting low across the field.
+
+RODVING (fire)
+--------------
+SUBJECT:
+A road of dark flagstones climbing over grey ash slopes toward a tall, smoking
+volcano far off, under a dusky sky of ash-grey and pale rose.
+
+ETHER:
+Ember-red firelight glows from the volcano's crater far off, lighting its smoke from
+below.
+
+VUURHAST (lightning)
+--------------------
+SUBJECT:
+A narrow mountain path climbing between sheer rock spires toward a storm-wrapped
+summit far off, under a slate-grey sky with low storm clouds.
+
+ETHER:
+Amber-orange sparks and arcs crackle over the far summit, with one forked lightning
+bolt striking it.
+
+
+APPROACHES READY TO PASTE
+-------------------------
+
+grimroch-road:
+A path of packed snow crossing a wide frozen lake toward a vast glacier, with the dark mouth of an ice cave far off in its wall, under a pale, cold sky. Icy blue light glows from the cave mouth far off, with curling wisps of frost and mist drifting low over the ice. A flat vector illustration of an empty landscape seen from the side, made as the background of a game card: minimalistic graphic design in flat colour, made of big, simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at most a single hard-edged darker shade tone. A limited, muted palette of soft middle tones, close together and low in contrast, with the Ether's colour as the only bright one. A tall portrait composition: a road begins wide in the foreground at the bottom of the picture and narrows as it winds away into the distance, ending at the destination, small and far off, just below the middle of the picture. The whole upper half of the picture is a calm, plain sky, lightest low down near the horizon and darkening slowly toward the top. The place is empty and uninhabited, silent and ancient.
+
+helsang-road:
+An old stone causeway running through a misty burial ground of leaning standing stones toward a great grass-covered barrow mound with a dark doorway, far off, under a violet-grey twilight sky. Violet light glows from the barrow's doorway far off, with curling wisps of smoke drifting low across the field. A flat vector illustration of an empty landscape seen from the side, made as the background of a game card: minimalistic graphic design in flat colour, made of big, simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at most a single hard-edged darker shade tone. A limited, muted palette of soft middle tones, close together and low in contrast, with the Ether's colour as the only bright one. A tall portrait composition: a road begins wide in the foreground at the bottom of the picture and narrows as it winds away into the distance, ending at the destination, small and far off, just below the middle of the picture. The whole upper half of the picture is a calm, plain sky, lightest low down near the horizon and darkening slowly toward the top. The place is empty and uninhabited, silent and ancient.
+
+rodving-road:
+A road of dark flagstones climbing over grey ash slopes toward a tall, smoking volcano far off, under a dusky sky of ash-grey and pale rose. Ember-red firelight glows from the volcano's crater far off, lighting its smoke from below. A flat vector illustration of an empty landscape seen from the side, made as the background of a game card: minimalistic graphic design in flat colour, made of big, simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at most a single hard-edged darker shade tone. A limited, muted palette of soft middle tones, close together and low in contrast, with the Ether's colour as the only bright one. A tall portrait composition: a road begins wide in the foreground at the bottom of the picture and narrows as it winds away into the distance, ending at the destination, small and far off, just below the middle of the picture. The whole upper half of the picture is a calm, plain sky, lightest low down near the horizon and darkening slowly toward the top. The place is empty and uninhabited, silent and ancient.
+
+vuurhast-road:
+A narrow mountain path climbing between sheer rock spires toward a storm-wrapped summit far off, under a slate-grey sky with low storm clouds. Amber-orange sparks and arcs crackle over the far summit, with one forked lightning bolt striking it. A flat vector illustration of an empty landscape seen from the side, made as the background of a game card: minimalistic graphic design in flat colour, made of big, simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at most a single hard-edged darker shade tone. A limited, muted palette of soft middle tones, close together and low in contrast, with the Ether's colour as the only bright one. A tall portrait composition: a road begins wide in the foreground at the bottom of the picture and narrows as it winds away into the distance, ending at the destination, small and far off, just below the middle of the picture. The whole upper half of the picture is a calm, plain sky, lightest low down near the horizon and darkening slowly toward the top. The place is empty and uninhabited, silent and ancient.
