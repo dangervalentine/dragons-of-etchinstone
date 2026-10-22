@@ -1,0 +1,174 @@
+DRAGON LAIR PROMPTS (backgrounds for the Dragon Cards)
+=====================================================
+
+One background per dragon, drawn behind the painted dragon on its card
+(ui/widgets/dragon_card.gd). Each prompt is SUBJECT + ETHER + LAIR STYLE, written out
+in full under READY TO PASTE.
+
+Settings: FLUX.1-dev, text to image, 832 x 1152 (FLUX's native size nearest the
+card's 5:7), no LoRA (the creature style LoRA is trained on creatures on empty white
+and would fight a landscape), no Redux references, guidance 3.5, euler, 25 steps,
+4 seeds each.
+
+What the card needs from the picture (shares of the card, from LAYOUT in
+dragon_card.gd):
+- The top 21% is covered by the name band and the figures row.
+- The MP and HP ladders sit at the left and right edges, from 23% to 50% down. They
+  are drawn on dark chips, so they read on anything, but busy edges there look
+  cluttered. The landmarks are kept low at the sides.
+- The dragon stands in the middle and fills most of the card below the figures. It
+  is mid to dark grey, so the picture is lit from behind the middle (the glow) to
+  set it apart, and kept low in contrast everywhere else.
+- The card lays its Ether tint (22%) over the whole picture, so the palette can stay
+  muted.
+
+Written as the painted creature prompts are (PAINTED_PROMPTS.txt lessons): every rule
+says what the picture IS, since FLUX ignores negatives and naming a thing draws it.
+That is why no prompt says "dragon" or "lair": either word puts a dragon in the
+picture. Colour words name the ground and rock, as in the Journeys, to keep the
+Ether's colour in its one place.
+
+
+LAIR STYLE (appended to every prompt)
+-------------------------------------
+A flat vector illustration of an empty landscape seen from the side, made as the
+background of a game card: minimalistic graphic design in flat colour, made of big,
+simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at
+most a single hard-edged darker shade tone. A limited, muted, dark palette of a few
+close tones, low in contrast, with the Ether's colour as the only bright one. A tall
+portrait composition: the horizon sits low, about a third of the way up the picture,
+and everything above it is one wide, calm, plain area in a single flat tone that
+darkens slowly toward the top corners. A large, soft glow of light sits in the
+middle of the picture just above the horizon, as if the scene is lit from behind.
+The foreground is a broad, flat, open stretch of ground, plain and empty in the
+middle, and the scene's landmarks rise only at the far left and right edges, no
+higher than the middle of the picture, and small in the distance. The place is
+empty and uninhabited, silent and ancient.
+
+ETHER (follows every subject)
+  water      Icy blue light glows from [PLACE], with curling wisps of frost and mist.
+  shadow     Violet light glows from [PLACE], with curling wisps of smoke.
+  fire       Ember-red firelight glows from [PLACE].
+  lightning  Amber-orange sparks and arcs crackle over [PLACE].
+
+
+AIR STYLE (round 2, for a dragon in flight: Rodving)
+----------------------------------------------------
+A flat vector illustration of an open sky seen from high in the air, made as the
+background of a game card: minimalistic graphic design in flat colour, made of big,
+simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at
+most a single hard-edged darker shade tone. A limited, muted palette of a few close
+tones, low in contrast, with the Ether's colour as the only bright one. A tall
+portrait composition: almost all of the picture is open sky, calm and plain through
+the middle and upper part and lightest in the middle, and the land lies only as a
+thin, distant band along the very bottom edge, far below, so nothing stands anywhere
+near the middle of the picture. The sky is empty and uninhabited, vast and silent.
+
+GROUND STYLE (round 2, for a dragon standing at the card's foot: Vuurhast)
+-------------------------------------------------------------------------
+A flat vector illustration of an empty landscape seen from the side, made as the
+background of a game card: minimalistic graphic design in flat colour, made of big,
+simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at
+most a single hard-edged darker shade tone. A limited, muted palette of a few close
+tones, low in contrast, with the Ether's colour as the only bright one. A tall
+portrait composition seen from a low eye level: the horizon sits about a third of the
+way up the picture, and everything above it is one wide, calm, plain area that is
+lightest in the middle and darkens slowly toward the top corners. The whole lower
+third of the picture is a broad, flat, level open floor, plain and empty from edge to
+edge, and the scene's landmarks stand only far behind it, small in the distance at
+the left and right edges, no higher than the middle of the picture. The place is
+empty and uninhabited, silent and ancient.
+
+Round 1 lessons: FLUX draws "a large, soft glow ... lit from behind" as a sun or
+moon disc; on the card it mostly hides behind the dragon. "Dark palette" put the
+dark grey dragons on dark ground (Rodving, Vuurhast); round 2 keeps the sky lightest
+in the middle, behind the dragon.
+
+L1. GRIMROCH, SCALES OF STONE  (grimroch · water · GROUND STYLE)
+-----------------------------------------------------------------
+Round 2: round 1's seed 2 put boulders and a stream under his feet, so he stood on a
+rock. The same glacier cave, its floor now one level sheet of ice. GROUND STYLE, with
+the cave walls framing the sides in place of distant landmarks.
+
+SUBJECT:
+A vast cavern hollowed inside a glacier, its wide mouth opening onto a bright, pale
+sky: walls of blue-grey ice rise at the left and right edges and arch over the top,
+with a few long, heavy icicles hanging from the roof along the top edge. The whole
+lower third of the picture is the frozen surface of a lake, one smooth, level sheet
+of grey-white ice from edge to edge, flat and empty. Far beyond the cave mouth, small
+and distant, a few pale ice peaks.
+
+ETHER:
+Icy blue light glows from within the ice walls, with curling wisps of frost and mist
+drifting low over the frozen floor.
+
+
+L2. HELSANG, THE UNDYING  (helsang · shadow · GROUND STYLE)
+-----------------------------------------------------------
+Round 2: Helsang is pale bone, and round 1's night was so dark he stood out like a
+cut-out. A misty twilight in soft middle tones, close to his own, on a level field.
+
+SUBJECT:
+An ancient burial ground in a grey-violet twilight mist: a wide, level field of pale
+grey stone and dry, pale grass fills the whole lower third of the picture from edge
+to edge, flat and empty. Far behind it, small and soft in the mist, broken standing
+stones, a crumbled stone arch and two bare, twisted dead trees stand at the left and
+right edges, and a low line of burial mounds runs along the horizon, all under a
+misty mid-tone violet-grey sky that is lightest in the middle. Every tone is a soft
+middle value, neither dark nor bright, close together like distant shapes in fog.
+
+ETHER:
+Violet light glows from a deep crack in the ground at the foot of the far mounds,
+with curling wisps of smoke drifting low across the field.
+
+
+L3. RODVING, THE LAST BREATH  (rodving · fire · AIR STYLE)
+--------------------------------------------------------
+Round 2: Rodving rears with his wings spread, so he is in the air: an open sky,
+the land a thin band far below. Uses AIR STYLE in place of LAIR STYLE.
+
+SUBJECT:
+High in the sky above a volcanic land at dusk: a wide, open sky of a few large,
+smooth, layered cloud banks in light ash-grey and pale rose, brightest in the middle
+of the picture. Far below, along the very bottom edge, a thin band of distant dark
+volcanic land with a small volcano cone sending up a thin column of smoke, seen from
+high above.
+
+ETHER:
+Ember-red firelight glows from the distant volcano and along the undersides of the
+lowest clouds.
+
+
+L4. VUURHAST, DEATH AND DARKNESS  (vuurhast · lightning · GROUND STYLE)
+-----------------------------------------------------------------------
+Round 2: Vuurhast stands on his feet at the card's foot, so round 1's valley floor,
+with rocks and ledges under him, read as him stepping on things. The whole lower
+third is now one level, empty floor. Uses GROUND STYLE in place of LAIR STYLE.
+
+SUBJECT:
+A wide, flat plateau of bare stone on a mountain summit in a storm: the ground is one
+broad, smooth, level slab of pale grey rock that fills the whole lower third of the
+picture from edge to edge, flat and empty, marked only by a few faint cracks. Far
+behind it, small and distant, tall narrow rock peaks rise at the left and right edges
+under low banks of storm cloud, drawn as a few large, smooth shapes across a pale
+slate-grey sky that is lightest in the middle.
+
+ETHER:
+Amber-orange sparks and arcs crackle through the distant clouds, with one forked
+lightning bolt striking a far peak.
+
+
+READY TO PASTE
+--------------
+
+grimroch:
+A vast cavern hollowed inside a glacier, its wide mouth opening onto a bright, pale sky: walls of blue-grey ice rise at the left and right edges and arch over the top, with a few long, heavy icicles hanging from the roof along the top edge. The whole lower third of the picture is the frozen surface of a lake, one smooth, level sheet of grey-white ice from edge to edge, flat and empty. Far beyond the cave mouth, small and distant, a few pale ice peaks. Icy blue light glows from within the ice walls, with curling wisps of frost and mist drifting low over the frozen floor. A flat vector illustration of an empty landscape seen from the side, made as the background of a game card: minimalistic graphic design in flat colour, made of big, simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at most a single hard-edged darker shade tone. A limited, muted palette of a few close tones, low in contrast, with the Ether's colour as the only bright one. A tall portrait composition seen from a low eye level: the horizon sits about a third of the way up the picture, and everything above it is one wide, calm, plain area that is lightest in the middle and darkens slowly toward the top corners. The whole lower third of the picture is a broad, flat, level open floor, plain and empty from edge to edge, and the cavern's walls frame the picture only at its left and right edges. The place is empty and uninhabited, silent and ancient.
+
+helsang:
+An ancient burial ground in a grey-violet twilight mist: a wide, level field of pale grey stone and dry, pale grass fills the whole lower third of the picture from edge to edge, flat and empty. Far behind it, small and soft in the mist, broken standing stones, a crumbled stone arch and two bare, twisted dead trees stand at the left and right edges, and a low line of burial mounds runs along the horizon, all under a misty mid-tone violet-grey sky that is lightest in the middle. Every tone is a soft middle value, neither dark nor bright, close together like distant shapes in fog. Violet light glows from a deep crack in the ground at the foot of the far mounds, with curling wisps of smoke drifting low across the field. A flat vector illustration of an empty landscape seen from the side, made as the background of a game card: minimalistic graphic design in flat colour, made of big, simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at most a single hard-edged darker shade tone. A limited, muted palette of a few close tones, low in contrast, with the Ether's colour as the only bright one. A tall portrait composition seen from a low eye level: the horizon sits about a third of the way up the picture, and everything above it is one wide, calm, plain area that is lightest in the middle and darkens slowly toward the top corners. The whole lower third of the picture is a broad, flat, level open floor, plain and empty from edge to edge, and the scene's landmarks stand only far behind it, small in the distance at the left and right edges, no higher than the middle of the picture. The place is empty and uninhabited, silent and ancient.
+
+rodving:
+High in the sky above a volcanic land at dusk: a wide, open sky of a few large, smooth, layered cloud banks in light ash-grey and pale rose, brightest in the middle of the picture. Far below, along the very bottom edge, a thin band of distant dark volcanic land with a small volcano cone sending up a thin column of smoke, seen from high above. Ember-red firelight glows from the distant volcano and along the undersides of the lowest clouds. A flat vector illustration of an open sky seen from high in the air, made as the background of a game card: minimalistic graphic design in flat colour, made of big, simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at most a single hard-edged darker shade tone. A limited, muted palette of a few close tones, low in contrast, with the Ether's colour as the only bright one. A tall portrait composition: almost all of the picture is open sky, calm and plain through the middle and upper part and lightest in the middle, and the land lies only as a thin, distant band along the very bottom edge, far below, so nothing stands anywhere near the middle of the picture. The sky is empty and uninhabited, vast and silent.
+
+vuurhast:
+A wide, flat plateau of bare stone on a mountain summit in a storm: the ground is one broad, smooth, level slab of pale grey rock that fills the whole lower third of the picture from edge to edge, flat and empty, marked only by a few faint cracks. Far behind it, small and distant, tall narrow rock peaks rise at the left and right edges under low banks of storm cloud, drawn as a few large, smooth shapes across a pale slate-grey sky that is lightest in the middle. Amber-orange sparks and arcs crackle through the distant clouds, with one forked lightning bolt striking a far peak. A flat vector illustration of an empty landscape seen from the side, made as the background of a game card: minimalistic graphic design in flat colour, made of big, simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at most a single hard-edged darker shade tone. A limited, muted palette of a few close tones, low in contrast, with the Ether's colour as the only bright one. A tall portrait composition seen from a low eye level: the horizon sits about a third of the way up the picture, and everything above it is one wide, calm, plain area that is lightest in the middle and darkens slowly toward the top corners. The whole lower third of the picture is a broad, flat, level open floor, plain and empty from edge to edge, and the scene's landmarks stand only far behind it, small in the distance at the left and right edges, no higher than the middle of the picture. The place is empty and uninhabited, silent and ancient.

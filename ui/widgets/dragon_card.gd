@@ -16,6 +16,7 @@ const StatChip = preload("res://ui/widgets/stat_chip.gd")
 const Creature = preload("res://ui/fx/creature.gd")
 const StoneStyle = preload("res://ui/theme/stone_style.gd")
 const RegionCard = preload("res://ui/widgets/region_card.gd")
+const RegionPanel = preload("res://ui/widgets/region_panel.gd")
 const Art = preload("res://ui/model/art.gd")
 const HelpTip = preload("res://ui/widgets/help_tip.gd")
 const DragonStats = preload("res://ui/widgets/dragon_stats.gd")
@@ -37,9 +38,6 @@ const LAYOUT := {
 ## and this far below the row of figures.
 const ART_SIDE := 0.03
 const ART_GAP := 0.01
-## At most this share of the dragon is moved off the card's left to clear its head
-## of the HP Tiers.
-const ART_SHIFT := 0.3
 
 var model := {}
 ## Each figure tells on hover what it means, as on the choice of dragon; on the
@@ -134,20 +132,16 @@ static func target_rect(card_size: Vector2, target: String, _aspect := 1.0) -> R
 	return Rect2(card_size * r.position, card_size * r.size)
 
 
-## Where the art is drawn on a card of `card_size`, given where the whole dragon
-## and its head lie in it (`body` and `head`, in the art's 512 units, Art.body()
-## and Art.head()): as large as the dragon fits under the row of figures, held in
-## from the card's edges, and centred there, the ladders lying over it as printed;
-## but moved left, its tail running off the card, so far as its head clears the HP
-## Tiers down the right.
-static func art_rect(card_size: Vector2, body: Rect2, head := Art.FULL) -> Rect2:
+## Where the art is drawn on a card of `card_size`: the dragon's box on its artboard
+## (Art.BODY, where the head already clears the HP Tiers) as large as it fits under
+## the row of figures, held in from the card's edges, and centred there, the ladders
+## lying over it as printed.
+static func art_rect(card_size: Vector2) -> Rect2:
+	var body := Art.BODY
 	var top := LAYOUT.figures.end.y + ART_GAP
 	var room := Rect2(card_size * Vector2(ART_SIDE, top), card_size * Vector2(1.0 - 2.0 * ART_SIDE, 1.0 - top - ART_SIDE))
 	var k := minf(room.size.x / body.size.x, room.size.y / body.size.y)
 	var at := room.get_center() - body.get_center() * k
-	if head != Art.FULL and at.y + head.position.y * k < LAYOUT.hp.end.y * card_size.y:
-		var over := at.x + head.end.x * k - LAYOUT.hp.position.x * card_size.x
-		at.x -= clampf(over, 0.0, body.size.x * k * ART_SHIFT)
 	return Rect2(at, Art.FULL.size * k)
 
 
@@ -185,10 +179,7 @@ func _fit() -> void:
 	_stone.round_radius = UI.card_radius(size.x)
 	if model.is_empty():
 		return
-	var painted := UI.is_painted(model.art)
-	# A painted dragon is placed on its artboard as it is to lie on the card, its head
-	# already clear of the HP Tiers; only the silhouettes are moved to clear it.
-	var at := art_rect(size, Art.body(model.art, painted), Art.FULL if painted else Art.head(model.art))
+	var at := art_rect(size)
 	_creature.position = at.position
 	_creature.size = at.size
 	# The figures in one centred row.
@@ -226,8 +217,19 @@ func _draw() -> void:
 	var card := Rect2(Vector2.ZERO, size)
 	draw_style_box(_stone, card)
 	if not locked:
-		draw_colored_polygon(_stone.part(card, Rect2(0, size.y * LAYOUT.band.end.y, size.x, size.y * (1.0 - LAYOUT.band.end.y))),
-			Color(T.ether(model.element), 0.22))
+		var under := Rect2(0, size.y * LAYOUT.band.end.y, size.x, size.y * (1.0 - LAYOUT.band.end.y))
+		var pts := _stone.part(card, under)
+		# The dragon's lair (art/painted/lairs/) fills the card under the band, cut to
+		# its rounded corners; a dragon without one stands on Ether-tinted stone.
+		var lair := UI.painted("lairs/" + model.art) if model.art != "" else null
+		if lair != null:
+			var src := RegionPanel.cover_region(lair.get_size(), under.size)
+			var uvs := PackedVector2Array()
+			for pt in pts:
+				uvs.append((src.position + (pt - under.position) / under.size * src.size) / lair.get_size())
+			draw_colored_polygon(pts, Color.WHITE, uvs, lair)
+		else:
+			draw_colored_polygon(pts, Color(T.ether(model.element), 0.22))
 	var b: Rect2 = LAYOUT.band
 	var band := Rect2(size * b.position, size * b.size)
 	draw_colored_polygon(_stone.part(card, band), T.BG_BAND)
