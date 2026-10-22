@@ -1206,7 +1206,7 @@ func _banner(values: Dictionary, duration: float) -> void:
 		var d: Dictionary = game.dragon
 		var art_name: String = Art.dragon(d.id)
 		b.show_banner("%s, %s" % [d.name, d.title], "The Final Journey" if values.phase == "final_journey" else "The Final Enemy",
-			UI.head(art_name), T.ether(d.early_damage.element), duration, UI.head_tint(art_name, T.ether(d.early_damage.element)))
+			UI.head(art_name), T.ether(d.early_damage.element), duration)
 	else:
 		b.show_banner("Region %d" % values.region, db.region(values.region).name, "sigil_region", T.GOLD, duration)
 

@@ -82,12 +82,11 @@ func render(p: Dictionary, hardship_id = null, live_badges := false) -> void:
 	_chips = {}
 	_discs = []
 	var tint: Color = T.ether(p.element)
-	# A Journey with a painted map (art/painted/journeys/, a preview of the feature 008
-	# art) shows it, drawn under the frame, in place of its silhouette.
+	# A Journey shows its painted map (art/painted/journeys/), drawn under the frame;
+	# an Enemy stands in its panel.
 	_map = UI.painted("journeys/" + p.art) if p.kind == "journey" and p.art != "" else null
-	_creature.visible = p.art != "" and _map == null
-	# The silhouette a map replaces is never loaded (the export leaves it out).
-	if p.art != "" and _map == null and _creature.art_name != p.art:
+	_creature.visible = p.kind == "enemy" and p.art != ""
+	if _creature.visible and _creature.art_name != p.art:
 		_creature.setup(p.art, Color(tint.lightened(0.45), 0.55), p.element, false)
 	if p.kind == "enemy":
 		var e: Dictionary = p.enemy
@@ -249,19 +248,11 @@ func _put(c: Control, r: Rect2) -> void:
 	c.size = r.size
 
 
-## An Enemy is cropped as its face crops it; a landscape is cut to fill its panel.
+## An Enemy is cropped as its face crops it.
 func _crop(art: Vector2) -> Rect2:
-	if panel.art == "":
+	if panel.kind != "enemy" or panel.art == "":
 		return Art.FULL
-	if panel.kind == "enemy":
-		return load("res://ui/widgets/encounter_face.gd").enemy_crop(panel.art, art)
-	var ratio := art.x / maxf(art.y, 1.0)
-	var full := Art.FULL
-	if ratio < 1.0:
-		var w := full.size.y * ratio
-		return Rect2(full.get_center().x - w / 2.0, 0, w, full.size.y)
-	var h := full.size.x / ratio
-	return Rect2(0, full.get_center().y - h / 2.0, full.size.x, h)
+	return load("res://ui/widgets/encounter_face.gd").enemy_crop(art)
 
 
 ## Where the light behind a figure falls, in the art's part of the panel: round the

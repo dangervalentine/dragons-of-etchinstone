@@ -1,25 +1,22 @@
 extends Control
-## A creature or landscape silhouette that is never quite still: it breathes,
-## hovers or sways (see creature_idle.gdshader), and its Ether drifts around it
-## as embers, bubbles, sparks or dark motes. Some are cut into parts (Art.layers),
-## a jaw, a head, an arm, each working on its own over the body; the shader draws
-## them all in one pass, so a see-through tint stays even where they overlap. A crop can
-## show just a region of the art, filling the widget with the rest of the picture
-## clipped; the Ether still drifts past the edge. All of it stops in reduced motion.
+## A painted creature, or the Final Journey's silhouette, that is never quite still:
+## it breathes, sways or glows (see creature_idle.gdshader), bent in places by soft
+## bones (Art.BONES), and its Ether drifts around it as embers, bubbles, sparks or
+## dark motes. A crop can show just a region of the art, filling the widget with the
+## rest of the picture clipped; the Ether still drifts past the edge. All of it stops
+## in reduced motion.
 
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
 const Art = preload("res://ui/model/art.gd")
 const IDLE = preload("res://ui/fx/shaders/creature_idle.gdshader")
 
-## As many layers as creature_idle.gdshader draws.
-const MAX_LAYERS := 6
 ## Room drawn around the art on every side, as a share of its side, so a part that
 ## moves past the edge of its square (antlers lifting, a tail whipping) isn't cut off.
 const MARGIN := 0.15
 ## As many soft bones as it bends the art with.
 const MAX_BONES := 8
-const MODES := {"still": 0, "breathe": 1, "hover": 2, "sway": 3, "wave": 4, "shimmer": 5, "flow": 6, "glow": 7}
+const MODES := {"still": 0, "breathe": 1, "sway": 2, "glow": 3}
 
 var art_name := ""
 var element := ""
@@ -35,8 +32,7 @@ var crop := Art.FULL:
 ## Holds the picture and clips it to the widget when cropped; the
 ## particles sit outside it, free to drift past the edge.
 var _frame := Control.new()
-## The art: the whole piece, or all its layers drawn in the same pass (the
-## shader's layer0 to layer5), so the tint's alpha is applied once.
+## The art.
 var _picture := _layer()
 var _particles: CPUParticles2D
 ## A bevelled frame the picture is cut to (set_cut()), in the widget's own units:
@@ -70,50 +66,22 @@ static func _layer() -> TextureRect:
 	return t
 
 
-## name: a file in art/creatures/. tint: the silhouette's colour. ether: which
-## particles drift around it, or "" for none.
+## name: a picture in art/painted/, or a silhouette in art/creatures/. tint: the
+## silhouette's colour. ether: which particles drift around it, or "" for none.
 func setup(name: String, tint: Color, ether := "", particles := true) -> void:
 	art_name = name
 	element = ether
-	# A painted picture is one whole piece in its own colours, not the parts of the rig.
 	var painted := UI.is_painted(name)
-	var layers := [] if painted else Art.layers(name)
-	assert(layers.size() <= MAX_LAYERS, name + " has more layers than the shader draws")
-	_picture.texture = UI.art(layers[0].art if not layers.is_empty() else name)
+	_picture.texture = UI.art(name)
 	_idle(_picture, name, tint)
 	var m: ShaderMaterial = _picture.material
-	var pivots := PackedVector2Array()
-	var parents := PackedInt32Array()
-	var joins := PackedInt32Array()
-	var slides := PackedVector4Array()
-	var moves := PackedVector4Array()
-	for i in MAX_LAYERS:
-		var l: Dictionary = layers[i] if i < layers.size() else {}
-		m.set_shader_parameter("layer%d" % i, UI.art(l.art) if not l.is_empty() else null)
-		pivots.append(l.get("pivot", Vector2.ZERO) / 512.0)
-		parents.append(l.get("parent", -1))
-		# A part and the part it carries, side by side, are drawn as one piece.
-		var before: Dictionary = layers[i - 1] if i > 0 and i < layers.size() else {}
-		var joined: bool = not before.is_empty() and (l.parent == i - 1 or before.parent == i)
-		joins.append(1 if joined else 0)
-		moves.append(Vector4(Art.MOVES[l.get("motion", "still")], l.get("angle", 0.0), l.get("period", 1.0), l.get("phase", 0.0)))
-		var lunge: Dictionary = l.get("lunge", {})
-		var by: Vector2 = lunge.get("shift", Vector2.ZERO) / 512.0
-		slides.append(Vector4(by.x, by.y, lunge.get("period", 0.0), lunge.get("phase", 0.0)))
-	m.set_shader_parameter("layers", layers.size())
 	m.set_shader_parameter("painted", painted)
-	m.set_shader_parameter("pivots", pivots)
-	m.set_shader_parameter("parents", parents)
-	m.set_shader_parameter("joins", joins)
-	m.set_shader_parameter("slides", slides)
-	m.set_shader_parameter("moves", moves)
-	var bones := Art.bones(name, painted)
+	var bones := Art.bones(name)
 	assert(bones.size() <= MAX_BONES, name + " has more bones than the shader bends")
 	var lines := PackedVector4Array()
 	var bone_moves := PackedVector4Array()
 	var reach := PackedFloat32Array()
 	var last := PackedInt32Array()
-	var shift := PackedVector2Array()
 	for i in MAX_BONES:
 		var b: Dictionary = bones[i] if i < bones.size() else {}
 		var joint: Vector2 = b.get("joint", Vector2.ZERO) / 512.0
@@ -122,13 +90,11 @@ func setup(name: String, tint: Color, ether := "", particles := true) -> void:
 		bone_moves.append(Vector4(Art.MOVES[b.get("motion", "still")], b.get("angle", 0.0), b.get("period", 1.0), b.get("phase", 0.0)))
 		reach.append(b.get("reach", 0.0) / 512.0)
 		last.append(b.get("last", i))
-		shift.append(b.get("shift", Vector2.ZERO) / 512.0)
 	m.set_shader_parameter("bones", bones.size())
 	m.set_shader_parameter("bone_lines", lines)
 	m.set_shader_parameter("bone_moves", bone_moves)
 	m.set_shader_parameter("bone_reach", reach)
 	m.set_shader_parameter("bone_last", last)
-	m.set_shader_parameter("bone_shift", shift)
 	if _particles != null:
 		_particles.queue_free()
 		_particles = null
@@ -142,8 +108,7 @@ func setup(name: String, tint: Color, ether := "", particles := true) -> void:
 	_fit()
 
 
-## How the art idles and its tint. Every layer is drawn by the same material, so
-## they idle together and move as one creature.
+## How the art idles and its tint.
 static func _idle(layer: TextureRect, name: String, tint: Color) -> void:
 	var m: ShaderMaterial = layer.material
 	m.set_shader_parameter("tint", tint)

@@ -5,7 +5,6 @@ extends Control
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
 const Creature = preload("res://ui/fx/creature.gd")
-const Art = preload("res://ui/model/art.gd")
 
 signal intent(data: Dictionary)
 
@@ -63,9 +62,8 @@ func render(vs: Dictionary) -> void:
 	# The box round all the dragon draws holds the place in the row, so the lines beside
 	# it start at its top; the art is whole and unclipped around it, so a tail swaying
 	# past the box is still drawn.
-	# A painted dragon's full-body picture where there is one; its plain picture is
-	# cut to the Dragon Card.
-	var body: String = vs.stage.art + "-full" if UI.is_painted(vs.stage.art + "-full") else vs.stage.art
+	# The dragon's full-body picture; its plain picture is cut to the Dragon Card.
+	var body: String = vs.stage.art + "-full"
 	var drawn := _drawn(body)
 	var place := Control.new()
 	place.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -176,11 +174,9 @@ func render(vs: Dictionary) -> void:
 	again.grab_focus.call_deferred(true)
 
 
-## The box round all a dragon's art draws, in its 512 units: measured from a painted
-## picture, whose dragons don't each fill the box they share (Art.PAINTED_BODY).
+## The box round all a dragon's art draws, in its 512 units: measured from its
+## picture, since the dragons don't each fill the box they share (Art.BODY).
 static func _drawn(art: String) -> Rect2:
-	if not UI.is_painted(art):
-		return Art.body(art)
 	var image := UI.art(art).get_image()
 	if image.is_compressed():
 		image.decompress()

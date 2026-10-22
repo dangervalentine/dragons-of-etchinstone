@@ -8,9 +8,6 @@ const Art = preload("res://ui/model/art.gd")
 
 ## Set from the settings; travel and shake are replaced by fades when true.
 static var reduced_motion := false
-## Off, every creature shows its silhouette even where it has a painted picture (the
-## tests of the rigged silhouettes turn it off).
-static var painted_art := true
 
 static var _fonts := {}
 static var _icons := {}
@@ -34,8 +31,8 @@ static func font(name: String) -> Font:
 	return _fonts[name]
 
 
-## A creature or landscape silhouette from art/creatures/, or its painted picture
-## from art/painted/ when there is one (a preview of the feature 008 art).
+## A creature's painted picture from art/painted/, or, for art with none (the Final
+## Journey's road), its silhouette from art/creatures/.
 static func art(name: String) -> Texture2D:
 	if is_painted(name):
 		return painted(name)
@@ -44,22 +41,17 @@ static func art(name: String) -> Texture2D:
 
 ## Whether the art has a painted picture in art/painted/, drawn in its own colours.
 static func is_painted(name: String) -> bool:
-	return painted_art and painted(name) != null
+	return painted(name) != null
 
 
 ## The picture art/painted/<name>.png, or null when there is none or it cannot be
-## loaded (not yet imported, say), so the art falls back to its silhouette.
+## loaded (not yet imported, say).
 static func painted(name: String) -> Texture2D:
 	var key := "painted/" + name
 	if not _icons.has(key):
 		var path := "res://art/painted/%s.png" % name
 		_icons[key] = load(path) as Texture2D if ResourceLoader.exists(path) else null
 	return _icons[key]
-
-
-static func art_rect(name: String, side: float, color: Color = T.INK) -> TextureRect:
-	var t := icon_rect("../creatures/" + name, side, color)
-	return t
 
 
 ## Part of a creature's art, `region` in its 512 units, as a texture of its own.
@@ -74,20 +66,13 @@ static func art_crop(name: String, region: Rect2) -> Texture2D:
 	return a
 
 
-## A creature's head, as the places that face it show it: its painted head picture
-## (art/painted/<name>-head.png) whole where there is one, or the head cut from its
-## painted picture, or from its silhouette.
+## A dragon's head, as the places that face it show it, in its own colours: its head
+## picture (art/painted/<name>-head.png) whole where there is one, or the head cut
+## from its picture.
 static func head(name: String) -> Texture2D:
 	if is_painted(name + "-head"):
 		return art(name + "-head")
-	if is_painted(name):
-		return art_crop(name, Art.head(name, true))
-	return art_crop(Art.head_art(name), Art.head(name))
-
-
-## The colour head() is drawn in: a silhouette tinted `colour`, a painted head in its own.
-static func head_tint(name: String, colour: Color) -> Color:
-	return Color.WHITE if is_painted(name + "-head") or is_painted(name) else colour
+	return art_crop(name, Art.head(name))
 
 
 static func icon(name: String) -> Texture2D:

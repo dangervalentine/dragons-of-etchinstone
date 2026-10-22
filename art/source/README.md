@@ -19,7 +19,12 @@ they started.
 `painted/` holds the inputs for the coloured art of feature 008 (`tools/paint_art.py`,
 `../PAINTED_PROMPTS.txt`): `anchors/`, the shared style references, and `starts/`,
 silhouettes painted over by hand to start from in place of the ones in
-`art/creatures/`. None of it is approved art.
+`art/creatures/`. None of it is approved art. `painted/illustrator/` (git-ignored)
+is the Illustrator working folder for the painted art: one `.ai` per picture, named
+`<name>-<seed>[-full|-head].ai`, with `_template.ait` and `frame-log.txt`. Illustrator
+exports a file as `<file>-01.png`; an approved export is copied to
+`art/painted/<name>[-full|-head].png` without the seed, so the exports kept here are
+only the ones not promoted.
 
 Godot ignores this folder (`.gdignore`); nothing here ships with the game.
 

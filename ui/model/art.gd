@@ -1,7 +1,9 @@
 extends RefCounted
-## Which silhouette from art/creatures/ shows each Encounter and dragon, all made for
-## this project (art/STYLE_PROMPT.md, art/creatures/CREDITS.md); the enemies follow
-## the creatures on the official cards.
+## Which painted picture from art/painted/ shows each Encounter and dragon, all made
+## for this project (art/PAINTED_PROMPTS.txt, art/creatures/CREDITS.md); the enemies
+## follow the creatures on the official cards. Journeys are maps in
+## art/painted/journeys/. The Final Journey's road is the one silhouette still drawn,
+## from art/creatures/.
 
 const ENEMIES := {
 	1: ["panda-fighter", "lion-archer", "crane-monk", "monkey-brawler"],
@@ -31,63 +33,43 @@ const JOURNEY_NAMES := {
 	3: ["Ash Slopes", "Glass Desert", "Lava Fields", "Deep Caverns"],
 	4: ["Rope Bridge", "Forest Gate", "Burning Wood", "Old Stone Stair"],
 }
-## Each dragon's full-body art, made for this project (art/STYLE_PROMPT.md).
+## Each dragon's art, made for this project (art/PAINTED_PROMPTS.txt).
 const DRAGONS := {
 	"grimroch": "grimroch", "helsang": "helsang",
 	"rodving": "rodving", "vuurhast": "vuurhast",
 }
 ## The whole of a piece of art, in its 512 units.
 const FULL := Rect2(0, 0, 512, 512)
-## Where each dragon's head is in its art, square, for the places that face it.
-const HEADS := {
-	"grimroch": Rect2(300, 88, 172, 172),
-	"helsang": Rect2(292, 4, 174, 174),
-	"rodving": Rect2(278, 6, 160, 160),
-	"vuurhast": Rect2(284, 0, 178, 178),
-}
-## The same in each dragon's painted picture (art/painted/), drawn to its own
+## Where each dragon's head is in its painted picture, drawn to its own
 ## composition: centred on its face, eye to snout, and from the top of its crest,
 ## antlers, horns or flames, so nothing of it rises past where the head is put.
-const PAINTED_HEADS := {
+const HEADS := {
 	"grimroch": Rect2(226, 48, 160, 160),
 	"helsang": Rect2(315, 40, 160, 160),
 	"rodving": Rect2(228, 55, 145, 145),
 	"vuurhast": Rect2(279, 40, 130, 130),
 }
-## Where the whole of each dragon lies in its art, the box round all it draws, for
-## the places that frame it whole (the Dragon Card).
-const BODIES := {
-	"grimroch": Rect2(41, 29, 420, 463),
-	"helsang": Rect2(50, 21, 384, 469),
-	"rodving": Rect2(45, 24, 383, 448),
-	"vuurhast": Rect2(64, 4, 358, 486),
-}
-## The same in each dragon's painted picture: one box for all four, the Dragon Card's
-## room under its figures, so a dragon is drawn on the card where it is placed on its
-## artboard (tools/dragon_template.svg draws the card round it: its
+## Where the whole of each dragon lies in its painted picture: one box for all four,
+## the Dragon Card's room under its figures, so a dragon is drawn on the card where it
+## is placed on its artboard (tools/dragon_template.svg draws the card round it: its
 ## edge, the ladders over the dragon, and the feet on 490).
-const PAINTED_BODY := Rect2(41.1, 10, 429.7, 480)
+const BODY := Rect2(41.1, 10, 429.7, 480)
 
 
-## How each silhouette idles; see ui/fx/shaders/creature_idle.gdshader.
-## breathe: heavy creatures that stand. hover: flyers and floaters. sway: rooted
-## things and long necks. wave: bodies that ripple. shimmer: heat. flow: water.
+## How each picture idles; see ui/fx/shaders/creature_idle.gdshader.
+## breathe: heavy creatures that stand. sway: rooted things and long necks.
 ## glow: still places, which only brighten and dim.
 const MOTION := {
 	# Dragons
 	"grimroch": "breathe", "helsang": "breathe", "rodving": "breathe", "vuurhast": "breathe",
 	# Region 1
 	"panda-fighter": "breathe", "monkey-brawler": "breathe", "crane-monk": "breathe", "lion-archer": "breathe",
-	"peaks": "glow", "waterfall": "flow", "mountain-road": "glow", "cave-entrance": "glow",
 	# Region 2
 	"axe-gnome": "breathe", "club-ogre": "breathe", "horned-goblin": "breathe", "marsh-treant": "sway",
-	"swamp": "flow", "river": "flow", "willow-tree": "sway", "cliff-crossing": "glow",
 	# Region 3
 	"naga": "sway", "twin-ogre": "breathe", "twin-ghoul": "sway", "boar-shaman": "breathe",
-	"volcano": "shimmer", "desert": "shimmer", "lava": "shimmer", "underground-cave": "glow",
 	# Region 4
 	"hedge-wizard": "breathe", "goblin-hexer": "breathe", "antler-horror": "sway", "gath-brute": "breathe",
-	"rope-bridge": "hover", "forest-entrance": "sway", "burning-forest": "shimmer", "stone-path": "glow",
 	# The Final Journey
 	"horizon-road": "glow",
 }
@@ -95,99 +77,22 @@ const MOTION := {
 const SPEED := {
 	"grimroch": 0.6, "club-ogre": 0.7, "twin-ogre": 0.65, "gath-brute": 0.55,
 	"marsh-treant": 0.7, "monkey-brawler": 0.8, "twin-ghoul": 0.8, "hedge-wizard": 0.85,
-	"axe-gnome": 1.3, "horned-goblin": 1.2, "goblin-hexer": 1.1, "rope-bridge": 0.6,
+	"axe-gnome": 1.3, "horned-goblin": 1.2, "goblin-hexer": 1.1,
 }
-## Silhouettes drawn in layers (tools/split_rig.py makes <name>-rig-<part>.svg and
-## <name>-rig.json from <name>-parts.svg): the body, and the head and its jaw, each
-## turning on its own. The json holds each part's pivot, its parent, the order they
-## are drawn in, and the points marked on the art. Here is how each part moves; a
-## part not named holds still. hinge: opens now and then and closes again, as the
-## jaws do. swing: back and forth, evenly. rise: out to the angle and back to rest,
-## smoothly, never past it. angle in degrees, clockwise when positive; period in
-## the creature's time, scaled by its SPEED; phase shifts the cycle, in periods. A
-## part turns about its own pivot, carried by its parent's turn. lunge, as well:
-## now and then the part slides by shift (512 units) and back, as a hinge opens and
-## closes, every period, carrying the parts it carries; a head thrust forward shows
-## more of the neck behind it.
-const RIGS := {
-	"grimroch": {
-		# Breathing runs a cycle every 4.19; the head lifts with it, counter-clockwise
-		# about the eye, a little behind. Now and then it thrusts forward and the jaw
-		# snaps, in the same cycle.
-		"head": {"motion": "rise", "angle": -4.0, "period": 4.19, "phase": -0.1,
-			"lunge": {"shift": Vector2(14, 4), "period": 6.0}},
-		"jaw": {"motion": "hinge", "angle": 16.0, "period": 6.0},
-	},
-	"rodving": {
-		"head": {"motion": "rise", "angle": -4.0, "period": 4.19, "phase": -0.1,
-			"lunge": {"shift": Vector2(16, 6), "period": 6.0}},
-		"jaw": {"motion": "hinge", "angle": 18.0, "period": 6.0},
-	},
-	"helsang": {
-		"head": {"motion": "rise", "angle": -4.0, "period": 4.19, "phase": -0.1,
-			"lunge": {"shift": Vector2(16, 6), "period": 6.0}},
-		"jaw": {"motion": "hinge", "angle": 14.0, "period": 6.0},
-	},
-	"vuurhast": {
-		"head": {"motion": "rise", "angle": -4.0, "period": 4.19, "phase": -0.1},
-		# Opens as the neck lunges (BONES), in the same cycle.
-		"jaw": {"motion": "hinge", "angle": 18.0, "period": 6.0},
-	},
-}
-## Silhouettes bent in place by soft bones, with nothing cut out: each bone turns
-## the art near the line from its joint to its tip about the joint, fully within
-## three quarters of its reach of that line and fading out at its reach (512 units). joint and
-## tip are points in 512 units, or the names of points marked on the art (in
-## <name>-rig.json). Motions are as in RIGS, and one more, lunge: slides the art by
-## shift (512 units) and back, as a hinge opens and closes, more the further along
-## the bone, so what lies between joint and tip stretches. Bones that share a chain
-## name, listed together from root to tip, are a chain: each carries the ones after
-## it, as a tail's root swings all of it. A bone listed after another rides on it.
+## Soft bones bend each picture in place: each bone turns the art near the line
+## from its joint to its tip about the joint, fully within three quarters of its
+## reach of that line and fading out at its reach. joint, tip and reach are in 512
+## units, measured on the picture's own composition. swing: back and forth, evenly.
+## rise: out to the angle and back to rest, smoothly, never past it. still: holds,
+## only widening what its chain carries. angle in degrees, clockwise when positive;
+## period in the creature's time, scaled by its SPEED; phase shifts the cycle, in
+## periods. Bones that share a chain name, listed together from root to tip, are a
+## chain: each carries the ones after it, as a tail's root swings all of it. A bone
+## listed after another rides on it. The head lifts with the breath; the bones
+## after it in its chain hold still and only widen what it carries (antlers, horns,
+## flames, breath). Only parts with open ground around them move; a tail cut off at
+## the picture's edge moves only near the hip, or not at all.
 const BONES := {
-	"vuurhast": [
-		{"joint": Vector2(345, 300), "tip": Vector2(325, 110), "reach": 45.0, "motion": "swing", "angle": 2.0, "period": 8.38},
-		# Now and then the neck thrusts the head forward, the jaw snapping with it.
-		{"joint": Vector2(360, 300), "tip": Vector2(330, 80), "reach": 120.0, "motion": "lunge", "shift": Vector2(30, 8), "period": 6.0},
-		# The tail whips: five bones from the hip around the curl to the tip, each
-		# swinging a little behind the one before.
-		{"chain": "tail", "joint": Vector2(215, 415), "tip": Vector2(130, 395), "reach": 50.0, "motion": "swing", "angle": 3.0, "period": 7.0},
-		{"chain": "tail", "joint": Vector2(130, 395), "tip": Vector2(128, 300), "reach": 65.0, "motion": "swing", "angle": 3.0, "period": 7.0, "phase": -0.07},
-		{"chain": "tail", "joint": Vector2(128, 300), "tip": Vector2(142, 190), "reach": 70.0, "motion": "swing", "angle": 3.0, "period": 7.0, "phase": -0.14},
-		{"chain": "tail", "joint": Vector2(142, 190), "tip": Vector2(110, 128), "reach": 70.0, "motion": "swing", "angle": 3.0, "period": 7.0, "phase": -0.21},
-		{"chain": "tail", "joint": Vector2(110, 128), "tip": Vector2(66, 152), "reach": 70.0, "motion": "swing", "angle": 3.0, "period": 7.0, "phase": -0.28},
-	],
-	# The arms hang heavy and drift at half the breath, against each other.
-	"grimroch": [
-		{"joint": "front-arm-joint", "tip": Vector2(285, 400), "reach": 30.0, "motion": "swing", "angle": 4.5, "period": 8.38},
-		{"joint": "back-arm-joint", "tip": Vector2(365, 400), "reach": 30.0, "motion": "swing", "angle": 4.5, "period": 8.38, "phase": 0.5},
-		# A short, heavy tail, lashing from the hip.
-		{"chain": "tail", "joint": Vector2(170, 420), "tip": Vector2(110, 395), "reach": 38.0, "motion": "swing", "angle": 3.0, "period": 7.0},
-		{"chain": "tail", "joint": Vector2(110, 395), "tip": Vector2(70, 370), "reach": 42.0, "motion": "swing", "angle": 3.0, "period": 7.0, "phase": -0.08},
-		{"chain": "tail", "joint": Vector2(70, 370), "tip": Vector2(46, 343), "reach": 42.0, "motion": "swing", "angle": 3.0, "period": 7.0, "phase": -0.16},
-	],
-	"rodving": [
-		{"joint": "front-arm-joint", "tip": Vector2(390, 330), "reach": 40.0, "motion": "swing", "angle": 4.5, "period": 8.38},
-		{"joint": "back-arm-joint", "tip": Vector2(380, 295), "reach": 30.0, "motion": "swing", "angle": 4.5, "period": 8.38, "phase": 0.5},
-	],
-	"helsang": [
-		{"joint": "front-arm-joint", "tip": Vector2(307, 400), "reach": 25.0, "motion": "swing", "angle": 4.5, "period": 8.38},
-		{"joint": "back-arm-joint", "tip": Vector2(367, 413), "reach": 25.0, "motion": "swing", "angle": 4.5, "period": 8.38, "phase": 0.5},
-		# The frilled tail curls down and round; its curl kept clear of the hind feet.
-		{"chain": "tail", "joint": Vector2(225, 285), "tip": Vector2(165, 330), "reach": 40.0, "motion": "swing", "angle": 3.0, "period": 7.0},
-		{"chain": "tail", "joint": Vector2(165, 330), "tip": Vector2(110, 385), "reach": 45.0, "motion": "swing", "angle": 3.0, "period": 7.0, "phase": -0.07},
-		{"chain": "tail", "joint": Vector2(110, 385), "tip": Vector2(95, 440), "reach": 45.0, "motion": "swing", "angle": 3.0, "period": 7.0, "phase": -0.14},
-		{"chain": "tail", "joint": Vector2(95, 440), "tip": Vector2(155, 420), "reach": 35.0, "motion": "swing", "angle": 3.0, "period": 7.0, "phase": -0.21},
-	],
-}
-## The same for each dragon's painted picture (art/painted/), measured on its own
-## composition, which is not the silhouette's: BONES would bend the wrong places.
-## A painted dragon is one piece, so the head that RIGS turns is a bone here,
-## lifting with the breath as the head layer does; the bones after it in its chain
-## hold still and only widen what it carries (antlers, horns, flames, breath). The
-## neck lunge is left out, since it stretches whatever lies beside the neck. Only parts
-## with open ground around them move; a tail cut off at the picture's edge
-## moves only near the hip, or not at all.
-const PAINTED_BONES := {
 	"grimroch": [
 		# The near arm hangs over the belly, so it drifts less than the free one.
 		{"joint": Vector2(100, 262), "tip": Vector2(172, 405), "reach": 24.0, "motion": "swing", "angle": 2.5, "period": 8.38},
@@ -274,10 +179,120 @@ const PAINTED_BONES := {
 		{"chain": "tail", "joint": Vector2(125, 330), "tip": Vector2(155, 250), "reach": 30.0, "motion": "swing", "angle": 2.5, "period": 7.0, "phase": -0.14},
 		{"chain": "tail", "joint": Vector2(155, 250), "tip": Vector2(140, 170), "reach": 110.0, "motion": "swing", "angle": 2.5, "period": 7.0, "phase": -0.21},
 	],
+	# The enemies move as the dragons do: the head lifts with the breath, carrying
+	# its horns, hat or flames; a free arm drifts at half the breath; a tail lashes
+	# from the hip. A held weapon turns whole about the hand, a bone each way along
+	# it; a staff resting on the ground holds still. Region 1.
+	"panda-fighter": [
+		{"chain": "head", "joint": Vector2(285, 235), "tip": Vector2(355, 205), "reach": 40.0, "motion": "rise", "angle": -3.0, "period": 4.19, "phase": -0.1},
+		{"chain": "head", "joint": Vector2(285, 235), "tip": Vector2(292, 160), "reach": 30.0, "motion": "still"},
+		{"joint": Vector2(350, 270), "tip": Vector2(402, 248), "reach": 26.0, "motion": "swing", "angle": 3.0, "period": 8.38},
+		{"chain": "tail", "joint": Vector2(225, 340), "tip": Vector2(150, 315), "reach": 36.0, "motion": "swing", "angle": 2.5, "period": 7.0},
+		{"chain": "tail", "joint": Vector2(150, 315), "tip": Vector2(60, 265), "reach": 42.0, "motion": "swing", "angle": 2.5, "period": 7.0, "phase": -0.07},
+	],
+	"monkey-brawler": [
+		{"chain": "head", "joint": Vector2(310, 205), "tip": Vector2(405, 212), "reach": 48.0, "motion": "rise", "angle": -2.5, "period": 4.19, "phase": -0.1},
+		# The breath curling from the jaw.
+		{"chain": "head", "joint": Vector2(392, 250), "tip": Vector2(428, 318), "reach": 22.0, "motion": "still"},
+	],
+	"crane-monk": [
+		{"chain": "head", "joint": Vector2(220, 195), "tip": Vector2(292, 170), "reach": 30.0, "motion": "rise", "angle": -3.0, "period": 4.19, "phase": -0.1},
+		{"chain": "head", "joint": Vector2(220, 195), "tip": Vector2(175, 170), "reach": 22.0, "motion": "still"},
+		# The sword, with the water running off it, both ways from the grip.
+		{"joint": Vector2(200, 308), "tip": Vector2(415, 310), "reach": 58.0, "motion": "swing", "angle": 1.5, "period": 8.38},
+		{"joint": Vector2(200, 308), "tip": Vector2(150, 308), "reach": 12.0, "motion": "swing", "angle": 1.5, "period": 8.38},
+	],
+	"lion-archer": [
+		{"chain": "head", "joint": Vector2(240, 222), "tip": Vector2(282, 205), "reach": 34.0, "motion": "rise", "angle": -3.0, "period": 4.19, "phase": -0.1},
+		{"chain": "tail", "joint": Vector2(155, 415), "tip": Vector2(120, 400), "reach": 18.0, "motion": "swing", "angle": 3.0, "period": 7.0},
+		{"chain": "tail", "joint": Vector2(120, 400), "tip": Vector2(122, 355), "reach": 18.0, "motion": "swing", "angle": 3.0, "period": 7.0, "phase": -0.07},
+		{"chain": "tail", "joint": Vector2(122, 355), "tip": Vector2(75, 335), "reach": 28.0, "motion": "swing", "angle": 3.0, "period": 7.0, "phase": -0.14},
+	],
+	# Region 2.
+	"axe-gnome": [
+		{"chain": "head", "joint": Vector2(215, 340), "tip": Vector2(285, 290), "reach": 40.0, "motion": "rise", "angle": -3.0, "period": 4.19, "phase": -0.1},
+		{"chain": "head", "joint": Vector2(215, 300), "tip": Vector2(135, 185), "reach": 30.0, "motion": "still"},
+		{"joint": Vector2(140, 300), "tip": Vector2(78, 315), "reach": 24.0, "motion": "swing", "angle": 4.0, "period": 8.38, "phase": 0.5},
+		{"joint": Vector2(297, 373), "tip": Vector2(385, 320), "reach": 52.0, "motion": "swing", "angle": 2.0, "period": 8.38},
+		{"joint": Vector2(297, 373), "tip": Vector2(255, 395), "reach": 12.0, "motion": "swing", "angle": 2.0, "period": 8.38},
+	],
+	"club-ogre": [
+		{"chain": "head", "joint": Vector2(230, 165), "tip": Vector2(282, 140), "reach": 36.0, "motion": "rise", "angle": -2.5, "period": 4.19, "phase": -0.1},
+		{"joint": Vector2(95, 185), "tip": Vector2(72, 360), "reach": 46.0, "motion": "swing", "angle": 2.5, "period": 8.38, "phase": 0.5},
+		{"joint": Vector2(307, 353), "tip": Vector2(425, 395), "reach": 62.0, "motion": "swing", "angle": 1.5, "period": 8.38},
+		{"joint": Vector2(307, 353), "tip": Vector2(275, 325), "reach": 10.0, "motion": "swing", "angle": 1.5, "period": 8.38},
+	],
+	"horned-goblin": [
+		{"chain": "head", "joint": Vector2(265, 315), "tip": Vector2(322, 305), "reach": 36.0, "motion": "rise", "angle": -3.0, "period": 4.19, "phase": -0.1},
+		{"chain": "head", "joint": Vector2(265, 300), "tip": Vector2(232, 200), "reach": 26.0, "motion": "still"},
+		{"chain": "head", "joint": Vector2(265, 300), "tip": Vector2(262, 212), "reach": 20.0, "motion": "still"},
+		{"joint": Vector2(303, 383), "tip": Vector2(395, 293), "reach": 24.0, "motion": "swing", "angle": 2.0, "period": 8.38},
+		{"joint": Vector2(303, 383), "tip": Vector2(272, 408), "reach": 10.0, "motion": "swing", "angle": 2.0, "period": 8.38},
+	],
+	"marsh-treant": [
+		{"chain": "head", "joint": Vector2(318, 155), "tip": Vector2(398, 150), "reach": 45.0, "motion": "rise", "angle": -3.0, "period": 4.19, "phase": -0.1},
+		{"chain": "head", "joint": Vector2(318, 155), "tip": Vector2(285, 35), "reach": 55.0, "motion": "still"},
+		{"chain": "head", "joint": Vector2(318, 155), "tip": Vector2(390, 60), "reach": 40.0, "motion": "still"},
+		# The reaching arm, with the breath at its hand, against the trailing one.
+		{"joint": Vector2(320, 225), "tip": Vector2(455, 300), "reach": 38.0, "motion": "swing", "angle": 3.0, "period": 8.38},
+		{"joint": Vector2(175, 180), "tip": Vector2(125, 345), "reach": 58.0, "motion": "swing", "angle": 2.0, "period": 8.38, "phase": 0.5},
+	],
+	# Region 3.
+	"naga": [
+		{"chain": "head", "joint": Vector2(313, 113), "tip": Vector2(405, 105), "reach": 38.0, "motion": "rise", "angle": -3.0, "period": 4.19, "phase": -0.1},
+		{"chain": "head", "joint": Vector2(380, 125), "tip": Vector2(415, 225), "reach": 24.0, "motion": "still"},
+		# The tail coils out from under the robe and up to the flame at its tip.
+		{"chain": "tail", "joint": Vector2(205, 462), "tip": Vector2(115, 465), "reach": 28.0, "motion": "swing", "angle": 2.0, "period": 7.0},
+		{"chain": "tail", "joint": Vector2(115, 465), "tip": Vector2(150, 385), "reach": 30.0, "motion": "swing", "angle": 2.0, "period": 7.0, "phase": -0.07},
+		{"chain": "tail", "joint": Vector2(150, 385), "tip": Vector2(85, 315), "reach": 45.0, "motion": "swing", "angle": 2.0, "period": 7.0, "phase": -0.14},
+	],
+	# Two heads, lifting out of step.
+	"twin-ogre": [
+		{"chain": "left", "joint": Vector2(272, 122), "tip": Vector2(322, 100), "reach": 34.0, "motion": "rise", "angle": -2.5, "period": 4.19, "phase": -0.1},
+		{"chain": "right", "joint": Vector2(340, 135), "tip": Vector2(390, 108), "reach": 32.0, "motion": "rise", "angle": -2.5, "period": 4.19, "phase": 0.35},
+		{"joint": Vector2(132, 155), "tip": Vector2(92, 335), "reach": 48.0, "motion": "swing", "angle": 2.0, "period": 8.38, "phase": 0.5},
+	],
+	"twin-ghoul": [
+		{"chain": "left", "joint": Vector2(232, 222), "tip": Vector2(275, 222), "reach": 34.0, "motion": "rise", "angle": -3.0, "period": 4.19, "phase": -0.1},
+		{"chain": "left", "joint": Vector2(232, 205), "tip": Vector2(262, 45), "reach": 26.0, "motion": "still"},
+		{"chain": "right", "joint": Vector2(295, 212), "tip": Vector2(338, 255), "reach": 30.0, "motion": "rise", "angle": -3.0, "period": 4.19, "phase": 0.35},
+		{"chain": "right", "joint": Vector2(295, 195), "tip": Vector2(322, 58), "reach": 24.0, "motion": "still"},
+	],
+	"boar-shaman": [
+		{"chain": "head", "joint": Vector2(272, 295), "tip": Vector2(375, 285), "reach": 40.0, "motion": "rise", "angle": -3.0, "period": 4.19, "phase": -0.1},
+		{"chain": "head", "joint": Vector2(272, 280), "tip": Vector2(280, 218), "reach": 22.0, "motion": "still"},
+		# The spear, raised, both ways from the fist.
+		{"joint": Vector2(170, 165), "tip": Vector2(420, 202), "reach": 30.0, "motion": "swing", "angle": 1.0, "period": 8.38},
+		{"joint": Vector2(170, 165), "tip": Vector2(85, 152), "reach": 10.0, "motion": "swing", "angle": 1.0, "period": 8.38},
+		{"chain": "tail", "joint": Vector2(160, 410), "tip": Vector2(125, 435), "reach": 14.0, "motion": "swing", "angle": 4.0, "period": 7.0},
+		{"chain": "tail", "joint": Vector2(125, 435), "tip": Vector2(105, 462), "reach": 20.0, "motion": "swing", "angle": 4.0, "period": 7.0, "phase": -0.07},
+	],
+	# Region 4.
+	"hedge-wizard": [
+		{"chain": "head", "joint": Vector2(280, 250), "tip": Vector2(335, 232), "reach": 36.0, "motion": "rise", "angle": -3.0, "period": 4.19, "phase": -0.1},
+		{"chain": "head", "joint": Vector2(280, 240), "tip": Vector2(235, 112), "reach": 40.0, "motion": "still"},
+		{"chain": "head", "joint": Vector2(280, 225), "tip": Vector2(350, 178), "reach": 18.0, "motion": "still"},
+	],
+	"goblin-hexer": [
+		{"chain": "head", "joint": Vector2(232, 258), "tip": Vector2(318, 255), "reach": 32.0, "motion": "rise", "angle": -3.0, "period": 4.19, "phase": -0.1},
+		{"chain": "head", "joint": Vector2(232, 245), "tip": Vector2(225, 152), "reach": 40.0, "motion": "still"},
+	],
+	"antler-horror": [
+		{"chain": "head", "joint": Vector2(325, 220), "tip": Vector2(412, 248), "reach": 42.0, "motion": "rise", "angle": -2.5, "period": 4.19, "phase": -0.1},
+		{"chain": "head", "joint": Vector2(325, 205), "tip": Vector2(238, 50), "reach": 42.0, "motion": "still"},
+		{"chain": "head", "joint": Vector2(325, 205), "tip": Vector2(310, 72), "reach": 46.0, "motion": "still"},
+		{"chain": "head", "joint": Vector2(330, 205), "tip": Vector2(398, 155), "reach": 30.0, "motion": "still"},
+		{"joint": Vector2(88, 292), "tip": Vector2(65, 338), "reach": 14.0, "motion": "swing", "angle": 4.0, "period": 7.0},
+	],
+	"gath-brute": [
+		{"chain": "head", "joint": Vector2(325, 155), "tip": Vector2(402, 167), "reach": 36.0, "motion": "rise", "angle": -2.5, "period": 4.19, "phase": -0.1},
+		{"chain": "head", "joint": Vector2(345, 120), "tip": Vector2(383, 85), "reach": 20.0, "motion": "still"},
+		{"joint": Vector2(113, 155), "tip": Vector2(67, 320), "reach": 34.0, "motion": "swing", "angle": 3.0, "period": 8.38, "phase": 0.5},
+		{"joint": Vector2(375, 222), "tip": Vector2(447, 307), "reach": 32.0, "motion": "swing", "angle": 3.0, "period": 8.38},
+	],
 }
-## The ways a part can move, as the shader numbers them.
-const MOVES := {"still": 0, "hinge": 1, "swing": 2, "rise": 3, "lunge": 4}
-static var _rigs := {}
+## The ways a bone can move, as the shader numbers them.
+const MOVES := {"still": 0, "swing": 1, "rise": 2}
 
 
 ## A dragon's full-body picture (<name>-full, the ending screen's) idles as the
@@ -290,71 +305,19 @@ static func speed(name: String) -> float:
 	return SPEED.get(name.trim_suffix("-full"), 1.0)
 
 
-## The layers a silhouette is drawn from, bottom first, or [] when it is all one
-## piece. Each is {art, pivot (512 units), parent (an index into the list, or -1),
-## motion, angle, period, phase}.
-static func layers(name: String) -> Array:
-	if RIGS.has(name):
-		if not _rigs.has(name):
-			_rigs[name] = _load_rig(name)
-		return _rigs[name]
-	return []
-
-
-## The soft bones a silhouette bends by, or []: each as in BONES, its joint and tip
-## as points in 512 units, and last, the index of the last bone it carries (itself,
-## or the tip of its chain). In its painted picture (PAINTED_BONES) when that is
-## what is drawn (`painted`, UI.is_painted()).
-static func bones(name: String, painted := false) -> Array:
-	var table: Dictionary = PAINTED_BONES if painted else BONES
-	var list: Array = table.get(name, [])
+## The soft bones a picture bends by, or []: each as in BONES, and last, the index
+## of the last bone it carries (itself, or the tip of its chain).
+static func bones(name: String) -> Array:
+	var list: Array = BONES.get(name, [])
 	var out := []
 	for i in list.size():
 		var bone: Dictionary = list[i].duplicate()
-		bone.joint = _point(name, bone.joint)
-		bone.tip = _point(name, bone.tip)
 		bone.last = i
 		var chain: String = bone.get("chain", "")
 		while chain != "" and bone.last + 1 < list.size() and list[bone.last + 1].get("chain", "") == chain:
 			bone.last += 1
 		out.append(bone)
 	return out
-
-
-## A point, or the point marked on the art by that name.
-static func _point(name: String, at: Variant) -> Vector2:
-	if at is Vector2:
-		return at
-	var p: Array = _rig_data(name).get("points", {}).get(at, [])
-	assert(p.size() == 2, "%s has no point %s" % [name, at])
-	return Vector2(p[0], p[1]) if p.size() == 2 else Vector2.ZERO
-
-
-static func _rig_data(name: String) -> Dictionary:
-	var path := "res://art/creatures/%s-rig.json" % name
-	if not FileAccess.file_exists(path):
-		return {}
-	return JSON.parse_string(FileAccess.get_file_as_string(path))
-
-
-static func _load_rig(name: String) -> Array:
-	var data: Dictionary = _rig_data(name)
-	var names: Array = data.layers.map(func(l): return l.name)
-	var out := []
-	for l in data.layers:
-		var pivot: Vector2 = Vector2(l.pivot[0], l.pivot[1]) if l.pivot != null else Vector2.ZERO
-		var parent: int = names.find(l.parent) if l.parent != null else -1
-		out.append(_layer(l.art, pivot, parent, RIGS[name].get(l.name, {})))
-	return out
-
-
-static func _layer(art: String, pivot: Vector2, parent: int, move: Dictionary) -> Dictionary:
-	return {
-		"art": art, "pivot": pivot, "parent": parent,
-		"motion": move.get("motion", "still"), "angle": move.get("angle", 0.0),
-		"period": move.get("period", 1.0), "phase": move.get("phase", 0.0),
-		"lunge": move.get("lunge", {}),
-	}
 
 
 ## kind is "enemy" or "journey"; index is 1 to 4.
@@ -372,23 +335,6 @@ static func dragon(id: String) -> String:
 	return DRAGONS.get(id, "")
 
 
-## The region of `name` to show where the dragon is faced: its head, or all of it;
-## in its painted picture when that is what is drawn (`painted`, UI.is_painted()).
-static func head(name: String, painted := false) -> Rect2:
-	if painted and PAINTED_HEADS.has(name):
-		return PAINTED_HEADS[name]
+## The region of `name` to show where the dragon is faced: its head, or all of it.
+static func head(name: String) -> Rect2:
 	return HEADS.get(name, FULL)
-
-
-## The region of `name` its whole body fills, or all of it where none is marked.
-static func body(name: String, painted := false) -> Rect2:
-	if painted and DRAGONS.values().has(name):
-		return PAINTED_BODY
-	return BODIES.get(name, FULL)
-
-
-## The art to cut the head from: the head alone where the silhouette is drawn in
-## layers (tools/split_rig.py), so none of the body behind it shows, or the whole.
-static func head_art(name: String) -> String:
-	var alone := name + "-rig-head-whole"
-	return alone if ResourceLoader.exists("res://art/creatures/%s.svg" % alone) else name

@@ -93,7 +93,7 @@ func _build(enc: Dictionary) -> void:
 	_kind = enc.kind
 	if first or band.get_child_count() == 0:
 		clear()
-		set_look(enc.element, "")
+		set_look(enc.element)
 		# The name over the dragon's title, centred between its sigil at each end; both
 		# step down in size to fit a long name or title (_fit_names).
 		band.add_child(UI.icon_rect("sigil_" + d.id, 44, T.ether_ink(enc.element)))

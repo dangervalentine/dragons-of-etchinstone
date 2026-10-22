@@ -4,9 +4,9 @@ extends "res://ui/overlays/overlay.gd"
 
 const StoneStyle = preload("res://ui/theme/stone_style.gd")
 
-## sigil: an icon name, a texture, or "" for none; drawn in sigil_colour when given
-## (white keeps a painted picture's own colours), or else in colour.
-func show_banner(eyebrow: String, title: String, sigil, colour: Color, duration: float, sigil_colour: Variant = null) -> void:
+## sigil: an icon name, drawn in colour; a texture (a dragon's painted head), drawn in
+## its own colours; or "" for none.
+func show_banner(eyebrow: String, title: String, sigil, colour: Color, duration: float) -> void:
 	close_outside = false
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_dim(0.45)
@@ -25,7 +25,7 @@ func show_banner(eyebrow: String, title: String, sigil, colour: Color, duration:
 	var row := UI.hbox(T.L)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	if sigil is Texture2D:
-		row.add_child(UI.texture_rect(sigil, 140, sigil_colour if sigil_colour != null else colour))
+		row.add_child(UI.texture_rect(sigil, 140, Color.WHITE))
 	elif sigil != "":
 		row.add_child(UI.icon_rect(sigil, 140, colour))
 	var col := UI.vbox(0)

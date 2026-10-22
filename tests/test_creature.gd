@@ -48,30 +48,22 @@ func test_a_crop_is_centred_when_its_aspect_differs_from_the_widget() -> void:
 	c.free()
 
 
-func test_moving_parts_are_drawn_in_the_same_pass_as_the_body() -> void:
-	# Layers each faded by the tint would read darker where the jaw overlaps the
-	# throat; the shader draws every layer together and fades them once. The rig, not
-	# a painted picture that stands in for it.
-	UI.painted_art = false
+func test_a_painted_picture_keeps_its_colours_and_a_silhouette_takes_the_tint() -> void:
 	var c := Creature.new()
 	var tint := Color(0.8, 0.5, 0.2, 0.55)
-	c.setup("grimroch", tint)
-	var m: ShaderMaterial = c._picture.material
-	var layers := Art.layers("grimroch")
-	eq(m.get_shader_parameter("layers"), layers.size(), "grimroch's parts are all drawn by the body's shader")
-	for i in layers.size():
-		ok(m.get_shader_parameter("layer%d" % i) != null, "with layer %d's texture" % i)
-	var jaw := layers.map(func(l): return l.art).find("grimroch-rig-jaw")
-	eq(m.get_shader_parameter("pivots")[jaw], layers[jaw].pivot / 512.0, "the jaw turning about its hinge")
-	eq(m.get_shader_parameter("parents")[jaw], layers.map(func(l): return l.art).find("grimroch-rig-head"), "carried by the head")
-	ok(is_equal_approx(m.get_shader_parameter("tint").a, 0.55), "the tint's alpha goes to the one pass that draws them all")
-	eq(c._frame.get_child_count(), 1, "one picture, no second layer")
-	eq(m.get_shader_parameter("moves")[jaw].x, float(Art.MOVES.hinge), "the jaw on a hinge")
 	c.setup("naga", tint)
-	eq(m.get_shader_parameter("layers"), 0, "art in one piece has no layers")
-	eq(m.get_shader_parameter("layer0"), null, "and no layer textures")
+	var m: ShaderMaterial = c._picture.material
+	ok(m.get_shader_parameter("painted"), "a painted enemy is drawn in its own colours")
+	eq(m.get_shader_parameter("bones"), Art.bones("naga").size(), "bent by its own bones")
+	c.silhouette(Color(0.1, 0.1, 0.1, 1.0))
+	ok(not m.get_shader_parameter("painted"), "cut to one flat tone when asked (a locked dragon)")
+	c.silhouette(Color(0, 0, 0, 0))
+	ok(m.get_shader_parameter("painted"), "and back in its own colours")
+	c.setup(Art.FINAL_JOURNEY, tint)
+	ok(not m.get_shader_parameter("painted"), "the Final Journey's road is a silhouette")
+	ok(is_equal_approx(m.get_shader_parameter("tint").a, 0.55), "drawn in the tint")
+	eq(m.get_shader_parameter("mode"), Creature.MODES.glow, "glowing, as still places do")
 	c.free()
-	UI.painted_art = true
 
 
 func test_the_shader_keeps_the_fade_of_the_nodes_above_it() -> void:

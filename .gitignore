@@ -26,3 +26,7 @@ __pycache__/
 
 # Illustrator working files for the art touch-ups
 *.ai
+
+# Illustrator working folder for the painted art: .ai files, the frame log and
+# exports not yet promoted to art/painted/
+art/source/painted/illustrator/

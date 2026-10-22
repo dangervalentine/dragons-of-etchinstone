@@ -100,8 +100,7 @@ static func _dragon(db, size: Vector2) -> Control:
 	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var head := UI.hbox(T.M)
 	var art_name: String = Art.dragon(id)
-	var colour: Color = T.ether(d.early_damage.element)
-	head.add_child(UI.texture_rect(UI.head(art_name), minf(96.0, size.y * 0.35), UI.head_tint(art_name, colour)))
+	head.add_child(UI.texture_rect(UI.head(art_name), minf(96.0, size.y * 0.35), Color.WHITE))
 	var names := UI.vbox(0)
 	names.alignment = BoxContainer.ALIGNMENT_CENTER
 	names.add_child(UI.label(d.name.to_upper(), T.SUBHEAD, T.INK))

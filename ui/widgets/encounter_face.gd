@@ -20,12 +20,6 @@ var _enemy := false
 ## where pressing the face shows the Key Card itself; the rulebook's examples keep it.
 var show_key_line := false
 
-## How much of an enemy's height shows: its top, with its feet below the frame.
-const ENEMY_SHOWN := 0.74
-## The least width shown, as a share of the figure's: room for its arms and weapon.
-const ENEMY_ROOM := 1.12
-## Room above the figure's top, as a share of its width.
-const ENEMY_HEADROOM := 0.08
 ## The least side of a badge. The rulebook's example, which shares its column with
 ## the page's terms, sets it a little smaller; its shields still make 44.
 var badge_min := 52.0
@@ -47,19 +41,14 @@ func render(enc: Dictionary) -> void:
 	var d: Dictionary = enc.data
 	# An enemy keeps its cropped look from the first frame, whatever redraws it.
 	var art_name: String = enc.get("art", "")
-	# A Journey with a painted map (art/painted/journeys/, a preview of the feature
-	# 008 art) fills the panel with it in place of its silhouette, which is never
-	# loaded (the export leaves it out).
+	# A Journey's painted map (art/painted/journeys/) fills the panel; an enemy stands
+	# in it.
 	_map.texture = UI.painted("journeys/" + art_name) if not enemy and art_name != "" else null
-	var painted := _map.texture != null
-	if painted:
-		set_look(enc.element, "")
+	_map.visible = _map.texture != null
+	if enemy and art_name != "":
+		set_look(enc.element, art_name, enemy_crop(_panel))
 	else:
-		set_look(enc.element, "sigil_" + str(enc.element), art_name,
-			enemy_crop(art_name, _panel) if enemy and art_name != "" else Art.FULL)
-	_map.visible = painted
-	if painted:
-		_creature.visible = false
+		set_look(enc.element)
 
 	band.add_child(UI.icon_rect("enemy" if enemy else "journey", 34, T.ether_ink(enc.element)))
 	# Which Enemy or Journey of the Region it is, beside its icon, before the name
@@ -191,27 +180,13 @@ func _fit_body(h: float) -> void:
 		body.size.y = h
 
 
-## The part of an enemy's art shown in a panel of `panel` size: from just above the
-## figure's top down to about three-quarters of its height, so it stands large with
-## its feet below the frame, and room left at its sides. Centred on the figure.
-## A painted enemy is placed on its artboard as it is to stand, at its own size, feet
-## on the common ground line: shown whole down, centred, its sides filled out to the
-## panel's shape.
-static func enemy_crop(name: String, panel: Vector2) -> Rect2:
+## The part of an enemy's art shown in a panel of `panel` size. A painted enemy is
+## placed on its artboard as it is to stand, at its own size, feet on the common
+## ground line: shown whole down, centred, its sides filled out to the panel's shape.
+static func enemy_crop(panel: Vector2) -> Rect2:
 	var ratio := panel.x / maxf(panel.y, 1.0)
-	if UI.is_painted(name):
-		var full := Art.FULL
-		return Rect2(full.get_center().x - full.size.y * ratio / 2.0, 0, full.size.y * ratio, full.size.y)
-	var b := figure_bounds(name)
-	var head := b.size.x * ENEMY_HEADROOM
-	# The top of the figure down to about three-quarters of its height...
-	var h := b.size.y * ENEMY_SHOWN + head
-	var w := h * ratio
-	# ...unless that would cut its sides: then wide enough for it with a little room.
-	if w < b.size.x * ENEMY_ROOM:
-		w = b.size.x * ENEMY_ROOM
-		h = w / ratio
-	return Rect2(b.get_center().x - w / 2.0, b.position.y - head, w, h)
+	var full := Art.FULL
+	return Rect2(full.get_center().x - full.size.y * ratio / 2.0, 0, full.size.y * ratio, full.size.y)
 
 
 ## Where a figure's art is drawn within its 512-unit square: the box round every
@@ -261,11 +236,7 @@ func _place_art() -> void:
 		_creature.position = _art_rect.position
 		_creature.size = _art_rect.size
 		_panel = _art_rect.size
-		_creature.crop = enemy_crop(art, _panel)
-	elif art != "":
-		var a := minf(_art_rect.size.x, _art_rect.size.y) * 0.96
-		_creature.size = Vector2(a, a)
-		_creature.position = Vector2(_art_rect.end.x - a - 4, _art_rect.end.y - a - 2)
+		_creature.crop = enemy_crop(_panel)
 	var x := minf(84.0, _art_rect.size.y * 0.32)
 	_xp.custom_minimum_size = Vector2(x, x)
 	_xp.size = Vector2(x, x)
