@@ -1,0 +1,172 @@
+ENEMY BACKDROP PROMPTS (backgrounds for the Enemy panels)
+==========================================================
+
+One background per Enemy, drawn behind its painted figure on its Region Card panel
+and on the Encounter face (ui/widgets/region_panel.gd, encounter_face.gd). Built as
+the dragon lairs are (LAIR_PROMPTS.txt, its lessons and its round-2 GROUND STYLE):
+each prompt is SUBJECT + REGION + ETHER + BACKDROP STYLE, written out in full under
+READY TO PASTE.
+
+Settings: FLUX.1-dev, text to image, 1216 x 896 (FLUX's native size nearest a panel's
+shape, about 1.38 : 1), no LoRA, no Redux, guidance 3.5, euler, 25 steps, 4 seeds
+each.
+
+What a panel needs from the picture:
+- The figure stands with its feet on the panel's foot, centred in the right 83%
+  (just right of the middle), so the floor under it is level and empty.
+- The badges (HP, Initiative, Attack, Armor) run down the left 17%, on dark chips;
+  that side is kept plain.
+- Soft middle tones, as Helsang's round 2 found: a dark ground made a pale figure
+  look cut out; the figure keeps its own ink outline and backlight.
+
+No prompt names a creature, a person, a monk or a fighter: any of them gets drawn.
+
+
+BACKDROP STYLE (appended to every prompt)
+-----------------------------------------
+A flat vector illustration of an empty landscape seen from the side, made as the
+background of a game card: minimalistic graphic design in flat colour, made of big,
+simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at
+most a single hard-edged darker shade tone. A limited, muted palette of soft middle
+tones, close together and low in contrast, with the Ether's colour as the only bright
+one. A wide composition seen from a low eye level: the lower quarter of the picture
+is a broad, flat, level open floor, plain and empty from edge to edge, and the
+horizon sits about a third of the way up. Above it is one wide, calm, plain area,
+lightest just right of the middle and darkening slowly toward the edges. The scene's
+landmarks stand behind the floor at the far right edge and small in the distance; the
+left fifth of the picture is plain and calm. The place is empty and uninhabited,
+silent and ancient.
+
+REGION
+------
+  1  It lies in the Jade Mountains, a land of tall, narrow, sheer-sided karst pillars of green-grey rock, twisted pines and drifting banks of mist.
+  2  It lies in the Living Marshes, a land of still black water, tall reeds, weeping willows and gnarled trees standing on arching stilt roots, under low drifting mist.
+
+ETHER (follows every subject, from the Enemy's element)
+  water      Icy blue light glows from [PLACE], with curling wisps of frost and mist.
+  shadow     Violet light glows from [PLACE], with curling wisps of smoke.
+  fire       Ember-red firelight glows from [PLACE].
+  lightning  Amber-orange sparks and arcs crackle over [PLACE].
+
+
+R1.1 SHAOLIN PANDA  (panda-fighter · lightning)
+-----------------------------------------------
+SUBJECT:
+A mountain monastery's training yard: a flat courtyard of worn grey flagstones, a
+curved temple roof and a carved wooden gate at the far right edge, and tall karst
+pillars rising in the mist far behind.
+
+ETHER:
+Amber-orange sparks and arcs crackle over the distant peaks, under a low, dark storm
+cloud.
+
+
+R1.2 LIONEL ARCHER  (lion-archer · fire)
+----------------------------------------
+SUBJECT:
+A high mountain terrace at dusk: a flat ledge of packed earth and stone, a low stone
+wall with a round straw archery target at the far right edge, a few twisted pines,
+and karst pillars in the evening haze far behind.
+
+ETHER:
+Ember-red firelight glows from a brazier on the wall and along the edges of the low
+evening clouds.
+
+
+R1.3 CRANE MONK  (crane-monk · water)
+-------------------------------------
+SUBJECT:
+The still shore of a mountain lake at the foot of a waterfall: a flat shore of smooth
+pale stone, a tall waterfall pouring down a karst cliff at the far right edge into
+the lake, a few reeds, and misty karst pillars standing in the water far behind.
+
+ETHER:
+Icy blue light glows from the falling water, with curling wisps of frost and mist
+drifting low over the lake.
+
+
+R1.4 FRENZIED APE  (monkey-brawler · shadow)
+--------------------------------------------
+SUBJECT:
+A dark mountain forest before a cave: a flat clearing of packed earth, thick bamboo
+stems and twisted pines at the far right edge, a rocky cliff with a cave mouth behind
+them, and karst pillars in the mist far behind.
+
+ETHER:
+Violet light glows from deep inside the cave mouth, with curling wisps of smoke
+drifting out of it.
+
+
+R2.1 SWAMP TREANT  (marsh-treant · shadow)
+------------------------------------------
+SUBJECT:
+A drowned forest in a still marsh: a flat, level bank of firm, mossy peat in front,
+gnarled swamp trees standing on arching stilt roots in still dark water at the far
+right edge, long curtains of hanging moss, and pale willows in the mist far behind.
+
+ETHER:
+Violet light glows from a hollow in the largest tree, with curling wisps of smoke
+drifting low over the water.
+
+
+R2.2 RAPID GNOME  (axe-gnome · lightning)
+-----------------------------------------
+SUBJECT:
+A woodcutter's clearing at the edge of the marsh: a flat, level patch of dry, packed
+earth, a broad tree stump with a few split logs and a stack of firewood at the far
+right edge, and reeds and willows in the mist behind.
+
+ETHER:
+Amber-orange sparks and arcs crackle over the far willows, under a low, dark storm
+cloud.
+
+
+R2.3 BOG OGRE  (club-ogre · fire)
+---------------------------------
+SUBJECT:
+A bog at dusk: a flat, level causeway of trodden mud and rough wooden planks across
+it, a crude hut of reeds and mud raised on stilts at the far right edge, and still
+dark pools and reeds behind.
+
+ETHER:
+Ember-red firelight glows from a cooking fire in front of the hut, lighting the mist
+from below.
+
+
+R2.4 GOBLIN RAIDER  (horned-goblin · water)
+-------------------------------------------
+SUBJECT:
+A raiders' camp on a river bank: a flat, level bank of grey sand and pebbles, an
+upturned wooden boat and a few crude spears stuck in the ground at the far right
+edge, and the slow black river and leaning willows behind.
+
+ETHER:
+Icy blue light glows from the river, with curling wisps of frost and mist drifting
+low over it.
+
+READY TO PASTE
+--------------
+
+panda-fighter:
+A mountain monastery's training yard: a flat courtyard of worn grey flagstones, a curved temple roof and a carved wooden gate at the far right edge, and tall karst pillars rising in the mist far behind. It lies in the Jade Mountains, a land of tall, narrow, sheer-sided karst pillars of green-grey rock, twisted pines and drifting banks of mist. Amber-orange sparks and arcs crackle over the distant peaks, under a low, dark storm cloud. A flat vector illustration of an empty landscape seen from the side, made as the background of a game card: minimalistic graphic design in flat colour, made of big, simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at most a single hard-edged darker shade tone. A limited, muted palette of soft middle tones, close together and low in contrast, with the Ether's colour as the only bright one. A wide composition seen from a low eye level: the lower quarter of the picture is a broad, flat, level open floor, plain and empty from edge to edge, and the horizon sits about a third of the way up. Above it is one wide, calm, plain area, lightest just right of the middle and darkening slowly toward the edges. The scene's landmarks stand behind the floor at the far right edge and small in the distance; the left fifth of the picture is plain and calm. The place is empty and uninhabited, silent and ancient.
+
+lion-archer:
+A high mountain terrace at dusk: a flat ledge of packed earth and stone, a low stone wall with a round straw archery target at the far right edge, a few twisted pines, and karst pillars in the evening haze far behind. It lies in the Jade Mountains, a land of tall, narrow, sheer-sided karst pillars of green-grey rock, twisted pines and drifting banks of mist. Ember-red firelight glows from a brazier on the wall and along the edges of the low evening clouds. A flat vector illustration of an empty landscape seen from the side, made as the background of a game card: minimalistic graphic design in flat colour, made of big, simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at most a single hard-edged darker shade tone. A limited, muted palette of soft middle tones, close together and low in contrast, with the Ether's colour as the only bright one. A wide composition seen from a low eye level: the lower quarter of the picture is a broad, flat, level open floor, plain and empty from edge to edge, and the horizon sits about a third of the way up. Above it is one wide, calm, plain area, lightest just right of the middle and darkening slowly toward the edges. The scene's landmarks stand behind the floor at the far right edge and small in the distance; the left fifth of the picture is plain and calm. The place is empty and uninhabited, silent and ancient.
+
+crane-monk:
+The still shore of a mountain lake at the foot of a waterfall: a flat shore of smooth pale stone, a tall waterfall pouring down a karst cliff at the far right edge into the lake, a few reeds, and misty karst pillars standing in the water far behind. It lies in the Jade Mountains, a land of tall, narrow, sheer-sided karst pillars of green-grey rock, twisted pines and drifting banks of mist. Icy blue light glows from the falling water, with curling wisps of frost and mist drifting low over the lake. A flat vector illustration of an empty landscape seen from the side, made as the background of a game card: minimalistic graphic design in flat colour, made of big, simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at most a single hard-edged darker shade tone. A limited, muted palette of soft middle tones, close together and low in contrast, with the Ether's colour as the only bright one. A wide composition seen from a low eye level: the lower quarter of the picture is a broad, flat, level open floor, plain and empty from edge to edge, and the horizon sits about a third of the way up. Above it is one wide, calm, plain area, lightest just right of the middle and darkening slowly toward the edges. The scene's landmarks stand behind the floor at the far right edge and small in the distance; the left fifth of the picture is plain and calm. The place is empty and uninhabited, silent and ancient.
+
+monkey-brawler:
+A dark mountain forest before a cave: a flat clearing of packed earth, thick bamboo stems and twisted pines at the far right edge, a rocky cliff with a cave mouth behind them, and karst pillars in the mist far behind. It lies in the Jade Mountains, a land of tall, narrow, sheer-sided karst pillars of green-grey rock, twisted pines and drifting banks of mist. Violet light glows from deep inside the cave mouth, with curling wisps of smoke drifting out of it. A flat vector illustration of an empty landscape seen from the side, made as the background of a game card: minimalistic graphic design in flat colour, made of big, simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at most a single hard-edged darker shade tone. A limited, muted palette of soft middle tones, close together and low in contrast, with the Ether's colour as the only bright one. A wide composition seen from a low eye level: the lower quarter of the picture is a broad, flat, level open floor, plain and empty from edge to edge, and the horizon sits about a third of the way up. Above it is one wide, calm, plain area, lightest just right of the middle and darkening slowly toward the edges. The scene's landmarks stand behind the floor at the far right edge and small in the distance; the left fifth of the picture is plain and calm. The place is empty and uninhabited, silent and ancient.
+
+marsh-treant:
+A drowned forest in a still marsh: a flat, level bank of firm, mossy peat in front, gnarled swamp trees standing on arching stilt roots in still dark water at the far right edge, long curtains of hanging moss, and pale willows in the mist far behind. It lies in the Living Marshes, a land of still black water, tall reeds, weeping willows and gnarled trees standing on arching stilt roots, under low drifting mist. Violet light glows from a hollow in the largest tree, with curling wisps of smoke drifting low over the water. A flat vector illustration of an empty landscape seen from the side, made as the background of a game card: minimalistic graphic design in flat colour, made of big, simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at most a single hard-edged darker shade tone. A limited, muted palette of soft middle tones, close together and low in contrast, with the Ether's colour as the only bright one. A wide composition seen from a low eye level: the lower quarter of the picture is a broad, flat, level open floor, plain and empty from edge to edge, and the horizon sits about a third of the way up. Above it is one wide, calm, plain area, lightest just right of the middle and darkening slowly toward the edges. The scene's landmarks stand behind the floor at the far right edge and small in the distance; the left fifth of the picture is plain and calm. The place is empty and uninhabited, silent and ancient.
+
+axe-gnome:
+A woodcutter's clearing at the edge of the marsh: a flat, level patch of dry, packed earth, a broad tree stump with a few split logs and a stack of firewood at the far right edge, and reeds and willows in the mist behind. It lies in the Living Marshes, a land of still black water, tall reeds, weeping willows and gnarled trees standing on arching stilt roots, under low drifting mist. Amber-orange sparks and arcs crackle over the far willows, under a low, dark storm cloud. A flat vector illustration of an empty landscape seen from the side, made as the background of a game card: minimalistic graphic design in flat colour, made of big, simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at most a single hard-edged darker shade tone. A limited, muted palette of soft middle tones, close together and low in contrast, with the Ether's colour as the only bright one. A wide composition seen from a low eye level: the lower quarter of the picture is a broad, flat, level open floor, plain and empty from edge to edge, and the horizon sits about a third of the way up. Above it is one wide, calm, plain area, lightest just right of the middle and darkening slowly toward the edges. The scene's landmarks stand behind the floor at the far right edge and small in the distance; the left fifth of the picture is plain and calm. The place is empty and uninhabited, silent and ancient.
+
+club-ogre:
+A bog at dusk: a flat, level causeway of trodden mud and rough wooden planks across it, a crude hut of reeds and mud raised on stilts at the far right edge, and still dark pools and reeds behind. It lies in the Living Marshes, a land of still black water, tall reeds, weeping willows and gnarled trees standing on arching stilt roots, under low drifting mist. Ember-red firelight glows from a cooking fire in front of the hut, lighting the mist from below. A flat vector illustration of an empty landscape seen from the side, made as the background of a game card: minimalistic graphic design in flat colour, made of big, simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at most a single hard-edged darker shade tone. A limited, muted palette of soft middle tones, close together and low in contrast, with the Ether's colour as the only bright one. A wide composition seen from a low eye level: the lower quarter of the picture is a broad, flat, level open floor, plain and empty from edge to edge, and the horizon sits about a third of the way up. Above it is one wide, calm, plain area, lightest just right of the middle and darkening slowly toward the edges. The scene's landmarks stand behind the floor at the far right edge and small in the distance; the left fifth of the picture is plain and calm. The place is empty and uninhabited, silent and ancient.
+
+horned-goblin:
+A raiders' camp on a river bank: a flat, level bank of grey sand and pebbles, an upturned wooden boat and a few crude spears stuck in the ground at the far right edge, and the slow black river and leaning willows behind. It lies in the Living Marshes, a land of still black water, tall reeds, weeping willows and gnarled trees standing on arching stilt roots, under low drifting mist. Icy blue light glows from the river, with curling wisps of frost and mist drifting low over it. A flat vector illustration of an empty landscape seen from the side, made as the background of a game card: minimalistic graphic design in flat colour, made of big, simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at most a single hard-edged darker shade tone. A limited, muted palette of soft middle tones, close together and low in contrast, with the Ether's colour as the only bright one. A wide composition seen from a low eye level: the lower quarter of the picture is a broad, flat, level open floor, plain and empty from edge to edge, and the horizon sits about a third of the way up. Above it is one wide, calm, plain area, lightest just right of the middle and darkening slowly toward the edges. The scene's landmarks stand behind the floor at the far right edge and small in the distance; the left fifth of the picture is plain and calm. The place is empty and uninhabited, silent and ancient.

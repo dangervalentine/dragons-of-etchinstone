@@ -37,6 +37,8 @@ var _creature := Creature.new()
 var _clip := Control.new()
 ## A Journey's painted map, or null.
 var _map: Texture2D
+## An Enemy's backdrop (art/painted/backdrops/), behind its figure, or null.
+var _backdrop: Texture2D
 ## The soft round light drawn behind an Enemy's figure, made once.
 static var _glow: GradientTexture2D
 ## Over the art and under the badges: the frame's edge and the number plate.
@@ -61,7 +63,6 @@ func _init() -> void:
 	_clip.clip_contents = true
 	add_child(_clip)
 	_creature.held = true
-	_creature.outlined = true
 	_clip.add_child(_creature)
 	_over.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_over.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -85,6 +86,9 @@ func render(p: Dictionary, hardship_id = null, live_badges := false) -> void:
 	# A Journey shows its painted map (art/painted/journeys/), drawn under the frame;
 	# an Enemy stands in its panel.
 	_map = UI.painted("journeys/" + p.art) if p.kind == "journey" and p.art != "" else null
+	_backdrop = UI.painted("backdrops/" + p.art) if p.kind == "enemy" and p.art != "" else null
+	# Inked round to stand off the bare panel; a backdrop sets the figure off without.
+	_creature.outlined = _backdrop == null
 	_creature.visible = p.kind == "enemy" and p.art != ""
 	if _creature.visible and _creature.art_name != p.art:
 		_creature.setup(p.art, Color(tint.lightened(0.45), 0.55), p.element, false)
@@ -297,6 +301,14 @@ func _draw() -> void:
 	var edge := maxf(1.5, size.y * 0.012)
 	var c: float = at.bevel
 	draw_colored_polygon(outline(at.frame, c), Color(tint, 0.18))
+	if _backdrop != null:
+		# The backdrop fills the whole frame, the badges standing on its plain left.
+		var pts := outline(at.frame, c)
+		var src := cover_region(_backdrop.get_size(), at.frame.size)
+		var uvs := PackedVector2Array()
+		for pt in pts:
+			uvs.append((src.position + (pt - at.frame.position) / at.frame.size * src.size) / _backdrop.get_size())
+		draw_colored_polygon(pts, Color.WHITE, uvs, _backdrop)
 	if panel.kind == "enemy" and _creature.visible and panel.art != "":
 		# A soft light behind the figure, so its edge reads against the ground.
 		var glow := backlight_rect(_creature.art_rect(), load("res://ui/widgets/encounter_face.gd").figure_bounds(panel.art))

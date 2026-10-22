@@ -42,8 +42,8 @@ func render(enc: Dictionary) -> void:
 	# An enemy keeps its cropped look from the first frame, whatever redraws it.
 	var art_name: String = enc.get("art", "")
 	# A Journey's painted map (art/painted/journeys/) fills the panel; an enemy stands
-	# in it.
-	_map.texture = UI.painted("journeys/" + art_name) if not enemy and art_name != "" else null
+	# in it, in front of its own backdrop (art/painted/backdrops/) where it has one.
+	_map.texture = UI.painted(("backdrops/" if enemy else "journeys/") + art_name) if art_name != "" else null
 	_map.visible = _map.texture != null
 	if enemy and art_name != "":
 		set_look(enc.element, art_name, enemy_crop(_panel))
