@@ -123,6 +123,19 @@ const NOTE_FLIP := 0.36
 ## dark it is.
 const CARD_SHADOW := [[2.0, 0.10], [4.0, 0.07], [6.0, 0.05], [8.0, 0.03]]
 
+# Creatures
+## The ink line round a painted figure on its panel, so a creature painted in mid
+## greys stands off a ground of much the same lightness: its colour, and its width
+## as a share of the art's side, so it scales with the picture as printed ink would,
+## but never thinner than CREATURE_LINE_MIN pixels on screen.
+const CREATURE_LINE := Color("0b0910")
+const CREATURE_LINE_SHARE := 0.009
+const CREATURE_LINE_MIN := 1.5
+## The light behind a figure on its panel, in its Ether's lit shade: how strong at
+## its heart, and how far it reaches past the figure's box, as a share of its size.
+const CREATURE_BACKLIGHT := 0.32
+const CREATURE_BACKLIGHT_REACH := 0.35
+
 # Stone
 ## The luminance band the stone grain is remapped into. The top stays no lighter
 ## than BG_RAISED, so text keeps its contrast on the brightest stone.

@@ -69,6 +69,8 @@ func set_selected(on: bool) -> void:
 		return
 	selected = on
 	_shade()
+	# Only the chosen dragon comes alive; the others stand still, as on the Deck.
+	card.set_live(on)
 	# Chosen, the colours pop back in; let go, they fade out again.
 	var to := 0.0 if on else MUTED
 	if _muting != null:

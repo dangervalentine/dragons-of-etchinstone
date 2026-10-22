@@ -46,6 +46,9 @@ var _still := false
 ## Kept still whatever the motion setting: a creature on the Region Card, or one
 ## waiting for the Deck's zoom to land before it wakes (specs/012 research R7).
 var held := false: set = set_held
+## Whether a painted figure has an ink line round it (T.CREATURE_LINE), to stand off
+## its panel. Off for a faint emblem, which should sink into its card.
+var outlined := false: set = set_outlined
 
 
 
@@ -104,7 +107,7 @@ func setup(name: String, tint: Color, ether := "", particles := true) -> void:
 	m.set_shader_parameter("joins", joins)
 	m.set_shader_parameter("slides", slides)
 	m.set_shader_parameter("moves", moves)
-	var bones := Art.bones(name)
+	var bones := Art.bones(name, painted)
 	assert(bones.size() <= MAX_BONES, name + " has more bones than the shader bends")
 	var lines := PackedVector4Array()
 	var bone_moves := PackedVector4Array()
@@ -157,6 +160,14 @@ func silhouette(tint: Color) -> void:
 	m.set_shader_parameter("painted", UI.is_painted(art_name) and not flat)
 	if flat:
 		m.set_shader_parameter("tint", tint)
+
+
+func set_outlined(on: bool) -> void:
+	outlined = on
+	var m: ShaderMaterial = _picture.material
+	m.set_shader_parameter("line_color", T.CREATURE_LINE if on else Color(0, 0, 0, 0))
+	m.set_shader_parameter("line_width", T.CREATURE_LINE_SHARE)
+	m.set_shader_parameter("line_min", T.CREATURE_LINE_MIN)
 
 
 func set_held(on: bool) -> void:

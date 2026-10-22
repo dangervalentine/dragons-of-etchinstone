@@ -56,16 +56,29 @@ func test_every_rig_has_its_layers_and_pivots() -> void:
 
 
 func test_every_bone_is_placed_on_the_art() -> void:
-	for name in Art.BONES:
-		ok(Art.MOTION.has(name), name + " is a silhouette in use")
-		var bones := Art.bones(name)
-		ok(bones.size() <= 8, name + " has as many bones as the shader bends")
-		for b in bones:
-			for at in [b.joint, b.tip]:
-				ok(at != Vector2.ZERO and at.x <= 512 and at.y >= 0 and at.y <= 512, "%s's bone is on the art" % name)
-			ok(b.reach > 0.0, name + "'s bone reaches")
-			ok(Art.MOVES.has(b.motion), name + "'s bone moves in a way the shader knows")
-			ok(b.last >= bones.find(b) and b.last < bones.size(), name + "'s bone carries bones in its chain")
+	for painted in [false, true]:
+		for name in (Art.PAINTED_BONES if painted else Art.BONES):
+			_check_bones(name, painted)
+
+
+func test_every_painted_dragon_bends_by_its_own_bones() -> void:
+	for name in Art.DRAGONS.values():
+		ok(Art.PAINTED_BONES.has(name), name + " has bones measured on its painted picture")
+		ok(Art.bones(name, true) != Art.bones(name), name + "'s painted bones are not the silhouette's")
+		ok(Art.PAINTED_BONES.has(name + "-full"), name + " has bones measured on its full-body picture")
+		eq(Art.motion(name + "-full"), Art.motion(name), name + "'s full-body picture idles as it does")
+
+
+func _check_bones(name: String, painted: bool) -> void:
+	ok(Art.MOTION.has(name.trim_suffix("-full")), name + " is a silhouette in use")
+	var bones := Art.bones(name, painted)
+	ok(bones.size() <= 8, name + " has as many bones as the shader bends")
+	for b in bones:
+		for at in [b.joint, b.tip]:
+			ok(at != Vector2.ZERO and at.x <= 512 and at.y >= 0 and at.y <= 512, "%s's bone is on the art" % name)
+		ok(b.reach > 0.0, name + "'s bone reaches")
+		ok(Art.MOVES.has(b.motion), name + "'s bone moves in a way the shader knows")
+		ok(b.last >= bones.find(b) and b.last < bones.size(), name + "'s bone carries bones in its chain")
 
 
 func test_every_dragon_has_a_head_region_inside_its_art() -> void:

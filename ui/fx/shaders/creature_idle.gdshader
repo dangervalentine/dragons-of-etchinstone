@@ -16,6 +16,12 @@ uniform bool painted = false;
 // The share of the picture on each side that is room around the art, for parts
 // that move past the art's edge.
 uniform float pad = 0.0;
+// An ink line round a painted figure, so it stands off its panel (T.CREATURE_LINE):
+// none while its alpha is 0. Its width is a share of the art's side, but never less
+// than line_min pixels on screen.
+uniform vec4 line_color : source_color = vec4(0.0);
+uniform float line_width = 0.0;
+uniform float line_min = 1.5;
 // A creature cut into parts is drawn from up to six layers (layer0 at the bottom)
 // in this one pass, each with the same idle motion so they move as one creature,
 // and then its own turn about its pivot (in UV), carried by its parent's turn
@@ -211,10 +217,12 @@ void fragment() {
 	float a = amount;
 	vec2 uv = (UV - pad) / (1.0 - 2.0 * pad);
 	if (mode == 1) {
-		// Breathe: rise and fall about the feet, more in height than width.
-		float s = 1.0 + 0.03 * a * sin(t * 1.5);
+		// Breathe: the body swells and settles about the feet, a little in height and
+		// nearly as much in width, as a chest fills; a breath barely changes how tall
+		// a creature stands.
+		float s = 1.0 + 0.008 * a * sin(t * 1.5);
 		vec2 feet = vec2(0.5, 0.95);
-		uv = (uv - feet) / vec2(1.0 + (s - 1.0) * 0.45, s) + feet;
+		uv = (uv - feet) / vec2(1.0 + (s - 1.0) * 0.75, s) + feet;
 	} else if (mode == 2) {
 		// Hover: drift up and down with a slight tilt.
 		uv.y += 0.035 * a * sin(t * 1.3);
@@ -263,6 +271,20 @@ void fragment() {
 	float kept = within_cut(local);
 	if (painted) {
 		vec4 c = texture(TEXTURE, uv) * inside(uv);
+		if (line_color.a > 0.0) {
+			// The line: wherever the figure lies within its width, in two rings so a
+			// thin part (a staff, a horn) is not stepped over.
+			vec2 w = max(vec2(line_width), fwidth(uv) * line_min);
+			float near = 0.0;
+			for (int k = 0; k < 16; k++) {
+				float r = 6.2831853 * (float(k) + (k < 8 ? 0.0 : 0.5)) / 8.0;
+				vec2 o = uv + vec2(cos(r), sin(r)) * w * (k < 8 ? 1.0 : 0.5);
+				near = max(near, texture(TEXTURE, o).a * inside(o));
+			}
+			float l = near * line_color.a * (1.0 - c.a);
+			float both = c.a + l;
+			c = vec4((c.rgb * c.a + line_color.rgb * l) / max(both, 1e-4), both);
+		}
 		COLOR = vec4(c.rgb * glow, c.a * kept) * modulate;
 	} else {
 		COLOR = vec4(tint.rgb * glow, tint.a * body * kept) * modulate;

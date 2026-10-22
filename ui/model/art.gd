@@ -179,17 +179,115 @@ const BONES := {
 		{"chain": "tail", "joint": Vector2(95, 440), "tip": Vector2(155, 420), "reach": 35.0, "motion": "swing", "angle": 3.0, "period": 7.0, "phase": -0.21},
 	],
 }
+## The same for each dragon's painted picture (art/painted/), measured on its own
+## composition, which is not the silhouette's: BONES would bend the wrong places.
+## A painted dragon is one piece, so the head that RIGS turns is a bone here,
+## lifting with the breath as the head layer does; the bones after it in its chain
+## hold still and only widen what it carries (antlers, horns, flames, breath). The
+## neck lunge is left out, since it stretches whatever lies beside the neck. Only parts
+## with open ground around them move; a tail cut off at the picture's edge
+## moves only near the hip, or not at all.
+const PAINTED_BONES := {
+	"grimroch": [
+		# The near arm hangs over the belly, so it drifts less than the free one.
+		{"joint": Vector2(100, 262), "tip": Vector2(172, 405), "reach": 24.0, "motion": "swing", "angle": 2.5, "period": 8.38},
+		{"joint": Vector2(258, 215), "tip": Vector2(290, 400), "reach": 30.0, "motion": "swing", "angle": 4.0, "period": 8.38, "phase": 0.5},
+		{"chain": "head", "joint": Vector2(255, 150), "tip": Vector2(362, 162), "reach": 48.0, "motion": "rise", "angle": -3.0, "period": 4.19, "phase": -0.1},
+		{"chain": "head", "joint": Vector2(265, 150), "tip": Vector2(278, 62), "reach": 34.0, "motion": "still"},
+	],
+	"helsang": [
+		# The wing beats slowly with the breath: the leading edge and the membrane
+		# below it turn together about the shoulder.
+		{"chain": "wing", "joint": Vector2(210, 255), "tip": Vector2(40, 180), "reach": 70.0, "motion": "swing", "angle": 2.5, "period": 4.19},
+		{"chain": "wing", "joint": Vector2(210, 255), "tip": Vector2(90, 270), "reach": 40.0, "motion": "still"},
+		{"chain": "wing", "joint": Vector2(210, 255), "tip": Vector2(218, 130), "reach": 40.0, "motion": "still"},
+		{"joint": Vector2(275, 330), "tip": Vector2(305, 440), "reach": 22.0, "motion": "swing", "angle": 4.0, "period": 8.38},
+		# The tail runs off the edge, so only its root swings.
+		{"joint": Vector2(150, 345), "tip": Vector2(90, 410), "reach": 32.0, "motion": "swing", "angle": 2.5, "period": 7.0},
+		{"chain": "head", "joint": Vector2(300, 205), "tip": Vector2(375, 210), "reach": 40.0, "motion": "rise", "angle": -3.0, "period": 4.19, "phase": -0.1},
+		{"chain": "head", "joint": Vector2(300, 205), "tip": Vector2(292, 62), "reach": 62.0, "motion": "still"},
+	],
+	"rodving": [
+		{"chain": "wing", "joint": Vector2(225, 240), "tip": Vector2(40, 170), "reach": 75.0, "motion": "swing", "angle": 2.5, "period": 4.19},
+		{"chain": "wing", "joint": Vector2(225, 240), "tip": Vector2(100, 330), "reach": 55.0, "motion": "still"},
+		# The raised forearms paw the air, against each other.
+		{"joint": Vector2(265, 330), "tip": Vector2(340, 380), "reach": 28.0, "motion": "swing", "angle": 4.0, "period": 8.38},
+		{"joint": Vector2(285, 360), "tip": Vector2(305, 410), "reach": 22.0, "motion": "swing", "angle": 4.0, "period": 8.38, "phase": 0.5},
+		# The burning tip of the tail, swaying its flame.
+		{"chain": "tail", "joint": Vector2(300, 500), "tip": Vector2(360, 468), "reach": 22.0, "motion": "swing", "angle": 3.0, "period": 7.0},
+		{"chain": "tail", "joint": Vector2(345, 475), "tip": Vector2(385, 365), "reach": 38.0, "motion": "still"},
+		{"chain": "head", "joint": Vector2(262, 175), "tip": Vector2(350, 165), "reach": 40.0, "motion": "rise", "angle": -3.0, "period": 4.19, "phase": -0.1},
+		{"chain": "head", "joint": Vector2(262, 175), "tip": Vector2(268, 55), "reach": 48.0, "motion": "still"},
+	],
+	"vuurhast": [
+		{"joint": Vector2(255, 300), "tip": Vector2(255, 150), "reach": 45.0, "motion": "swing", "angle": 1.5, "period": 8.38},
+		# The head, its horns and its breath, riding on the neck.
+		{"chain": "head", "joint": Vector2(255, 150), "tip": Vector2(335, 122), "reach": 40.0, "motion": "rise", "angle": -3.0, "period": 4.19, "phase": -0.1},
+		{"chain": "head", "joint": Vector2(255, 150), "tip": Vector2(205, 62), "reach": 32.0, "motion": "still"},
+		{"chain": "head", "joint": Vector2(292, 165), "tip": Vector2(390, 178), "reach": 62.0, "motion": "still"},
+		# The tail whips from the hip up its curl, the lightning at its tip with it.
+		{"chain": "tail", "joint": Vector2(175, 430), "tip": Vector2(95, 395), "reach": 40.0, "motion": "swing", "angle": 2.5, "period": 7.0},
+		{"chain": "tail", "joint": Vector2(95, 395), "tip": Vector2(95, 300), "reach": 32.0, "motion": "swing", "angle": 2.5, "period": 7.0, "phase": -0.07},
+		{"chain": "tail", "joint": Vector2(95, 300), "tip": Vector2(112, 225), "reach": 28.0, "motion": "swing", "angle": 2.5, "period": 7.0, "phase": -0.14},
+		{"chain": "tail", "joint": Vector2(112, 225), "tip": Vector2(95, 150), "reach": 100.0, "motion": "swing", "angle": 2.5, "period": 7.0, "phase": -0.21},
+	],
+	# The full-body pictures the ending screen draws, whole and uncut: the same
+	# motions, measured again, and the tails that the card cuts off.
+	"grimroch-full": [
+		{"joint": Vector2(215, 268), "tip": Vector2(298, 412), "reach": 24.0, "motion": "swing", "angle": 2.5, "period": 8.38},
+		{"joint": Vector2(380, 225), "tip": Vector2(420, 410), "reach": 32.0, "motion": "swing", "angle": 4.0, "period": 8.38, "phase": 0.5},
+		{"chain": "head", "joint": Vector2(372, 150), "tip": Vector2(482, 170), "reach": 50.0, "motion": "rise", "angle": -3.0, "period": 4.19, "phase": -0.1},
+		{"chain": "head", "joint": Vector2(380, 150), "tip": Vector2(400, 70), "reach": 36.0, "motion": "still"},
+		# A short, heavy tail, lashing from the hip round to its curled tip.
+		{"chain": "tail", "joint": Vector2(185, 445), "tip": Vector2(95, 460), "reach": 40.0, "motion": "swing", "angle": 2.5, "period": 7.0},
+		{"chain": "tail", "joint": Vector2(95, 460), "tip": Vector2(40, 400), "reach": 38.0, "motion": "swing", "angle": 2.5, "period": 7.0, "phase": -0.08},
+		{"chain": "tail", "joint": Vector2(40, 400), "tip": Vector2(80, 330), "reach": 30.0, "motion": "swing", "angle": 2.5, "period": 7.0, "phase": -0.16},
+		{"chain": "tail", "joint": Vector2(80, 330), "tip": Vector2(55, 290), "reach": 30.0, "motion": "swing", "angle": 2.5, "period": 7.0, "phase": -0.24},
+	],
+	"helsang-full": [
+		{"chain": "wing", "joint": Vector2(265, 255), "tip": Vector2(60, 215), "reach": 80.0, "motion": "swing", "angle": 2.5, "period": 4.19},
+		{"chain": "wing", "joint": Vector2(265, 255), "tip": Vector2(290, 120), "reach": 45.0, "motion": "still"},
+		{"joint": Vector2(345, 330), "tip": Vector2(375, 440), "reach": 24.0, "motion": "swing", "angle": 4.0, "period": 8.38},
+		{"chain": "tail", "joint": Vector2(225, 330), "tip": Vector2(150, 395), "reach": 34.0, "motion": "swing", "angle": 2.5, "period": 7.0},
+		{"chain": "tail", "joint": Vector2(150, 395), "tip": Vector2(80, 425), "reach": 32.0, "motion": "swing", "angle": 2.5, "period": 7.0, "phase": -0.07},
+		{"chain": "tail", "joint": Vector2(80, 425), "tip": Vector2(85, 335), "reach": 55.0, "motion": "swing", "angle": 2.5, "period": 7.0, "phase": -0.14},
+		{"chain": "head", "joint": Vector2(365, 195), "tip": Vector2(450, 200), "reach": 40.0, "motion": "rise", "angle": -3.0, "period": 4.19, "phase": -0.1},
+		{"chain": "head", "joint": Vector2(365, 195), "tip": Vector2(360, 60), "reach": 62.0, "motion": "still"},
+	],
+	"rodving-full": [
+		{"chain": "wing", "joint": Vector2(280, 240), "tip": Vector2(20, 190), "reach": 75.0, "motion": "swing", "angle": 2.5, "period": 4.19},
+		{"chain": "wing", "joint": Vector2(280, 240), "tip": Vector2(190, 315), "reach": 55.0, "motion": "still"},
+		{"chain": "wing", "joint": Vector2(280, 240), "tip": Vector2(295, 115), "reach": 40.0, "motion": "still"},
+		{"joint": Vector2(340, 300), "tip": Vector2(415, 345), "reach": 28.0, "motion": "swing", "angle": 4.0, "period": 8.38},
+		{"chain": "tail", "joint": Vector2(380, 470), "tip": Vector2(440, 450), "reach": 22.0, "motion": "swing", "angle": 3.0, "period": 7.0},
+		{"chain": "tail", "joint": Vector2(425, 450), "tip": Vector2(470, 330), "reach": 40.0, "motion": "still"},
+		{"chain": "head", "joint": Vector2(340, 150), "tip": Vector2(432, 128), "reach": 40.0, "motion": "rise", "angle": -3.0, "period": 4.19, "phase": -0.1},
+		{"chain": "head", "joint": Vector2(340, 150), "tip": Vector2(350, 30), "reach": 48.0, "motion": "still"},
+	],
+	"vuurhast-full": [
+		{"joint": Vector2(292, 300), "tip": Vector2(292, 140), "reach": 48.0, "motion": "swing", "angle": 1.5, "period": 8.38},
+		{"chain": "head", "joint": Vector2(292, 140), "tip": Vector2(385, 118), "reach": 42.0, "motion": "rise", "angle": -3.0, "period": 4.19, "phase": -0.1},
+		{"chain": "head", "joint": Vector2(292, 140), "tip": Vector2(240, 45), "reach": 34.0, "motion": "still"},
+		{"chain": "head", "joint": Vector2(335, 155), "tip": Vector2(450, 160), "reach": 62.0, "motion": "still"},
+		{"chain": "tail", "joint": Vector2(215, 440), "tip": Vector2(125, 410), "reach": 42.0, "motion": "swing", "angle": 2.5, "period": 7.0},
+		{"chain": "tail", "joint": Vector2(125, 410), "tip": Vector2(125, 330), "reach": 34.0, "motion": "swing", "angle": 2.5, "period": 7.0, "phase": -0.07},
+		{"chain": "tail", "joint": Vector2(125, 330), "tip": Vector2(155, 250), "reach": 30.0, "motion": "swing", "angle": 2.5, "period": 7.0, "phase": -0.14},
+		{"chain": "tail", "joint": Vector2(155, 250), "tip": Vector2(140, 170), "reach": 110.0, "motion": "swing", "angle": 2.5, "period": 7.0, "phase": -0.21},
+	],
+}
 ## The ways a part can move, as the shader numbers them.
 const MOVES := {"still": 0, "hinge": 1, "swing": 2, "rise": 3, "lunge": 4}
 static var _rigs := {}
 
 
+## A dragon's full-body picture (<name>-full, the ending screen's) idles as the
+## dragon does.
 static func motion(name: String) -> String:
-	return MOTION.get(name, "still")
+	return MOTION.get(name.trim_suffix("-full"), "still")
 
 
 static func speed(name: String) -> float:
-	return SPEED.get(name, 1.0)
+	return SPEED.get(name.trim_suffix("-full"), 1.0)
 
 
 ## The layers a silhouette is drawn from, bottom first, or [] when it is all one
@@ -205,9 +303,11 @@ static func layers(name: String) -> Array:
 
 ## The soft bones a silhouette bends by, or []: each as in BONES, its joint and tip
 ## as points in 512 units, and last, the index of the last bone it carries (itself,
-## or the tip of its chain).
-static func bones(name: String) -> Array:
-	var list: Array = BONES.get(name, [])
+## or the tip of its chain). In its painted picture (PAINTED_BONES) when that is
+## what is drawn (`painted`, UI.is_painted()).
+static func bones(name: String, painted := false) -> Array:
+	var table: Dictionary = PAINTED_BONES if painted else BONES
+	var list: Array = table.get(name, [])
 	var out := []
 	for i in list.size():
 		var bone: Dictionary = list[i].duplicate()

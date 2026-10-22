@@ -1,7 +1,7 @@
 extends Control
 ## One Encounter as the Region Card prints it (specs/013 contracts/region-card-face.md).
 ## An Enemy is a framed picture with its figures in a column of badges down the left,
-## its Ability at the top right and its XP Reward in a star at the bottom right. A
+## its Ability beside the HP badge and its XP Reward in a star at the bottom right. A
 ## Journey is a tall panel with its MP and Time Penalty in a strip along the top, the
 ## landscape below, its Peril at the top right of the landscape and its star at the
 ## foot. Every part is placed as a share of the panel's own size (parts()), so the
@@ -37,6 +37,8 @@ var _creature := Creature.new()
 var _clip := Control.new()
 ## A Journey's painted map, or null.
 var _map: Texture2D
+## The soft round light drawn behind an Enemy's figure, made once.
+static var _glow: GradientTexture2D
 ## Over the art and under the badges: the frame's edge and the number plate.
 var _over := Control.new()
 var _chips := {}
@@ -53,12 +55,13 @@ var number_alpha := 1.0:
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# The XP star and the effect discs sit across the frame's edge, as printed, so the
-	# panel does not clip; the art is clipped to the frame by _clip.
+	# The panel does not clip its badges and discs; the art is clipped to the frame by
+	# _clip.
 	_clip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_clip.clip_contents = true
 	add_child(_clip)
 	_creature.held = true
+	_creature.outlined = true
 	_clip.add_child(_creature)
 	_over.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_over.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -152,12 +155,12 @@ static func parts(size: Vector2, kind: String, armor_count := 1) -> Dictionary:
 					shields.append(Rect2(w * 0.02 + k * s * 0.98, y + (side - s) / 2.0, s, s))
 				badges.append(shields)
 		out["badges"] = badges
-		# The star in the bottom right, the Ability across the top edge beside the HP
-		# heart (further discs to its right), as printed.
+		# The star in the bottom right, the Ability beside the HP heart and level with
+		# its centre, inside the frame (further discs to its right).
 		var star := h * 0.22
 		out["xp"] = Rect2(w - star - h * 0.03, h - star - h * 0.03, star, star)
 		var d := h * 0.18
-		out["discs"] = Rect2(w * 0.02 + side + h * 0.02, -d / 2.0, d, d)
+		out["discs"] = Rect2(w * 0.02 + side + h * 0.02, top + row / 2.0 - d / 2.0, d, d)
 		var n := h * 0.16
 		out["number"] = Rect2(w - n - h * 0.05, h * 0.05, n, n)
 	else:
@@ -261,6 +264,32 @@ func _crop(art: Vector2) -> Rect2:
 	return Rect2(0, full.get_center().y - h / 2.0, full.size.x, h)
 
 
+## Where the light behind a figure falls, in the art's part of the panel: round the
+## figure's box (`figure`, in its 512 units, drawn into `art`, its square), reaching
+## past it by T.CREATURE_BACKLIGHT_REACH of its size on every side.
+static func backlight_rect(art: Rect2, figure: Rect2) -> Rect2:
+	var k := art.size.x / Art.FULL.size.x
+	var box := Rect2(art.position + figure.position * k, figure.size * k)
+	return box.grow_individual(box.size.x * T.CREATURE_BACKLIGHT_REACH, box.size.y * T.CREATURE_BACKLIGHT_REACH,
+		box.size.x * T.CREATURE_BACKLIGHT_REACH, box.size.y * T.CREATURE_BACKLIGHT_REACH)
+
+
+static func _backlight() -> GradientTexture2D:
+	if _glow == null:
+		var g := Gradient.new()
+		g.interpolation_mode = Gradient.GRADIENT_INTERPOLATE_CUBIC
+		g.set_color(0, Color.WHITE)
+		g.set_color(1, Color(1, 1, 1, 0))
+		_glow = GradientTexture2D.new()
+		_glow.gradient = g
+		_glow.fill = GradientTexture2D.FILL_RADIAL
+		_glow.fill_from = Vector2(0.5, 0.5)
+		_glow.fill_to = Vector2(0.5, 0.0)
+		_glow.width = 128
+		_glow.height = 128
+	return _glow
+
+
 ## The part of a texture of `tex` size that covers `area`, centred, the rest cut off.
 static func cover_region(tex: Vector2, area: Vector2) -> Rect2:
 	var k := maxf(area.x / tex.x, area.y / tex.y)
@@ -277,6 +306,11 @@ func _draw() -> void:
 	var edge := maxf(1.5, size.y * 0.012)
 	var c: float = at.bevel
 	draw_colored_polygon(outline(at.frame, c), Color(tint, 0.18))
+	if panel.kind == "enemy" and _creature.visible and panel.art != "":
+		# A soft light behind the figure, so its edge reads against the ground.
+		var glow := backlight_rect(_creature.art_rect(), load("res://ui/widgets/encounter_face.gd").figure_bounds(panel.art))
+		draw_texture_rect(_backlight(), Rect2(glow.position + at.art.position, glow.size), false,
+			Color(T.ether_shade(panel.element, "lit"), T.CREATURE_BACKLIGHT))
 	if panel.kind == "journey":
 		# The printed strip along the top, in the dark of the card's band.
 		var strip: float = at.art.position.y

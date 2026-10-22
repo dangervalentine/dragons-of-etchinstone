@@ -12,10 +12,9 @@ func _all(at: Dictionary) -> Array:
 	return out
 
 
-## The parts drawn wholly inside the frame: all but the discs, which sit across its
-## edge as printed.
+## The parts drawn wholly inside the frame: every one.
 func _inside(at: Dictionary) -> Array:
-	var out := [at.art, at.xp, at.number]
+	var out := [at.art, at.xp, at.discs, at.number]
 	for row in at.badges:
 		out.append_array(row)
 	return out
@@ -28,7 +27,6 @@ func test_every_part_is_inside_the_panel() -> void:
 			var at := RegionPanel.parts(s, kind, 2)
 			for r in _inside(at):
 				ok(frame.encloses(r), "%s at %s: %s inside" % [kind, s, r])
-			ok(frame.has_point(at.discs.get_center()), "%s at %s: the discs centred on the frame" % [kind, s])
 
 
 func test_the_parts_grow_with_the_panel() -> void:
@@ -55,7 +53,7 @@ func test_an_enemy_has_its_four_badge_rows_down_the_left() -> void:
 	ok(two.badges[3][0].end.x <= two.badges[3][1].position.x + 1.0 and is_equal_approx(two.badges[3][0].position.y, two.badges[3][1].position.y), "side by side")
 	ok(is_equal_approx(two.badges[3][0].size.x, one.badges[3][0].size.x * 0.92), "each a little smaller")
 	ok(one.xp.position.x > s.x * 0.6 and one.xp.position.y > s.y * 0.6, "the star at the bottom right")
-	ok(absf(one.discs.get_center().y) < 0.5 and one.discs.position.x >= one.badges[0][0].end.x, "the Ability across the top edge, beside the HP heart")
+	ok(absf(one.discs.get_center().y - one.badges[0][0].get_center().y) < 0.5 and one.discs.position.x >= one.badges[0][0].end.x, "the Ability level with the HP heart, beside it")
 	ok(one.number.position.x > s.x * 0.6 and one.number.end.y < s.y * 0.3, "the number at the top right")
 
 

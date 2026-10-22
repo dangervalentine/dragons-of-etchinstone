@@ -116,6 +116,12 @@ func render(m: Dictionary) -> void:
 
 
 ## The card's size at `width`: the Region Card's shape.
+## Let the dragon move, or keep it still: still unless something wakes it, as the
+## chosen card on the dragon screen does (DragonPick).
+func set_live(on: bool) -> void:
+	_creature.held = not on
+
+
 static func card_size(width: float) -> Vector2:
 	return RegionCard.card_size(width)
 
