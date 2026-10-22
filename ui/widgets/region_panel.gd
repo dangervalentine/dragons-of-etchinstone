@@ -112,7 +112,7 @@ func render(p: Dictionary, hardship_id = null, live_badges := false) -> void:
 	# The Encounter's own Ability or Peril where it is printed, the Hardship beside it.
 	for id in [p.effect, hardship_id]:
 		if id != null:
-			var disc := _make({"icon": Glossary.entry(id).icon, "text": "", "color": T.INK, "glossary_id": id})
+			var disc := _make({"icon": Glossary.entry(id).icon, "text": "", "color": T.INK, "ring": T.BG_BAND, "glossary_id": id})
 			_discs.append(disc)
 	_fit()
 	queue_redraw()

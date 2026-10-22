@@ -27,6 +27,9 @@ var inset := Color.TRANSPARENT
 ## A shape of its own drawn in `inset` over the icon, as the printed hourglass's glass
 ## between its bars.
 var inset_icon := ""
+## A round shape (an Ability disc) set on a dark ring of this colour, which also fills
+## its cut-out symbol, so a pale disc reads on any picture behind it.
+var ring := Color.TRANSPARENT
 
 var _hover := false
 
@@ -103,6 +106,9 @@ func _draw() -> void:
 			closed.append(pts[0])
 			draw_polyline(closed, Color(T.INK, 0.45), maxf(1.0, side * 0.025), true)
 			rect = rect.grow(-side * 0.05)
+		if ring.a > 0.0:
+			# The disc is a circle of radius 22 in the icon's 48-unit view box.
+			draw_circle(rect.get_center(), rect.size.x * 22.0 / 48.0 + maxf(2.0, side * 0.07), ring, true, -1.0, true)
 		# A thin pale rim, as the printed badges have.
 		draw_texture_rect(UI.icon(icon), rect.grow(maxf(1.0, side * 0.03)), false, Color(T.INK, 0.45))
 		draw_texture_rect(UI.icon(icon), rect, false, color)
