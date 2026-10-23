@@ -1,7 +1,10 @@
 extends RefCounted
 ## Short explanations of every icon, effect and game term, shown on demand.
 ## Written for this project and checked against the rulebook. `short` is the
-## one-line form shown on an Encounter; `text` is the full explanation.
+## one-line form shown on an Encounter; `text` is the full explanation, and `house`
+## what a house rule adds to it (editions.gd).
+
+const Editions = preload("res://ui/model/editions.gd")
 
 const ENTRIES := {
 	# Encounter figures
@@ -11,7 +14,8 @@ const ENTRIES := {
 	"move": {"name": "Move", "icon": "move", "text": "Your Spell's reach on a Journey, compared with the Journey's MP."},
 	"mp": {"name": "MP", "icon": "mp", "text": "The distance a Journey asks for. Match it with your Move for a Complete Victory; reach half for a Narrow Victory."},
 	"time": {"name": "Time Penalty", "icon": "time", "text": "Discard this many cards from the top of your deck. Fewer cards means fewer Encounters before the dragon."},
-	"xp": {"name": "XP", "icon": "xp", "text": "Earned by winning an Encounter and spent at once to Upgrade cards in your Hand. Unspent XP is lost."},
+	"xp": {"name": "XP", "icon": "xp", "text": "Earned by winning an Encounter and spent at once to Upgrade cards in your Hand. Unspent XP is lost.",
+		"house": " With Persistent XP, a house rule, it carries over instead."},
 	"armor": {"name": "Armor", "icon": "armor", "text": "On an enemy, Armor reduces an enhanced Attack of the matching Ether. On your cards, Armor is how much damage the card Soaks when Downgraded, doubled against damage of its own Ether."},
 	"boost": {"name": "Boost", "icon": "boost", "text": "The amount a card adds when played in the Boost role. Against an enemy you choose whether it adds to Attack or to Initiative."},
 	"crown": {"name": "Level", "icon": "crown", "text": "A card's Level, from 1 to 4. Upgrading raises it, Soaking damage lowers it, and your score is the total of your cards' Levels."},
@@ -74,7 +78,9 @@ static func has(id: String) -> bool:
 
 static func entry(id: String) -> Dictionary:
 	var e: Dictionary = ENTRIES.get(id, {"name": id.capitalize(), "icon": "", "text": ""})
-	return {"id": id, "name": e.name, "icon": e.get("icon", ""), "text": e.text, "short": e.get("short", "")}
+	# What a house rule changes about it, said only under House rules (editions.gd).
+	var text: String = e.text + (e.get("house", "") if Editions.house() else "")
+	return {"id": id, "name": e.name, "icon": e.get("icon", ""), "text": text, "short": e.get("short", "")}
 
 
 ## Every entry, in reading order, for the full glossary.

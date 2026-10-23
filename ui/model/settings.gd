@@ -10,7 +10,7 @@ const TOOL_PATH := "user://tool_settings.cfg"
 const MOTION := ["system", "reduced", "full"]
 ## How a desktop game's window opens (feature 008).
 const WINDOW := ["windowed", "fullscreen"]
-const DEFAULT_OPTIONS := {"dragon": "rodving", "difficulty": "normal", "cavalier": false, "glass_cannon": false}
+const DEFAULT_OPTIONS := {"dragon": "rodving", "difficulty": "normal", "cavalier": false, "glass_cannon": false, "persistent_xp": false}
 
 ## The dragons locked on a fresh install. What unlocks each is to come; for now,
 ## in development, a triple tap on the menu's title unlocks them all.
@@ -26,6 +26,9 @@ static var last_options := DEFAULT_OPTIONS.duplicate()
 ## Ask before leaving the Upgrade step with XP that could still Upgrade a card; off
 ## once the player ticks "Don't show this again".
 static var warn_unspent_xp := true
+## Which edition new games are played in: false for Classic, the rulebook as printed;
+## true for House rules, which offers this edition's own rules too (editions.gd).
+static var house_rules := false
 ## The dragons of LOCKED_AT_START unlocked since.
 static var unlocked: Array = []
 ## Every dragon open for this run only, never saved: set by the tools that walk
@@ -53,6 +56,7 @@ static func load_all() -> void:
 	var w = cfg.get_value("display", "window", "windowed")
 	window_mode = w if WINDOW.has(w) else "windowed"
 	warn_unspent_xp = cfg.get_value("play", "warn_unspent_xp", true) == true
+	house_rules = cfg.get_value("play", "house_rules", false) == true
 	var u = cfg.get_value("progress", "unlocked", [])
 	unlocked = Array(u).filter(func(id): return LOCKED_AT_START.has(id)) if u is Array else []
 	var l = cfg.get_value("progress", "lessons", [])
@@ -72,6 +76,7 @@ static func save_all() -> void:
 	cfg.set_value("display", "window", window_mode)
 	cfg.set_value("game", "last_options", last_options)
 	cfg.set_value("play", "warn_unspent_xp", warn_unspent_xp)
+	cfg.set_value("play", "house_rules", house_rules)
 	cfg.set_value("progress", "unlocked", unlocked)
 	cfg.set_value("progress", "lessons", lessons)
 	cfg.set_value("progress", "tutorial_done", tutorial_done)
@@ -87,6 +92,7 @@ static func use_path(p: String) -> void:
 	window_mode = "windowed"
 	last_options = DEFAULT_OPTIONS.duplicate()
 	warn_unspent_xp = true
+	house_rules = false
 	unlocked = []
 	lessons = []
 	tutorial_done = false

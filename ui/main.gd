@@ -6,6 +6,7 @@ extends Control
 
 const CardDB = preload("res://engine/card_db.gd")
 const Game = preload("res://engine/game.gd")
+const Editions = preload("res://ui/model/editions.gd")
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
 const Draft = preload("res://ui/model/turn_draft.gd")
@@ -901,7 +902,7 @@ func _dispatch(intent: Dictionary) -> void:
 			_end_lesson()
 			_show_title()
 		"start":
-			start_game(intent.options, true)
+			start_game(Editions.apply(intent.options), true)
 		"play_again":
 			start_game(menu)
 		"to_title":
@@ -1189,8 +1190,9 @@ func _on_primary() -> void:
 			var affordable := false
 			for id in vs.hand:
 				affordable = affordable or vs.cards[id].get("can_raise", false)
-			# A lesson says itself what unspent XP costs, without the question.
-			if Settings.warn_unspent_xp and vs.xp > 0 and affordable and tutorial == null:
+			# A lesson says itself what unspent XP costs, without the question; with
+			# Persistent XP it costs nothing, so there is nothing to ask.
+			if Settings.warn_unspent_xp and vs.xp > 0 and affordable and tutorial == null and not game.keeps_xp():
 				_confirm_unspent_xp()
 				return
 			_finish_upgrade()

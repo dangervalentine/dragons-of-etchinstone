@@ -130,6 +130,12 @@ action goes through `main._act(action, callable)`:
   a still form, and the UI check walks it.
 - The README's "Rules interpretations" section records how the engine decides
   where the rulebook is silent. Update it when that behaviour changes.
+- House rules (this edition's own, beyond the rulebook) are game options, each with
+  its own check in the engine (`Game.keeps_xp()` for `persistent_xp`), so Classic is
+  every house rule off and the engine knows nothing of editions. List each in
+  `ui/model/editions.gd`'s `HOUSE_RULES`; the setup screens offer it only under House
+  rules (the menu's Rules setting, `Settings.house_rules`), and rulebook lines starting
+  `{house}` and Glossary `house` text appear only then.
 
 ### Feature workflow (Spec Kit)
 

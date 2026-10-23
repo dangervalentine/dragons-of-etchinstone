@@ -1,8 +1,8 @@
 extends "res://ui/overlays/overlay.gd"
-## The menu, opened only from the menu button in the title bar: the settings (Motion
-## and, on a desktop, the Window) side by side in one row, each its name beside one
-## button that steps to the next choice, so the card has room to breathe on the
-## shortest screen; then How to Play, the Glossary and Clear records, then the History,
+## The menu, opened only from the menu button in the title bar: the settings (Motion,
+## on a desktop the Window, and the Rules: Classic or House rules, for new games), two
+## to a row, each its name beside one button that steps to the next choice, so the
+## card has room to breathe on the shortest screen; then How to Play, the Glossary and Clear records, then the History,
 ## the Leaderboard and, in a game, Abandon run. The X closes it.
 
 const Settings = preload("res://ui/model/settings.gd")
@@ -17,6 +17,8 @@ const NAME_W := 110.0
 ## under each saying what it means.
 const MOTION_CHOICES := {"system": ["Follow device", "Device setting"], "reduced": ["Reduced", "Fades only"], "full": ["Full", "All animation"]}
 const WINDOW_CHOICES := {"windowed": ["Windowed", "Resizable · F11"], "fullscreen": ["Full screen", "F11"]}
+## The editions (editions.gd), keyed by Settings.house_rules.
+const RULES_CHOICES := {false: ["Classic", "The rulebook as printed"], true: ["House rules", "Adds Persistent XP"]}
 ## The marks on a setting's button, one per choice, the current one lit.
 const PIP := 14.0
 ## Taps on the title this close together count toward the triple tap that, in
@@ -28,6 +30,8 @@ signal intent(data: Dictionary)
 ## The buttons that step through Motion and, on a desktop, the Window.
 var motion_button: Button
 var window_button: Button
+## The button that steps between Classic and House rules.
+var rules_button: Button
 ## The card, to check that it fits.
 var panel: Control
 var _title: Label
@@ -54,7 +58,11 @@ func setup(in_game: bool, area := Rect2(16, 16, 1248, 688), window_row := Window
 	var close_button := make_close_button()
 	top.add_child(close_button)
 	col.add_child(top)
-	var settings := UI.hbox(T.SPACE_5)
+	# Two to a row, in columns of equal width.
+	var settings := GridContainer.new()
+	settings.columns = 2
+	settings.add_theme_constant_override("h_separation", T.SPACE_5)
+	settings.add_theme_constant_override("v_separation", T.SPACE_4)
 	motion_button = _cycle_button(MOTION_CHOICES.size())
 	motion_button.pressed.connect(_next_motion)
 	settings.add_child(_setting("Motion", motion_button))
@@ -62,11 +70,9 @@ func setup(in_game: bool, area := Rect2(16, 16, 1248, 688), window_row := Window
 		window_button = _cycle_button(WINDOW_CHOICES.size())
 		window_button.pressed.connect(_next_window)
 		settings.add_child(_setting("Window", window_button))
-	else:
-		# Motion keeps half the row, so its button is no wider than on a desktop.
-		var rest := Control.new()
-		rest.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		settings.add_child(rest)
+	rules_button = _cycle_button(RULES_CHOICES.size())
+	rules_button.pressed.connect(_next_rules)
+	settings.add_child(_setting("Rules", rules_button))
 	col.add_child(settings)
 	_refresh()
 	# The ways to read up on the rules and clearing the games played, then reading
@@ -168,6 +174,14 @@ func _next_motion() -> void:
 	_refresh()
 
 
+## Classic or House rules, for the games started from now on; a game in progress
+## keeps the rules it began with.
+func _next_rules() -> void:
+	Settings.house_rules = not Settings.house_rules
+	Settings.save_all()
+	_refresh()
+
+
 func _next_window() -> void:
 	WindowSizer.toggle()
 	_refresh()
@@ -176,6 +190,7 @@ func _next_window() -> void:
 func _refresh() -> void:
 	var keys := MOTION_CHOICES.keys()
 	_show(motion_button, MOTION_CHOICES[Settings.motion], keys.find(Settings.motion))
+	_show(rules_button, RULES_CHOICES[Settings.house_rules], int(Settings.house_rules))
 	if window_button != null:
 		keys = WINDOW_CHOICES.keys()
 		_show(window_button, WINDOW_CHOICES[Settings.window_mode], keys.find(Settings.window_mode))

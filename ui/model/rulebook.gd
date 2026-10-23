@@ -13,6 +13,7 @@ extends RefCounted
 ## "rows": [[text]]}} or {"table": "difficulty"}, and {"figure": kind}.
 
 const Glossary = preload("res://ui/model/glossary.gd")
+const Editions = preload("res://ui/model/editions.gd")
 const Game = preload("res://engine/game.gd")
 const ViewState = preload("res://ui/model/view_state.gd")
 const T = preload("res://ui/theme/tokens.gd")
@@ -242,6 +243,7 @@ const SECTIONS := [
 				"Your Reserve and Fused cards can be Upgraded too, and a card can go up more than once.",
 				"A card Downgraded this Encounter cannot be Upgraded.",
 				"XP cannot be saved: whatever you leave unspent is lost.",
+				"{house}With Persistent XP, a house rule, unspent XP carries over to the next Encounter instead.",
 			]},
 		]},
 		{"text": [
@@ -310,10 +312,11 @@ const SECTIONS := [
 	{"id": "difficulty", "title": "Difficulty and Alternate Rules", "pages": [
 		{"text": [
 			{"p": "You choose the difficulty on the second setup screen. It sets the starting Level of a few cards: the game draws the number shown, and you choose which of them change, unless all of them do."},
-			{"p": "Two alternate rules sit on the same screen. Use either, both or neither:"},
+			{"p": "Alternate rules sit on the same screen. Use any of them, all or none:"},
 			{"list": [
 				"Cavalier: you cannot [[fuse|Fuse]].",
 				"Glass Cannon: Armor whose Ether matches the damage Soaks just 1 extra instead of double.",
+				"{house}Persistent XP, a house rule not in the original rulebook: XP you leave unspent is kept, and what you win in the next Encounter is added to it. House rules are chosen under Rules in the menu.",
 			]},
 		], "aside": [
 			{"table": "difficulty"},
@@ -442,9 +445,11 @@ static func _expand_all(blocks: Array, on_paper := true) -> Array:
 
 static func _expand_value(v, on_paper := true):
 	if v is String:
-		return expand(v, on_paper)
+		return expand(Editions.text(v), on_paper)
 	if v is Array:
-		return v.map(func(x): return _expand_value(x, on_paper))
+		# A list's house-rule lines are left out under Classic (editions.gd).
+		return v.filter(func(x): return not (x is String and Editions.text(x) == "" and x != "")) \
+			.map(func(x): return _expand_value(x, on_paper))
 	if v is Dictionary:
 		var d := {}
 		for k in v:
@@ -456,7 +461,7 @@ static func _expand_value(v, on_paper := true):
 
 static func _collect(v, out: Array) -> void:
 	if v is String:
-		out.append(v)
+		out.append(Editions.text(v))
 	elif v is Array:
 		for x in v:
 			_collect(x, out)

@@ -358,6 +358,35 @@ func test_cleanup_discards_action_set_keeps_reserve_and_refills() -> void:
 	eq(g.xp, 0, "unspent xp lost")
 
 
+func test_persistent_xp_keeps_unspent_xp_through_cleanup() -> void:
+	var g = _game(HAND, ["DOE-A15"] + FILLER, {"persistent_xp": true})
+	g.play(PLAY)
+	g.soak(["DOE-A07"])
+	eq(g.finish(), "", "finish")
+	eq(g.xp, 4, "unspent xp kept")
+
+
+func test_persistent_xp_adds_what_is_won_to_what_was_kept() -> void:
+	var g = _game(HAND, ["DOE-A15"] + FILLER, {"persistent_xp": true})
+	g.xp = 3
+	g.play(PLAY)
+	eq(g.xp, 7, "3 kept + 4 won")
+	var plain = _game(HAND, ["DOE-A15"] + FILLER)
+	plain.xp = 3
+	plain.play(PLAY)
+	eq(plain.xp, 4, "without the rule only what was won")
+
+
+func test_persistent_xp_spends_from_the_whole_total() -> void:
+	var g = _game(HAND, ["DOE-A15"] + FILLER, {"persistent_xp": true})
+	g.xp = 4
+	g.play(PLAY)
+	g.soak(["DOE-A07"])
+	eq(g.upgrade("DOE-A03"), "", "first upgrade")  # cost 4
+	eq(g.upgrade("DOE-A13"), "", "second upgrade, paid from the kept xp")
+	ok(g.xp >= 0, "never below zero")
+
+
 func test_cleanup_discards_both_fused_cards() -> void:
 	var g = _game(["DOE-A03", "DOE-A04", "DOE-A01", "DOE-A11"], ["DOE-A15"] + FILLER)
 	g.play({"spell": "DOE-A03", "element": "DOE-A04", "boost": "DOE-A11",

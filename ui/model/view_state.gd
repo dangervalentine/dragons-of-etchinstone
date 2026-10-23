@@ -99,6 +99,10 @@ static func build(game, draft, db, extra := {}) -> Dictionary:
 		vs.xp = game.xp - staged_cost(game, draft)
 		# All the XP there was to spend, before any Upgrade chosen: the bar it empties.
 		vs["xp_total"] = game.xp
+	# The XP kept between Encounters, for the bar (Persistent XP); -1 hides it. Nothing
+	# spends it in the Final Battle, so it is not shown there.
+	var regions_left: bool = not phase.begins_with("final") and phase != "won" and phase != "lost"
+	vs["banked_xp"] = vs.xp if game.keeps_xp() and regions_left else -1
 	if SOAK_PHASES.has(phase):
 		var total := 0
 		for id in draft.picks:
@@ -935,12 +939,13 @@ static func _prompt(game, draft, vs: Dictionary) -> Dictionary:
 			for id in vs.hand:
 				affordable = affordable or vs.cards[id].get("can_raise", false)
 			p.step = "Upgrade"
+			var leftover := "Unspent XP carries over." if game.keeps_xp() else "Unspent XP is lost."
 			if not draft.picks.is_empty():
-				p.text = "Tap a card again to Upgrade it further, or take its Upgrades back. Unspent XP is lost."
+				p.text = "Tap a card again to Upgrade it further, or take its Upgrades back. " + leftover
 			elif game.xp <= 0:
 				p.text = "No XP to spend."
 			elif affordable:
-				p.text = "Tap cards to Upgrade them, then Confirm. Unspent XP is lost."
+				p.text = "Tap cards to Upgrade them, then Confirm. " + leftover
 			else:
 				p.text = "No card can be Upgraded with this XP."
 			p.primary.label = "Confirm" if not draft.picks.is_empty() else "Continue"

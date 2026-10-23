@@ -106,6 +106,9 @@ func _run() -> void:
 	if _want("play"):
 		await _open("phone-16x9")
 		await _play("phone-16x9 animated", 5, "normal", true)
+		# Persistent XP: the XP kept through Cleanup and shown in the bar, the screens
+		# still agreeing with the engine.
+		await _play("phone-16x9 persistent XP", 5, "normal", false, true)
 	if _want("ending"):
 		await _open("desktop")
 		await _ending_placing("desktop")
@@ -895,8 +898,9 @@ func _soak_ids(g) -> Array:
 	return ids
 
 
-func _play(where: String, game_seed: int, difficulty: String, animated: bool) -> void:
-	var opts := {"seed": game_seed, "dragon": db.dragon_ids()[game_seed % 4], "difficulty": difficulty, "cavalier": false, "glass_cannon": false}
+func _play(where: String, game_seed: int, difficulty: String, animated: bool, persistent_xp := false) -> void:
+	var opts := {"seed": game_seed, "dragon": db.dragon_ids()[game_seed % 4], "difficulty": difficulty, "cavalier": false, "glass_cannon": false,
+		"persistent_xp": persistent_xp}
 	var shadow = Game.new(db, opts)
 	ui.start_game(opts)
 	var recorded := HistoryStore.records.size()
@@ -912,6 +916,12 @@ func _play(where: String, game_seed: int, difficulty: String, animated: bool) ->
 			_inspect_screen("%s %s" % [where, g.phase])
 			_check_wash("%s %s" % [where, g.phase])
 		first = false
+		if not animated:
+			var xp_shown: bool = ui.play.header.has_xp()
+			var xp_wanted: bool = persistent_xp and not g.phase.begins_with("final")
+			_ok(xp_shown == xp_wanted, "%s %s: the bar shows the XP kept only with Persistent XP, before the Final Battle" % [where, g.phase])
+			if xp_shown and g.phase != "upgrade":
+				_ok(ui.play.header._counts.xp.text == str(g.xp), "%s %s: the bar's XP %s is the %d kept" % [where, g.phase, ui.play.header._counts.xp.text, g.xp])
 		match g.phase:
 			"setup":
 				var picks: Array = g.setup_offer.slice(0, g.setup_picks)
@@ -953,10 +963,13 @@ func _play(where: String, game_seed: int, difficulty: String, animated: bool) ->
 				if not animated:
 					_inspect_screen("%s upgrade" % where)
 				var can_spend: bool = g.xp > 0 and g.hand.any(func(id): return ui.vs.cards[id].get("eligible", false))
+				var had: int = g.xp
 				await _press({"type": "primary"}, animated)
 				var top = ui._top_overlay()
 				var asked: bool = top != null and top.get_script() == ConfirmDialog
-				_ok(asked == (can_spend and Settings.warn_unspent_xp), "%s: unspent XP asks first only when a card could be Upgraded" % where)
+				_ok(asked == (can_spend and Settings.warn_unspent_xp and not persistent_xp), "%s: unspent XP asks first only when a card could be Upgraded and would be lost" % where)
+				if persistent_xp and g.phase != "upgrade":
+					_ok(g.xp == had, "%s: Persistent XP keeps the %d XP through Cleanup (%d)" % [where, had, g.xp])
 				if asked:
 					_ok(g.phase == "upgrade", "%s: nothing moves on until answered" % where)
 					if not animated:
@@ -1045,6 +1058,13 @@ func _screens_and_overlays(where: String) -> void:
 			seen.append(menu.motion_button._title.text)
 			menu.motion_button.pressed.emit()
 		_ok(Settings.motion == was and seen.size() == 3 and seen[0] != seen[1] and seen[1] != seen[2], "%s: the Motion button steps through %s and back" % [where, str(seen)])
+		# Rules: Classic and House rules, one press each way.
+		var house: bool = Settings.house_rules
+		var named: String = menu.rules_button._title.text
+		menu.rules_button.pressed.emit()
+		_ok(Settings.house_rules != house and menu.rules_button._title.text != named, "%s: the Rules button turns %s to %s" % [where, named, menu.rules_button._title.text])
+		menu.rules_button.pressed.emit()
+		_ok(Settings.house_rules == house, "%s: and back" % where)
 	ui._close_overlays()
 	# The tallest the menu gets: in a game, on a desktop with the Window row.
 	var tall := MenuOverlay.new()
@@ -1408,8 +1428,15 @@ func _setup_steps(where: String) -> void:
 	_inspect_screen("%s rules" % where)
 	_ok(ui.screen.get_script() == RulesScreen, "%s: continue shows the rules screen" % where)
 	var keys: Array = ui.screen._tiles.keys()
-	_ok(keys.size() == 8 and keys.has("cavalier") and keys.has("glass_cannon") and keys.filter(func(k): return k.begins_with("difficulty:")).size() == 6,
-		"%s: the rules screen offers six difficulties and both rules" % where)
+	_ok(not Settings.house_rules and keys.size() == 8 and keys.has("cavalier") and keys.has("glass_cannon") and keys.filter(func(k): return k.begins_with("difficulty:")).size() == 6,
+		"%s: under Classic the rules screen offers six difficulties and the rulebook's two rules" % where)
+	# House rules add Persistent XP beside them (editions.gd).
+	Settings.house_rules = true
+	ui.dispatch({"type": "setup_rules", "options": ui.screen.options})
+	await _settle()
+	_inspect_screen("%s rules, house rules" % where)
+	keys = ui.screen._tiles.keys()
+	_ok(keys.size() == 9 and keys.has("persistent_xp"), "%s: House rules offer Persistent XP too" % where)
 	ui.dispatch({"type": "glossary"})
 	await _settle()
 	_inspect_screen("%s rules glossary" % where)
@@ -1417,6 +1444,7 @@ func _setup_steps(where: String) -> void:
 	await process_frame
 	ui.screen._choose("difficulty", "hard")
 	ui.screen._choose("cavalier", null)
+	ui.screen._choose("persistent_xp", null)
 	var kept: Dictionary = ui.screen.options.duplicate()
 	ui.screen.back()
 	await _settle()
@@ -1426,7 +1454,7 @@ func _setup_steps(where: String) -> void:
 	ui.dispatch({"type": "setup_rules", "options": ui.screen.options})
 	await _settle()
 	var now: Dictionary = ui.screen.options
-	_ok(now.dragon == other and now.difficulty == kept.difficulty and now.cavalier == kept.cavalier and now.glass_cannon == kept.glass_cannon,
+	_ok(now.dragon == other and now.difficulty == kept.difficulty and now.cavalier == kept.cavalier and now.glass_cannon == kept.glass_cannon and now.persistent_xp == kept.persistent_xp,
 		"%s: going back and on keeps the choices, %s" % [where, str(now)])
 	var esc := InputEventKey.new()
 	esc.keycode = KEY_ESCAPE
@@ -1440,8 +1468,14 @@ func _setup_steps(where: String) -> void:
 	ui.dispatch({"type": "start", "options": chosen})
 	await _settle()
 	_ok(ui.game != null and ui.screen == ui.play, "%s: set out starts a game" % where)
-	for key in ["dragon", "difficulty", "cavalier", "glass_cannon"]:
+	for key in ["dragon", "difficulty", "cavalier", "glass_cannon", "persistent_xp"]:
 		_ok(Settings.last_options[key] == chosen[key], "%s: set out remembers %s" % [where, key])
+	_ok(ui.game.keeps_xp() == chosen.persistent_xp, "%s: the game has the house rule chosen" % where)
+	# Back to Classic: the remembered house rule is not carried into a Classic game.
+	Settings.house_rules = false
+	ui.dispatch({"type": "start", "options": chosen})
+	await _settle()
+	_ok(not ui.game.keeps_xp(), "%s: a Classic game never has a house rule" % where)
 	ui.dispatch({"type": "to_title"})
 	await _settle()
 

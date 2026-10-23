@@ -16,7 +16,10 @@ Battle:
 - All 16 Mage Cards, 4 Regions and 4 dragons, with every Hardship, enemy Ability and
   journey Peril
 - Fusing, Diverting, Regrouping, Knock Out, poison, and scoring
-- The six difficulty levels and both alternate rules (Cavalier, Glass Cannon)
+- The six difficulty levels and the rulebook's two alternate rules (Cavalier, Glass Cannon)
+- Classic or House rules, chosen under Rules in the menu: Classic is the rulebook as
+  printed; House rules adds this edition's own alternate rules, so far Persistent XP
+  (XP left unspent carries over between Encounters, kept in a counter in the top bar)
 - A landing page (Play, Learn to Play, the Leaderboard, the Glossary), then the choice of dragon, one
   dragon's figures at a time, then the difficulty and alternate rules
 - A landscape interface for phones, tablets and desktop browsers, played by touch,
@@ -168,6 +171,12 @@ the earlier print-and-play edition and a fan-made pixel-art variant. It is writt
 ## Rules interpretations
 
 Where the rulebook is silent or ambiguous, the engine does the following:
+
+- House rules (the menu's Rules setting) are not in the rulebook, and Classic never
+  offers them. Persistent XP: with it, XP left unspent at Cleanup stays,
+  and what the next Encounter wins is added to it, through the end of a Region too.
+  Nothing spends it in the Final Battle. Its games share the Leaderboard with the
+  others, marked with the rule like Cavalier and Glass Cannon.
 
 - An enhanced action whose type does not fit the Encounter falls back to the basic
   action rather than counting as 1.

@@ -1,7 +1,8 @@
 extends Control
 ## The strip across the top of every screen, with the menu button always at its right.
 ## On the play screen it also shows where you are and the three piles with their
-## counts; elsewhere the screen's name, centred
+## counts, led by the XP kept when the game is played with Persistent XP; elsewhere
+## the screen's name, centred
 ## (set_title), and, on a screen that can go back, Back at its left.
 ## It is a shallow lintel of carved stone with the heading cut into it, and it stays
 ## quiet, so what is below it comes first.
@@ -15,6 +16,8 @@ const StoneStyle = preload("res://ui/theme/stone_style.gd")
 signal intent(data: Dictionary)
 
 const PILES := ["deck", "discard", "trash"]
+## The chips in the bar: the XP kept (Persistent XP only), then the piles.
+const CHIPS := ["xp", "deck", "discard", "trash"]
 const PILE_NAMES := {"deck": "Deck", "discard": "Discard", "trash": "Trash"}
 ## The width of Back's tap target.
 const BACK_W := 150
@@ -39,7 +42,7 @@ var _slots := []
 ## The visible stone slabs of the menu and Back buttons, inside the bar.
 var _menu_face := PanelContainer.new()
 var _back_face := PanelContainer.new()
-var _shown := {"deck": 0, "discard": 0, "trash": 0}
+var _shown := {"xp": 0, "deck": 0, "discard": 0, "trash": 0}
 ## Whether the bar shows only a screen's name (set_title), centred.
 var _titled := false
 
@@ -71,10 +74,11 @@ func _init() -> void:
 	# button does in its corner, would cover the Action Set's headers under the piles
 	# (a departure from analysis I6, recorded in the plan). A place in the row holds the
 	# chip's room, and the button is laid over it in _fit.
-	for pile in PILES:
+	for pile in CHIPS:
 		var slot := Control.new()
 		slot.custom_minimum_size = Vector2(T.TAP_MIN, 0)
 		slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		slot.visible = pile != "xp"
 		_row.add_child(slot)
 		_slots.append(slot)
 		var b := HelpButton.new()
@@ -84,7 +88,8 @@ func _init() -> void:
 		for state in ["normal", "hover", "pressed", "disabled"]:
 			b.add_theme_stylebox_override(state, StyleBoxEmpty.new())
 		b.add_theme_stylebox_override("focus", UI.focus_ring("sm"))
-		var chip := UI.chip(pile, "0")
+		# XP in the bright brass of rewards, as on the result note and the purse.
+		var chip := UI.chip(pile, "0", "reward" if pile == "xp" else "plain")
 		chip.name = pile
 		chip.custom_minimum_size = Vector2(T.TAP_MIN, 0)
 		b.add_child(chip)
@@ -215,6 +220,12 @@ func render(vs: Dictionary) -> void:
 	_heading_more.text = parts[1]
 	_heading_more.visible = parts[1] != ""
 	set_counts(vs.piles)
+	# The XP kept, only while a game with Persistent XP has a use for it.
+	var banked: int = vs.get("banked_xp", -1)
+	_slots[CHIPS.find("xp")].visible = banked >= 0
+	_shown.xp = maxi(0, banked)
+	_counts.xp.text = str(_shown.xp)
+	_place_piles.call_deferred()
 
 
 func set_counts(piles: Dictionary) -> void:
@@ -223,11 +234,16 @@ func set_counts(piles: Dictionary) -> void:
 		_counts[pile].text = str(piles[pile])
 
 
-## Change one pile's count as a card arrives or leaves, with a flash.
+## Change one chip's count as a card (or XP) arrives or leaves, with a flash.
 func bump(pile: String, delta: int) -> void:
 	_shown[pile] = maxi(0, _shown[pile] + delta)
 	_counts[pile].text = str(_shown[pile])
 	UI.flash(_icons[pile], T.PARCHMENT)
+
+
+## Whether the bar shows the XP kept (Persistent XP).
+func has_xp() -> bool:
+	return _slots[CHIPS.find("xp")].visible
 
 
 ## Global centre of a pile's icon, for cards flying to or from it.

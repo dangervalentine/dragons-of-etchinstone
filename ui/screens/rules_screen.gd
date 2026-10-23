@@ -6,6 +6,7 @@ const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
 const ChoiceTile = preload("res://ui/widgets/choice_tile.gd")
 const Game = preload("res://engine/game.gd")
+const Editions = preload("res://ui/model/editions.gd")
 const DragonScreen = preload("res://ui/screens/dragon_screen.gd")
 
 signal intent(data: Dictionary)
@@ -29,7 +30,8 @@ var _content := Rect2(16, 16, 1248, 688)
 
 func setup(card_db, opts: Dictionary) -> void:
 	db = card_db
-	options = opts.duplicate()
+	# Under Classic no house rule is offered, so none may be carried in (editions.gd).
+	options = Editions.apply(opts)
 	_build()
 
 
@@ -105,6 +107,12 @@ func _build() -> void:
 	glass.pressed.connect(_choose.bind("glass_cannon", null))
 	rules.add_child(glass)
 	_tiles["glass_cannon"] = glass
+	# The house rule beside the rulebook's two, under House rules only.
+	if Editions.offers("persistent_xp"):
+		var keep: Button = ChoiceTile.make("Persistent XP", "Unspent XP carries over")
+		keep.pressed.connect(_choose.bind("persistent_xp", null))
+		rules.add_child(keep)
+		_tiles["persistent_xp"] = keep
 	foot.add_child(rules)
 	table.add_child(_cell(foot, false))
 	# Set out where the dragon screen keeps Continue. Back is in the title bar.
@@ -157,7 +165,7 @@ func _difficulty_text(key: String) -> String:
 
 func _choose(key: String, value) -> void:
 	if value == null:
-		options[key] = not options[key]
+		options[key] = not options.get(key, false)
 	else:
 		options[key] = value
 	_refresh()
@@ -168,3 +176,5 @@ func _refresh() -> void:
 		_tiles["difficulty:" + entry[0]].selected = options.difficulty == entry[0]
 	_tiles["cavalier"].selected = options.cavalier
 	_tiles["glass_cannon"].selected = options.glass_cannon
+	if _tiles.has("persistent_xp"):
+		_tiles["persistent_xp"].selected = options.get("persistent_xp", false)

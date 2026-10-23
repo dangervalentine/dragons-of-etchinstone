@@ -346,6 +346,12 @@ func test_finish_with_unspent_xp_adds_xp_lost() -> void:
 	after.phase = "challenge"
 	steps = Sequencer.build(before, {"kind": "finish", "cards": []}, {}, after)
 	ok(not steps.any(func(s): return s.kind == "xp_lost"), "none when every XP was spent")
+	# Persistent XP: the XP is still there after Cleanup, so nothing is lost.
+	before = ViewState.snapshot(_upgrading(5))
+	after = before.duplicate(true)
+	after.phase = "challenge"
+	steps = Sequencer.build(before, {"kind": "finish", "cards": []}, {}, after)
+	ok(not steps.any(func(s): return s.kind == "xp_lost"), "none when the XP is kept")
 
 
 ## Taking the damage Downgrades the cards chosen at once: nothing flies to them

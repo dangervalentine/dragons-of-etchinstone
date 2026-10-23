@@ -222,9 +222,12 @@ func _run(st: Dictionary, d: float) -> void:
 			if screen.preview.visible:
 				screen.preview.reveal_verdict(d)
 		"gain_xp":
-			# The XP counts up in its pill beside the verdict, on the note.
+			# The XP counts up in its pill beside the verdict, on the note, and the XP
+			# kept in the bar takes it in as it lands (Persistent XP).
 			if screen.preview.visible:
 				screen.preview.count_xp(d)
+			if screen.header.has_xp():
+				_keep(_later(d, func(): screen.header.bump("xp", st.values.amount)))
 		"damage":
 			var amount: int = st.values.amount
 			if amount > 0:
