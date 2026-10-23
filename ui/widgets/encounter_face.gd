@@ -182,11 +182,13 @@ func _fit_body(h: float) -> void:
 
 ## The part of an enemy's art shown in a panel of `panel` size. A painted enemy is
 ## placed on its artboard as it is to stand, at its own size, feet on the common
-## ground line: shown whole down, centred, its sides filled out to the panel's shape.
+## ground line: shown whole down, its sides filled out to the panel's shape, and set
+## back left of the middle by T.ENEMY_SET_BACK of the panel's width.
 static func enemy_crop(panel: Vector2) -> Rect2:
 	var ratio := panel.x / maxf(panel.y, 1.0)
 	var full := Art.FULL
-	return Rect2(full.get_center().x - full.size.y * ratio / 2.0, 0, full.size.y * ratio, full.size.y)
+	var w := full.size.y * ratio
+	return Rect2(full.get_center().x - w / 2.0 + w * T.ENEMY_SET_BACK, 0, w, full.size.y)
 
 
 ## Where a figure's art is drawn within its 512-unit square: the box round every

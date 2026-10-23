@@ -265,6 +265,9 @@ const CREATURE_LINE_MIN := 1.5
 ## its heart, and how far it reaches past the figure's box, as a share of its size.
 const CREATURE_BACKLIGHT := 0.32
 const CREATURE_BACKLIGHT_REACH := 0.35
+## How far left of the panel's middle an Enemy stands, as a share of the art's width:
+## centred, the figures came too far forward; set back a little they balance the scene.
+const ENEMY_SET_BACK := 0.15
 
 # Stone
 ## The edges of a carved bevel.
