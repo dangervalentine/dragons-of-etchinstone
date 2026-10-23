@@ -10,6 +10,7 @@ const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
 const CardView = preload("res://ui/widgets/card_view.gd")
 const Solver = preload("res://ui/model/layout_solver.gd")
+const PlaceLabels = preload("res://ui/widgets/place_labels.gd")
 
 signal intent(data: Dictionary)
 signal hover(id: String, on: bool)
@@ -21,6 +22,8 @@ var _plan := {}
 var _vs := {}
 ## The card being dragged and where the pointer holds it, from its top-left.
 var _drag_id := ""
+## Where the pointer last aimed the held card (main.gd "aim").
+var _aim = null
 var _drag_grip := Vector2.ZERO
 ## Cards passing by and not in the Hand: a Time Penalty's, on their way to the Discard.
 var _passing: Array = []
@@ -59,7 +62,7 @@ func sync(vs: Dictionary, plan: Dictionary, animate := false, arrive_from = null
 		if not hand.has(id):
 			_cards[id].queue_free()
 			_cards.erase(id)
-	_sync_outlines(places, plan)
+	sync_outlines(places, plan)
 	var arrivals := 0
 	for i in hand.size():
 		var id: String = hand[i]
@@ -175,7 +178,9 @@ func _glide(view: Control, delay: float, fly := false) -> void:
 		tw.tween_property(view, "position", view.home.position, d).set_delay(delay)
 		tw.tween_property(view, "size", view.home.size, d).set_delay(delay)
 	else:
-		tw.tween_property(view, "position", view.home.position, d).set_delay(delay)
+		# A card moving between places slides and settles with a short overshoot, as on
+		# a table (specs/019 Motion); a drawn card's flight from the Deck keeps its path.
+		tw.tween_property(view, "position", view.home.position, d).set_delay(delay).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 		tw.tween_property(view, "size", view.home.size, d).set_delay(delay)
 		tw.tween_property(view, "modulate:a", 1.0, d * 0.6).set_delay(delay)
 	_tweens.append(tw)
@@ -321,9 +326,9 @@ func _home_of(id: String, m: Dictionary, places: Array, unplaced: Array) -> Rect
 	return Rect2(_plan.regions.hand.position, _plan.card_size)
 
 
-## The outline of each empty place, under its label: a tap target under the cards
+## The well of each empty place, under its label: a tap target under the cards
 ## that takes the held card.
-func _sync_outlines(places: Array, plan: Dictionary) -> void:
+func sync_outlines(places: Array, plan: Dictionary) -> void:
 	for o in _outlines:
 		o.queue_free()
 	_outlines = []
@@ -333,6 +338,7 @@ func _sync_outlines(places: Array, plan: Dictionary) -> void:
 			continue
 		var o := _Outline.new()
 		o.state = p.state
+		o.role_name = PlaceLabels.ROLE_NAMES.get(p.role, "")
 		var r: Rect2 = positions[p.index].card
 		o.position = r.position - global_position
 		o.size = r.size
@@ -347,11 +353,15 @@ func _sync_outlines(places: Array, plan: Dictionary) -> void:
 		_outlines.append(o)
 
 
-## An empty place: a stroke the size of the card it waits for, glowing while a held
-## card can go there.
+## An empty place: a well the size of the card it waits for (specs/019 Slot). The
+## target, the one place the next tap fills, takes the brass rim and its name inside;
+## a place open to the held card the etched edge; the rest a hairline.
 class _Outline extends Button:
 	const T = preload("res://ui/theme/tokens.gd")
+	const UI = preload("res://ui/theme/theme.gd")
+	const StoneStyle = preload("res://ui/theme/stone_style.gd")
 	var state := "empty"
+	var role_name := ""
 
 	func _init() -> void:
 		flat = true
@@ -361,19 +371,35 @@ class _Outline extends Button:
 			add_theme_stylebox_override(st, StyleBoxEmpty.new())
 
 	func _draw() -> void:
-		var r := Rect2(Vector2.ZERO, size).grow(-2)
-		var lit := state == "target"
-		var colour: Color = T.FOCUS if lit else T.muted(T.FOCUS)
 		if state == "inactive":
-			colour = Color(T.INK_MUTED, 0.25)
-		if lit:
-			draw_rect(r, Color(T.FOCUS, 0.14), true)
-		draw_rect(r, colour, false, 3.0 if lit else 2.0)
+			return
+		var well := StoneStyle.new("well")
+		well.selected = state == "target"
+		if state == "open":
+			well.edge = T.EDGE
+		draw_style_box(well, Rect2(Vector2.ZERO, size))
+		if state == "target" and role_name != "":
+			var font := UI.font(T.LABEL)
+			var text := role_name.to_upper()
+			var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, T.LABEL.size).x
+			draw_string(font, Vector2((size.x - w) / 2.0, size.y / 2.0 + T.LABEL.size * 0.35), text,
+				HORIZONTAL_ALIGNMENT_LEFT, -1, T.LABEL.size, T.BRASS)
 
 
 ## Whether cards can be dragged into places now: while building, outside any mode.
 func _can_drag() -> bool:
 	return not _vs.is_empty() and _vs.get("mode", "") == "none" and not _vs.get("places", []).is_empty() 		and ["challenge", "final_journey", "final_enemy"].has(_vs.get("phase", ""))
+
+
+## The pointer over a place while a card is held aims the card there (specs/019:
+## one target at a time); main.gd draws the places again for it.
+func _input(event: InputEvent) -> void:
+	if not event is InputEventMouseMotion or _vs.is_empty() or _vs.get("held") == null or _drag_id != "":
+		return
+	var aim = _drop_target(event.global_position, str(_vs.held))
+	if typeof(aim) != typeof(_aim) or aim != _aim:
+		_aim = aim
+		intent.emit({"type": "aim", "target": aim})
 
 
 func _on_drag_started(id: String) -> void:
@@ -419,10 +445,11 @@ func _on_dropped(id: String, at: Vector2) -> void:
 ## What a card dropped at a global point is put on: another card's place
 ## ({"card": id}), or an empty place as the draft names it; null over its own place
 ## or nowhere.
-func _drop_target(at: Vector2) -> Variant:
+func _drop_target(at: Vector2, skip := "") -> Variant:
 	var positions: Array = _plan.get("positions", [])
+	var own := skip if skip != "" else _drag_id
 	for p in _vs.get("places", []):
-		if p.index >= positions.size() or p.state == "inactive" or p.card_id == _drag_id:
+		if p.index >= positions.size() or p.state == "inactive" or p.card_id == own:
 			continue
 		var pos: Dictionary = positions[p.index]
 		if not pos.label.merge(pos.card).grow(Solver.GAP / 2.0).has_point(at):

@@ -29,7 +29,7 @@ const FLAVOUR_LINES := 3
 const RULE := 2
 const TABLE_RADIUS := 8
 ## How bright the flavour of a dragon not chosen is.
-const DIM := Color(0.5, 0.5, 0.55)
+const DIM := T.DIM_MODULATE
 ## The lessons' dragon, and what every other dragon says in a lesson.
 const LESSON_DRAGON := "rodving"
 const LESSON_LINE := "The lessons are played against Rodving."
@@ -100,7 +100,7 @@ func _build() -> void:
 	_layout = Control.new()
 	add_child(_layout)
 	apply_layout(_content)
-	var root := UI.vbox(T.S)
+	var root := UI.vbox(T.SPACE_2)
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_layout.add_child(root)
 
@@ -108,7 +108,7 @@ func _build() -> void:
 	# centred down the screen. The frame shows through the gaps between the cells
 	# as the table's rules.
 	var frame := PanelContainer.new()
-	var rules := UI.box(T.LINE_SOFT, T.LINE_SOFT, RULE, TABLE_RADIUS, RULE)
+	var rules := UI.box(T.LINE, T.LINE, RULE, TABLE_RADIUS, RULE)
 	frame.add_theme_stylebox_override("panel", rules)
 	var table := GridContainer.new()
 	table.columns = 4
@@ -135,19 +135,19 @@ func _build() -> void:
 			words = LESSON_LINE
 		elif is_locked(id):
 			words = Flavor.unlock(id)
-		var line := UI.label(words, T.LABEL, T.INK_MUTED, true)
+		var line := UI.label(words, T.BODY_SM, T.PARCHMENT_MUTED, true)
 		line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		line.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 		line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		line.custom_minimum_size.y = UI.font(T.LABEL[0]).get_height(T.LABEL[1]) * FLAVOUR_LINES
-		table.add_child(_cell(line, ids.find(id), 1, T.S))
+		line.custom_minimum_size.y = UI.font(T.BODY_SM).get_height(T.BODY_SM.size) * FLAVOUR_LINES
+		table.add_child(_cell(line, ids.find(id), 1, T.SPACE_2))
 		_flavours[id] = line
 		# Its height follows its width; the cards make room for it.
 		line.resized.connect(_fit_cards)
 
 	# Continue at the screen's bottom right, where the next step keeps Set out. Back
 	# is in the title bar.
-	var bottom := UI.hbox(T.S)
+	var bottom := UI.hbox(T.SPACE_2)
 	_bottom = bottom
 	bottom.custom_minimum_size.y = T.TAP_MIN
 	bottom.add_child(UI.spacer())
@@ -183,7 +183,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func _cell(content: Control, column: int, row: int, margin: int) -> PanelContainer:
 	var cell := PanelContainer.new()
 	cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var face := UI.box(T.BG_SURFACE, Color.TRANSPARENT, 0, 0, margin)
+	var face := UI.box(T.STONE, Color.TRANSPARENT, 0, 0, margin)
 	var r := TABLE_RADIUS - RULE
 	face.corner_radius_top_left = r if row == 0 and column == 0 else 0
 	face.corner_radius_top_right = r if row == 0 and column == 3 else 0
@@ -206,7 +206,7 @@ func _fit_cards() -> void:
 	var lines := 0.0
 	for line in _flavours.values():
 		lines = maxf(lines, line.get_combined_minimum_size().y)
-	var room := _layout.size.y - _bottom.custom_minimum_size.y - lines - 2.0 * T.S - 3.0 * RULE - 3.0 * T.S
+	var room := _layout.size.y - _bottom.custom_minimum_size.y - lines - 2.0 * T.SPACE_2 - 3.0 * RULE - 3.0 * T.SPACE_2
 	var h := minf(DragonCard.card_size(maxf(1.0, width)).y + 2.0 * DragonPick.GLOW, room)
 	for tile in _tiles.values():
 		tile.custom_minimum_size.y = maxf(tile.get_minimum_size().y, floorf(h))
@@ -241,7 +241,7 @@ func _refresh() -> void:
 		tile.selected = options.dragon == id
 		tile.any_chosen = chosen
 		var line: Label = _flavours[id]
-		line.add_theme_color_override("font_color", T.INK if options.dragon == id else T.INK_MUTED)
+		line.add_theme_color_override("font_color", T.PARCHMENT if options.dragon == id else T.PARCHMENT_MUTED)
 		line.modulate = Color.WHITE if options.dragon == id or not chosen else DIM
 	card = _tiles["dragon:" + options.dragon].card if chosen else null
 	_next.disabled = not chosen

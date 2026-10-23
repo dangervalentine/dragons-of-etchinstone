@@ -1,0 +1,84 @@
+/* Etchinstone — generated from tokens.json */
+:root {
+  --ground: #0e1517;
+  --stone: #172225;
+  --stone-raised: #213033;
+  --well: #0a1012;
+  --line: #2e3f40;
+  --edge: #64797a;
+  --parchment: #f1e3d1;
+  --parchment-muted: #b4a894;
+  --parchment-faint: #5f675f;
+  --brass: #dcb35c;
+  --brass-bright: #f2d16b;
+  --brass-deep: #8a6a2c;
+  --on-brass: #1c1508;
+  --jade: #8fc4a3;
+  --danger: #ee7a62;
+  --stat-hp: #e2697a;
+  --paper: #e9dac4;
+  --paper-ink: #1b2324;
+  --paper-muted: #5a5244;
+  --scrim: rgba(5, 9, 10, 0.82);
+  --card-frame: #121618;
+  --card-ribbon: #6b5639;
+  --stat-plate: #101314;
+  --ether-lapis: #3566b0;
+  --ether-lapis-bright: #5a8bdb;
+  --ether-ochre: #c9902c;
+  --ether-ochre-bright: #e8b245;
+  --ether-amethyst: #7350b0;
+  --ether-amethyst-bright: #9576dd;
+  --ether-cinnabar: #b93a2e;
+  --ether-cinnabar-bright: #de5a44;
+  --region-jade: #5f8a6e;
+  --region-marsh: #4d8080;
+  --region-basin: #b5633a;
+  --region-gath: #3f6b4a;
+  --region-lair: #8a3b3a;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --radius-card: 8px;
+  --radius-plate: 4px;
+  --radius-pill: 999px;
+  --chamfer-sm: 6px;
+  --chamfer-md: 10px;
+  --chamfer-lg: 16px;
+  --border-etch: 1px;
+  --border-edge: 2px;
+  --border-select: 3px;
+  --touch-min: 44px;
+  --topbar-height: 40px;
+  --action-height: 48px;
+  --card-width: 100px;
+  --shadow-slab: inset 0 1px 0 rgba(241, 227, 209, 0.10), inset 0 -3px 0 rgba(0, 0, 0, 0.35), 0 3px 0 #070b0c;
+  --shadow-slab-pressed: inset 0 2px 0 rgba(0, 0, 0, 0.45), 0 1px 0 #070b0c;
+  --shadow-brass: inset 0 1px 0 rgba(255, 244, 214, 0.55), inset 0 -3px 0 #8a6a2c, 0 3px 0 #070b0c;
+  --shadow-well: inset 0 2px 6px rgba(0, 0, 0, 0.6);
+  --shadow-card: 0 2px 0 #070b0c, 0 8px 18px rgba(0, 0, 0, 0.45);
+  --shadow-lift: 0 4px 0 #070b0c, 0 16px 32px rgba(0, 0, 0, 0.55);
+  --opacity-region-wash: 0.22;
+  --opacity-out-of-play: 0.45;
+  --font-display: "Fraunces", Georgia, serif;
+  --font-sans: "Alegreya Sans", "Segoe UI", system-ui, sans-serif;
+}
+@font-face { font-family: "Fraunces"; src: url("fonts/Fraunces-Variable.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Alegreya Sans"; src: url("fonts/AlegreyaSans-500.woff2") format("woff2"); font-weight: 500; font-display: swap; }
+@font-face { font-family: "Alegreya Sans"; src: url("fonts/AlegreyaSans-700.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Alegreya Sans"; src: url("fonts/AlegreyaSans-800.woff2") format("woff2"); font-weight: 800; font-display: swap; }
+.banner { font-family: var(--font-display); font-size: 34px; line-height: 36px; font-weight: 800; letter-spacing: 0.01em; }
+.title { font-family: var(--font-display); font-size: 22px; line-height: 26px; font-weight: 700; letter-spacing: 0.01em; }
+.heading { font-family: var(--font-display); font-size: 17px; line-height: 22px; font-weight: 700; }
+.card-name { font-family: var(--font-display); font-size: 11px; line-height: 12px; font-weight: 700; letter-spacing: 0.03em; }
+.numeral-xl { font-family: var(--font-display); font-size: 36px; line-height: 36px; font-weight: 900; }
+.numeral { font-family: var(--font-display); font-size: 20px; line-height: 20px; font-weight: 800; }
+.numeral-sm { font-family: var(--font-display); font-size: 14px; line-height: 14px; font-weight: 800; }
+.label { font-family: var(--font-sans); font-size: 12px; line-height: 16px; font-weight: 800; letter-spacing: 0.1em; }
+.button { font-family: var(--font-sans); font-size: 16px; line-height: 20px; font-weight: 800; letter-spacing: 0.01em; }
+.body { font-family: var(--font-sans); font-size: 15px; line-height: 21px; font-weight: 500; }
+.body-sm { font-family: var(--font-sans); font-size: 13px; line-height: 18px; font-weight: 500; }
+.caption { font-family: var(--font-sans); font-size: 12px; line-height: 16px; font-weight: 500; }

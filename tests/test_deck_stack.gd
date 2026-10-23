@@ -50,13 +50,18 @@ func test_the_pile_is_drawn_from_its_count_alone() -> void:
 
 
 func test_every_card_has_the_mage_cards_corners() -> void:
-	eq(DeckStack.card_radius(190.0), 14, "a Hand card's corners")
-	eq(DeckStack.card_radius(400.0), 30, "and a Region Card's, at its own width")
+	# 8% of the card's width, the design system's radius-card on its card (specs/019).
+	eq(DeckStack.card_radius(190.0), 15, "a Hand card's corners")
+	eq(DeckStack.card_radius(400.0), 32, "and a Region Card's, at its own width")
 
 
 func test_the_face_leaves_the_edges_their_margin() -> void:
-	eq(DeckStack.face_rect(Vector2(500, 400)), Rect2(0, 0, 476, 376), "the face")
-	eq(DeckStack.card_rect(Vector2(500, 400), "face", true), Rect2(0, 0, 476, 376), "zoomed in, the top card is under the face")
+	# The face is a card of the Hand's shape, the largest that fits inside the edges'
+	# margin, centred there (owner, 2026-10-22).
+	eq(DeckStack.face_rect(Vector2(500, 400)), Rect2(104, 0, 268, 376), "the face")
+	eq(DeckStack.card_rect(Vector2(500, 400), "face", true), Rect2(104, 0, 268, 376), "zoomed in, the top card is under the face")
+	var tall := DeckStack.face_rect(Vector2(400, 900))
+	ok(absf(tall.size.x / tall.size.y - T.CARD_ASPECT) < 0.01, "a tall Deck's face is a playing card's shape too")
 
 
 func test_the_key_card_rises_by_its_band_and_strip() -> void:
@@ -81,9 +86,10 @@ func test_the_card_leaves_room_for_a_key_card_of_its_own_size() -> void:
 		var ph := DeckStack.peek_h(cr.size)
 		ok(cr.position.y - (ph - DeckStack.dip(ph)) < 2.5, "%s: no more room than that" % deck)
 		ok(absf(_aspect(cr) - RegionCard.ASPECT) < 0.01, "%s: printed 5 by 7" % deck)
-	# Narrow and tall: as wide as the face, as before.
+	# Narrow and tall: the face is a card's shape, so the card is as tall as fits under
+	# its rise on it.
 	var tall := DeckStack.card_rect(Vector2(400, 900), "card", true)
-	eq(tall.size.x, DeckStack.face_rect(Vector2(400, 900)).size.x, "a tall Deck: the card is as wide as the face")
+	ok(tall.end.y <= DeckStack.face_rect(Vector2(400, 900)).end.y + 0.5, "a tall Deck: the card stays on the face")
 	_room_ok(tall, "tall")
 	# The Dragon Card has nothing rising from under it.
 	var dragon := DeckStack.card_rect(Vector2(600, 500), "card", false)

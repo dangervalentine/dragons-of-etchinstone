@@ -1,0 +1,37 @@
+<!-- @dsCard group="Screens" height=440 width=844 page subtitle="An Encounter, recomposed at phone size (844×390)" -->
+<!doctype html>
+<html lang="en">
+<head><link rel="stylesheet" href="../../tokens.css"><link rel="stylesheet" href="../bundle.css"><meta charset="utf-8"><title>Encounter</title>
+<style>
+html,body{margin:0}
+.phone{width:844px;height:390px;display:grid;grid-template-rows:var(--topbar-height) 1fr;overflow:hidden}
+.play{display:grid;grid-template-columns:200px 1fr;gap:var(--space-4);padding:var(--space-3) var(--space-4)}
+.enc{border-radius:var(--radius-card);background:var(--card-frame);padding:3px;box-shadow:0 2px 0 #070b0c,0 8px 18px rgba(0,0,0,.45);display:grid;grid-template-rows:1fr auto;overflow:hidden}
+.enc img{width:100%;height:100%;object-fit:cover;border-radius:6px 6px 0 0;display:block}
+.enc__name{display:flex;align-items:center;gap:6px;padding:6px 8px 4px;font:700 17px/22px var(--font-display);font-variation-settings:"SOFT" 50;color:var(--parchment)}
+.enc__fx{padding:0 8px 8px;font:500 13px/18px var(--font-sans);color:var(--parchment-muted)}
+.right{display:grid;grid-template-rows:auto var(--action-height);gap:var(--space-3);align-content:space-between}
+.tray{display:grid;grid-template-columns:repeat(4,var(--card-width)) 44px;gap:var(--space-2);justify-content:space-between;align-items:start}
+.aim{display:grid;gap:8px;padding-top:28px}
+.aim .es-btn{min-height:60px;padding:0;min-width:44px}
+.actions{display:grid;grid-template-columns:1fr 1fr 1.6fr;gap:var(--space-3)}
+</style></head>
+<body class="es-root" style="padding:0">
+<div class="phone es-table-ground" style="--region:var(--region-jade)">
+ <div class="es-topbar"><div class="es-topbar__title">Jade Mountains <small>· Region 1</small></div><div class="es-topbar__counters"><span class="es-chip"><span class="es-chip__icon">DECK</span>12</span><span class="es-chip"><span class="es-chip__icon">HELD</span>0</span><span class="es-chip"><span class="es-chip__icon">LOST</span>0</span></div><button class="es-topbar__menu" aria-label="Menu">&#9776;</button></div>
+ <div class="play">
+  <div class="enc"><img src="../../assets/Art/encounter-lionel-archer.webp" alt="Lionel Archer"><div><div class="enc__name"><span style="color:var(--danger)">&#9670;</span>Lionel Archer</div><div class="enc__fx">Ranged: strikes first unless the Reserve is given up.</div></div></div>
+  <div class="right">
+   <div class="es-panel es-panel--tray" style="padding:6px 10px 10px">
+    <div class="tray">
+     <div class="es-slothead is-filled"><span class="es-slothead__glyph"></span>Reserve</div><div class="es-slothead is-filled"><span class="es-slothead__glyph"></span>Element</div><div class="es-slothead is-filled"><span class="es-slothead__glyph"></span>Spell</div><div class="es-slothead is-target"><span class="es-slothead__glyph"></span>Boost</div><div></div>
+     <div class="es-card " data-ether="cinnabar"><div class="es-card__name"><span class="es-card__lvl">2</span>Motivated Flight</div><div class="es-card__ribbon"><span>3</span><span class="xp">3</span></div><div class="es-card__field"><span class="es-plate ">5</span><span class="es-plate ">4</span><span class="es-plate ">+2</span><span class="es-plate ">2</span></div></div><div class="es-card " data-ether="ochre"><div class="es-card__name"><span class="es-card__lvl">2</span>Fleet Footed</div><div class="es-card__ribbon"><span>3</span><span class="xp">4</span></div><div class="es-card__field"><span class="es-plate is-hi">5</span><span class="es-plate ">5</span><span class="es-plate ">+2</span></div></div><div class="es-card is-selected" data-ether="lapis"><div class="es-card__name"><span class="es-card__lvl">2</span>Destruction</div><div class="es-card__ribbon"><span>1</span><span class="xp">4</span></div><div class="es-card__field"><span class="es-plate ">1</span><span class="es-plate is-hi">3</span><span class="es-plate ">8</span><span class="es-plate ">+2</span></div></div><div class="es-slot is-target">Boost</div>
+     <div class="aim" style="grid-row:span 1"></div>
+    </div>
+   </div>
+   <div class="actions"><button class="es-btn"><svg class="es-btn__icon" width="22" height="14" viewBox="0 0 22 14" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="7" cy="7" r="5"/><circle cx="15" cy="7" r="5"/></svg><span>Fuse</span></button><button class="es-btn"><svg class="es-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"><path d="M3 15V8h9M9 4.5 12.5 8 9 11.5"/></svg><span>Divert · <span class="es-btn__count">2</span></span></button><button class="es-btn" disabled>Play</button></div>
+  </div>
+ </div>
+</div>
+</body>
+</html>

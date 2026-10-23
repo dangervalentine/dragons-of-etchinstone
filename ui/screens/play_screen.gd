@@ -48,7 +48,6 @@ var detail := CardDetail.new()
 var _hand_panel := Panel.new()
 ## The deepest place cut into the stone: the Hand's well.
 var _hand_well := StoneStyle.new("well", 0.9)
-var _breath: Tween
 var _input_region := ""
 var _hover_id := ""
 var _hover_timer := Timer.new()
@@ -162,31 +161,15 @@ func _place_hand_panel() -> void:
 	_hand_panel.size = panel.size
 
 
-## The part of the screen waiting on the player comes forward; the rest steps back.
+## The part of the screen waiting on the player: Play is made ready when the set is
+## complete. Nothing glows or breathes for it (specs/019 FR-018): the one brass button
+## and the one brass target say where the next tap goes.
 func _render_prominence() -> void:
 	var region: String = vs.get("input_region", "hand")
 	if region == _input_region:
 		return
 	_input_region = region
 	actions.set_ready(region == "commit")
-	# The zone waiting on the player lights up and breathes slowly; the light moves
-	# with a cross-fade, or at once in reduced motion.
-	if _breath != null and _breath.is_valid():
-		_breath.kill()
-	var lit: StyleBox = _hand_well if region == "hand" else primary_style()
-	for style in [_hand_well, primary_style()]:
-		if style == null or style.get("glow") == null:
-			continue
-		var to := 1.0 if style == lit else 0.0
-		if UI.reduced_motion or not is_inside_tree():
-			style.glow = to
-		else:
-			create_tween().tween_property(style, "glow", to, T.BASE)
-	if lit != null and lit.get("glow") != null and not UI.reduced_motion and is_inside_tree():
-		_breath = create_tween().set_loops()
-		_breath.tween_interval(T.BASE)
-		_breath.tween_property(lit, "glow", 0.85, 1.5).set_trans(Tween.TRANS_SINE)
-		_breath.tween_property(lit, "glow", 1.0, 1.5).set_trans(Tween.TRANS_SINE)
 
 
 func primary_style() -> StyleBox:
@@ -379,6 +362,20 @@ static func _merge(a: Rect2, b: Rect2) -> Rect2:
 	if b.size == Vector2.ZERO:
 		return a
 	return a.merge(b)
+
+
+## The places drawn again for a new aim (main.gd "aim"), and nothing else.
+func reaim(state: Dictionary) -> void:
+	vs = state
+	labels.render(vs, plan)
+	hand.sync_outlines(vs.get("places", []), plan)
+
+
+## Where the Region's wash glows from: the centre of the left column's card, in
+## global pixels (specs/019 FR-006).
+func wash_centre() -> Vector2:
+	var r: Rect2 = plan.get("regions", {}).get("encounter", Rect2())
+	return global_position + r.get_center()
 
 
 func encounter_node() -> Control:

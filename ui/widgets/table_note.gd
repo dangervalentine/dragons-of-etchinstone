@@ -19,7 +19,7 @@ const XpPurse = preload("res://ui/widgets/xp_purse.gd")
 const Creature = preload("res://ui/fx/creature.gd")
 const Art = preload("res://ui/model/art.gd")
 
-const PAD := 16.0
+const PAD := 12.0
 ## Printed as a game's reference card is (specs/015): a border of the card stock
 ## round a dark face, a title band across the top with a torn edge in the note's
 ## colour, the rest read from the top down, and a narrow band along the foot. The
@@ -30,12 +30,12 @@ const FOOT_H := 18.0
 ## Each kind's title, icon and colour as the band shows them. A step's title is its
 ## mode's name (FUSE, DIVERT, REGROUP).
 const LOOKS := {
-	"setup": {"title": "PREPARE", "icon": "crown", "accent": "gold"},
+	"setup": {"title": "Prepare", "icon": "crown", "accent": "gold"},
 	"mode": {"title": "", "icon": "", "accent": "focus"},
-	"result": {"title": "RESULT", "icon": "attack", "accent": "gold"},
-	"soak": {"title": "SOAK THE DAMAGE", "icon": "hp", "accent": "bad"},
-	"upgrade": {"title": "UPGRADE", "icon": "upgrade", "accent": "gold"},
-	"refusal": {"title": "NOT ALLOWED", "icon": "close", "accent": "bad"},
+	"result": {"title": "Result", "icon": "attack", "accent": "gold"},
+	"soak": {"title": "Soak the Damage", "icon": "hp", "accent": "bad"},
+	"upgrade": {"title": "Upgrade", "icon": "upgrade", "accent": "gold"},
+	"refusal": {"title": "Not Allowed", "icon": "close", "accent": "bad"},
 }
 
 var preview := PreviewPanel.new()
@@ -67,7 +67,7 @@ var _band := HBoxContainer.new()
 var _band_icon := TextureRect.new()
 var _band_title := Label.new()
 var _band_key := ""
-var _accent: Color = T.GOLD
+var _accent: Color = T.PARCHMENT_MUTED
 ## While _fit_result() lays the card out again.
 var _refitting := false
 ## A layout asked for at the end of the frame, as what a panel shows changes.
@@ -81,7 +81,7 @@ func _init() -> void:
 	_body.clip_contents = true
 	_body.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_body)
-	_band.add_theme_constant_override("separation", T.S)
+	_band.add_theme_constant_override("separation", T.SPACE_1)
 	_band.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_band_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_band_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -89,7 +89,7 @@ func _init() -> void:
 	_band_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_band_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_band.add_child(_band_icon)
-	UI.style_label(_band_title, T.SUBHEAD, T.INK)
+	UI.style_label(_band_title, T.HEADING, T.PARCHMENT)
 	_band_title.clip_text = true
 	_band_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_band_title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -98,16 +98,16 @@ func _init() -> void:
 	_creature.visible = false
 	_creature.modulate.a = 0.35
 	_body.add_child(_creature)
-	_box.add_theme_constant_override("separation", T.M)
+	_box.add_theme_constant_override("separation", T.SPACE_2)
 	_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_body.add_child(_box)
-	UI.style_label(_title, T.EYEBROW, T.GOLD)
+	UI.style_label(_title, T.LABEL, T.PARCHMENT_MUTED)
 	_title.visible = false
 	_box.add_child(_title)
 	# On the Upgrade note the XP is the whole of it: how the Encounter went is on the
 	# result under it.
 	xp_purse.recap = false
-	_setup.add_theme_constant_override("separation", T.S)
+	_setup.add_theme_constant_override("separation", T.SPACE_1)
 	_box.add_child(_setup)
 	# On the note the hosted panels draw no stone of their own: the note is the card.
 	for panel in [preview, soak_meter, xp_purse]:
@@ -119,7 +119,7 @@ func _init() -> void:
 	# The animator reveals the sum on the panel directly (the tally): lay the card out
 	# again as it grows.
 	preview.minimum_size_changed.connect(_queue_fit)
-	UI.style_label(_refusal, T.BODY, T.INK)
+	UI.style_label(_refusal, T.BODY, T.PARCHMENT)
 	_refusal.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_refusal.visible = false
 	_box.add_child(_refusal)
@@ -184,15 +184,15 @@ static func title_for(kind: String, vs: Dictionary, played_vs: Dictionary) -> St
 	match kind:
 		"result":
 			var enc = played_vs.get("encounter")
-			return str(enc.get("title", "")).to_upper() if enc != null else ""
+			return str(enc.get("title", "")) if enc != null else ""
 		"soak":
 			var s = vs.get("soak")
 			if s != null and s.get("poison", false):
-				return "POISON"
+				return "Poison"
 			var enc = vs.get("encounter")
-			return "COMBAT DAMAGE" if enc != null and str(enc.get("kind", "")).ends_with("enemy") else "DAMAGE"
+			return "Combat Damage" if enc != null and str(enc.get("kind", "")).ends_with("enemy") else "Damage"
 		"upgrade":
-			return "SPEND YOUR XP"
+			return "Spend Your XP"
 	return ""
 
 
@@ -214,18 +214,20 @@ func _show_refusal() -> void:
 			c.visible = false
 		_creature.visible = false
 		_set_band("refusal")
-		_set_title(refusal_title.to_upper())
+		_set_title(refusal_title)
 
 
 ## The title band for `kind`; a step's (`mode`, as "fuse") names it.
 func _set_band(kind: String, mode := "") -> void:
 	var look: Dictionary = LOOKS.get(kind, LOOKS.result)
-	var title: String = mode.to_upper() if kind == "mode" and mode != "" else look.title
+	var title: String = mode.capitalize() if kind == "mode" and mode != "" else look.title
 	var icon: String = mode if kind == "mode" and mode != "" else look.icon
 	if kind == "mode" and title == "":
-		title = "NEXT STEP"
+		title = "Next Step"
 		icon = "help"
-	_accent = {"gold": T.GOLD, "focus": T.FOCUS, "bad": T.BAD}[look.accent]
+	# A note's band edge, emblem and rules: muted parchment, or harm (specs/019: brass is
+	# only for what the next tap does).
+	_accent = {"gold": T.PARCHMENT_MUTED, "focus": T.PARCHMENT_MUTED, "bad": T.DANGER}[look.accent]
 	var key := "%s|%s" % [title, icon]
 	if key == _band_key:
 		return
@@ -240,9 +242,9 @@ func _set_band(kind: String, mode := "") -> void:
 
 ## The title as large as the band lets it be, down to the smallest text read.
 func _fit_title() -> void:
-	var font := UI.font(T.SUBHEAD[0])
-	var room := face_rect().size.x - 28.0 - (30.0 + T.S if _band_icon.visible else 0.0)
-	var fs: int = T.SUBHEAD[1]
+	var font := UI.font(T.HEADING)
+	var room := face_rect().size.x - 28.0 - (30.0 + T.SPACE_1 if _band_icon.visible else 0.0)
+	var fs: int = T.HEADING.size
 	while fs > T.TEXT_MIN and font.get_string_size(_band_title.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > room:
 		fs -= 1
 	_band_title.add_theme_font_size_override("font_size", fs)
@@ -259,12 +261,12 @@ func _render_setup(vs: Dictionary) -> void:
 		_setup.remove_child(c)
 		c.queue_free()
 	# Its title is the card's own band.
-	_setup.add_child(UI.label("Four Regions lie between you and the dragon. Your sixteen Mage Cards are your only weapons, and your deck is your time.", T.BODY, T.INK, true))
-	_setup.add_child(UI.label("The cards you choose start at a different Level. Hold a card to see its other Levels.", T.LABEL, T.INK_MUTED, true))
+	_setup.add_child(UI.label("Four Regions lie between you and the dragon. Your sixteen Mage Cards are your only weapons, and your deck is your time.", T.BODY, T.PARCHMENT, true))
+	_setup.add_child(UI.label("The cards you choose start at a different Level. Hold a card to see its other Levels.", T.CAPTION, T.PARCHMENT_MUTED, true))
 	var art: String = vs.stage.get("art", "")
 	if art != "" and _creature.art_name != art:
 		var e: String = vs.stage.get("element", "")
-		_creature.setup(art, Color(T.ether(e) if e != "" else T.INK, 0.5), e, false)
+		_creature.setup(art, Color(T.ether(e) if e != "" else T.PARCHMENT, 0.5), e, false)
 	UI.ignore_mouse(_setup)
 
 
@@ -312,13 +314,37 @@ func _fit() -> void:
 	for i in 3:
 		_sort(_box)
 	_sort(_band)
-	# Read from the top down, as a reference card is.
+	# Read from the top down, as a reference card is. Content taller than the card is
+	# set smaller to fit it, laid out wider so it wraps as it will show, never under
+	# CARD_TEXT_MIN for its smallest words (owner, 2026-10-22).
+	_box.scale = Vector2.ONE
+	var k := 1.0
+	_keep_targets(k)
+	for i in 3:
+		var need := _box.get_combined_minimum_size().y
+		if need * k <= inner.size.y + 0.5:
+			break
+		k = maxf(float(T.CARD_TEXT_MIN) / T.TEXT_MIN, inner.size.y / need)
+		_keep_targets(k)
+		_box.size = Vector2(inner.size.x / k, 0)
+		for j in 3:
+			_sort(_box)
+	_box.scale = Vector2(k, k)
+	_box.set_meta("card_text", true)
 	_box.size.y = _box.get_combined_minimum_size().y
 	var a := minf(f.size.x, f.size.y) * 0.9
 	_creature.size = Vector2(a, a)
 	_creature.position = f.end - Vector2(a, a + FOOT_H)
 	_fit_result()
 	queue_redraw()
+
+
+## Whatever explains itself when pressed keeps a help target's least height as it
+## shows, however much the content is shrunk (scale `k`).
+func _keep_targets(k: float) -> void:
+	for b in _box.find_children("*", "BaseButton", true, false):
+		if b.has_meta("help_target"):
+			b.custom_minimum_size.y = ceilf(T.HELP_MIN / k)
 
 
 ## A result is set out line by line while that fits the card at its size, else on
@@ -371,7 +397,7 @@ static func _sort(node: Node) -> void:
 
 ## The height its content takes, for the checks.
 func content_height() -> float:
-	return _box.get_combined_minimum_size().y
+	return _box.get_combined_minimum_size().y * _box.scale.y
 
 
 func _gui_input(event: InputEvent) -> void:
@@ -386,26 +412,22 @@ func _draw() -> void:
 	# As the zoomed face draws itself (deck_stack.gd LandedFace), so the one gives way
 	# to the other with nothing round the edge changing.
 	var radius: int = UI.card_radius(size.x)
-	# Lying on the table, a card casts a soft shadow under it (specs/015).
-	for layer in T.CARD_SHADOW:
-		var sh := StyleBoxFlat.new()
-		sh.bg_color = Color(0, 0, 0, layer[1])
-		sh.set_corner_radius_all(radius + int(layer[0]))
-		draw_style_box(sh, Rect2(Vector2(2, 4), size).grow(layer[0]))
+	# Lying on the table, a card casts a card's shadow under it (specs/015, specs/019).
+	UI.draw_card_shadow(self, Rect2(Vector2.ZERO, size), radius)
 	# Printed on the card stock the Deck's edges show, its border that stock.
 	draw_style_box(UI.box(T.CARD_EDGE, T.CARD_EDGE_LINE, 2, radius, 0), Rect2(Vector2.ZERO, size))
 	var f := face_rect()
 	var inner_r := maxi(2, radius - int(f.position.x))
-	draw_style_box(UI.box(T.BG_RAISED, Color.TRANSPARENT, 0, inner_r, 0), f)
+	draw_style_box(UI.box(T.STONE_RAISED, Color.TRANSPARENT, 0, inner_r, 0), f)
 	# The title band, its top corners rounded as the face's are and its foot torn as
 	# a Mage Card's band is, the tear edged in the note's colour: the same on every note.
 	var tear := BAND_H * 0.12
 	var bs := StyleBoxFlat.new()
-	bs.bg_color = T.BG_BAND
+	bs.bg_color = T.STAT_PLATE
 	bs.corner_radius_top_left = inner_r
 	bs.corner_radius_top_right = inner_r
 	draw_style_box(bs, Rect2(f.position, Vector2(f.size.x, BAND_H - tear)))
-	UI.draw_torn_edge(self, f.position.x, f.end.x, f.position.y + BAND_H - tear, tear, hash("table_note"), T.BG_BAND, _accent, 3.0)
+	UI.draw_torn_edge(self, f.position.x, f.end.x, f.position.y + BAND_H - tear, tear, hash("table_note"), T.STAT_PLATE, _accent, 3.0)
 	# The card's emblem printed faint, as a reference card fills its face: on every
 	# card the same size and in the same place, low on the face, behind the words.
 	# The setup card has the dragon there instead.
@@ -415,7 +437,7 @@ func _draw() -> void:
 	# and a small mark at its middle, as a printed card's bottom edge.
 	var foot := Rect2(f.position.x, f.end.y - FOOT_H, f.size.x, FOOT_H)
 	var fs := StyleBoxFlat.new()
-	fs.bg_color = T.BG_BAND
+	fs.bg_color = T.STAT_PLATE
 	fs.corner_radius_bottom_left = inner_r
 	fs.corner_radius_bottom_right = inner_r
 	draw_style_box(fs, foot)

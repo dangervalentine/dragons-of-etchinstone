@@ -9,6 +9,9 @@ extends Control
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
 
+## The secondary cells' words.
+const CELL_TEXT := 26
+
 signal intent(data: Dictionary)
 
 const Solver = preload("res://ui/model/layout_solver.gd")
@@ -86,6 +89,9 @@ func render(vs: Dictionary) -> void:
 		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		b.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
 		b.add_theme_constant_override("icon_max_width", 30)
+		# The narrow cells' words a step under the button style, so a label such as
+		# Give up Reserve stays on one line under its icon (specs/019 research R2).
+		b.add_theme_font_size_override("font_size", CELL_TEXT)
 		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		b.clip_text = true
@@ -106,11 +112,7 @@ func render(vs: Dictionary) -> void:
 		_kind = p.kind
 		UI.style_stone_button(primary, p.kind)
 	primary.tooltip_text = p.reason
-	if p.enabled and not _was_enabled and is_inside_tree():
-		UI.flash(primary, T.GOLD)
 	_was_enabled = p.enabled
-	if _ready:
-		_glow()
 
 
 ## The secondary button for action `id` (fuse, divert…), or null: what a lesson
@@ -137,16 +139,8 @@ func show_confirm(label: String) -> void:
 	set_ready(true)
 
 
-## The primary action glows while it is the thing waiting on the player.
+## Whether the set is complete and Play waits on the player. Play is the one brass
+## button either way; it does not glow (specs/019 FR-018).
 func set_ready(on: bool) -> void:
 	_ready = on
 	UI.style_stone_button(primary, _kind if _kind != "" else "primary")
-	if on:
-		_glow()
-
-
-func _glow() -> void:
-	var s = primary.get_theme_stylebox("normal")
-	if s.get("glow") != null and s.glow < 1.0:
-		s.glow = 1.0
-		s.glow_colour = T.FOCUS

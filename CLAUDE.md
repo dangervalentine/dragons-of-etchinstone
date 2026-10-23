@@ -22,6 +22,7 @@ godot --path . -s tools/shot.gd -- build/screenshots/matrix [size ...]  # screen
 scripts/install.sh [android|ios|web|all]              # export, install, launch, screenshot (macOS, or Windows under Git Bash)
 python3 tools/gen_cards.py data/cards.json            # regenerate card data (checks consistency too)
 python3 tools/gen_icons.py                            # regenerate art/icons/
+uv run --no-project --with fonttools python -I tools/make_figures.py  # recut the tabular figure fonts from Fraunces
 scripts/etch [command]                                # the console: menus for all of the above, release builds, art import
 ```
 
@@ -96,8 +97,15 @@ action goes through `main._act(action, callable)`:
   functions of their inputs.
 - **`ui/theme/tokens.gd`**: every size, colour, typeface and duration. Sizes are
   design units (one pixel of the 1280×720 layout). Widgets take their values from
-  here instead of hard-coding them. `TEXT_MIN` (22) and `TAP_MIN` (88) are the floors
-  that the UI check enforces.
+  here instead of hard-coding them (no `Color("…")` anywhere else; a test fails on
+  one). The values follow the "Inkstone and Brass" design system in
+  `specs/019-unified-design-system/design-system/` (`tokens.json` is the source of
+  truth, phone points × 1.85, enforced by `test_design_tokens`). Brass is only for the
+  one primary action, the selected thing and the one target slot, bright brass only
+  for rewards (`contracts/brass-and-states.md`); the UI check fails on two brass
+  buttons or two targets, on a label in a colour or face outside the system, and on
+  drawn text under its floor (`UI.drew_text`). `TEXT_MIN` (22) and `TAP_MIN` (88) are
+  the floors that the UI check enforces.
 - **`ui/screens/`, `ui/widgets/`, `ui/overlays/`**: nodes built in code (no `.tscn`
   per widget). They render the view-state dictionaries they are given and do not
   read a live game's state. A few screens preload `engine/game.gd` only for its
@@ -156,7 +164,7 @@ hand). The Windows exe went from 109 MB to 40 MB and the Android release APK fro
   work only on the Mac. Web's `.wasm` went from 39.5 MB to 21.6 MB (10.1 MB to 5.5 MB
   gzipped), and the iOS app from 88 MB to 40 MB (30 MB to 15 MB zipped).
   `tools/build_templates.sh` also turns off every engine module except gdscript,
-  freetype, svg (`creature.gd` loads SVG at run time), webp, regex, noise (`stone.gd`)
+  freetype, svg (`creature.gd` loads SVG at run time), webp, regex, noise (unused since `specs/019` removed `stone.gd`; drop it at the next rebuild)
   and text_server_adv; a new use of any other module (audio, jpg, zip, networking...)
   needs it added there. The iOS exporter always links `MoltenVK.xcframework`, so the
   script puts an empty one in `godot_ios.zip`. The Windows and Android templates
@@ -222,7 +230,7 @@ about 8 seconds and is fine whenever the right file is unclear.
 | `ui/model/layout_solver.gd`, `window_sizer.gd` | `layout_solver window_sizer` |
 | History, records, clock | `history_store play_history play_clock` |
 | Rulebook, glossary | `rulebook glossary` |
-| Theme, colours, stone | `card_contrast stone_contrast` |
+| Theme, colours, type, stone | `design_tokens palette_contrast card_contrast fonts` |
 | A widget `ui/widgets/<name>.gd` | its own `test_<name>.gd` where one exists (`deck_stack`, `region_card`, `region_panel`, `note_pile`, `stat_chip`, `preview_panel`, `place_labels`, `card_face_layout`) |
 | `ui/model/art.gd`, `ui/fx/creature.gd`, painted art | `art creature` |
 | Lessons, the coach mark (`ui/model/lessons.gd`, `tutorial.gd`), `Game.stage` | `lessons tutorial game` |

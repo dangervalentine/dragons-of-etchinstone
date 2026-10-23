@@ -12,7 +12,7 @@ func _init() -> void:
 
 
 ## An icon that travels from one global point to another and fades as it lands.
-func ghost(icon: String, from: Vector2, to: Vector2, duration: float, colour: Color = T.INK, side := 44.0, delay := 0.0) -> Tween:
+func ghost(icon: String, from: Vector2, to: Vector2, duration: float, colour: Color = T.PARCHMENT, side := 44.0, delay := 0.0) -> Tween:
 	var g := UI.icon_rect(icon, side, colour)
 	g.size = Vector2(side, side)
 	g.position = from - global_position - g.size / 2.0
@@ -36,8 +36,8 @@ func float_text(text: String, at: Vector2, colour: Color, font_size := 40, durat
 	var row := UI.hbox(6)
 	if icon != "":
 		row.add_child(UI.icon_rect(icon, font_size * 0.9, colour))
-	var l := UI.label(text, ["display_bold", font_size], colour)
-	l.add_theme_color_override("font_outline_color", T.BG_BASE)
+	var l := UI.label(text, UI.restyle(T.NUMERAL, font_size), colour)
+	l.add_theme_color_override("font_outline_color", T.GROUND)
 	l.add_theme_constant_override("outline_size", 8)
 	row.add_child(l)
 	add_child(row)
@@ -60,8 +60,8 @@ func float_text(text: String, at: Vector2, colour: Color, font_size := 40, durat
 func fly_text(text: String, from: Vector2, to: Vector2, colour: Color, font_size := 44, duration := T.MOVE) -> Tween:
 	if UI.reduced_motion:
 		return null
-	var l := UI.label(text, ["display_bold", font_size], colour)
-	l.add_theme_color_override("font_outline_color", T.BG_BASE)
+	var l := UI.label(text, UI.restyle(T.NUMERAL, font_size), colour)
+	l.add_theme_color_override("font_outline_color", T.GROUND)
 	l.add_theme_constant_override("outline_size", 8)
 	add_child(l)
 	l.reset_size()

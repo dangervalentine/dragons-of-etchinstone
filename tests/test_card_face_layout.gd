@@ -2,6 +2,7 @@ extends "res://tests/base.gd"
 ## Where the parts of a Mage Card face sit: inside the card, apart from each other,
 ## and with numerals no smaller than before the official-style rebuild.
 
+const T = preload("res://ui/theme/tokens.gd")
 const CardFace = preload("res://ui/widgets/card_face.gd")
 
 const REGIONS := ["level", "name", "key", "cost", "initiative", "basic", "enhanced", "boost", "armor", "ether"]
@@ -103,17 +104,25 @@ func test_longest_line_is_the_widest_so_every_name_fits_two_lines() -> void:
 				"%s is no wider than %s" % [line, CardFace.LONGEST_LINE])
 
 
+func test_a_smaller_card_scales_the_name_floor() -> void:
+	eq(CardFace.name_floor(220), 18, "18 on the narrowest phone's card")
+	ok(CardFace.name_floor(110) <= 9, "a half-size card, half the floor")
+
+
 func test_names_are_legible_on_a_long_phone() -> void:
 	# A Region's Hand card on the phone-tall shape since feature 010 (SC-002): every
-	# name, the longest included, at least 17 design units.
+	# name, the longest included, at least the design system's card-name size
+	# (specs/019 FR-015), and in two lines at most.
 	var sz := Vector2(220, 308)
 	for name in ["MOTIVATED FLIGHT", "DETERMINED MARCH"]:
 		var f = _face(db.mage_ids()[0], sz)
 		var n: Rect2 = f.region_rect("name")
 		var band: float = f.region_rect("level").size.y / 0.68
 		var text_w: float = n.size.x - band * 0.3 - roundf(sz.x * 0.045) * 0.1
-		var fs: int = CardFace.name_size(Vector2(text_w, n.size.y))
-		ok(fs >= 17, "%s drawn at %d, at least 17" % [name, fs])
+		var fs: int = CardFace.name_size(Vector2(text_w, n.size.y), CardFace.name_floor(sz.x))
+		ok(fs >= 18, "%s drawn at %d, at least 18 beside the Ether glyph" % [name, fs])
+		ok(CardFace._name_font(fs).get_string_size(CardFace.LONGEST_LINE, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x <= text_w,
+			"%s's widest line fits the band at %d" % [name, fs])
 		eq(CardFace.name_lines(name, fs, text_w).size() <= 2, true, "%s fits in two lines" % name)
 		f.free()
 

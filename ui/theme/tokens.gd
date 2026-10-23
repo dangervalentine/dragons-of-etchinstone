@@ -2,88 +2,213 @@ extends RefCounted
 ## The game's visual language: every size, colour, typeface and duration.
 ## Sizes are design units: one pixel of the 1280 x 720 landscape layout, about
 ## half a point on a phone held sideways. Widgets take their values from here.
+##
+## The values follow the "Inkstone and Brass" design system (specs/019): its
+## tokens.json is the source of truth, and test_design_tokens holds this file to it.
+## Its sizes are phone points; each is multiplied by 1.85 and rounded here (research
+## R2), the system's own factor for a 720-unit-tall layout.
 
-# Space
-const XS := 4
-const S := 8
-const M := 16
-const L := 24
-const XL := 40
-const RADIUS_S := 8
-const RADIUS_M := 14
-const RADIUS_CARD := 16
-## Nothing interactive is smaller than this on its shorter side.
+# Space (specs/019 research R2)
+## Icon to number, numeral pill padding.
+const SPACE_1 := 7
+## Between cards in a set, chip padding, label to content.
+const SPACE_2 := 15
+## Inside panels and buttons; between buttons.
+const SPACE_3 := 22
+## The screen gutter inside the safe area; between the Encounter card and the tray.
+const SPACE_4 := 30
+## Between panel sections; banner padding.
+const SPACE_5 := 44
+## Between major regions of a screen (rare in landscape).
+const SPACE_6 := 59
+## Corner cuts for everything carved: chips, tabs and wells; buttons and panels; the
+## tray, dialogs and banners. Only paper is rounded.
+const CHAMFER_SM := 11
+const CHAMFER_MD := 19
+const CHAMFER_LG := 30
+## A card's corner as a share of its width (8pt on the system's 100pt card), so
+## every card of any size is cut alike.
+const CARD_RADIUS_SHARE := 0.08
+## Stat plates and numeral pills on cards.
+const RADIUS_PLATE := 7
+## Stone is etched: a light line inside the top edge, the edge line of panels and
+## controls, and the brass (or jade) line of a selected, target or focused thing.
+const BORDER_ETCH := 2
+const BORDER_EDGE := 4
+const BORDER_SELECT := 6
+## The top bar inside the safe area, the bottom action row, a counter chip.
+const TOPBAR_H := 74
+const ACTION_H := 89
+const CHIP_H := 52
+## The widest a coach tip's paper gets: within the system's 340pt (629) maximum, at
+## the width the lessons' messages were placed for, so a message never covers what
+## it lights (about 50 characters a line); and a dialog.
+const COACH_MAX_W := 560.0
+const DIALOG_W := 666
+## Nothing interactive is smaller than this on its shorter side. Larger than the
+## system's touch-min (81) on purpose: it was the game's floor before (research R2).
 const TAP_MIN := 88
-## Nothing that has to be read is set smaller than this.
+## Nothing that has to be read is set smaller than this: the system's caption.
 const TEXT_MIN := 22
+## Text printed on a card laid on the Deck (a note) may be set this small, as it
+## shrinks to fit its card (owner, 2026-10-22: "relax the font size restriction").
+const CARD_TEXT_MIN := 18
+## The least side of something pressed only to explain it (a figure's chip).
+const HELP_MIN := 44
+## Card names alone may go this small (the system's card-name), so the longest
+## name still fits two lines on the narrowest card (specs/019 FR-015).
+const CARD_NAME_MIN := 20
+## A Mage Card's width at the design system's size (card-width, 100pt).
+const CARD_W := 185
+## The card-name floor as a share of the card's width (card_face.gd name_floor): 18
+## on the narrowest phone's 220-wide card, the most the longest name fits beside the
+## Ether glyph; one step under CARD_NAME_MIN (owner, 2026-10-22).
+const CARD_NAME_SHARE := 18.0 / 220.0
 
-# Type: [font, size]. Fonts are named in theme.gd.
-# The display face (Cinzel) is for titles, names, verdicts and the figures on game
-# pieces. The body face (Alegreya Sans) is for everything read as text, and for
-# everything pressed: a button's words, a tile's title, a slot's role.
-const TITLE := ["display_bold", 64]
-## The game's name on the title screen and the verdict on the ending.
-const BANNER := ["display_bold", 50]
-## A screen's own subject: the chosen dragon's name, the size notice.
-const H1 := ["display_bold", 40]
-const HEADING := ["display", 30]
-## The title of an explanation, a popup or a small panel.
-const SUBHEAD := ["display_bold", 24]
-## A small gold heading in capitals over a group of choices.
-const EYEBROW := ["display", 24]
-## Figures: small in a sum or a table, normal as a total, medium in a role slot,
-## large as a purse.
-const NUMERAL_S := ["display_bold", 24]
-const NUMERAL := ["display_bold", 32]
-const NUMERAL_M := ["display_bold", 44]
-const NUMERAL_L := ["display_bold", 52]
-const BODY := ["body", 26]
-const LABEL := ["body_medium", 22]
-const LABEL_BOLD := ["body_bold", 22]
-const BUTTON := ["body_bold", 26]
+# Type (specs/019 contracts/type-styles.md)
+# Display is Fraunces (variable: weight, optical size, SOFT 50, WONK 0) for banners,
+# titles, headings, card names and every figure. Sans is Alegreya Sans for labels,
+# buttons and everything read as text. upper: the style sets its text in capitals.
+## Region banner, the verdict, the game's name. One per screen.
+const BANNER := {"family": "display", "size": 63, "weight": 800, "opsz": 72, "spacing": 0.01, "upper": true}
+## The top bar's heading, dialog and screen titles. Title case.
+const TITLE := {"family": "display", "size": 41, "weight": 700, "opsz": 36, "spacing": 0.01, "upper": false}
+## Panel heads, Encounter names, dragon names.
+const HEADING := {"family": "display", "size": 31, "weight": 700, "opsz": 24, "spacing": 0.0, "upper": false}
+## Mage Card names, fitted to their band but never below CARD_NAME_MIN.
+const CARD_NAME := {"family": "display", "size": 20, "weight": 700, "opsz": 12, "spacing": 0.03, "upper": true}
+## Score, a Key Card's Level, the Dragon's HP.
+const NUMERAL_XL := {"family": "display", "size": 67, "weight": 900, "opsz": 72, "spacing": 0.0, "upper": false}
+## Card figures, Result sums, Enemy stat shapes.
+const NUMERAL := {"family": "display", "size": 37, "weight": 800, "opsz": 24, "spacing": 0.0, "upper": false}
+## Counters, a card's cost and XP, chips.
+const NUMERAL_SM := {"family": "display", "size": 26, "weight": 800, "opsz": 14, "spacing": 0.0, "upper": false}
+## Slot headers, column heads, kickers: muted at rest, brass on the target.
+const LABEL := {"family": "sans", "size": 22, "weight": 800, "spacing": 0.1, "upper": true}
+## Every button's words. Sentence case.
+const BUTTON := {"family": "sans", "size": 30, "weight": 800, "spacing": 0.01, "upper": false}
+## Panel copy, coach tips, rulebook paragraphs.
+const BODY := {"family": "sans", "size": 28, "weight": 500, "spacing": 0.0, "upper": false}
+## Encounter effect text, table rows, secondary panel copy.
+const BODY_SM := {"family": "sans", "size": 24, "weight": 500, "spacing": 0.0, "upper": false}
+## Hints and fine print: the smallest live text.
+const CAPTION := {"family": "sans", "size": 22, "weight": 500, "spacing": 0.0, "upper": false}
+## Extends the design system (specs/019 R12): bold words in running text (a verdict,
+## an outcome, a term in a paragraph), at the body size unless restyled.
+const BODY_STRONG := {"family": "sans", "size": 28, "weight": 700, "spacing": 0.0, "upper": false}
+## Every style, by name, for the checks.
+const STYLES := ["BANNER", "TITLE", "HEADING", "CARD_NAME", "NUMERAL_XL", "NUMERAL",
+	"NUMERAL_SM", "LABEL", "BUTTON", "BODY", "BODY_SM", "CAPTION"]
 
-# Colour roles
-const BG_BASE := Color("100e17")
-const BG_SURFACE := Color("1d1a29")
-const BG_RAISED := Color("2b2640")
-const BG_BAND := Color("15121d")
-const LINE_SOFT := Color("3d3757")
-const INK := Color("f1ecdf")
-const INK_MUTED := Color("a69fb8")
-const GOLD := Color("f2d16b")
-const GOOD := Color("6fcf8e")
-const CAUTION := Color("e9b44c")
-const BAD := Color("ff6b5e")
-const HP := Color("d2536a")
-## The printed cards' Ether hues: saturated, so a card reads as its Ether at a glance.
+# Colour (specs/019 contracts/tokens.md). The art is the colour: the chrome stays in
+# low-chroma stone, and brass means "here".
+## The table: the ground behind everything, washed with the Region's tint in play.
+const GROUND := Color("0e1517")
+## Panels, trays, the top bar, dialogs, banners.
+const STONE := Color("172225")
+## Buttons, tabs, chips you press: the slab you can press.
+const STONE_RAISED := Color("213033")
+## Sunken slots and wells, always with an inset shadow.
+const WELL := Color("0a1012")
+## Hairline dividers and disabled rims; never a border that means something.
+const LINE := Color("2e3f40")
+## The etched rim of panels and controls: 3.5:1 on stone, 4:1 on the ground.
+const EDGE := Color("64797a")
+## All primary text and icons on stone; the step-emphasis ring (research R6).
+const PARCHMENT := Color("f1e3d1")
+## Secondary text, column heads, inactive tabs.
+const PARCHMENT_MUTED := Color("b4a894")
+## Disabled labels only: deliberately below 4.5:1.
+const PARCHMENT_FAINT := Color("5f675f")
+## The primary action's fill, the selected rim, the target slot. Nothing else.
+const BRASS := Color("dcb35c")
+## Rewards: Score, XP, the star, 1st place, banner headlines.
+const BRASS_BRIGHT := Color("f2d16b")
+## A brass button's bevel and edge; a glossary term's underline on paper.
+const BRASS_DEEP := Color("8a6a2c")
+## Ink on brass, bright brass and ochre. Never white on brass.
+const ON_BRASS := Color("1c1508")
+## Good outcomes and the keyboard focus ring, always with a tick or icon.
+const JADE := Color("8fc4a3")
+## Harm, always with a minus sign, heart or skull.
+const DANGER := Color("ee7a62")
+## The HP heart.
+const STAT_HP := Color("e2697a")
+## Reading surfaces: coach tips, the glossary, rulebook pages, the XP question.
+const PAPER := Color("e9dac4")
+const PAPER_INK := Color("1b2324")
+const PAPER_MUTED := Color("5a5244")
+## Behind dialogs, the glossary, the menu, banners and the coach mark's dim.
+const SCRIM := Color(5.0 / 255.0, 9.0 / 255.0, 10.0 / 255.0, 0.82)
+## The frame and title band of every Mage, Key and Encounter card; the top bar's foot.
+const CARD_FRAME := Color("121618")
+## A card's stat ribbon (cost, XP) and the Key Card strip: leather between brass and stone.
+const CARD_RIBBON := Color("6b5639")
+## The dark plates behind card figures, and the ink on a highlighted figure's pill.
+const STAT_PLATE := Color("101314")
+## The Ethers' mineral pigments and their bright partners (the highlighted figure).
+## The glyph tells them apart first: lapis, amethyst and cinnabar sit close in lightness.
 const ETHER := {
-	"fire": Color("c8261d"), "water": Color("1f5fd0"),
-	"lightning": Color("e99a1c"), "shadow": Color("6b34c0"),
+	"water": {"base": Color("3566b0"), "bright": Color("5a8bdb")},
+	"lightning": {"base": Color("c9902c"), "bright": Color("e8b245")},
+	"shadow": {"base": Color("7350b0"), "bright": Color("9576dd")},
+	"fire": {"base": Color("b93a2e"), "bright": Color("de5a44")},
 }
 ## Which character the card field shader draws for each Ether.
 const ETHER_ID := {"fire": 0, "water": 1, "lightning": 2, "shadow": 3}
+## Each Region's painted colour: the ground's wash, the banner's rim and medallion.
+const REGION := {1: Color("5f8a6e"), 2: Color("4d8080"), 3: Color("b5633a"), 4: Color("3f6b4a")}
+## The Final Journey and the dragon's lair.
+const REGION_LAIR := Color("8a3b3a")
+## Extends the design system (specs/019 R12): the colours of things the system does
+## not name. Sword blades and metal glyphs; the time-penalty chip's glass; a locked
+## dragon's silhouette; an unchosen dragon dimmed and hovered; the Deck's back.
+const METAL := Color("8f9a9a")
+const GLASS := Color("3a4a4c")
+## The time-penalty chip on an Encounter's face and the Region Card: lighter steel,
+## and its glass.
+const METAL_LIGHT := Color("a8b1b0")
+const GLASS_LIGHT := Color("707b7a")
+const LOCKED := Color(10.0 / 255.0, 16.0 / 255.0, 18.0 / 255.0, 0.9)
+const DIM_MODULATE := Color(0.5, 0.52, 0.52)
+const DIM_HOVER := Color(0.78, 0.8, 0.8)
+const DECK_BACK := Color(16.0 / 255.0, 22.0 / 255.0, 24.0 / 255.0, 0.88)
+## Black and white, taken at an alpha for shades and sheens (shadows, bevels, hover).
+const SHADE := Color(0, 0, 0)
+const SHEEN := Color(1, 1, 1)
+## The hard drop of a slab or card onto the table.
+## Extends the design system (specs/019 R12): the colour its shadows are written in.
+const SHADOW_DROP := Color("070b0c")
+
+# Depth (specs/019 contracts/tokens.md): a carved slab, pressed, a brass button, a
+# sunken well, a card on the table and a card held up. Widths in design units.
+const SHADOW_SLAB := {"etch": 2, "etch_colour": Color(PARCHMENT, 0.10), "bevel": 6, "bevel_colour": Color(0, 0, 0, 0.35), "drop": 6}
+const SHADOW_SLAB_PRESSED := {"inset": 4, "inset_colour": Color(0, 0, 0, 0.45), "drop": 2}
+const SHADOW_BRASS := {"etch": 2, "etch_colour": Color(1.0, 244.0 / 255.0, 214.0 / 255.0, 0.55), "bevel": 6, "bevel_colour": BRASS_DEEP, "drop": 6}
+const SHADOW_WELL := {"offset": 4, "blur": 11, "colour": Color(0, 0, 0, 0.6)}
+const SHADOW_CARD := {"drop": 4, "offset": 15, "blur": 33, "colour": Color(0, 0, 0, 0.45)}
+const SHADOW_LIFT := {"drop": 7, "offset": 30, "blur": 59, "colour": Color(0, 0, 0, 0.55)}
+## The Region's glow over the ground.
+const REGION_WASH := 0.22
+## A card out of play: fully grey, at this opacity.
+const OUT_OF_PLAY := 0.45
+
 const DISABLED_ALPHA := 0.45
-## The rim and glow on whatever matters in the current step, on cards and slots alike.
-const FOCUS := Color("ffe08a")
-## How far an accent drawn as an edge or a face (a selected card's border, a slot's
-## Ether edge, Play's gold) steps toward the boxes' face colour, so it sits with the
-## muted ground rather than shouting over it (owner, stage B review). Text and
-## numerals keep their full colours.
-const ACCENT_MUTE := 0.4
-## Play's gold face, muted: BG_BASE text on it keeps well over 4.5:1.
-const GOLD_FACE := Color("c9ad62")
-## The near-black of a Mage Card's frame and bands.
-const CARD_FRAME := Color("0d0b10")
-## The Key Card strip under the name.
-const BRONZE := Color("5a4632")
-const BRONZE_DARK := Color("3a2c1f")
-const BRONZE_LIGHT := Color("a88a63")
+## The leather ribbon's shade and its light, for its torn edge and its rule (card_face.gd).
+const CARD_RIBBON_DARK := Color("453825")
+const CARD_RIBBON_LIGHT := Color("9f917e")
 ## The Deck seen from the side (feature 014): each card's edge in card stock, and
 ## the line between one card and the next. Never an Ether's colour.
 const CARD_EDGE := Color("8d8778")
 const CARD_EDGE_LINE := Color("4a463e")
 
 # Layout
+## The layout solver's own gutter round the screen and gap between the action row's
+## buttons. They stay at their old sizes, not the design system's space scale: the
+## solver keeps the large geometry, and the cards are what it spends room on (specs/019
+## research R2; the system's card-width, 185 units, is larger than today's cards).
+const LAYOUT_GUTTER := 16
+const LAYOUT_GAP := 8
 ## The margin the Deck's card edges take on the right and bottom of the left side.
 const DECK_EDGE := 24
 ## The narrowest the left column gets (feature 013): it fixes the smallest whole
@@ -98,16 +223,14 @@ const NOTE_ICON := 30
 ## its flight off to the left again as a discard (feature 015).
 const NOTE_DEAL := 0.35
 const NOTE_DISCARD := 0.35
-## The lesson coach mark (feature 017, contracts/coach-mark.md): how dark the screen
-## round the lit part is while a message is read; while the player acts, nothing is
-## dimmed.
-const COACH_DIM := 0.72
+## The lesson coach mark (feature 017, contracts/coach-mark.md): the screen round the
+## lit part takes the SCRIM while a message is read; while the player acts, nothing
+## is dimmed.
 ## The rim round the lit part: how far it stands off the target, and its width.
 const COACH_PAD := 8.0
 const COACH_RIM := 3.0
-## The message bubble: its distance from the rim and its widest.
+## The message bubble: its distance from the rim.
 const COACH_GAP := 16.0
-const COACH_MAX_W := 560.0
 ## The coach mark's fade in, when motion is not reduced.
 const COACH_FADE := 0.2
 ## How far, in degrees, a note is turned off the table, as a dealt or thrown card is.
@@ -119,9 +242,6 @@ const NOTE_TILT := [0.0, -1.2, 0.9, -0.6]
 const NOTE_PILE_STAGGER := 0.04
 ## A step card turning over to its next step (a Fuse's), edge on half way.
 const NOTE_FLIP := 0.36
-## The soft shadow under a card on the table: how much each layer grows, and how
-## dark it is.
-const CARD_SHADOW := [[2.0, 0.10], [4.0, 0.07], [6.0, 0.05], [8.0, 0.03]]
 
 # Creatures
 ## The ink line round a painted figure on its panel, so a creature painted in mid
@@ -137,21 +257,9 @@ const CREATURE_BACKLIGHT := 0.32
 const CREATURE_BACKLIGHT_REACH := 0.35
 
 # Stone
-## The luminance band the stone grain is remapped into. The top stays no lighter
-## than BG_RAISED, so text keeps its contrast on the brightest stone.
-const STONE_L_MIN := 0.008
-const STONE_L_MAX := 0.022
-## Cut-corner sizes: small chips, wells and buttons, slabs.
-const CHAMFER_S := 6
-const CHAMFER_M := 12
-const CHAMFER_L := 20
 ## The edges of a carved bevel.
 const BEVEL_LIGHT := Color(1, 1, 1, 0.10)
 const BEVEL_SHADOW := Color(0, 0, 0, 0.45)
-
-# Responses
-## The colour of a board response that has no Ether of its own: a cold violet.
-const RESPONSE_NEUTRAL := Color("8f7fd6")
 
 # Motion, in seconds
 const INSTANT := 0.08
@@ -162,6 +270,10 @@ const COUNT := 0.6
 const REVEAL := 0.4
 const STAGGER := 0.12
 const SEQUENCE_MAX := 3.0
+## A slab pressed in and let go, and how far it drops (2pt) (specs/019 FR-023).
+const PRESS := 0.08
+const RELEASE := 0.12
+const PRESS_DROP := 4
 ## The Deck (feature 012): zooming between the top card and a face, turning the
 ## Region Card, and the Key Card rising from under it and, as the zoom starts,
 ## sliding back.
@@ -213,42 +325,46 @@ const DESIGN_MAX := Vector2(1760, 990)
 ## Width over height of a Mage Card.
 const CARD_ASPECT := 190.0 / 266.0
 
+
 const VERDICT := {
-	"complete": {"text": "Complete victory", "icon": "victory", "color": GOOD},
-	"narrow": {"text": "Narrow victory", "icon": "narrow_victory", "color": CAUTION},
-	"loss": {"text": "Loss", "icon": "loss", "color": BAD},
+	"complete": {"text": "Complete victory", "icon": "victory", "color": JADE},
+	"narrow": {"text": "Narrow victory", "icon": "narrow_victory", "color": BRASS},
+	"loss": {"text": "Loss", "icon": "loss", "color": DANGER},
 }
 
 
+## An Ether's pigment, or the etched edge for none.
 static func ether(element) -> Color:
-	return ETHER.get(element, LINE_SOFT) if element != null else LINE_SOFT
+	return ETHER[element].base if element != null and ETHER.has(element) else EDGE
 
 
-## A shade of an Ether for one job: base (the hue), deep (field centre and shadow),
-## lit (highlights and glow), plate (an enhanced action's fill) or plate_ink (the
-## ink with the most contrast on that plate).
+## A shade of an Ether for one job (specs/019 research R11):
+## base: the pigment (a card's field, a wash);
+## deep: the field's centre and its shadow;
+## lit: its bright partner, for icons and text on stone;
+## plate: an enhanced action's plate; plate_ink: the ink on that plate;
+## pill: a highlighted figure's pill; pill_ink: the dark ink on it;
+## paper: an icon of it printed on paper (deep enough to read on the warm sheet).
 static func ether_shade(element, role: String) -> Color:
 	var base := ether(element)
+	var bright: Color = ETHER[element].bright if element != null and ETHER.has(element) else PARCHMENT_MUTED
 	match role:
 		"deep":
 			return base.darkened(0.55)
-		"lit":
-			return base.lightened(0.35)
+		"lit", "pill":
+			return bright
 		"plate":
-			return base.darkened(0.1) if element == "lightning" else base
+			return base
 		"plate_ink":
-			var plate := ether_shade(element, "plate")
-			return INK if ratio(INK, plate) >= ratio(BG_BASE, plate) else BG_BASE
+			return ON_BRASS if element == "lightning" else PARCHMENT
+		"pill_ink":
+			return ON_BRASS if element == "lightning" else STAT_PLATE
+		"paper":
+			return base.darkened(0.45 if element == "lightning" else 0.25)
 	return base
 
 
-## An accent colour as an edge or a fill: desaturated and stepped toward BG_RAISED.
-static func muted(c: Color) -> Color:
-	var grey := Color(c.get_luminance(), c.get_luminance(), c.get_luminance(), c.a)
-	return c.lerp(grey, 0.25).lerp(Color(BG_RAISED, c.a), ACCENT_MUTE)
-
-
-## An Ether as text or an icon on the dark panels: its lit shade, which keeps 3:1.
+## An Ether as text or an icon on the dark panels: its bright partner.
 static func ether_ink(element) -> Color:
 	return ether_shade(element, "lit")
 

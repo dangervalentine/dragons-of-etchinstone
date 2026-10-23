@@ -51,7 +51,7 @@ func test_before_play_nothing_but_the_step() -> void:
 		ok(not texts.has(s.label), "no %s row before Play" % s.label)
 	ok(not texts.has(vs.preview.verdict_text), "no verdict before Play")
 	var box: StyleBox = panel.get_theme_stylebox("panel")
-	ok(not ("edge" in box) or box.edge != T.BAD, "no red edge before Play")
+	ok(not ("edge" in box) or box.edge != T.DANGER, "no red edge before Play")
 	panel.free()
 
 

@@ -15,14 +15,14 @@ func setup(db, model: Dictionary, content: Rect2, key := false) -> void:
 	var level: int = model.level
 	var count: int = 1 if key else m.levels.size()
 	set_dim(0.93)
-	var row := UI.hbox(T.L)
+	var row := UI.hbox(T.SPACE_5)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(row)
 	row.position = content.position
 	row.size = Vector2(content.size.x, content.size.y - 40)
 	# The largest face that fits every Level in a row, with room for titles and captions.
-	var by_width := (content.size.x - (count - 1) * T.L - count * 24) / count / T.CARD_ASPECT
+	var by_width := (content.size.x - (count - 1) * T.SPACE_5 - count * 24) / count / T.CARD_ASPECT
 	var h := minf(minf(content.size.y - 190, 440.0), by_width)
 	var sz := Vector2(roundf(h * T.CARD_ASPECT), roundf(h))
 	for lv in ([level] if key else range(1, count + 1)):
@@ -30,11 +30,12 @@ func setup(db, model: Dictionary, content: Rect2, key := false) -> void:
 		if key:
 			face.set_focus({"regions": ["key"]})
 		var title := "LEVEL %d" % lv
-		var colour := T.INK_MUTED
+		var colour := T.PARCHMENT_MUTED
 		var caption := ""
+		var sign := ""
 		if lv == level:
 			title = "CURRENT · LEVEL %d" % lv
-			colour = T.GOLD
+			colour = T.PARCHMENT
 			caption = m.name
 			if key:
 				title = "KEY CARD · LEVEL %d" % lv
@@ -42,18 +43,20 @@ func setup(db, model: Dictionary, content: Rect2, key := false) -> void:
 			elif lv == 1:
 				caption = "A Level 1 card is Trashed and scores nothing if Downgraded."
 		elif lv == level - 1:
-			title = "IF DOWNGRADED"
-			colour = T.BAD
+			title = "If downgraded"
+			colour = T.DANGER
+			sign = "down_arrow"
 			caption = _changes(db, id, level, lv)
-			face.set_model(face.model, _changed(db, id, level, lv), T.BAD)
+			face.set_model(face.model, _changed(db, id, level, lv), T.DANGER)
 		elif lv == level + 1:
 			var cost = db.mage_level(id, level).upgrade_cost
-			title = "IF UPGRADED · %d XP" % cost if cost != null else "IF UPGRADED"
-			colour = T.GOOD
+			title = "If upgraded · %d XP" % cost if cost != null else "If upgraded"
+			colour = T.JADE
+			sign = "crown"
 			caption = _changes(db, id, level, lv)
-			face.set_model(face.model, _changed(db, id, level, lv), T.GOLD)
-		row.add_child(_column(title, _framed(face, lv == level), caption, colour, sz.x))
-	var hint := UI.label("Tap anywhere to close", T.LABEL, T.INK_MUTED)
+			face.set_model(face.model, _changed(db, id, level, lv), T.PARCHMENT)
+		row.add_child(_column(title, _framed(face, lv == level), caption, colour, sz.x, sign))
+	var hint := UI.label("Tap anywhere to close", T.CAPTION, T.PARCHMENT_MUTED)
 	hint.position = Vector2(content.position.x, content.end.y - 30)
 	hint.size.x = content.size.x
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -80,31 +83,31 @@ func setup_pile(db, models: Array, pile: String, content: Rect2) -> void:
 	set_dim(0.93)
 	close_outside = false
 	var entry: Dictionary = Glossary.entry(pile)
-	var head := UI.vbox(T.XS)
+	var head := UI.vbox(T.SPACE_1)
 	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	head.position = content.position
 	head.size.x = content.size.x
 	var n := models.size()
-	var title := UI.label("%s · %d CARD%s" % [entry.name.to_upper(), n, "" if n == 1 else "S"], T.SUBHEAD, T.GOLD)
+	var title := UI.label("%s · %d %s" % [entry.name, n, "Card" if n == 1 else "Cards"], T.HEADING, T.PARCHMENT)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	head.add_child(title)
-	var about := UI.label(entry.text, T.LABEL, T.INK, true)
+	var about := UI.label(entry.text, T.BODY_SM, T.PARCHMENT, true)
 	about.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	about.custom_minimum_size.x = minf(content.size.x, 720.0)
 	about.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	head.add_child(about)
 	add_child(head)
-	var top: float = head.get_combined_minimum_size().y + T.M
+	var top: float = head.get_combined_minimum_size().y + T.SPACE_4
 	var area := Rect2(content.position + Vector2(0, top), Vector2(content.size.x, content.size.y - top - 40))
 	if n == 0:
-		var none := UI.label("No cards in the %s yet." % entry.name, T.BODY, T.INK_MUTED)
+		var none := UI.label("No cards in the %s yet." % entry.name, T.BODY, T.PARCHMENT_MUTED)
 		none.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		none.position = Vector2(area.position.x, area.get_center().y - 20)
 		none.size.x = area.size.x
 		add_child(none)
 	else:
 		_pile_grid(db, models, area)
-	var hint := UI.label("Tap anywhere to close" if n <= PILE_AT_ONCE else "Drag to scroll · tap to close", T.LABEL, T.INK_MUTED)
+	var hint := UI.label("Tap anywhere to close" if n <= PILE_AT_ONCE else "Drag to scroll · tap to close", T.CAPTION, T.PARCHMENT_MUTED)
 	hint.position = Vector2(content.position.x, content.end.y - 30)
 	hint.size.x = content.size.x
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -114,7 +117,7 @@ func setup_pile(db, models: Array, pile: String, content: Rect2) -> void:
 
 ## The faces in a grid within `area`, scrolling down past the first PILE_AT_ONCE.
 func _pile_grid(db, models: Array, area: Rect2) -> void:
-	var gap: float = T.M
+	var gap: float = T.SPACE_4
 	var bar := 16.0
 	# The grid of PILE_AT_ONCE that gives the largest face.
 	var best := Vector2i(6, 2)
@@ -186,10 +189,12 @@ func _gui_input(event: InputEvent) -> void:
 func _framed(face: Control, current: bool) -> Control:
 	var p := PanelContainer.new()
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var s := UI.box(Color.TRANSPARENT, T.muted(T.FOCUS) if current else Color.TRANSPARENT, 3, T.RADIUS_CARD + 4, 4)
+	# The card being looked at: the brass ring and the lift of a held card (specs/019).
+	var s := UI.box(Color.TRANSPARENT, T.BRASS if current else Color.TRANSPARENT, T.BORDER_SELECT, UI.card_radius(face.custom_minimum_size.x) + 4, 4)
 	if current:
-		s.shadow_color = Color(0, 0, 0, 0.35)
-		s.shadow_size = 14
+		s.shadow_color = T.SHADOW_LIFT.colour
+		s.shadow_size = int(T.SHADOW_LIFT.blur / 2.0)
+		s.shadow_offset = Vector2(0, T.SHADOW_LIFT.drop)
 	p.add_theme_stylebox_override("panel", s)
 	p.add_child(face)
 	p.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -207,16 +212,24 @@ func _changed(db, id: String, from: int, to: int) -> Array:
 	return out
 
 
-func _column(title: String, face: Control, caption: String, colour: Color, width: float) -> Control:
-	var col := UI.vbox(T.S)
+## `sign` is the icon a good or harmful column carries, so its colour is never the
+## only way to tell it (specs/019 FR-009).
+func _column(title: String, face: Control, caption: String, colour: Color, width: float, sign := "") -> Control:
+	var col := UI.vbox(T.SPACE_2)
 	col.alignment = BoxContainer.ALIGNMENT_CENTER
 	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var t := UI.label(title, T.SUBHEAD, colour)
+	# A column head (specs/019 Ledger and Slot: the label style).
+	var head := UI.hbox(T.SPACE_1)
+	head.alignment = BoxContainer.ALIGNMENT_CENTER
+	if sign != "":
+		head.add_child(UI.icon_rect(sign, T.LABEL.size, colour))
+	var t := UI.label(title, T.LABEL, colour)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	col.add_child(t)
+	head.add_child(t)
+	col.add_child(head)
 	face.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	col.add_child(face)
-	var c := UI.label(caption, T.LABEL, T.INK, true)
+	var c := UI.label(caption, T.BODY_SM, T.PARCHMENT, true)
 	c.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	c.custom_minimum_size = Vector2(width + 16, 64)
 	col.add_child(c)

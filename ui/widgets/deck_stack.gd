@@ -94,7 +94,7 @@ class LandedFace extends Control:
 		_strip_room.clip_contents = true
 		_strip_room.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(_strip_room)
-		_back.color = Color(0.06, 0.05, 0.09, 0.88)
+		_back.color = T.DECK_BACK
 		_back.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_strip_room.add_child(_back)
 		strip.add_theme_constant_override("separation", 8)
@@ -156,7 +156,7 @@ class LandedFace extends Control:
 		return global_position + size / 2.0
 
 	func _draw() -> void:
-		draw_style_box(UI.box(T.BG_RAISED, Color.TRANSPARENT, 0, UI.card_radius(size.x), 0), Rect2(Vector2.ZERO, size))
+		draw_style_box(UI.box(T.STONE_RAISED, Color.TRANSPARENT, 0, UI.card_radius(size.x), 0), Rect2(Vector2.ZERO, size))
 
 
 var landed := LandedFace.new()
@@ -260,8 +260,8 @@ func _init() -> void:
 		if e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT and not e.pressed:
 			look_in(T.ZOOM))
 	_table.add_child(_catch)
-	_shuffle_label.add_theme_stylebox_override("panel", UI.box(T.CARD_EDGE, T.CARD_EDGE_LINE, 2, T.RADIUS_M, T.S))
-	_shuffle_label.add_child(UI.label("Deck shuffled", T.BODY, T.INK))
+	_shuffle_label.add_theme_stylebox_override("panel", UI.box(T.CARD_EDGE, T.CARD_EDGE_LINE, 2, T.CHAMFER_MD, T.SPACE_2))
+	_shuffle_label.add_child(UI.label("Deck shuffled", T.BODY, T.PARCHMENT))
 	_shuffle_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_shuffle_label.visible = false
 	_table.add_child(_shuffle_label)
@@ -327,9 +327,17 @@ static func peel_count(ids: Array) -> int:
 	return mini(ids.size(), T.SHUFFLE_PEELS)
 
 
-## Where the face sits on a Deck of `deck_size`: all of it but the edges' margin.
+## Where the face sits on a Deck of `deck_size`: the largest card of the Hand's own
+## shape (5 by 7, T.CARD_ASPECT) that fits inside all of it but the edges' margin,
+## centred there, so every card on the left is a playing card's shape (owner,
+## 2026-10-22).
 static func face_rect(deck_size: Vector2) -> Rect2:
-	return Rect2(0, 0, deck_size.x - T.DECK_EDGE, deck_size.y - T.DECK_EDGE)
+	var room := Vector2(deck_size.x - T.DECK_EDGE, deck_size.y - T.DECK_EDGE)
+	var s := Vector2(room.y * T.CARD_ASPECT, room.y)
+	if s.x > room.x:
+		s = Vector2(room.x, room.x / T.CARD_ASPECT)
+	s = s.floor()
+	return Rect2(((room - s) / 2.0).floor(), s)
 
 
 ## How far the Deck dips while the Key Card rises from it: half the way, but no
@@ -366,7 +374,7 @@ static func card_rect(deck_size: Vector2, v: String, peek := false) -> Rect2:
 			s = Vector2(h * RegionCard.ASPECT, h)
 			room = rise_room(s)
 	var spare := maxf(0.0, f.size.y - room - s.y)
-	return Rect2(Vector2((f.size.x - s.x) / 2.0, room + spare / 2.0), s)
+	return Rect2(f.position + Vector2((f.size.x - s.x) / 2.0, room + spare / 2.0), s)
 
 
 ## How much of a Key Card the size of `card` must rise above it: its band and strip,
@@ -397,7 +405,8 @@ static func zoom_scale(face: Rect2, tile: Rect2) -> float:
 ## itself right under the panel; and the whole card, grown alike, where that puts it
 ## (most of it beyond the face, which clips it).
 static func landing(face: Rect2, key: String, strip_lines: int) -> Dictionary:
-	var strip_h := strip_lines * STRIP_LINE + T.M
+	# The strip's room is layout, kept at its size before specs/019 (research R2).
+	var strip_h := strip_lines * STRIP_LINE + T.SPACE_2
 	var strip := Rect2(face.position + Vector2(0, face.size.y - strip_h), Vector2(face.size.x, strip_h))
 	var area := Rect2(face.position, Vector2(face.size.x, face.size.y - strip_h))
 	var unit := RegionCard.card_size(1000.0)
@@ -651,9 +660,9 @@ func _render_strip(enc: Dictionary, p: Dictionary) -> void:
 	for c in landed.strip.get_children():
 		landed.strip.remove_child(c)
 		c.queue_free()
-	var head := UI.hbox(T.S)
+	var head := UI.hbox(T.SPACE_2)
 	head.add_child(UI.icon_rect(p.kind, 34, T.ether_ink(p.element)))
-	var title := UI.label(enc.title.to_upper(), T.SUBHEAD, T.INK)
+	var title := UI.label(enc.title, T.HEADING, T.PARCHMENT)
 	title.clip_text = true
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(title)
@@ -663,12 +672,12 @@ func _render_strip(enc: Dictionary, p: Dictionary) -> void:
 		if id == null:
 			continue
 		var e: Dictionary = Glossary.entry(id)
-		var row := UI.hbox(T.S)
-		var disc: Control = StatChip.make({"icon": e.icon, "text": "", "color": T.INK, "glossary_id": id, "min_size": Vector2(44, 44)})
+		var row := UI.hbox(T.SPACE_2)
+		var disc: Control = StatChip.make({"icon": e.icon, "text": "", "color": T.PARCHMENT, "glossary_id": id, "min_size": Vector2(44, 44)})
 		disc.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		disc.help.connect(func(gid, source): intent.emit({"type": "help", "id": gid, "source": source}))
 		row.add_child(disc)
-		var words := UI.label("%s: %s" % [e.name, e.short] if e.short != "" else e.name, T.BODY, T.INK, true)
+		var words := UI.label("%s: %s" % [e.name, e.short] if e.short != "" else e.name, T.BODY, T.PARCHMENT, true)
 		words.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		words.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		row.add_child(words)
@@ -755,11 +764,7 @@ func _draw_edges() -> void:
 		return
 	var radius := card_radius(_stack_rect.size.x)
 	var deepest: Rect2 = rects[0]
-	for layer in T.CARD_SHADOW:
-		var sh := StyleBoxFlat.new()
-		sh.bg_color = Color(0, 0, 0, layer[1])
-		sh.set_corner_radius_all(radius + int(layer[0]))
-		_edges.draw_style_box(sh, Rect2(deepest.position + Vector2(2, 4), deepest.size).grow(layer[0]))
+	UI.draw_card_shadow(_edges, deepest, radius)
 	var card := StyleBoxFlat.new()
 	card.bg_color = T.CARD_EDGE
 	card.border_color = T.CARD_EDGE_LINE

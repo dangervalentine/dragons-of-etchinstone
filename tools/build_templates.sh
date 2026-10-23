@@ -3,7 +3,8 @@
 # The class list comes from tools/engine.gdbuild. Every engine module is off except the
 # ones the game uses when it runs:
 #   gdscript, freetype (fonts), svg (ui/fx/creature.gd), webp (painted art),
-#   regex, noise (ui/theme/stone.gd), text_server_adv.
+#   regex, noise (unused since specs/019 removed ui/theme/stone.gd; drop it at the
+#   next template rebuild), text_server_adv.
 # Usage: tools/build_templates.sh <web|ios|android|windows> [godot source dir]
 set -euo pipefail
 

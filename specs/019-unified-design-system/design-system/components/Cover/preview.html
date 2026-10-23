@@ -1,0 +1,49 @@
+<!-- @dsCard height=288 -->
+<!doctype html>
+<html lang="en">
+<head><link rel="stylesheet" href="../../tokens.css"><link rel="stylesheet" href="../bundle.css">
+<meta charset="utf-8">
+<title>Etchinstone</title>
+<style>
+  html, body { margin:0; height:100%; }
+  body { background:var(--ground); color:var(--parchment); font-family:var(--font-sans); overflow:hidden; }
+  .cover { position:relative; width:960px; height:288px; overflow:hidden; }
+  .art { position:absolute; top:0; left:480px; width:480px; height:288px; overflow:hidden; }
+  .art svg { display:block; width:480px; height:288px; }
+  .brass { fill:var(--brass); }
+  .jade { fill:var(--region-jade); }
+  .cinnabar { fill:var(--ether-cinnabar); }
+  .lapis { fill:var(--ether-lapis); }
+  .cut { fill:var(--ground); font-family:var(--font-display); font-weight:900; font-variation-settings:"SOFT" 50, "WONK" 0; }
+  .words { position:absolute; left:32px; bottom:32px; max-width:440px; }
+  .name { margin:0; font-family:var(--font-display); font-variation-settings:"SOFT" 50, "WONK" 0; font-size:72px; line-height:.92; font-weight:800; letter-spacing:-.01em; color:var(--parchment); }
+  .tag { margin:8px 0 0 3px; font-size:14px; line-height:20px; color:var(--parchment-muted); }
+</style>
+</head>
+<body>
+<div class="cover">
+<div class="art" aria-hidden="true">
+<svg viewBox="0 0 480 288" width="480" height="288">
+<!--
+  blocks      brass 160×256 slab bled off the top (the one colour the UI spends on "here", so it leads) · region-jade 128×208 · ether-cinnabar 144×160 bled off the right · ether-lapis 64×48 once — about 35% of 960×288
+  arrangement one tall brass slab with three satellites, bottoms on one line space-4 above the edge, space-4 gutters
+  pattern     "Every number is a figure": one oversized Fraunces 900 numeral cut out of the brass slab in ground, clipped by it; every block chamfered, from "stone is carved"
+  scales      sides in space-4 multiples; gutters space-4; corner cuts chamfer-lg (16) on the big blocks, chamfer-md (10) on the lapis chip
+-->
+<defs>
+  <clipPath id="slab"><polygon points="32,-16 192,-16 192,224 176,240 48,240 32,224"/></clipPath>
+</defs>
+<polygon class="brass" points="32,-16 192,-16 192,224 176,240 48,240 32,224"/>
+<g clip-path="url(#slab)"><text class="cut" x="58" y="228" font-size="260">7</text></g>
+<polygon class="jade" points="224,48 336,48 352,64 352,240 336,256 224,256 208,240 208,64"/>
+<polygon class="lapis" points="378,32 432,32 442,42 442,70 432,80 378,80 368,70 368,42"/>
+<polygon class="cinnabar" points="384,96 496,96 496,256 384,256 368,240 368,112"/>
+</svg>
+</div>
+<div class="words">
+<h1 class="name">Etchinstone</h1>
+<p class="tag">Inkstone and brass: a carved table for painted cards.</p>
+</div>
+</div>
+</body>
+</html>

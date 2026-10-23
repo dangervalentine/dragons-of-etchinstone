@@ -121,6 +121,10 @@ static func build(game, draft, db, extra := {}) -> Dictionary:
 					vs.cards[id]["played_role"] = [0, role]
 	vs["held"] = draft.held
 	vs["places"] = places(vs, game, draft)
+	# A Reserve given up is out of play (specs/019 "Out of play").
+	for p in vs.places:
+		if p.given_up and p.card_id != null and vs.cards.has(p.card_id):
+			vs.cards[p.card_id]["out_of_play"] = true
 	for id in vs.hand:
 		vs.cards[id]["place"] = null
 	for pl in vs.places:
@@ -449,11 +453,14 @@ static func _preview_final_enemy(game, r: Dictionary, out: Dictionary) -> void:
 static func _stage(game, db) -> Dictionary:
 	if game.phase.begins_with("final") or game.phase == "won" or game.phase == "lost":
 		return {"kind": "final", "region": game.region, "name": game.dragon.name, "title": game.dragon.title,
-			"heading": "Final Battle · %s, %s" % [game.dragon.name, game.dragon.title],
+			# The place first, the stage after it, muted (specs/019 TopBar).
+			"heading": "%s, %s · Final Battle" % [game.dragon.name, game.dragon.title],
+			"heading_parts": ["%s, %s" % [game.dragon.name, game.dragon.title], " · Final Battle"],
 			"element": game.dragon.early_damage.element, "dragon": game.dragon.id, "art": Art.dragon(game.dragon.id)}
 	var r: Dictionary = db.region(game.region)
 	return {"kind": "region", "region": game.region, "name": r.name, "title": "",
-		"heading": "Region %d · %s" % [game.region, r.name], "element": "", "dragon": game.dragon.id,
+		"heading": "%s · Region %d" % [r.name, game.region],
+		"heading_parts": [r.name, " · Region %d" % game.region], "element": "", "dragon": game.dragon.id,
 		"art": Art.dragon(game.dragon.id)}
 
 
@@ -583,6 +590,13 @@ static func places(vs: Dictionary, game = null, draft = null) -> Array:
 		return _indexed(out)
 	var held = draft.held if draft != null else null
 	var idle: bool = held == null and vs.mode == "none"
+	# One target at a time (specs/019 data-model "Place state"): with a card held, the
+	# place it is aimed at (by the keyboard or the pointer), the rest open to it; with
+	# none held, the empty Role the next card goes to.
+	var aim = vs.get("key_target")
+	var next_key := ""
+	if held == null and draft != null and str(vs.get("next_role", "")) != "":
+		next_key = "%d/%s" % [draft.active[0], vs.next_role]
 	# With a card held, every other place takes it: a place with a card trades with it.
 	var tap_for := func(id, target) -> Variant:
 		if held != null:
@@ -590,8 +604,11 @@ static func places(vs: Dictionary, game = null, draft = null) -> Array:
 				return {"type": "put_down"}
 			return {"type": "put", "target": {"card": id} if id != null else target}
 		return {"type": "pick", "id": id} if id != null and idle else null
-	var state_for := func(id, filled: bool) -> String:
+	var state_for := func(id, filled: bool, key := "", target = null) -> String:
 		if held != null and id != held:
+			var put = {"card": id} if id != null else target
+			return "target" if aim != null and typeof(put) == typeof(aim) and put == aim else "open"
+		if key != "" and key == next_key and not filled:
 			return "target"
 		return "filled" if filled else "empty"
 	if draft == null or draft.with_reserve:
@@ -600,7 +617,7 @@ static func places(vs: Dictionary, game = null, draft = null) -> Array:
 		var given_up: bool = r != null and draft != null and draft.give_up_reserve
 		var state: String = "inactive"
 		if offered:
-			state = state_for.call(r, r != null)
+			state = state_for.call(r, r != null, "reserve", "reserve")
 		if given_up:
 			state = "given_up"
 		var place := _place("reserve", 0, "reserve", state, r, tap_for.call(r, "reserve") if offered else null,
@@ -618,7 +635,7 @@ static func places(vs: Dictionary, game = null, draft = null) -> Array:
 		var st: Dictionary = vs.sets[i]
 		for role in ORDER:
 			var id = st.roles.get(role)
-			var place := _place("%d/%s" % [i, role], i, role, state_for.call(id, id != null), id,
+			var place := _place("%d/%s" % [i, role], i, role, state_for.call(id, id != null, "%d/%s" % [i, role], [i, role]), id,
 				tap_for.call(id, [i, role]), _tip(vs, i, role, id))
 			place["set_start"] = two and i == 1 and role == ORDER[0]
 			out.append(place)

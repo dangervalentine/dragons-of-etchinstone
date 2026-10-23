@@ -130,7 +130,7 @@ func silhouette(tint: Color) -> void:
 func set_outlined(on: bool) -> void:
 	outlined = on
 	var m: ShaderMaterial = _picture.material
-	m.set_shader_parameter("line_color", T.CREATURE_LINE if on else Color(0, 0, 0, 0))
+	m.set_shader_parameter("line_color", T.CREATURE_LINE if on else Color(T.SHADE, 0))
 	m.set_shader_parameter("line_width", T.CREATURE_LINE_SHARE)
 	m.set_shader_parameter("line_min", T.CREATURE_LINE_MIN)
 
@@ -252,8 +252,8 @@ func _make_particles(ether: String) -> CPUParticles2D:
 			p.direction = Vector2(0, -1)
 			p.spread = 18.0
 			p.gravity = Vector2(0, -12)
-			ramp.set_color(0, Color(T.GOLD, 0.0))
-			ramp.add_point(0.15, Color(T.GOLD, 0.95))
+			ramp.set_color(0, Color(T.ether_shade("fire", "lit"), 0.0))
+			ramp.add_point(0.15, Color(T.ether_shade("fire", "lit"), 0.95))
 			ramp.set_color(ramp.get_point_count() - 1, Color(c, 0.0))
 		"water":
 			# Bubbles drifting up, wobbling.
@@ -278,7 +278,7 @@ func _make_particles(ether: String) -> CPUParticles2D:
 			p.damping_max = 200.0
 			p.angle_min = -35.0
 			p.angle_max = 35.0
-			ramp.set_color(0, Color(1, 1, 0.85, 1.0))
+			ramp.set_color(0, T.SHEEN.lerp(T.ether_shade("lightning", "lit"), 0.25))
 			ramp.add_point(0.12, Color(c, 0.9))
 			ramp.add_point(0.22, Color(c, 0.0))
 			ramp.set_color(ramp.get_point_count() - 1, Color(c, 0.0))

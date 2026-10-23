@@ -40,13 +40,12 @@ func render(vs: Dictionary, plan: Dictionary) -> void:
 	# In the Final Battle's grid one label names a column for both sets.
 	var shared: bool = plan.get("set_rows", false)
 	var two: bool = vs.get("sets", []).size() > 1 and not shared
-	var aim = vs.get("key_target")
 	for s in vs.get("places", []):
 		if s.index >= positions.size() or plan.get("label_h", 0.0) <= 0.0:
 			continue
 		var pos: Dictionary = positions[s.index]
 		if s.get("set_start", false) and s.index > 0 and shared:
-			# Between the sets' rows, a gold rule across Set 2's places.
+			# Between the sets' rows, a hairline across Set 2's places.
 			var last: Dictionary = positions[mini(s.index + 2, positions.size() - 1)]
 			var y: float = pos.card.position.y - Solver.GAP / 2.0 - global_position.y
 			_rules.append([Vector2(pos.card.position.x - global_position.x, y), Vector2(last.card.end.x - global_position.x, y)])
@@ -55,9 +54,6 @@ func render(vs: Dictionary, plan: Dictionary) -> void:
 		var l := _label(s, pos.label.size.x < NARROW_W, two)
 		l.position = pos.label.position - global_position
 		l.size = pos.label.size
-		# The place the keyboard is aiming the held card at is edged in gold.
-		var put = s.tap.get("target") if s.tap != null and s.tap.get("type") == "put" else null
-		l.set_meta("aimed", aim != null and put != null and typeof(put) == typeof(aim) and put == aim)
 		add_child(l)
 		_labels[s.key] = l
 		if s.get("set_start", false) and s.index > 0 and not shared:
@@ -69,11 +65,12 @@ func render(vs: Dictionary, plan: Dictionary) -> void:
 
 
 func _draw() -> void:
-	# Between the two Action Sets of the Final Battle, a gold rule.
+	# Between the two Action Sets of the Final Battle, a hairline (specs/019: brass is
+	# only for what the next tap does).
 	for d in _dividers:
-		draw_line(Vector2(d[0], d[1] + 4), Vector2(d[0], d[2] - 4), T.GOLD, 2.0)
+		draw_line(Vector2(d[0], d[1] + 4), Vector2(d[0], d[2] - 4), T.LINE, 2.0)
 	for r in _rules:
-		draw_line(r[0] + Vector2(4, 0), r[1] - Vector2(4, 0), T.GOLD, 2.0)
+		draw_line(r[0] + Vector2(4, 0), r[1] - Vector2(4, 0), T.LINE, 2.0)
 
 
 ## Global rectangle of a place's label, for effects that aim at it.
@@ -87,14 +84,16 @@ func _label(s: Dictionary, narrow: bool, two: bool) -> Control:
 	l.state = s.state
 	l.tooltip_text = s.tooltip
 	var state: String = s.state
-	var ink: Color = T.INK_MUTED
+	# The header (specs/019 Slot): muted while empty, parchment once filled or open
+	# to the held card, brass on the one target, faint where the place is not used.
+	var ink: Color = T.PARCHMENT_MUTED
 	match state:
 		"target":
-			ink = T.FOCUS
-		"filled", "kept":
-			ink = T.GOLD
+			ink = T.BRASS
+		"filled", "kept", "open", "played":
+			ink = T.PARCHMENT
 		"inactive":
-			ink = Color(T.INK_MUTED, 0.5)
+			ink = T.PARCHMENT_FAINT
 	var row := UI.hbox(4)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -105,14 +104,14 @@ func _label(s: Dictionary, narrow: bool, two: bool) -> Control:
 		var name: String = ROLE_NAMES[s.role]
 		if two and s.role != "reserve":
 			name += " %d" % (s.set + 1)
-		var text := UI.label(name if narrow else name.to_upper(), T.LABEL_BOLD if state == "target" else T.LABEL, ink)
+		var text := UI.label(name, T.LABEL, ink)
 		text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		row.add_child(text)
 		l.struck = state == "given_up" or state == "discarded"
 	if s.get("rule", "") != "":
-		row.add_child(UI.icon_rect(s.rule, 22, T.BAD))
+		row.add_child(UI.icon_rect(s.rule, 22, T.DANGER))
 	if state == "kept":
-		row.add_child(UI.label("· Stays", T.LABEL, T.GOLD))
+		row.add_child(UI.label("· Stays", T.LABEL, T.PARCHMENT_MUTED))
 	UI.ignore_mouse(row)
 	l.add_child(row)
 	if s.tap != null and state != "inactive":
@@ -129,8 +128,8 @@ func _label(s: Dictionary, narrow: bool, two: bool) -> Control:
 	return l
 
 
-## A label's plate: a faint wash, lit while the held card can go to its place or the
-## keyboard aims there; struck through when its card is given up or spent.
+## A label's plate: a hairline under the header, a brass underline under the one
+## target; struck through when its card is given up or spent.
 class _Label extends Control:
 	const T = preload("res://ui/theme/tokens.gd")
 	var state := "empty"
@@ -138,12 +137,9 @@ class _Label extends Control:
 
 	func _draw() -> void:
 		var r := Rect2(Vector2.ZERO, size).grow(-1)
-		var lit := state == "target"
-		var aimed: bool = get_meta("aimed", false)
-		if lit or aimed:
-			draw_rect(r, Color(T.FOCUS, 0.14), true)
-			draw_rect(r, T.GOLD if aimed else T.FOCUS, false, 3.0 if aimed else 2.0)
+		if state == "target":
+			draw_line(Vector2(r.position.x + 6, r.end.y - T.BORDER_EDGE / 2.0), Vector2(r.end.x - 6, r.end.y - T.BORDER_EDGE / 2.0), T.BRASS, T.BORDER_EDGE)
 		elif state != "inactive":
-			draw_line(Vector2(r.position.x + 6, r.end.y), Vector2(r.end.x - 6, r.end.y), Color(T.INK_MUTED, 0.35), 1.0)
+			draw_line(Vector2(r.position.x + 6, r.end.y), Vector2(r.end.x - 6, r.end.y), T.LINE, 1.0)
 		if struck:
-			draw_line(Vector2(r.position.x + 8, r.end.y - 8), Vector2(r.end.x - 8, r.position.y + 8), T.INK_MUTED, 2.0)
+			draw_line(Vector2(r.position.x + 8, r.end.y - 8), Vector2(r.end.x - 8, r.position.y + 8), T.PARCHMENT_MUTED, 2.0)

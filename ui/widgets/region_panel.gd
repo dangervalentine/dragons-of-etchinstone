@@ -19,9 +19,9 @@ const Glossary = preload("res://ui/model/glossary.gd")
 const StatChip = preload("res://ui/widgets/stat_chip.gd")
 
 ## The pale grey of the printed hourglass.
-const STEEL := Color("aaa6b8")
+const STEEL := T.METAL_LIGHT
 ## The printed hourglass's glass, a shade darker than its bars.
-const GLASS := Color("75717f")
+const GLASS := T.GLASS_LIGHT
 
 var panel := {}
 ## The Key Card's Hardship on this Encounter, shown beside the Ability or Peril once
@@ -94,8 +94,8 @@ func render(p: Dictionary, hardship_id = null, live_badges := false) -> void:
 		_creature.setup(p.art, Color(tint.lightened(0.45), 0.55), p.element, false)
 	if p.kind == "enemy":
 		var e: Dictionary = p.enemy
-		_add("hp", {"icon": "hp", "text": str(e.hp), "color": T.HP, "glossary_id": "hp"})
-		_add("initiative", {"icon": "initiative", "text": str(e.initiative), "color": T.BG_BAND, "glossary_id": "initiative"})
+		_add("hp", {"icon": "hp", "text": str(e.hp), "color": T.STAT_HP, "glossary_id": "hp"})
+		_add("initiative", {"icon": "initiative", "text": str(e.initiative), "color": T.STAT_PLATE, "glossary_id": "initiative"})
 		_add("attack", {"icon": "attack_badge", "text": str(e.attack.value), "color": T.ether(e.attack.element),
 			"ink": T.ether_shade(e.attack.element, "plate_ink"), "element": e.attack.element, "glossary_id": "attack"})
 		for i in e.armor.size():
@@ -105,14 +105,14 @@ func render(p: Dictionary, hardship_id = null, live_badges := false) -> void:
 	else:
 		var j: Dictionary = p.journey
 		# As printed: a dark mountain in a box of the MP's Ether, and a pale hourglass.
-		_add("mp", {"icon": "mp_badge", "text": str(j.mp.value), "color": T.BG_BAND, "backing": T.ether(j.mp.element),
+		_add("mp", {"icon": "mp_badge", "text": str(j.mp.value), "color": T.STAT_PLATE, "backing": T.ether(j.mp.element),
 			"element": j.mp.element, "glossary_id": "mp"})
 		_add("time", {"icon": "time_badge", "text": str(j.time_penalty), "color": STEEL, "inset": GLASS, "inset_icon": "time_badge_glass", "glossary_id": "time"})
-	_add("xp", {"icon": "xp", "text": str(p.xp), "color": T.GOLD, "ink": T.BG_BASE, "glossary_id": "xp"})
+	_add("xp", {"icon": "xp", "text": str(p.xp), "color": T.BRASS_BRIGHT, "ink": T.ON_BRASS, "glossary_id": "xp"})
 	# The Encounter's own Ability or Peril where it is printed, the Hardship beside it.
 	for id in [p.effect, hardship_id]:
 		if id != null:
-			var disc := _make({"icon": Glossary.entry(id).icon, "text": "", "color": T.INK, "ring": T.BG_BAND, "glossary_id": id})
+			var disc := _make({"icon": Glossary.entry(id).icon, "text": "", "color": T.PARCHMENT, "ring": T.STAT_PLATE, "glossary_id": id})
 			_discs.append(disc)
 	_fit()
 	queue_redraw()
@@ -247,7 +247,15 @@ func _fit() -> void:
 	_over.queue_redraw()
 
 
+## A chip in its printed place; one that explains itself when pressed is grown about
+## its centre to a help target's least size as it shows on screen, however small the
+## panel is drawn (specs/019: the left card keeps the Hand's shape).
 func _put(c: Control, r: Rect2) -> void:
+	if interactive and c.has_meta("help_target"):
+		var k: float = maxf(0.01, get_global_transform().get_scale().x)
+		var least: float = T.HELP_MIN / k
+		r = r.grow_individual(maxf(0.0, (least - r.size.x) / 2.0), maxf(0.0, (least - r.size.y) / 2.0),
+			maxf(0.0, (least - r.size.x) / 2.0), maxf(0.0, (least - r.size.y) / 2.0))
 	c.position = r.position
 	c.size = r.size
 
@@ -274,7 +282,7 @@ static func _backlight() -> GradientTexture2D:
 		var g := Gradient.new()
 		g.interpolation_mode = Gradient.GRADIENT_INTERPOLATE_CUBIC
 		g.set_color(0, Color.WHITE)
-		g.set_color(1, Color(1, 1, 1, 0))
+		g.set_color(1, Color(T.SHEEN, 0))
 		_glow = GradientTexture2D.new()
 		_glow.gradient = g
 		_glow.fill = GradientTexture2D.FILL_RADIAL
@@ -318,7 +326,7 @@ func _draw() -> void:
 		# The printed strip along the top, in the dark of the card's band.
 		var strip: float = at.art.position.y
 		draw_colored_polygon(PackedVector2Array([Vector2.ZERO, Vector2(size.x - c, 0), Vector2(size.x, c),
-			Vector2(size.x, strip), Vector2(0, strip)]), Color(T.BG_BAND, 0.92))
+			Vector2(size.x, strip), Vector2(0, strip)]), Color(T.STAT_PLATE, 0.92))
 		if _map != null:
 			# The map covers the landscape, cut at the frame's corner like it.
 			var pts := _below(size, strip, c)
@@ -340,15 +348,16 @@ func _draw_over() -> void:
 	var edge := maxf(1.5, size.y * 0.012)
 	var line := outline(at.frame.grow(-edge / 2.0), at.bevel)
 	line.append(line[0])
-	_over.draw_polyline(line, T.muted(tint), edge, true)
+	_over.draw_polyline(line, tint, edge, true)
 	if number_alpha <= 0.0:
 		return
 	var n: Rect2 = at.number
-	_over.draw_style_box(UI.box(Color(T.BG_BASE, 0.72 * number_alpha), Color.TRANSPARENT, 0, int(n.size.y * 0.2), 0), n)
-	var font := UI.font(T.LABEL_BOLD[0])
-	number_size = maxi(8, roundi(n.size.y * 0.78))
+	_over.draw_style_box(UI.box(Color(T.GROUND, 0.72 * number_alpha), Color.TRANSPARENT, 0, int(n.size.y * 0.2), 0), n)
+	var font := UI.font(T.LABEL)
+	number_size = maxi(T.TEXT_MIN, roundi(n.size.y * 0.78))
 	var text := str(panel.index)
 	var tw := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, number_size).x
 	var base := n.get_center().y + (font.get_ascent(number_size) - font.get_descent(number_size)) / 2.0
-	_over.draw_string(font, Vector2(n.get_center().x - tw / 2.0, base), text, HORIZONTAL_ALIGNMENT_LEFT, -1, number_size, Color(T.INK, number_alpha))
+	_over.draw_string(font, Vector2(n.get_center().x - tw / 2.0, base), text, HORIZONTAL_ALIGNMENT_LEFT, -1, number_size, Color(T.PARCHMENT, number_alpha))
+	UI.drew_text(self, "number", number_size)
 

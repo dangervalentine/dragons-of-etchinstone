@@ -52,7 +52,7 @@ const SECTIONS := [
 	{"id": "mage_cards", "title": "Mage Cards", "pages": [
 		{"text": [
 			{"p": "Your sixteen Mage Cards are your spells, your shield and your clock. Each belongs to one of the four Ethers, shown by its colour and the mark beside its name."},
-			{"p": "A card has four [[crown|Levels]], each with its own figures; higher is stronger. Only the current Level counts, and it is the only one drawn; hold a card to see all four. In each step, the figures that matter are lit."},
+			{"p": "A card has four [[crown|Levels]], each with its own figures; higher is stronger. Only the current Level counts, and it is the only one drawn; hold a card to see all four."},
 			{"list": [
 				"The strip under the name: the Encounter this card brings as [[key_card|Key Card]], and any Hardship.",
 				"{icon:initiative} Initiative: your speed when it is the Element.",
@@ -63,7 +63,7 @@ const SECTIONS := [
 			{"figure": "mage"},
 		]},
 		{"text": [
-			{"p": "Levels change all game. Spending XP [[upgrade|Upgrades]] a card; taking damage [[downgrade|Downgrades]] one. A Level 1 card that is Downgraded is [[trash|Trashed]] and gone for good."},
+			{"p": "In each step, the figures that matter are lit. Levels change all game. Spending XP [[upgrade|Upgrades]] a card; taking damage [[downgrade|Downgrades]] one. A Level 1 card that is Downgraded is [[trash|Trashed]] and gone for good."},
 			{"p": "The card on top of your [[deck|Deck]] is the [[key_card|Key Card]]. Its strip decides your next Encounter, so the same card can be a fine spell in your Hand and a nasty fight on top of the Deck."},
 			{"note": "Hover a card to see every figure spelled out, hold it to see its other Levels, and press any figure in play to have it explained."},
 		]},
@@ -243,6 +243,8 @@ const SECTIONS := [
 				"A card Downgraded this Encounter cannot be Upgraded.",
 				"XP cannot be saved: whatever you leave unspent is lost.",
 			]},
+		]},
+		{"text": [
 			{"p": "Then Cleanup. Your Action Set is discarded, and your Reserve stays in your Hand unless Freeze or Ranged took it."},
 			{"note": "The game draws you back up to {n:HAND_SIZE} cards. Tap a card to Upgrade it, and again to go up another Level while your XP allows; past the highest it can reach, each tap takes a Level back. No XP is spent until you confirm."},
 		]},
@@ -398,7 +400,9 @@ static func expand(text: String) -> String:
 		out = out.replace(m.get_string(0), "[b]%s[/b]" % words)
 	for m in _icon_re.search_all(text):
 		var id := m.get_string(1)
-		var colour: Color = T.ETHER.get(id, T.GOLD)
+		# Printed on paper, in the rulebook and the lessons' messages: an Ether in its deep
+		# pigment, any other sign in the paper's ink (specs/019 FR-020).
+		var colour: Color = T.ether_shade(id, "paper") if T.ETHER.has(id) else T.PAPER_INK
 		out = out.replace(m.get_string(0), "[img width=%d height=%d color=#%s]res://art/icons/%s.svg[/img]" % [ICON_SIZE, ICON_SIZE, colour.to_html(false), id])
 	for m in _number_re.search_all(text):
 		out = out.replace(m.get_string(0), str(NUMBERS.get(m.get_string(1), m.get_string(0))))

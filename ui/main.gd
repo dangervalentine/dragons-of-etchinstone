@@ -63,7 +63,6 @@ var _overlays := Control.new()
 var _backdrop := ColorRect.new()
 ## The stone backdrop's settings.
 var backdrop_layer := BackdropLayer.new()
-var _backdrop_ether := ""
 var _notice: Control = null
 var _notice_dismissed := false
 var _lost_at := ""
@@ -275,7 +274,7 @@ func _on_resize() -> void:
 		if o.has_method("close") and o.get_script() == InspectOverlay:
 			o.close()
 		elif o.get_script() == RulebookOverlay and not o.is_queued_for_deletion():
-			o.relayout(plan.content.grow(-T.M))
+			o.relayout(plan.content.grow(-T.SPACE_4))
 	_update_notice()
 	_show_coach.call_deferred()
 
@@ -314,8 +313,10 @@ func _update_notice() -> void:
 func _switch(to: Control) -> void:
 	var old := screen
 	screen = to
-	# Feature 006: every screen stands on the same ground.
-	backdrop_layer.set_stone(true)
+	# Every screen stands on the same ground; only the play screen is washed in its
+	# Region's tint (specs/019 FR-006).
+	if to != play:
+		backdrop_layer.set_region(null)
 	_screen_host.add_child(to)
 	to.set_anchors_preset(Control.PRESET_FULL_RECT)
 	if old != null:
@@ -643,7 +644,7 @@ func _offer_lessons() -> bool:
 	Settings.save_all()
 	var c := ConfirmDialog.new()
 	_overlays.add_child(c)
-	c.setup("New to Etchinstone? Learn to Play takes about ten minutes.", "Learn to Play", "Play")
+	c.setup("Learn to Play takes about ten minutes.", "Learn to Play", "Play", "", "New to Etchinstone?")
 	var chose := [false]
 	c.confirmed.connect(func():
 		chose[0] = true
@@ -675,9 +676,10 @@ func _refresh(animate := true, show := true) -> void:
 	if draft.held == null:
 		_key_target = null
 	vs = ViewState.build(game, draft, db, {"previous_preview": previous, "lost_at": _lost_at, "placing": placing, "key_target": _key_target})
+	if play != null and screen == play:
+		_wash_backdrop()
 	if show and play != null and screen == play and not animator.is_playing():
 		play.render(vs, animate)
-		_tint_backdrop(vs)
 
 
 # ---------------------------------------------------------------- intents
@@ -757,7 +759,7 @@ func _dispatch(intent: Dictionary) -> void:
 		"records_clear":
 			var c := ConfirmDialog.new()
 			_overlays.add_child(c)
-			c.setup("Clear every recorded game? This cannot be undone.", "Clear records", "Keep them")
+			c.setup("This cannot be undone.", "Clear records", "Keep them", "", "Clear every recorded game?", "trash")
 			c.confirmed.connect(func():
 				HistoryStore.clear_all()
 				_close_overlays()
@@ -777,20 +779,18 @@ func _dispatch(intent: Dictionary) -> void:
 		"back":
 			if screen != null and screen.has_method("back"):
 				screen.back()
-		"ground":
-			backdrop_layer.refresh_ground()
 		"menu":
 			_open_menu(play != null and screen == play)
 		"glossary":
 			var g := GlossaryPopover.new()
 			_overlays.add_child(g)
-			g.show_all(plan.content.grow(-T.M))
+			g.show_all(plan.content.grow(-T.SPACE_4))
 			_return_to_menu(g, intent)
 		"rulebook":
 			var r := RulebookOverlay.new()
 			_overlays.add_child(r)
 			r.intent.connect(dispatch)
-			r.open(plan.content.grow(-T.M), intent.get("section", ""), db)
+			r.open(plan.content.grow(-T.SPACE_4), intent.get("section", ""), db)
 			_return_to_menu(r, intent)
 		"leave":
 			# Leaving a lesson loses nothing of the player's: no question.
@@ -800,7 +800,7 @@ func _dispatch(intent: Dictionary) -> void:
 				return
 			var c := ConfirmDialog.new()
 			_overlays.add_child(c)
-			c.setup("Abandon this run? It cannot be resumed.", "Abandon run", "Keep playing")
+			c.setup("It cannot be resumed.", "Abandon run", "Keep playing", "", "Abandon this run?", "close")
 			c.confirmed.connect(func():
 				_record("abandoned")
 				_close_overlays()
@@ -828,6 +828,14 @@ func _dispatch(intent: Dictionary) -> void:
 				_refuse(err, intent.id)
 		"put":
 			_put(intent.target)
+		"aim":
+			# The pointer over a place while a card is held aims it there, as Tab does:
+			# only the places are drawn again, so nothing in the Hand moves.
+			if draft.held != null and play != null and screen == play and intent.target != _key_target:
+				_key_target = intent.target
+				vs.key_target = _key_target
+				vs.places = ViewState.places(vs, game, draft)
+				play.reaim(vs)
 		"drag_put":
 			draft.held = null
 			var err: String = draft.pick(intent.id)
@@ -1021,8 +1029,9 @@ func _on_primary() -> void:
 func _confirm_unspent_xp() -> void:
 	var c := ConfirmDialog.new()
 	_overlays.add_child(c)
-	c.setup("You have %d XP left, enough to Upgrade a card. Unspent XP is lost. Continue anyway?" % vs.xp,
-		"Continue anyway", "Keep upgrading", "Don't show this again")
+	# The question as the title, the consequence printed on paper (specs/019 Dialog).
+	c.setup("You have %d XP left, enough to Upgrade a card, and unspent XP is lost." % vs.xp,
+		"Continue anyway", "Keep upgrading", "Don't show this again", "Continue without spending it?", "", true)
 	c.confirmed.connect(_finish_upgrade)
 	c.tree_exiting.connect(func():
 		if c.opted_out:
@@ -1098,7 +1107,6 @@ func _act(action: Dictionary, call: Callable) -> void:
 	_refresh(false, false)
 	if steps.is_empty():
 		play.render(vs, true)
-		_tint_backdrop(vs)
 		return
 	animator.play(steps, play, vs)
 
@@ -1150,23 +1158,9 @@ func _refusal_title() -> String:
 	return "Placing Cards"
 
 
-## The backdrop takes on a little of the Encounter's Ether behind it.
-func _tint_backdrop(state: Dictionary) -> void:
-	var enc = state.get("encounter")
-	var ether: String = str(enc.element) if enc != null and enc.element != null else ""
-	if ether == _backdrop_ether:
-		return
-	_backdrop_ether = ether
-	var m: ShaderMaterial = _backdrop.material
-	var to := 1.0 if ether != "" else 0.0
-	if ether != "":
-		m.set_shader_parameter("ether_tint", T.ether_shade(ether, "deep").lightened(0.2))
-	if Settings.reduced_motion() or not is_inside_tree():
-		m.set_shader_parameter("tint_amount", to)
-		return
-	var set = m.get_shader_parameter("tint_amount")
-	var from: float = set if set != null else 0.0
-	create_tween().tween_method(func(v): m.set_shader_parameter("tint_amount", v), from, to, T.BASE)
+## The ground takes on the current Region's tint behind its card (specs/019 FR-006).
+func _wash_backdrop() -> void:
+	backdrop_layer.set_region(vs.get("stage"), play.wash_centre())
 
 
 ## Cards' Ether fields move only while no overlay covers the play screen.
@@ -1182,18 +1176,20 @@ func _respond(event: String, ether = null, card_id := "") -> void:
 	if play == null or screen != play or not BoardResponse.TABLE.has(event):
 		return
 	var r: Dictionary = BoardResponse.TABLE[event]
+	# The roles' colours (specs/019 research R6): emphasis in parchment, rewards in
+	# bright brass, harm in danger, an Ether in its bright pigment, the rest the edge.
 	var colour: Color
 	match r.colour:
 		"ether":
-			colour = T.ether_shade(ether, "lit") if ether != null and ether != "" else T.RESPONSE_NEUTRAL
+			colour = T.ether_shade(ether, "lit") if ether != null and ether != "" else T.EDGE
 		"focus":
-			colour = T.FOCUS
+			colour = T.PARCHMENT
 		"gold":
-			colour = T.GOLD
+			colour = T.BRASS_BRIGHT
 		"bad":
-			colour = T.BAD
+			colour = T.DANGER
 		_:
-			colour = T.RESPONSE_NEUTRAL
+			colour = T.EDGE
 	play.flare(r.target, colour, r.motion.kind, r.motion.duration, card_id)
 
 
@@ -1206,9 +1202,10 @@ func _banner(values: Dictionary, duration: float) -> void:
 		var d: Dictionary = game.dragon
 		var art_name: String = Art.dragon(d.id)
 		b.show_banner("%s, %s" % [d.name, d.title], "The Final Journey" if values.phase == "final_journey" else "The Final Enemy",
-			UI.head(art_name), T.ether(d.early_damage.element), duration)
+			UI.head(art_name), T.REGION_LAIR, duration)
 	else:
-		b.show_banner("Region %d" % values.region, db.region(values.region).name, "sigil_region", T.GOLD, duration)
+		# Each Region announces itself in its painted colour (specs/019 Banner).
+		b.show_banner("Region %d" % values.region, db.region(values.region).name, "sigil_region", T.REGION[values.region], duration)
 
 
 ## The Key Card that named the Encounter on show, at its Levels, its Key Card part
@@ -1385,7 +1382,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		# Move the target across the places that can take the held card.
 		var targets: Array = []
 		for p in vs.get("places", []):
-			if p.state == "target" and p.tap != null and p.tap.type == "put":
+			if p.state in ["open", "target"] and p.tap != null and p.tap.type == "put":
 				targets.append(p.tap.target)
 		if targets.is_empty():
 			return

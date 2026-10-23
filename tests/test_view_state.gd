@@ -855,3 +855,15 @@ func test_final_journey_line_by_tier() -> void:
 	var lost := {"comparisons": [], "costs": [], "aftermath": ""}
 	ViewState._preview_final_journey(g, {"move": 0, "tier": -1, "time_penalty": 0}, lost)
 	eq(lost.aftermath, "", "the dragon escapes: its verdict says it all")
+
+
+func test_the_heading_leads_with_the_place() -> void:
+	# specs/019 TopBar: the place first, its number after it, muted.
+	var g = _game()
+	var vs: Dictionary = ViewState.build(g, Draft.new(), db)
+	var name: String = db.region(g.region).name
+	eq(vs.stage.heading, "%s · Region %d" % [name, g.region], "the place, then the Region's number")
+	eq(vs.stage.heading_parts, [name, " · Region %d" % g.region], "and the number apart, to be set muted")
+	_to_final(g)
+	vs = ViewState.build(g, Draft.new(), db)
+	ok(vs.stage.heading.ends_with(" · Final Battle"), "the finale names the dragon first: %s" % vs.stage.heading)

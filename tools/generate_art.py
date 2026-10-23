@@ -35,8 +35,8 @@ Run:
   python3 tools/generate_art.py pattern ground --count 4
 
 pattern draws a flat, repeating ground pattern from the PATTERNS prompts below, not
-from the doc, into build/art/pattern/. tools/make_ground.gd then makes it seamless,
-flattens it to three tones and fits it to the game's stone (feature 006).
+from the doc, into build/art/pattern/. Feature 006 turned these into the stone
+grounds; specs/019 replaced those with a flat ground, so nothing uses them now.
 """
 import argparse
 import json

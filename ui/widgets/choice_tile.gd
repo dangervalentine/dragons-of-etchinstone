@@ -7,7 +7,7 @@ const UI = preload("res://ui/theme/theme.gd")
 const StoneStyle = preload("res://ui/theme/stone_style.gd")
 
 var selected := false: set = set_selected
-var accent: Color = T.GOLD
+var accent: Color = T.BRASS
 var _title: Label
 var _desc: Label
 var _row: Control
@@ -17,7 +17,7 @@ var base_height := -1.0
 
 ## `emblem` is an icon's name or a texture. `extra`, if given, sits under the
 ## emblem and text across the whole tile.
-static func make(title: String, desc: String, emblem: Variant = "", colour: Color = T.GOLD, emblem_colour = null, emblem_side := 56.0, extra: Control = null) -> Button:
+static func make(title: String, desc: String, emblem: Variant = "", colour: Color = T.PARCHMENT, emblem_colour = null, emblem_side := 56.0, extra: Control = null) -> Button:
 	var b = load("res://ui/widgets/choice_tile.gd").new()
 	b.accent = colour
 	b.custom_minimum_size = Vector2(T.TAP_MIN, T.TAP_MIN)
@@ -33,19 +33,22 @@ static func make(title: String, desc: String, emblem: Variant = "", colour: Colo
 	var col := UI.vbox(0)
 	col.alignment = BoxContainer.ALIGNMENT_CENTER
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	b._title = UI.label(title, T.BUTTON, T.INK)
+	b._title = UI.label(title, T.BUTTON, T.PARCHMENT)
 	col.add_child(b._title)
 	if desc != "":
-		b._desc = UI.label(desc, T.LABEL, T.INK_MUTED, true)
+		b._desc = UI.label(desc, T.BODY_SM, T.PARCHMENT_MUTED, true)
 		col.add_child(b._desc)
 	row.add_child(col)
 	var content: Control = row
 	if extra != null:
-		content = UI.vbox(T.S)
+		content = UI.vbox(T.SPACE_2)
 		content.alignment = BoxContainer.ALIGNMENT_CENTER
 		content.add_child(row)
 		content.add_child(extra)
+	# In from the sides past the chamfer's cut (specs/019), and from top and foot.
 	content.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE, 10)
+	content.offset_left = T.SPACE_3
+	content.offset_right = -T.SPACE_3
 	UI.ignore_mouse(content)
 	b.add_child(content)
 	# A Button does not grow with its contents; once it has a width, make room for
@@ -59,30 +62,27 @@ static func make(title: String, desc: String, emblem: Variant = "", colour: Colo
 
 func set_selected(on: bool) -> void:
 	selected = on
-	# A raised plinth of stone; the chosen one is edged in its (muted) accent and
-	# stands a little prouder.
-	var normal := StoneStyle.new("plinth", 0.35 if on else 0.6)
-	normal.edge = accent if on else Color(0, 0, 0, 0)
-	normal.edge_width = 3.0
-	var hover := StoneStyle.new("plinth", 0.25)
-	hover.edge = accent
-	hover.edge_width = 3.0 if on else 2.0
-	hover.face = Color(1, 1, 1, 0.04)
-	var down := StoneStyle.new("plinth", 0.7)
+	# A raised plinth of stone; the chosen one is rimmed in brass (specs/019
+	# "Selected"), the focused one in jade. The accent no longer edges it: brass is
+	# the only sign of the choice.
+	var normal := StoneStyle.new("plinth")
+	normal.selected = on
+	var hover := StoneStyle.new("plinth")
+	hover.selected = on
+	hover.face = T.STONE_RAISED.lerp(T.PARCHMENT, 0.04)
+	var down := StoneStyle.new("plinth")
 	down.pressed = true
-	down.edge = accent
+	down.selected = on
 	for st in [normal, hover, down]:
 		for side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
-			st.set_content_margin(side, T.S)
+			st.set_content_margin(side, T.SPACE_1)
 	add_theme_stylebox_override("normal", normal)
 	add_theme_stylebox_override("hover", hover)
 	add_theme_stylebox_override("pressed", down)
 	add_theme_stylebox_override("hover_pressed", down)
-	var focus := UI.box(Color.TRANSPARENT, T.muted(T.GOLD), 3)
-	focus.set_expand_margin_all(4)
-	add_theme_stylebox_override("focus", focus)
+	add_theme_stylebox_override("focus", UI.focus_ring())
 	if _title != null:
-		_title.add_theme_color_override("font_color", T.INK if on else Color(T.INK, 0.85))
+		_title.add_theme_color_override("font_color", T.PARCHMENT if on else T.PARCHMENT_MUTED)
 
 
 func _fit_text() -> void:

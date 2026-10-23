@@ -53,13 +53,13 @@ func _build() -> void:
 	var centre := CenterContainer.new()
 	centre.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_layout.add_child(centre)
-	_column = UI.vbox(T.M)
+	_column = UI.vbox(T.SPACE_4)
 	centre.add_child(_column)
 	# Two columns of three, so the six fit the shortest window with Continue below.
 	var grid := GridContainer.new()
 	grid.columns = 2
-	grid.add_theme_constant_override("h_separation", T.S)
-	grid.add_theme_constant_override("v_separation", T.S)
+	grid.add_theme_constant_override("h_separation", T.SPACE_2)
+	grid.add_theme_constant_override("v_separation", T.SPACE_2)
 	_column.add_child(grid)
 
 	var done: Array = Settings.lessons
@@ -71,7 +71,7 @@ func _build() -> void:
 		# Done in a word and a mark, never colour alone; a lesson not yet open says why.
 		var state := "Done" if finished else ("Finish Lesson %d first" % (first + 1) if not open else "Not yet played")
 		var b := UI.button("%d. %s" % [i + 1, l.title] + "\n" + state, "normal", "victory" if finished else "")
-		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		UI.align_left(b)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.disabled = not open
 		var index := i
@@ -79,7 +79,7 @@ func _build() -> void:
 		grid.add_child(b)
 		_tiles["lesson:%d" % i] = b
 
-	var bottom := UI.hbox(T.S)
+	var bottom := UI.hbox(T.SPACE_2)
 	bottom.add_child(UI.spacer())
 	var label := "Start again" if first == -1 else "Continue: Lesson %d" % (first + 1)
 	continue_button = UI.button(label, "primary")

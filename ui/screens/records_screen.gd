@@ -6,7 +6,8 @@ extends Control
 
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
-const ChoiceTile = preload("res://ui/widgets/choice_tile.gd")
+const Ledger = preload("res://ui/widgets/ledger.gd")
+const TabRow = preload("res://ui/widgets/tab_row.gd")
 const Game = preload("res://engine/game.gd")
 const PlayHistory = preload("res://ui/model/play_history.gd")
 const HistoryStore = preload("res://ui/model/history_store.gd")
@@ -14,7 +15,6 @@ const HistoryStore = preload("res://ui/model/history_store.gd")
 signal intent(data: Dictionary)
 
 const RAIL_W := 270
-const ROW_H := 36
 
 var heading := "Leaderboard"
 var db
@@ -39,9 +39,14 @@ func setup(card_db, difficulty: String, page := "leaderboard") -> void:
 
 
 func apply_layout(content: Rect2) -> void:
+	# How many games a page shows depends on the height (_history), so a new height
+	# builds the page again.
+	var taller := not is_equal_approx(content.size.y, _content.size.y)
 	_content = content
 	_layout.position = content.position
 	_layout.size = content.size
+	if taller and _layout.get_child_count() > 0:
+		_build()
 
 
 ## Back to the screen this page was opened from.
@@ -63,11 +68,11 @@ func _build() -> void:
 	_layout = Control.new()
 	add_child(_layout)
 	apply_layout(_content)
-	var root := UI.hbox(T.L)
+	var root := UI.hbox(T.SPACE_4)
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_layout.add_child(root)
 	root.add_child(_rail())
-	var right := UI.vbox(T.S)
+	var right := UI.vbox(T.SPACE_1)
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	if _tab == "leaderboard":
 		right.add_child(_dragon_filter())
@@ -84,35 +89,30 @@ func _build() -> void:
 
 # ---------------------------------------------------------------- frame
 
-## The difficulties, down the left.
+## The difficulties, down the left: a filter, so a rail of tabs (specs/019 Tabs).
 func _rail() -> Control:
-	var rail := UI.vbox(T.S)
+	var rail := TabRow.new()
+	rail.vertical = true
 	rail.custom_minimum_size.x = RAIL_W
+	rail.setup(Game.DIFFICULTY.keys().map(func(k): return {"id": k, "text": PlayHistory.difficulty_name(k)}), _difficulty)
+	rail.chosen.connect(_choose_difficulty)
 	for key in Game.DIFFICULTY.keys():
-		var tile := _difficulty_tile(key, PlayHistory.difficulty_name(key))
-		tile.size_flags_vertical = Control.SIZE_FILL
-		rail.add_child(tile)
+		_tiles["difficulty:" + key] = rail.tab(key)
 	return rail
 
 
-func _difficulty_tile(key: String, title: String) -> Button:
-	var tile: Button = ChoiceTile.make(title, "")
-	tile.selected = key == _difficulty
-	tile.pressed.connect(func():
-		_difficulty = key
-		_page = 0
-		_build())
-	_tiles["difficulty:" + key] = tile
-	return tile
+func _choose_difficulty(key) -> void:
+	_difficulty = key
+	_page = 0
+	_build()
 
 
+## The records of difficulties this version no longer has, as one more tab.
 func _other_row() -> Control:
-	var row := UI.hbox(T.S)
-	row.custom_minimum_size.y = T.TAP_MIN
-	var other := _difficulty_tile("other", "Other")
-	other.size_flags_horizontal = Control.SIZE_FILL
-	other.custom_minimum_size.x = 110
-	row.add_child(other)
+	var row := TabRow.new()
+	row.setup([{"id": "other", "text": "Other"}], _difficulty)
+	row.chosen.connect(_choose_difficulty)
+	_tiles["difficulty:other"] = row.tab("other")
 	return row
 
 
@@ -122,19 +122,16 @@ func _has_other() -> bool:
 
 # ---------------------------------------------------------------- leaderboard
 
-## All dragons, then each one.
+## All dragons, then each one: a filter, so a row of tabs (specs/019 Tabs).
 func _dragon_filter() -> Control:
-	var filter := UI.hbox(T.S)
-	filter.custom_minimum_size.y = T.TAP_MIN
-	for id in [""] + db.dragon_ids():
-		var tile: Button = ChoiceTile.make("All dragons" if id == "" else db.dragon(id).name, "",
-			"", T.GOLD if id == "" else T.ether(db.dragon(id).early_damage.element).lightened(0.3))
-		tile.selected = id == _dragon
-		tile.pressed.connect(func():
-			_dragon = id
-			_build())
-		filter.add_child(tile)
-		_tiles["dragon:" + id] = tile
+	var filter := TabRow.new()
+	var ids: Array = [""] + db.dragon_ids()
+	filter.setup(ids.map(func(id): return {"id": id, "text": "All dragons" if id == "" else db.dragon(id).name}), _dragon)
+	filter.chosen.connect(func(id):
+		_dragon = id
+		_build())
+	for id in ids:
+		_tiles["dragon:" + id] = filter.tab(id)
 	return filter
 
 
@@ -143,50 +140,39 @@ func _leaderboard(col: VBoxContainer) -> void:
 	if entries.is_empty():
 		col.add_child(_empty_board())
 		return
-	var table := UI.vbox(0)
-	table.add_child(_board_row(["", "Score", "Dragon", "Rules", "Time", "Date"], T.LABEL, T.INK_MUTED))
+	# A ledger (specs/019 Ledger): muted heads, hairlines, scores in figures, and the
+	# best run alone in bright brass, with its crown.
+	var rows := []
 	for e in entries:
 		var r: Dictionary = e.record
-		var colour: Color = T.GOLD if e.rank == 1 else T.INK
-		var row := _board_row([PlayHistory.rank_text(e.rank), str(r.score), r.get("dragon_name", r.dragon),
-			PlayHistory.rules_text(r), PlayHistory.duration_text(r.active_ms), PlayHistory.date_text(r.ended_at)], T.BODY, colour)
+		var place = PlayHistory.rank_text(e.rank)
 		if e.rank == 1:
-			row.get_child(0).add_child(UI.icon_rect("crown", 26, T.GOLD))
-		table.add_child(row)
+			var first := UI.hbox(T.SPACE_1)
+			first.add_child(UI.label(place, T.BODY_SM, T.BRASS_BRIGHT))
+			first.add_child(UI.icon_rect("crown", 26, T.BRASS_BRIGHT))
+			place = first
+		rows.append({"cells": [place, str(r.score), r.get("dragon_name", r.dragon), PlayHistory.rules_text(r),
+			PlayHistory.duration_text(r.active_ms), PlayHistory.date_text(r.ended_at)], "best": e.rank == 1})
+	var table := Ledger.new()
+	table.setup([
+		{"head": "", "width": 96, "muted": true}, {"head": "Score", "width": 80, "numeral": true, "align": "right"},
+		{"head": "Dragon", "width": 170}, {"head": "Rules", "width": 0, "muted": true},
+		{"head": "Time", "width": 110, "muted": true}, {"head": "Date", "width": 180, "muted": true}], rows)
 	col.add_child(table)
 
 
-## One line of the board: rank, score, dragon, rules, time, date.
-func _board_row(cells: Array, type: Array, colour: Color) -> Control:
-	var row := UI.hbox(T.M)
-	row.custom_minimum_size.y = ROW_H
-	var widths := [96, 80, 170, 0, 110, 180]
-	for i in cells.size():
-		var cell := UI.hbox(6)
-		cell.custom_minimum_size.x = widths[i]
-		if widths[i] == 0:
-			cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var l := UI.label(cells[i], ["display_bold", type[1]] if i == 1 and type == T.BODY else type, colour if i < 3 else (T.INK_MUTED if type == T.BODY else colour))
-		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		l.clip_text = true
-		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		cell.add_child(l)
-		row.add_child(cell)
-	return row
-
-
 func _empty_board() -> Control:
-	var col := UI.vbox(T.S)
+	var col := UI.vbox(T.SPACE_1)
 	col.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	col.alignment = BoxContainer.ALIGNMENT_CENTER
 	var name := PlayHistory.difficulty_name(_difficulty)
 	var head := ("No game won on %s yet." % name) if _dragon == "" else ("%s has not been beaten on %s yet." % [db.dragon(_dragon).name, name])
-	col.add_child(UI.icon_rect("trophy", 72, Color(T.INK_MUTED, 0.6)))
-	var l := UI.label(head, T.HEADING, T.INK, true)
+	col.add_child(UI.icon_rect("trophy", 72, Color(T.PARCHMENT_MUTED, 0.6)))
+	var l := UI.label(head, T.HEADING, T.PARCHMENT, true)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(l)
 	var n := PlayHistory.attempts(HistoryStore.records, _difficulty, _dragon)
-	var sub := UI.label(_attempts_text(n), T.BODY, T.INK_MUTED, true)
+	var sub := UI.label(_attempts_text(n), T.BODY, T.PARCHMENT_MUTED, true)
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(sub)
 	return col
@@ -201,20 +187,38 @@ func _attempts_text(n: int) -> String:
 # ---------------------------------------------------------------- history
 
 const SUMMARY_W := 400
-const OUTCOME_COLOUR := {"won": T.GOLD, "lost": T.BAD, "abandoned": T.INK_MUTED}
+const OUTCOME_COLOUR := {"won": T.JADE, "lost": T.DANGER, "abandoned": T.PARCHMENT_MUTED}
 
 
 ## The difficulty's games, newest first and a page at a time, beside how it has
 ## gone, dragon by dragon.
 func _history(col: VBoxContainer) -> void:
-	var body := UI.hbox(T.L)
+	var body := UI.hbox(T.SPACE_4)
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	var p := PlayHistory.page(HistoryStore.records, _difficulty, _page)
+	# As many games a page as the screen holds under what is above the list, with the
+	# pager, up to PlayHistory.PAGE_SIZE: the shortest phones take fewer at the design
+	# system's type sizes (specs/019).
+	var room: float = _content.size.y - col.get_combined_minimum_size().y - col.get_theme_constant("separation")
+	var p := {}
+	var list: VBoxContainer
+	for per in range(PlayHistory.PAGE_SIZE, 2, -1):
+		if list != null:
+			list.free()
+		p = PlayHistory.page(HistoryStore.records, _difficulty, _page, per)
+		list = _history_list(p)
+		if list.get_combined_minimum_size().y <= room or per == 3:
+			break
 	_page = p.index
-	var list := UI.vbox(T.S)
+	body.add_child(list)
+	body.add_child(_summary())
+	col.add_child(body)
+
+
+func _history_list(p: Dictionary) -> VBoxContainer:
+	var list := UI.vbox(T.SPACE_1)
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	if p.records.is_empty():
-		var none := UI.label("No games played on %s yet." % _difficulty_label(), T.HEADING, T.INK_MUTED, true)
+		var none := UI.label("No games played on %s yet." % _difficulty_label(), T.HEADING, T.PARCHMENT_MUTED, true)
 		none.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		none.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		list.add_child(none)
@@ -223,35 +227,34 @@ func _history(col: VBoxContainer) -> void:
 			list.add_child(_history_row(r))
 		list.add_child(UI.spacer())
 		list.add_child(_pager(p))
-	body.add_child(list)
-	body.add_child(_summary())
-	col.add_child(body)
+	return list
 
 
 ## Two lines: how it ended, where and the score; then the dragon, rules, time and date.
+## A ledger's rows are body-sm, its fine print caption (specs/019 Ledger).
 func _history_row(r: Dictionary) -> Control:
 	var row := UI.vbox(0)
-	var top := UI.hbox(T.M)
-	var outcome := UI.label(PlayHistory.outcome_name(r.outcome), ["body_bold", T.BODY[1]], OUTCOME_COLOUR.get(r.outcome, T.INK))
+	var top := UI.hbox(T.SPACE_2)
+	var outcome := UI.label(PlayHistory.outcome_name(r.outcome), UI.restyle(T.BODY_STRONG, T.BODY_SM.size), OUTCOME_COLOUR.get(r.outcome, T.PARCHMENT))
 	outcome.custom_minimum_size.x = 150
 	top.add_child(outcome)
-	var stage := UI.label(PlayHistory.stage_name(r.stage), T.BODY, T.INK)
+	var stage := UI.label(PlayHistory.stage_name(r.stage), T.BODY_SM, T.PARCHMENT)
 	stage.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(stage)
-	top.add_child(UI.label(str(r.score) if r.outcome == "won" else "—", ["display_bold", T.BODY[1]], T.GOLD if r.outcome == "won" else T.INK_MUTED))
+	top.add_child(UI.label(str(r.score) if r.outcome == "won" else "—", T.NUMERAL_SM, T.BRASS_BRIGHT if r.outcome == "won" else T.PARCHMENT_MUTED))
 	row.add_child(top)
 	var bits := [r.get("dragon_name", r.dragon)]
 	if PlayHistory.rules_text(r) != "—":
 		bits.append(PlayHistory.rules_text(r))
 	bits.append_array([PlayHistory.duration_text(r.active_ms), PlayHistory.date_text(r.ended_at)])
-	var sub := UI.label("  ·  ".join(bits), T.LABEL, T.INK_MUTED)
+	var sub := UI.label("  ·  ".join(bits), T.CAPTION, T.PARCHMENT_MUTED)
 	sub.clip_text = true
 	row.add_child(sub)
 	return row
 
 
 func _pager(p: Dictionary) -> Control:
-	var row := UI.hbox(T.S)
+	var row := UI.hbox(T.SPACE_1)
 	row.custom_minimum_size.y = T.TAP_MIN
 	var prev := UI.button("‹ Newer", "quiet")
 	prev.custom_minimum_size.x = 170
@@ -261,7 +264,7 @@ func _pager(p: Dictionary) -> Control:
 		_build())
 	row.add_child(prev)
 	_tiles["prev"] = prev
-	var at := UI.label("Page %d of %d" % [p.index + 1, p.pages], T.LABEL, T.INK_MUTED)
+	var at := UI.label("Page %d of %d" % [p.index + 1, p.pages], T.CAPTION, T.PARCHMENT_MUTED)
 	at.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	at.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	at.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -277,33 +280,40 @@ func _pager(p: Dictionary) -> Control:
 	return row
 
 
-## The difficulty as a whole, then each dragon: played, won, rate, best and average.
+## The difficulty as a whole, then each dragon: played, won, rate, best and average,
+## in the ledger's sizes (specs/019 Ledger).
 func _summary() -> Control:
 	var s := PlayHistory.summary(HistoryStore.records, _difficulty, db.dragon_ids())
-	var panel := UI.slab(T.LINE_SOFT, T.M)
+	var panel := UI.slab(Color(T.SHADE, 0), T.SPACE_2)
 	panel.custom_minimum_size.x = SUMMARY_W
 	panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	var col := UI.vbox(T.XS)
-	col.add_child(UI.label(_difficulty_label().to_upper(), T.EYEBROW, T.GOLD))
-	col.add_child(UI.label(_tally_text(s), ["body_bold", T.BODY[1]], T.INK))
-	col.add_child(UI.label("%s played" % PlayHistory.duration_text(s.active_ms), T.LABEL, T.INK_MUTED))
+	var col := UI.vbox(T.SPACE_1)
+	col.add_child(UI.label(_difficulty_label(), T.LABEL, T.PARCHMENT_MUTED))
+	col.add_child(UI.label(_tally_text(s), UI.restyle(T.BODY_STRONG, T.BODY_SM.size), T.PARCHMENT))
+	col.add_child(UI.label("%s played" % PlayHistory.duration_text(s.active_ms), T.CAPTION, T.PARCHMENT_MUTED))
 	for d in s.dragons:
 		var gap := Control.new()
-		gap.custom_minimum_size.y = T.S
+		gap.custom_minimum_size.y = T.SPACE_1
 		col.add_child(gap)
 		var known: bool = db.dragon_ids().has(d.dragon)
 		var name: String = db.dragon(d.dragon).name if known else d.dragon_name
-		var colour: Color = T.ether(db.dragon(d.dragon).early_damage.element).lightened(0.35) if known else T.INK
+		var colour: Color = T.ether_ink(db.dragon(d.dragon).early_damage.element) if known else T.PARCHMENT
 		if d.attempts == 0:
 			# One line for a dragon not yet hunted here, so a long list still fits.
-			var line := UI.hbox(T.S)
-			line.add_child(UI.label(name, ["body_bold", T.BODY[1]], Color(colour, 0.7)))
-			line.add_child(UI.label("not played yet", T.LABEL, T.INK_MUTED))
+			var line := UI.hbox(T.SPACE_1)
+			line.add_child(UI.label(name, UI.restyle(T.BODY_STRONG, T.BODY_SM.size), Color(colour, 0.7)))
+			line.add_child(UI.label("not played yet", T.CAPTION, T.PARCHMENT_MUTED))
 			col.add_child(line)
 			continue
-		col.add_child(UI.label(name, ["body_bold", T.BODY[1]], colour))
-		col.add_child(UI.label(_tally_text(d), T.LABEL, T.INK))
-		col.add_child(UI.label("Best %d  ·  average %.1f" % [d.best, d.average] if d.best >= 0 else "Not beaten yet", T.LABEL, T.INK_MUTED))
+		# The name and its tally on one line, so every dragon fits the shortest phone.
+		var head := UI.hbox(T.SPACE_2)
+		head.add_child(UI.label(name, UI.restyle(T.BODY_STRONG, T.BODY_SM.size), colour))
+		var tally := UI.label(_tally_text(d), T.CAPTION, T.PARCHMENT)
+		tally.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		tally.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		head.add_child(tally)
+		col.add_child(head)
+		col.add_child(UI.label("Best %d  ·  average %.1f" % [d.best, d.average] if d.best >= 0 else "Not beaten yet", T.CAPTION, T.PARCHMENT_MUTED))
 	panel.add_child(col)
 	return panel
 
