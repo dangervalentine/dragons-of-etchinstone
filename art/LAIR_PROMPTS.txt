@@ -252,3 +252,66 @@ A road of dark flagstones climbing over grey ash slopes toward a tall, smoking v
 
 vuurhast-road:
 A narrow mountain path climbing between sheer rock spires toward a storm-wrapped summit far off, under a slate-grey sky with low storm clouds. Amber-orange sparks and arcs crackle over the far summit, with one forked lightning bolt striking it. A flat vector illustration of an empty landscape seen from the side, made as the background of a game card: minimalistic graphic design in flat colour, made of big, simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at most a single hard-edged darker shade tone. A limited, muted palette of soft middle tones, close together and low in contrast, with the Ether's colour as the only bright one. A tall portrait composition: a road begins wide in the foreground at the bottom of the picture and narrows as it winds away into the distance, ending at the destination, small and far off, just below the middle of the picture. The whole upper half of the picture is a calm, plain sky, lightest low down near the horizon and darkening slowly toward the top. The place is empty and uninhabited, silent and ancient.
+
+
+HELSANG, ROUND 3 (a cliff over a poisoned swamp)
+================================================
+Round 2's burial ground had a grassy bank behind the dragon's feet that made its
+footing look wrong. Round 3 puts Helsang on the flat top of a low cliff, its edge
+level across the picture behind the feet, over a swamp whose water glows violet and
+gives off a toxic haze.
+
+Text to image alone always drew the cliff side-on from below, with no ledge to stand
+on, and "standing" put a person on it. So FLUX paints over a flat layout instead
+(image to image, Q8, guidance 3.5, 25 steps): haze sky, far hills, a band of swamp
+with glowing pools, and a flat slab of dark rock across the lower third with a level
+edge at 68% down. The pick is seed 3 at denoise 0.8; at 0.9 the cliff turned
+side-on again.
+
+helsang-cliff:
+The top of a low cliff above a wide swamp far below: the whole lower third of the picture is the flat, level top of the cliff, one broad slab of bare dark grey rock seen from just above it, plain and empty from edge to edge. Its edge is a straight line running level across the whole width of the picture about a third of the way up, and beyond that edge the ground falls away. Beyond and far below it lies a wide, sunken swamp valley of still, dark water, rotten reeds and the bare, twisted trunks of dead trees, stretching to low hills on the horizon. The swamp's water glows a luminous, sickly violet, and a thick, toxic, glowing haze rises from it in slow, heavy banks that fill the valley and drift up into a hazy, overcast violet-grey sky, lit only from below by the swamp's glow. Violet light glows up from the poisoned water of the swamp far below, making the toxic haze glow from beneath, with curling wisps of smoke rising over the cliff edge. A flat vector illustration of an empty landscape, made as the background of a game card: minimalistic graphic design in flat colour, made of big, simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at most a single hard-edged darker shade tone. A limited, muted palette of a few close tones, low in contrast, with the Ether's colour as the only bright one. A tall portrait composition: the cliff top fills the whole lower third, flat and empty, its edge level across the picture; above it, the glowing swamp and its haze fill the middle of the picture, and the sky above is a calm, plain, overcast haze that darkens slowly toward the top corners. The place is empty and uninhabited, silent and ancient.
+
+Then three FLUX Fill passes (flux1-fill-dev Q8, guidance 30, 25 steps), each keeping
+everything outside its mask:
+1. Detail behind the dragon: the band from the cliff edge up into the low sky
+   (y 330-778, soft edge) repainted with drowned dead trees, a sunken ruin and a
+   glowing plume of toxic vapour. Seed 2.
+2. The ledge lowered so the feet stand at its edge: the scene moved down 197 px (the
+   plain sky above stretched to fill), the edge now at y 975. Then the rock below
+   it dressed with grass, moss and bones (y 985 down). Seed 3.
+3. The bones cleared from under the feet: the left and middle of the ledge (x 0-560,
+   y 988 down) repainted as bare rock with a few grass tufts, so the only skull lies
+   on the right. Seed 4.
+
+helsang-detail:
+Far below a cliff edge, a wide, poisoned swamp at twilight fills the valley: winding channels and pools of still water glowing a luminous, sickly violet, the drowned trunks of many bare, twisted dead trees standing in the water, clumps of rotten reeds, the broken stones of a sunken ruin and a leaning, crumbling stone tower half drowned in the middle of the swamp, and low mounds of dark earth between the pools. Thick banks of glowing toxic haze rise slowly from the water, curling wisps and columns of violet vapour drifting up between the dead trees toward low dark hills and jagged mountains on the horizon, under a hazy, overcast violet-grey sky. A flat vector illustration made as the background of a game card: minimalistic graphic design in flat colour, big simple shapes with smooth, clean edges, a muted palette of violet-grey middle tones, low in contrast, with the glowing violet water and haze as the only bright colour.
+
+helsang-ledge:
+The flat top of a low ledge of dark grey rock at the very bottom of the picture, its far edge a straight, level line where it drops to the glowing swamp below. The rock is cracked and weathered, with a few tufts of dry, pale, dead grass and thorny dead shrubs growing from its cracks, patches of dark moss, small pale mushrooms, and old bleached bones scattered across it: a cracked horned skull, a curved rib cage, scattered long bones and a few small skulls, lit faintly violet by the glow of the swamp. A flat vector illustration made as the background of a game card: minimalistic graphic design in flat colour, big simple shapes with smooth, clean edges, a muted palette of violet-grey and dark grey tones, low in contrast.
+
+helsang-clear:
+The flat top of a low ledge of bare dark grey rock at the very bottom of the picture, its far edge a straight, level line where it drops to the glowing swamp below. The rock here is clean and bare: smooth, weathered stone with a few long cracks, patches of dark moss and a few tufts of dry, pale, dead grass growing from the cracks at the far left edge, lit faintly violet by the glow of the swamp. A flat vector illustration made as the background of a game card: minimalistic graphic design in flat colour, big simple shapes with smooth, clean edges, a muted palette of violet-grey and dark grey tones, low in contrast.
+
+
+GRIMROCH, FEET CLEARED
+======================
+Round 2's glacier cave kept, with the ice ridges and slabs around the dragon's feet
+(the lower left of the floor: from (0, 880) across to (580, 880) and down to the
+foot of the picture, soft edge) repainted by FLUX Fill as one smooth sheet of ice.
+The cave mouth, the far peaks and the shards on the right are untouched. Seed 4.
+
+grimroch-clear:
+The floor of a glacier cave: one smooth, flat, level sheet of pale blue-white ice and packed snow, plain and empty, stretching evenly across the lower part of the picture, with a few faint cracks and soft drifts of snow, lit by the cold pale light from the cave mouth. A flat vector illustration made as the background of a game card: minimalistic graphic design in flat colour, big simple shapes with smooth, clean edges, a muted palette of icy blues and whites, low in contrast.
+
+
+VUURHAST, ROUND 3 (a forest under a lightning storm)
+====================================================
+The flat stormy summit gave way to an expansive forest under a sky full of lightning,
+with the dragon on a patch of bare dirt ringed by grass, so its feet stand on plain
+ground. Made as Helsang's cliff was: FLUX paints over a flat layout (image to image,
+Q8, guidance 3.5, 25 steps) of a slate storm sky with amber bolts, five layered
+treelines down to the near woods, and an oval of dirt in green grass across the lower
+fifth. The pick is seed 1 at denoise 0.9 (0.8 kept the layout's flat bands).
+
+vuurhast-forest:
+A vast, ancient forest under a raging thunderstorm at dusk, seen from a low rise at its edge. The whole lower fifth of the picture is a broad, flat, level patch of bare brown dirt, plain and empty in the middle, ringed at the left and right edges by tufts and clumps of rough green grass. Beyond it, an endless forest of dark green treetops spreads away in layered rolling waves to the far horizon, fading into blue-grey haze with distance. Above it, a wide sky of heavy, dark slate-grey storm clouds is filled with lightning: many forked bolts crackling down through the clouds and striking the distant forest. Amber-orange sparks and arcs crackle through the storm clouds, with many forked lightning bolts striking down into the far treetops. A flat vector illustration of a landscape, made as the background of a game card: minimalistic graphic design in flat colour, made of big, simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at most a single hard-edged darker shade tone. A limited, muted palette of a few close tones, low in contrast, with the amber lightning as the only bright colour. The place is empty and uninhabited, wild and ancient.
