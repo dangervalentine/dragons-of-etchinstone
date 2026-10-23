@@ -415,12 +415,15 @@ func _check_deck_settled(where: String) -> void:
 		var at: Dictionary = deck._landing(Rect2(Vector2.ZERO, f.size))
 		_ok(deck.landed.card.position.is_equal_approx(at.card.position) and deck.landed.card.size.is_equal_approx(at.card.size),
 			"%s: the landed card is where the zoom ends" % where)
-		_ok(deck.landed.panel == deck.landed.card.panel(deck.landed.key) and deck.landed.panel.interactive, "%s: its panel is lit and explains itself" % where)
+		_ok(deck.landed.panel.interactive, "%s: its panel is lit and explains itself" % where)
+		_ok(not deck.landed.card.panel(deck.landed.key).visible, "%s: the panel is lifted out of its place on the card" % where)
+		_ok(deck.landed.panel.position.is_equal_approx(at.panel.position) and deck.landed.panel.size.is_equal_approx(at.panel.size),
+			"%s: the panel is where the zoom ends" % where)
 		# Zoomed in, the Encounter is named without its number (specs/014).
 		_ok(deck.landed.panel.number_alpha == 0.0, "%s: no number plate on the zoomed panel" % where)
 		for l in deck.landed.strip.get_child(0).find_children("*", "Label", true, false):
 			_ok(not l.text.is_valid_int(), "%s: the strip names the Encounter without its number ('%s')" % [where, l.text])
-		_ok(deck.landed.clip_children == CanvasItem.CLIP_CHILDREN_AND_DRAW, "%s: the zoomed card keeps its rounded corners" % where)
+		_ok(deck.landed.clip_children == CanvasItem.CLIP_CHILDREN_ONLY, "%s: the zoomed card keeps its rounded corners" % where)
 		for l in deck.landed.strip.find_children("*", "Label", true, false):
 			_ok(l.get_theme_font_size("font_size") >= T.TEXT_MIN, "%s: the strip's '%s' is at least %d" % [where, l.text.left(20), T.TEXT_MIN])
 	# Cards are drawn from the Deck and go to its back (specs/012 R9).

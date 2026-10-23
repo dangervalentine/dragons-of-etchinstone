@@ -148,10 +148,9 @@ func test_the_dragon_card_zooms_into_its_two_ladders() -> void:
 		ok(mp.position.y >= cr.size.y * 0.21, "%s: under the row of figures" % name)
 
 
-## Zoomed in, the Deck rests on the card grown round the Encounter's panel (specs/013
-## research R3): the panel as large as fits above the reading strip, the card where
-## that puts it, covering the face.
-func test_the_zoom_rests_on_the_card_grown_round_its_panel() -> void:
+## Zoomed in, the Encounter's panel is lifted out of the card as large as fits above
+## the reading strip, the card as it is filling the face behind it (owner, 2026-10-22).
+func test_the_zoom_lifts_the_panel_over_the_card() -> void:
 	for name in Solver.MATRIX:
 		var f := DeckStack.face_rect(_plan(name).regions.encounter.size)
 		var face := Rect2(Vector2.ZERO, f.size)
@@ -162,14 +161,13 @@ func test_the_zoom_rests_on_the_card_grown_round_its_panel() -> void:
 					var at := DeckStack.landing(face, key, lines)
 					var where := "%s %s, %d lines" % [name, key, lines]
 					ok(face.grow(0.5).encloses(at.panel), "%s: the panel is on the face" % where)
-					ok(at.card.grow(0.5).encloses(Rect2(face.position, Vector2(face.size.x, at.strip.position.y))) or at.card.size.x < face.size.x or at.card.size.y < at.strip.position.y,
-						"%s: no bare face round the card" % where)
+					ok(face.grow(0.5).encloses(at.card) and (absf(at.card.size.x - face.size.x) < 0.5 or absf(at.card.size.y - face.size.y) < 0.5),
+						"%s: the card fills the face" % where)
 					ok(not at.panel.intersects(at.strip), "%s: clear of the strip" % where)
 					ok(absf(at.strip.position.y - at.panel.end.y) < 0.5, "%s: the strip right under the panel" % where)
 					ok(at.strip.end.y <= face.end.y + 0.5, "%s: the strip on the face" % where)
 					var on_card := RegionCard.panel_rect(at.card.size, key)
-					ok(on_card.position.distance_to(at.panel.position - at.card.position) < 0.5 and on_card.size.distance_to(at.panel.size) < 0.5,
-						"%s: the panel is the card's own, grown" % where)
+					ok(absf(on_card.size.aspect() - at.panel.size.aspect()) < 0.01, "%s: the panel keeps its printed shape" % where)
 					ok(is_equal_approx(at.panel.size.x, face.size.x) or is_equal_approx(at.panel.size.y, face.size.y - at.strip.size.y),
 						"%s: as large as fits" % where)
 		var three := DeckStack.landing(face, "journey:1", 3)

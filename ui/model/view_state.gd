@@ -331,9 +331,14 @@ static func _preview_region(game, draft, r: Dictionary, out: Dictionary) -> void
 	# it does, not only as a badge.
 	var hurt := []
 	if enc.kind == "enemy":
-		out.aftermath = {"complete": "It falls before it can hit back",
+		# An enemy that struck first has already hurt you, so a Complete victory
+		# cannot say it fell untouched.
+		out.aftermath = ({"complete": "It strikes first, but falls to your blow",
+			"narrow": "It strikes first, and hits back as it falls",
+			"loss": "It strikes first and stands: no XP, and it hits back"} if r.early else
+			{"complete": "It falls before it can strike",
 			"narrow": "It falls, but hits back as it does",
-			"loss": "It stands: no XP, and it hits back"}[r.outcome]
+			"loss": "It stands: no XP, and it hits back"})[r.outcome]
 		if r.early:
 			var forced: bool = ability == "ranged" and enc.data.initiative <= r.initiative
 			hurt.append([r.early_damage, ("from its Ranged shot" if forced else "as it strikes first")

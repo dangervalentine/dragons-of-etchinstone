@@ -356,7 +356,7 @@ func _strike_line(s: Dictionary) -> Control:
 
 
 ## Under the verdict, what it means ("It falls, but hits back as it does"); then,
-## a little apart, each cost of the Play on a line of its own: its pill (the damage
+## a little apart, each cost of the Play on a line of its own: its figure (the damage
 ## as its heart, figure and Ether; Poison, Time, the Reserve, a Knock Out each as its
 ## own) beside the reason for it in words. Each pill's help names the engine's terms
 ## behind it.
@@ -382,7 +382,7 @@ func _cost_line(c: Dictionary, m: Dictionary) -> Control:
 	var row := UI.hbox(T.SPACE_1)
 	var label: String = str(c.value) if c.value > 0 else ""
 	var help: String = {"damage": "soak", "time": "time", "poison": "poison", "reserve": "reserve", "knock_out": "knock_out"}[c.id]
-	var pill := _pill(label, c.icon, c.element, T.DANGER, help)
+	var pill := _pill(label, c.icon, c.element, T.DANGER, help, true)
 	pill.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_cost_pills[c.id] = pill
 	var terms: Array = m.damage_terms if c.id == "damage" else (m.time_terms if c.id == "time" else [])
@@ -576,13 +576,18 @@ func _prompt(_vs: Dictionary, _p, prompt: Dictionary) -> void:
 		_box.add_child(UI.label(prompt.text, T.BODY, T.PARCHMENT, true))
 
 
-func _pill(text: String, icon_name: String, element: String, colour: Color, help_id: String) -> Control:
+## `bare` leaves out the well: a cost reads as its icon and figure beside its reason,
+## not as a badge.
+func _pill(text: String, icon_name: String, element: String, colour: Color, help_id: String, bare := false) -> Control:
 	var b := HelpButton.new()
 	b.custom_minimum_size = Vector2(64, 44)
 	HelpTip.mark(b, help_id)
 	# A chip (specs/019 Chip): a small sunken well, its figure in the tone's colour, a
 	# reward's in bright brass, a cost's in danger beside its icon.
 	for state in ["normal", "hover", "pressed"]:
+		if bare:
+			b.add_theme_stylebox_override(state, StyleBoxEmpty.new())
+			continue
 		var well := StoneStyle.new("well")
 		well.size = "sm"
 		if state != "normal":
@@ -590,7 +595,7 @@ func _pill(text: String, icon_name: String, element: String, colour: Color, help
 		b.add_theme_stylebox_override(state, well)
 	b.add_theme_stylebox_override("focus", UI.focus_ring("sm"))
 	var row := UI.hbox(4)
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.alignment = BoxContainer.ALIGNMENT_BEGIN if bare else BoxContainer.ALIGNMENT_CENTER
 	row.add_child(UI.icon_rect(icon_name, T.NOTE_ICON, colour))
 	var l := UI.label(text, T.NUMERAL_SM if text.is_valid_int() or text.begins_with("+") else UI.restyle(T.BODY_STRONG, T.CAPTION.size), colour)
 	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -603,7 +608,7 @@ func _pill(text: String, icon_name: String, element: String, colour: Color, help
 	UI.ignore_mouse(row)
 	var m := MarginContainer.new()
 	for side in ["left", "right"]:
-		m.add_theme_constant_override("margin_" + side, 12)
+		m.add_theme_constant_override("margin_" + side, 0 if bare else 12)
 	m.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	m.add_child(row)
 	b.add_child(m)

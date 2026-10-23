@@ -61,17 +61,19 @@ const LAND_FADE := 0.35
 const PLAYING := ["challenge", "poison", "final_journey", "final_enemy", "setup"]
 
 
-## The face once zoomed in on a Region Encounter: the Region Card itself, drawn as
-## large as the zoom made it (every part of it is a share of its size, so it stays
-## sharp), clipped to the face, the Encounter's panel lit and the rest of the card
-## stepped back round it; along the foot, the reading strip. Pressing it (not the
-## panel's badges, which explain themselves) zooms back out to the whole card with
-## the Key Card that named it risen over it (look_out()).
+## The face once zoomed in on a Region Encounter: the Region Card as it is, filling
+## the face and stepped back, with the Encounter's panel lifted out of it and grown
+## as large as fits over it (every part of a panel is a share of its size, so it
+## stays sharp; owner, 2026-10-22: the card no longer grows round the panel); along
+## the foot, the reading strip. Pressing it (not the panel's badges, which explain
+## themselves) zooms back out to the whole card with the Key Card that named it
+## risen over it (look_out()).
 class LandedFace extends Control:
 	signal intent(data: Dictionary)
 	var card = load("res://ui/widgets/region_card.gd").new()
-	## The lit panel, once set.
-	var panel: Control = null
+	## The lit panel, lifted out of the card, once set; its place on the card is left
+	## empty meanwhile.
+	var panel: Control = load("res://ui/widgets/region_panel.gd").new()
 	var key := ""
 	var strip := VBoxContainer.new()
 	var _back := ColorRect.new()
@@ -87,10 +89,14 @@ class LandedFace extends Control:
 		mouse_filter = Control.MOUSE_FILTER_STOP
 		mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		clip_contents = true
-		# Its corners rounded as the card's are (specs/014): what it draws masks the card.
-		clip_children = CanvasItem.CLIP_CHILDREN_AND_DRAW
+		# Its corners rounded as the card's are (specs/014): what it draws masks the
+		# strip's foot.
+		clip_children = CanvasItem.CLIP_CHILDREN_ONLY
 		card.set_numbers(0.0)
 		add_child(card)
+		panel.number_alpha = 0.0
+		panel.intent.connect(_relay)
+		add_child(panel)
 		_strip_room.clip_contents = true
 		_strip_room.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(_strip_room)
@@ -109,20 +115,13 @@ class LandedFace extends Control:
 	func show_panel(m: Dictionary, k: String, p: Dictionary, hardship) -> void:
 		card.render(m)
 		key = k
-		var v: Control = card.panel(k)
-		if v != panel and panel != null and is_instance_valid(panel):
-			panel.render(panel.panel, null, false)
-			panel.set_live(false)
-		panel = v
-		if panel != null:
-			if not panel.intent.is_connected(_relay):
-				panel.intent.connect(_relay)
-			panel.render(p, hardship, true)
+		for v in card.panels().values():
+			v.visible = v != card.panel(k)
+		panel.render(p, hardship, true)
 		card.set_focus(k, 1.0)
 
 	func lay_out(at: Dictionary) -> void:
-		card.position = at.card.position
-		card.size = at.card.size
+		frame(at.card, at.panel, 1.0, 0.0, 0.0)
 		_strip_room.position = at.strip.position
 		_strip_room.size = at.strip.size
 		_back.size = at.strip.size
@@ -148,6 +147,26 @@ class LandedFace extends Control:
 		if _strip_tween != null and _strip_tween.is_valid():
 			_strip_tween.kill()
 		_place_strip(0.0)
+
+	## The card at `card_r` and the lifted panel at `panel_r` (both in the face's own
+	## coordinates), the rest of the card stepped back by `focus`, its rim and number
+	## plates showing by `rim` and `numbers`: each moment of a zoom in or out.
+	func frame(card_r: Rect2, panel_r: Rect2, focus: float, rim: float, numbers: float) -> void:
+		card.position = card_r.position
+		card.size = card_r.size
+		card.set_focus(key, focus)
+		card.set_rim(rim)
+		card.set_numbers(numbers)
+		panel.position = panel_r.position
+		panel.size = panel_r.size
+		panel.number_alpha = numbers
+
+	## While zooming, the card is not clipped to the face (it starts and ends on the
+	## Deck at its own place) and the strip is not shown.
+	func zooming(on: bool) -> void:
+		clip_children = CanvasItem.CLIP_CHILDREN_DISABLED if on else CanvasItem.CLIP_CHILDREN_ONLY
+		clip_contents = not on
+		_strip_room.visible = not on
 
 	func _relay(data: Dictionary) -> void:
 		intent.emit(data)
@@ -402,8 +421,8 @@ static func zoom_scale(face: Rect2, tile: Rect2) -> float:
 ## Where the Deck comes to rest zoomed in on `key` on a face of `face`: room for the
 ## reading strip of `strip_lines` lines kept along the face's foot; the panel as
 ## large as fits in the rest, keeping its printed shape, centred there; the strip
-## itself right under the panel; and the whole card, grown alike, where that puts it
-## (most of it beyond the face, which clips it).
+## itself right under the panel; and the whole card as it is, filling the face
+## behind them.
 static func landing(face: Rect2, key: String, strip_lines: int) -> Dictionary:
 	# The strip's room is layout, kept at its size before specs/019 (research R2).
 	var strip_h := strip_lines * STRIP_LINE + T.SPACE_2
@@ -413,19 +432,8 @@ static func landing(face: Rect2, key: String, strip_lines: int) -> Dictionary:
 	var pr := RegionCard.panel_rect(unit, key)
 	var k := minf(area.size.x / pr.size.x, area.size.y / pr.size.y)
 	var panel := Rect2(area.get_center() - pr.size * k / 2.0, pr.size * k)
-	var card := Rect2(panel.position - pr.position * k, unit * k)
-	# Where the card is larger than the room, it is moved (and the panel with it) so
-	# none of the face above the strip is left bare: a top-row panel sits a little
-	# higher on a tall face.
-	var shift := Vector2.ZERO
-	for axis in [0, 1]:
-		if card.size[axis] >= area.size[axis]:
-			if card.position[axis] > area.position[axis]:
-				shift[axis] = area.position[axis] - card.position[axis]
-			elif card.end[axis] < area.end[axis]:
-				shift[axis] = area.end[axis] - card.end[axis]
-	panel.position += shift
-	card.position += shift
+	var c := minf(face.size.x / unit.x, face.size.y / unit.y)
+	var card := Rect2(face.get_center() - unit * c / 2.0, unit * c)
 	# The strip comes up to the panel's foot, however few its lines, so the name sits
 	# right under the Encounter it names.
 	strip.position.y = minf(strip.position.y, panel.end.y)
@@ -510,6 +518,7 @@ func finish() -> void:
 	_looking = false
 	_catch.visible = false
 	_clip_tops(false)
+	landed.zooming(false)
 	region_card.set_focus("", 0.0)
 	region_card.set_rim(0.0)
 	region_card.set_numbers(1.0)
@@ -882,8 +891,8 @@ func clear_refusal() -> void:
 
 # ---------------------------------------------------------------- motion
 
-## From the face out to the whole top card. A Region Encounter's landed panel is
-## the card's own panel grown, so the card simply shrinks back from it.
+## From the face out to the whole top card. A Region Encounter's landed panel
+## shrinks back into its place on the card as the card goes back to its own.
 func zoom_out(d: float) -> void:
 	held = true
 	result_held = false
@@ -913,22 +922,10 @@ func zoom_out(d: float) -> void:
 	top.pivot_offset = pivot
 	var tw := _keep(create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT))
 	if face == landed:
-		# The card starts exactly as the landed face draws it, and shrinks back to its
-		# place on the Deck as the rest of it comes back up round the panel.
-		var at := _landing(f)
+		# The landed face itself plays it out, the top card hidden until it settles.
 		_zooming = true
-		_clip_tops(true)
-		top.pivot_offset = Vector2.ZERO
-		_card_at(at.card.position + f.position, at.card.size)
-		top.modulate.a = 1.0
-		region_card.set_focus(zoomed, 1.0)
-		face.visible = false
-		tw.tween_method(func(v: float):
-			var r := _lerp_rect(Rect2(at.card.position + f.position, at.card.size), cr, v)
-			_card_at(r.position, r.size)
-			region_card.set_focus(zoomed, 1.0 - v)
-			region_card.set_numbers(v), 0.0, 1.0, d)
-		tw.tween_method(_set_stack_rect, f, cr, d)
+		top.visible = false
+		_shrink_landed(cr, d, 0.0, 0.0, tw)
 		tw.chain().tween_callback(func():
 			_zooming = false
 			_settle_view())
@@ -995,22 +992,23 @@ func zoom_in(target: String, d: float) -> void:
 		tw.tween_property(_peek, "lit", 0.0, d * T.PEEK_FALL / T.ZOOM)
 	_dip = 0.0
 	if face == landed:
-		# The card itself grows, drawn at each size rather than scaled, until it lies
-		# exactly as the landed face draws it; the landed face then takes over.
+		# The landed face takes over from the top card at once, drawn just as it lies:
+		# the card settles into the face as the Encounter's panel lifts out of it and
+		# grows over it, drawn at each size rather than scaled.
 		_zooming = true
-		_clip_tops(true)
-		landed.lay_out(_landing(Rect2(Vector2.ZERO, f.size)))
-		var at := _landing(f)
-		top.pivot_offset = Vector2.ZERO
-		face.modulate.a = 0.0
+		var at := _landing(Rect2(Vector2.ZERO, f.size))
+		landed.lay_out(at)
+		landed.zooming(true)
+		var card0 := Rect2(from.position - f.position, from.size)
+		var tile0 := RegionCard.panel_rect(card0.size, target)
+		tile0.position += card0.position
+		landed.frame(card0, tile0, lit0, rim0, 1.0)
+		top.visible = false
 		tw.tween_method(func(v: float):
-			var r := _lerp_rect(from, Rect2(at.card.position + f.position, at.card.size), v)
-			_card_at(r.position, r.size)
-			region_card.set_focus(target, lerpf(lit0, 1.0, v))
-			region_card.set_rim(lerpf(rim0, 0.0, v))
-			region_card.set_numbers(1.0 - v), 0.0, 1.0, d)
-		tw.tween_property(face, "modulate:a", 1.0, d * LAND_FADE).set_delay(d * (1.0 - LAND_FADE))
-		# The Encounter's name comes down from behind the panel as the face takes over.
+			landed.frame(_lerp_rect(card0, at.card, v), _lerp_rect(tile0, at.panel, v), lerpf(lit0, 1.0, v),
+				lerpf(rim0, 0.0, v), 1.0 - v), 0.0, 1.0, d)
+		# The Encounter's name comes down from behind the panel as it lands.
+		tw.tween_callback(func(): landed.zooming(false)).set_delay(d * (1.0 - LAND_FADE))
 		landed.slide_strip(d * (1.0 - LAND_FADE), T.MOVE)
 		tw.tween_method(_set_stack_rect, from, f, d)
 		tw.chain().tween_callback(_land)
@@ -1043,7 +1041,6 @@ func look_out(d: float) -> void:
 	_catch.visible = true
 	held = true
 	_hold_faces(true)
-	var f := face_rect(size)
 	var cr := card_rect(size, "card", true)
 	var key_face = vs.get("key_face")
 	_dip = dip(peek_h(cr.size)) if key_face != null else 0.0
@@ -1055,22 +1052,23 @@ func look_out(d: float) -> void:
 		_peek.modulate.a = 1.0
 		_peek.position = key_rect(size, false).position
 	view = "card"
-	var at := _landing(f)
 	_zooming = true
-	_clip_tops(true)
 	top.scale = Vector2.ONE
 	top.modulate = Color.WHITE
 	top.pivot_offset = Vector2.ZERO
-	top.visible = true
-	landed.visible = false
 	region_card.set_focus(zoomed, 1.0)
 	_clip_peek(home.end.y)
 	var done := func():
 		_zooming = false
 		_peek_up = key_face != null
-		_clip_tops(false)
+		region_card.set_rim(1.0)
+		region_card.set_numbers(1.0)
+		landed.visible = false
+		landed.zooming(false)
 		_place()
 	if UI.reduced_motion:
+		top.visible = true
+		landed.visible = false
 		_card_at(home.position, home.size)
 		region_card.set_rim(1.0)
 		region_card.set_numbers(1.0)
@@ -1085,23 +1083,35 @@ func look_out(d: float) -> void:
 			tw.tween_property(_peek, "modulate:a", 1.0, d)
 		tw.chain().tween_callback(done)
 		return
-	var from := Rect2(at.card.position + f.position, at.card.size)
-	_card_at(from.position, from.size)
+	# The landed face plays it out, the top card hidden until it settles.
+	top.visible = false
 	var tw := _keep(create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT))
-	tw.tween_method(func(v: float):
-		var r := _lerp_rect(from, home, v)
-		_card_at(r.position, r.size)
-		region_card.set_rim(v)
-		region_card.set_numbers(v), 0.0, 1.0, d)
-	tw.tween_method(_set_stack_rect, f, home, d)
+	_shrink_landed(home, d, 1.0, 1.0, tw)
 	if key_face != null:
-		# The Key Card rises over the top as the card comes to rest.
-		# Kept out of sight until then: the card grown past the face may not cover it.
+		# The Key Card rises over the top as the card comes to rest, out of sight until then.
 		var rise := minf(T.PEEK_RISE, d)
 		tw.tween_callback(func(): _peek.visible = true).set_delay(d - rise)
 		tw.tween_property(_peek, "position", key_rect(size, true).position, rise) \
 			.set_ease(Tween.EASE_OUT).set_delay(d - rise)
 	tw.chain().tween_callback(done)
+
+
+## The landed face going back to the whole card: the card from filling the face to
+## `to` (in the Deck's coordinates), the lifted panel shrinking back into its place
+## on it, the rest of the card stepped back to `focus` round it, its rim to `rim`, all on
+## `tw` over `d`; the stack's edges follow the card.
+func _shrink_landed(to: Rect2, d: float, rim: float, focus: float, tw: Tween) -> void:
+	var f := face_rect(size)
+	var at := _landing(Rect2(Vector2.ZERO, f.size))
+	var card1 := Rect2(to.position - f.position, to.size)
+	var tile1 := RegionCard.panel_rect(card1.size, zoomed)
+	tile1.position += card1.position
+	landed.visible = true
+	landed.modulate.a = 1.0
+	landed.zooming(true)
+	tw.tween_method(func(v: float):
+		landed.frame(_lerp_rect(at.card, card1, v), _lerp_rect(at.panel, tile1, v), lerpf(1.0, focus, v), rim * v, v), 0.0, 1.0, d)
+	tw.tween_method(_set_stack_rect, f, to, d)
 
 
 ## Back in from the player's look at the whole card to the Encounter, the Key Card
@@ -1274,6 +1284,7 @@ static func _lerp_rect(a: Rect2, b: Rect2, v: float) -> Rect2:
 func _settle_view() -> void:
 	if _zooming:
 		return
+	landed.zooming(false)
 	for c in [region_card, dragon_card, landed, dragon_face]:
 		c.scale = Vector2.ONE
 		c.modulate = Color.WHITE
