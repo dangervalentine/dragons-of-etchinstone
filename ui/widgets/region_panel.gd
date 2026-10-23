@@ -86,7 +86,7 @@ func render(p: Dictionary, hardship_id = null, live_badges := false) -> void:
 	# A Journey shows its painted map (art/painted/journeys/), drawn under the frame;
 	# an Enemy stands in its panel.
 	_map = UI.painted("journeys/" + p.art) if p.kind == "journey" and p.art != "" else null
-	_backdrop = UI.painted("backdrops/" + p.art) if p.kind == "enemy" and p.art != "" else null
+	_backdrop = UI.backdrop(p.art) if p.kind == "enemy" and p.art != "" else null
 	# Inked round to stand off the bare panel; a backdrop sets the figure off without.
 	_creature.outlined = _backdrop == null
 	_creature.visible = p.kind == "enemy" and p.art != ""

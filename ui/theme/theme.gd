@@ -80,6 +80,33 @@ static func painted(name: String) -> Texture2D:
 	return _icons[key]
 
 
+## An Enemy's scene (art/painted/backdrops/<name>), its saturation and brightness
+## set by Art.ENEMY_SCENE.
+static func backdrop(name: String) -> Texture2D:
+	return _adjusted("backdrops/" + name, Art.enemy_scene(name))
+
+
+## A dragon's lair (art/painted/lairs/<id>), set by Art.DRAGON_SCENE as backdrop() is.
+static func lair(id: String) -> Texture2D:
+	return _adjusted("lairs/" + id, Art.dragon_scene(id))
+
+
+## A painted picture with its saturation (x) and brightness (y) set: adjusted once,
+## then kept.
+static func _adjusted(path: String, adjust: Vector2) -> Texture2D:
+	var key := "adjusted/" + path
+	if not _icons.has(key):
+		var tex := painted(path)
+		if tex != null and not adjust.is_equal_approx(Vector2.ONE):
+			var img := tex.get_image()
+			if img.is_compressed():
+				img.decompress()
+			img.adjust_bcs(adjust.y, 1.0, adjust.x)
+			tex = ImageTexture.create_from_image(img)
+		_icons[key] = tex
+	return _icons[key]
+
+
 ## Part of a creature's art, `region` in its 512 units, as a texture of its own.
 static func art_crop(name: String, region: Rect2) -> Texture2D:
 	var tex := art(name)

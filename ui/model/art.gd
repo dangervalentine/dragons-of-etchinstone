@@ -361,6 +361,33 @@ static func enemy_shift(name: String) -> float:
 	return ENEMY_SHIFT.get(name, 0) / 100.0
 
 
+## Each Enemy's scene (art/painted/backdrops/) as drawn: [saturation, brightness] in
+## percent, applied once as it loads (UI.backdrop, Image.adjust_bcs). Not listed:
+## [100, 100], the picture as painted. Tune them with tools/enemy_sizer.py.
+const ENEMY_SCENE := {
+	"panda-fighter": [120, 96],
+	"lion-archer": [110, 90],
+	"crane-monk": [110, 90],
+	"monkey-brawler": [110, 90],
+	"marsh-treant": [110, 100],
+	"axe-gnome": [110, 90],
+	"club-ogre": [120, 91],
+	"horned-goblin": [110, 90],
+	"twin-ghoul": [110, 100],
+	"twin-ogre": [120, 91],
+	"naga": [110, 89],
+	"goblin-hexer": [110, 90],
+	"hedge-wizard": [110, 90],
+	"antler-horror": [110, 90],
+	"gath-brute": [109, 90],
+}
+
+
+static func enemy_scene(name: String) -> Vector2:
+	var v: Array = ENEMY_SCENE.get(name, [100, 100])
+	return Vector2(v[0], v[1]) / 100.0
+
+
 ## The light of each Enemy's scene on the figure (creature_idle.gdshader): "fill", the
 ## colour its own colours are pulled toward and "fill_amount" how far (0 to 1); "rim",
 ## the colour of the light along the edges facing it, "rim_amount" how bright,
@@ -368,19 +395,19 @@ static func enemy_shift(name: String) -> float:
 ## as a share of the art. An Enemy not listed is drawn in its own colours.
 const ENEMY_LIGHT := {
 	"panda-fighter": {"fill": Color("909e9f"), "fill_amount": 0.4, "rim": Color("f0f3db"), "rim_amount": 0.2,
-		"rim_from": Vector2(-0.17, -0.98), "rim_width": 0.03},
+		"rim_from": Vector2(0.77, -0.64), "rim_width": 0.03},
 	"lion-archer": {"fill": Color("6c7a90"), "fill_amount": 0.45, "rim": Color("f8ad97"), "rim_amount": 0.15,
 		"rim_from": Vector2(0.97, -0.26), "rim_width": 0.02},
 	"crane-monk": {"fill": Color("82d6e3"), "fill_amount": 0.3, "rim": Color("dbf9f8"), "rim_amount": 0.15,
 		"rim_from": Vector2(0.87, -0.5), "rim_width": 0.03},
 	"monkey-brawler": {"fill": Color("407182"), "fill_amount": 0.4, "rim": Color("663d99"), "rim_amount": 0.4,
 		"rim_from": Vector2(0.77, -0.64), "rim_width": 0.03},
-	"marsh-treant": {"fill": Color("214c64"), "fill_amount": 0.2, "rim": Color("c7e6e2"), "rim_amount": 0.15,
-		"rim_from": Vector2(-0.42, -0.91), "rim_width": 0.03},
+	"marsh-treant": {"fill": Color("214c64"), "fill_amount": 0.25, "rim": Color("c7e6e2"), "rim_amount": 0.15,
+		"rim_from": Vector2(0.5, -0.87), "rim_width": 0.03},
 	"axe-gnome": {"fill": Color("c5835a"), "fill_amount": 0.25, "rim": Color("fcb157"), "rim_amount": 0.2,
 		"rim_from": Vector2(0.77, -0.64), "rim_width": 0.03},
-	"club-ogre": {"fill": Color("597979"), "fill_amount": 0.4, "rim": Color("ef5749"), "rim_amount": 0.15,
-		"rim_from": Vector2(0.98, 0.17), "rim_width": 0.035},
+	"club-ogre": {"fill": Color("597979"), "fill_amount": 0.7, "rim": Color("ef5749"), "rim_amount": 0.15,
+		"rim_from": Vector2(0.98, -0.17), "rim_width": 0.035},
 	"horned-goblin": {"fill": Color("53808f"), "fill_amount": 0.3, "rim": Color("ace0e3"), "rim_amount": 0.1,
 		"rim_from": Vector2(0.64, -0.77), "rim_width": 0.03},
 	"twin-ghoul": {"fill": Color("a94e61"), "fill_amount": 0.35, "rim": Color("c525d0"), "rim_amount": 0.15,
@@ -395,7 +422,7 @@ const ENEMY_LIGHT := {
 		"rim_from": Vector2(0.91, -0.42), "rim_width": 0.04},
 	"hedge-wizard": {"fill": Color("70312c"), "fill_amount": 0.2, "rim": Color("da6b52"), "rim_amount": 0.2,
 		"rim_from": Vector2(0.71, -0.71), "rim_width": 0.03},
-	"antler-horror": {"fill": Color("42565c"), "fill_amount": 0.55, "rim": Color("f7ad70"), "rim_amount": 0.35,
+	"antler-horror": {"fill": Color("42565c"), "fill_amount": 0.55, "rim": Color("f7ad70"), "rim_amount": 0.5,
 		"rim_from": Vector2(0.77, -0.64), "rim_width": 0.015},
 	"gath-brute": {"fill": Color("22556f"), "fill_amount": 0.4, "rim": Color("eef8e0"), "rim_amount": 0.2,
 		"rim_from": Vector2(0.87, -0.5), "rim_width": 0.03},
@@ -430,6 +457,41 @@ const DRAGON_PLACE := {
 		"vuurhast": [140, 5, -40],
 	},
 }
+
+
+## Each dragon's lair (art/painted/lairs/) as drawn on its card and in the Final
+## Enemy: [saturation, brightness] in percent, as ENEMY_SCENE. And the lair's light on
+## the dragon there, as ENEMY_LIGHT; the ending, with no lair behind it, leaves the
+## dragon in its own colours. Tune both with tools/dragon_sizer.py.
+const DRAGON_SCENE := {
+	"grimroch": [110, 100],
+	"helsang": [110, 90],
+	"rodving": [110, 90],
+	"vuurhast": [119, 90],
+}
+const DRAGON_LIGHT := {
+	"grimroch": {"fill": Color("a6d9f2"), "fill_amount": 0.25, "rim": Color("e6fbf8"), "rim_amount": 0.15,
+		"rim_from": Vector2(0.0, -1.0), "rim_width": 0.03},
+	"helsang": {"fill": Color("746a82"), "fill_amount": 0.35, "rim": Color("a778bb"), "rim_amount": 0.1,
+		"rim_from": Vector2(0.17, 0.98), "rim_width": 0.03},
+	"rodving": {"fill": Color("6d7f95"), "fill_amount": 0.3, "rim": Color("e4b8a9"), "rim_amount": 0.1,
+		"rim_from": Vector2(0.64, -0.77), "rim_width": 0.03},
+	"vuurhast": {"fill": Color("684a3f"), "fill_amount": 0.05, "rim": Color("d7b286"), "rim_amount": 0.1,
+		"rim_from": Vector2(-0.17, -0.98), "rim_width": 0.03},
+}
+
+
+static func dragon_scene(id: String) -> Vector2:
+	var v: Array = DRAGON_SCENE.get(id, [100, 100])
+	return Vector2(v[0], v[1]) / 100.0
+
+
+## The light on a picture: an Enemy's (ENEMY_LIGHT) or a dragon's (DRAGON_LIGHT, for
+## its whole picture), or {} for none.
+static func light(name: String) -> Dictionary:
+	if ENEMY_LIGHT.has(name):
+		return ENEMY_LIGHT[name]
+	return DRAGON_LIGHT.get(name.trim_suffix("-full"), {})
 
 
 static func dragon_body(id: String) -> String:

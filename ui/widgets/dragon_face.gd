@@ -126,7 +126,7 @@ func _build(enc: Dictionary) -> void:
 		# The whole picture, uncut, as everywhere a dragon's body is drawn.
 		_beast.setup(Art.dragon_body(enc.art), Color(colour.lightened(0.4), 0.9), enc.element, false)
 		_approach.texture = UI.painted("roads/" + enc.art)
-		_lair.texture = UI.painted("lairs/" + enc.art)
+		_lair.texture = UI.lair(enc.art)
 	_road.visible = _approach.texture == null
 
 	for c in _panel.get_children():

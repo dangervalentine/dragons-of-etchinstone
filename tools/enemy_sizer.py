@@ -54,6 +54,15 @@ def read_lights(body):
     return out
 
 
+def backdrop_data(key):
+    """The scene at the panel's size, as a data URL."""
+    img = Image.open(os.path.join(ROOT, "art", "painted", "backdrops", key + ".png")).convert("RGB")
+    img = img.resize((760, round(img.height * 760 / img.width)), Image.LANCZOS)
+    buf = io.BytesIO()
+    img.save(buf, "JPEG", quality=90)
+    return "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()
+
+
 def figure_data(img):
     """The figure at 512, as a data URL."""
     buf = io.BytesIO()
@@ -68,6 +77,7 @@ def main():
     sizes = {k: int(v) for k, v in re.findall(r'"([a-z-]+)":\s*(-?\d+)', gd_dict(art, "ENEMY_SIZE"))}
     shifts = {k: int(v) for k, v in re.findall(r'"([a-z-]+)":\s*(-?\d+)', gd_dict(art, "ENEMY_SHIFT"))}
     lights = read_lights(gd_dict(art, "ENEMY_LIGHT"))
+    scenes = {k: [int(a), int(b)] for k, a, b in re.findall(r'"([a-z-]+)":\s*\[(-?\d+),\s*(-?\d+)\]', gd_dict(art, "ENEMY_SCENE"))}
     regions = {}
     for r, body in re.findall(r"(\d): \[([^\]]*)\]", gd_dict(art, "ENEMIES")):
         regions[int(r)] = re.findall(r'"([a-z-]+)"', body)
@@ -89,10 +99,12 @@ def main():
                 "size": sizes.get(key, 100),
                 "shift": shifts.get(key, 0),
                 "light": lights.get(key, dict(PLAIN)),
+                "scene": scenes.get(key, [100, 100]),
                 # Built into the page: the light reads the figure's pixels, which a
                 # browser refuses for a picture loaded from disk.
                 "figure": figure_data(img),
-                "backdrop": "../../art/painted/backdrops/%s.png" % key,
+                # Built in too, so the scene's saturation and brightness can be set.
+                "backdrop": backdrop_data(key),
             })
 
     os.makedirs(OUT, exist_ok=True)
@@ -153,7 +165,7 @@ pre { margin: 0; background: #0a1012; border: 2px solid var(--line); border-radi
 <main>
 <header>
 <h1>Enemy Sizes</h1>
-<p>Every Enemy on its panel as the game draws it: its backdrop, set back left of the middle, sized about its feet and moved by its own shift. Size is a percentage of the art; shift is a percentage of the panel's art width, negative to the left. Light is the scene's light on the figure, as the game's shader draws it: a fill that pulls its colours toward the scene's, and a rim of light on the edges facing the light, from the direction set by its angle. The panel, the line-up and the tables below follow. The dark strip on the left of each panel is where the stat badges sit.</p>
+<p>Every Enemy on its panel as the game draws it: its backdrop, set back left of the middle, sized about its feet and moved by its own shift. Size is a percentage of the art; shift is a percentage of the panel's art width, negative to the left. Light is the scene's light on the figure, as the game's shader draws it: a fill that pulls its colours toward the scene's, and a rim of light on the edges facing the light, from the direction set by its angle. Scene sets the backdrop's saturation and brightness, as the game adjusts it when it loads. The panel, the line-up and the tables below follow. The dark strip on the left of each panel is where the stat badges sit.</p>
 </header>
 <div class="bar">
 	<label><input type="checkbox" id="badges" checked> Badge strip</label>
@@ -164,7 +176,7 @@ pre { margin: 0; background: #0a1012; border: 2px solid var(--line); border-radi
 </div>
 <section><h2>Line-up: every figure on one ground line, at its size</h2><div class="lineup"><canvas id="lineup"></canvas></div></section>
 <section id="regions"></section>
-<section><h2>ENEMY_SIZE, ENEMY_SHIFT and ENEMY_LIGHT for ui/model/art.gd</h2><pre id="out"></pre></section>
+<section><h2>ENEMY_SIZE, ENEMY_SHIFT, ENEMY_SCENE and ENEMY_LIGHT for ui/model/art.gd</h2><pre id="out"></pre></section>
 </main>
 <script>
 const DATA = __DATA__;
@@ -178,6 +190,20 @@ const startShift = Object.fromEntries(DATA.enemies.map(e => [e.key, e.shift]));
 const shift = { ...startShift };
 const startLight = Object.fromEntries(DATA.enemies.map(e => [e.key, JSON.stringify(e.light)]));
 const light = Object.fromEntries(DATA.enemies.map(e => [e.key, JSON.parse(JSON.stringify(e.light))]));
+const startScene = Object.fromEntries(DATA.enemies.map(e => [e.key, [...e.scene]]));
+const scene = Object.fromEntries(DATA.enemies.map(e => [e.key, [...e.scene]]));
+const sceneRaw = {}, sceneOut = {};
+// Image.adjust_bcs (contrast 1): brightness multiplies, then saturation blends from
+// each pixel's average.
+function readjust(e) {
+	const raw = sceneRaw[e.key]; if (!raw) return;
+	const [sat, bri] = scene[e.key].map(v => v / 100), out = new ImageData(raw.width, raw.height), a = raw.data, o = out.data;
+	for (let i = 0; i < a.length; i += 4) {
+		const r = a[i] * bri, g = a[i + 1] * bri, b = a[i + 2] * bri, c = (r + g + b) / 3;
+		o[i] = c + (r - c) * sat; o[i + 1] = c + (g - c) * sat; o[i + 2] = c + (b - c) * sat; o[i + 3] = 255;
+	}
+	sceneOut[e.key].getContext("2d").putImageData(out, 0, 0);
+}
 const lit = {};     // each figure as the shader lights it, a 512 square canvas
 const base = {};    // each figure's own pixels at that size
 
@@ -211,6 +237,14 @@ function relight(e) {
 		o[i] = R * 255; o[i + 1] = G * 255; o[i + 2] = B * 255;
 	}
 	lit[e.key].getContext("2d").putImageData(out, 0, 0);
+}
+function prepareScene(e) {
+	const img = imgs[e.backdrop]; if (!img) return;
+	const c = document.createElement("canvas"); c.width = img.width; c.height = img.height;
+	const g = c.getContext("2d"); g.drawImage(img, 0, 0);
+	sceneRaw[e.key] = g.getImageData(0, 0, c.width, c.height);
+	sceneOut[e.key] = document.createElement("canvas"); sceneOut[e.key].width = c.width; sceneOut[e.key].height = c.height;
+	readjust(e);
 }
 function prepare(e) {
 	const img = imgs[e.figure]; if (!img) return;
@@ -257,7 +291,7 @@ function drawPanel(e) {
 	const cv = document.getElementById("c-" + e.key), g = cv.getContext("2d");
 	g.clearRect(0, 0, PW, PH);
 	g.save(); framePath(g, PW, PH); g.clip();
-	const bd = imgs[e.backdrop];
+	const bd = sceneOut[e.key] || imgs[e.backdrop];
 	if (bd) g.drawImage(bd, ...cover(bd, PW, PH), 0, 0, PW, PH);
 	else { g.fillStyle = "#2b3a3c"; g.fillRect(0, 0, PW, PH); }
 	const ax = PW * ART_X, aw = PW - ax;
@@ -278,7 +312,7 @@ function drawPanel(e) {
 	g.restore();
 	g.lineWidth = 4; g.strokeStyle = "#64797a"; framePath(g, PW, PH); g.stroke();
 	const cell = cv.closest(".cell");
-	cell.classList.toggle("changed", size[e.key] !== start[e.key] || shift[e.key] !== startShift[e.key] || JSON.stringify(light[e.key]) !== startLight[e.key]);
+	cell.classList.toggle("changed", size[e.key] !== start[e.key] || shift[e.key] !== startShift[e.key] || JSON.stringify(light[e.key]) !== startLight[e.key] || scene[e.key].some((v, i) => v !== startScene[e.key][i]));
 	// The figure's top above the panel's: it is cut off. The largest size that fits
 	// keeps its feet on the ground line and its top at the panel's edge.
 	const cut = (e.bounds[1] - c.y) * z < -0.5;
@@ -329,8 +363,13 @@ function lightTable() {
 	return "const ENEMY_LIGHT := {\n" + lines.join("\n") + (lines.length ? "\n" : "") + "}";
 }
 
+function sceneTable() {
+	const lines = DATA.enemies.filter(e => scene[e.key][0] !== 100 || scene[e.key][1] !== 100).map(e => `\t"${e.key}": [${scene[e.key][0]}, ${scene[e.key][1]}],`);
+	return "const ENEMY_SCENE := {\n" + lines.join("\n") + (lines.length ? "\n" : "") + "}";
+}
+
 function table() {
-	return gdTable("ENEMY_SIZE", size, 100) + "\n\n" + gdTable("ENEMY_SHIFT", shift, 0) + "\n\n" + lightTable();
+	return gdTable("ENEMY_SIZE", size, 100) + "\n\n" + gdTable("ENEMY_SHIFT", shift, 0) + "\n\n" + sceneTable() + "\n\n" + lightTable();
 }
 
 function redraw(e) {
@@ -348,6 +387,8 @@ function redraw(e) {
 			const k = el.dataset.l;
 			el.value = k === "fill" || k === "rim" ? "#" + L[k] : k === "angle" ? angle : L[k];
 		}
+		for (const el of cell.querySelectorAll("[data-s]")) el.value = scene[en.key][Number(el.dataset.s)];
+		for (const el of cell.querySelectorAll("[data-sv]")) el.textContent = scene[en.key][Number(el.dataset.sv)] + "%";
 		for (const el of cell.querySelectorAll("[data-v]")) {
 			const k = el.dataset.v;
 			el.textContent = k === "angle" ? angle + "°" : k === "rim_width" ? L[k].toFixed(3) : L[k].toFixed(2);
@@ -371,6 +412,10 @@ function build() {
 				<input type="number" id="n-${e.key}" min="50" max="160" step="1" aria-label="${e.name} size, percent"> %</div>
 				<div class="row"><small class="lab">Shift</small><input type="range" id="xr-${e.key}" min="-40" max="40" step="1" aria-label="${e.name} shift slider">
 				<input type="number" id="xn-${e.key}" min="-40" max="40" step="1" aria-label="${e.name} shift, percent of the panel"> %</div>
+				<details${e.scene[0] !== 100 || e.scene[1] !== 100 ? " open" : ""}><summary>Scene</summary>
+				<div class="row"><small class="lab">Sat.</small><input type="range" data-s="0" min="50" max="200" step="1" aria-label="${e.name} scene saturation, percent"><span class="val" data-sv="0"></span></div>
+				<div class="row"><small class="lab">Bright</small><input type="range" data-s="1" min="50" max="160" step="1" aria-label="${e.name} scene brightness, percent"><span class="val" data-sv="1"></span></div>
+				</details>
 				<details${e.light.fill_amount > 0 || e.light.rim_amount > 0 ? " open" : ""}><summary>Light</summary>
 				<div class="row"><small class="lab">Fill</small><input type="color" data-l="fill" aria-label="${e.name} fill colour">
 				<input type="range" data-l="fill_amount" min="0" max="1" step="0.05" aria-label="${e.name} fill strength"><span class="val" data-v="fill_amount"></span></div>
@@ -386,6 +431,11 @@ function build() {
 			cell.querySelector("#r-" + e.key).addEventListener("input", ev => set(ev.target.value));
 			cell.querySelector("#xn-" + e.key).addEventListener("input", ev => move(ev.target.value));
 			cell.querySelector("#xr-" + e.key).addEventListener("input", ev => move(ev.target.value));
+			let sq = false;
+			cell.querySelectorAll("[data-s]").forEach(el => el.addEventListener("input", () => {
+				scene[e.key][Number(el.dataset.s)] = Number(el.value);
+				if (!sq) { sq = true; setTimeout(() => { sq = false; readjust(e); redraw(e); }, 16); }
+			}));
 			let queued = false;
 			cell.querySelectorAll("[data-l]").forEach(el => el.addEventListener("input", () => {
 				const L = light[e.key], k = el.dataset.l;
@@ -401,7 +451,7 @@ function build() {
 	document.getElementById("ground").addEventListener("change", () => redraw());
 	document.getElementById("reset").addEventListener("click", () => {
 		Object.assign(size, start); Object.assign(shift, startShift);
-		for (const e of DATA.enemies) { light[e.key] = JSON.parse(startLight[e.key]); relight(e); }
+		for (const e of DATA.enemies) { light[e.key] = JSON.parse(startLight[e.key]); relight(e); scene[e.key] = [...startScene[e.key]]; readjust(e); }
 		redraw();
 	});
 	document.getElementById("copy").addEventListener("click", async () => {
@@ -416,6 +466,7 @@ function build() {
 	const loaded = await Promise.all(srcs.map(load));
 	srcs.forEach((s, i) => imgs[s] = loaded[i]);
 	DATA.enemies.forEach(prepare);
+	DATA.enemies.forEach(prepareScene);
 	build();
 	redraw();
 })();

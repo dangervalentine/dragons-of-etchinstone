@@ -78,6 +78,8 @@ func render(vs: Dictionary) -> void:
 	row.add_child(place)
 	var sigil := Creature.new()
 	sigil.setup(body, colour if e.won else Color(T.PARCHMENT_MUTED, 0.6), vs.stage.element if e.won else "")
+	# No lair stands behind it here, so no lair's light falls on it.
+	sigil.set_light({})
 	place.add_child(sigil)
 	var placings := UI.vbox(T.SPACE_2)
 	placings.size_flags_horizontal = Control.SIZE_EXPAND_FILL

@@ -236,7 +236,7 @@ func _draw() -> void:
 		var pts := _stone.part(card, under)
 		# The dragon's lair (art/painted/lairs/) fills the card under the band, cut to
 		# its rounded corners; a dragon without one stands on Ether-tinted stone.
-		var lair := UI.painted("lairs/" + model.art) if model.art != "" else null
+		var lair := UI.lair(model.art) if model.art != "" else null
 		if lair != null:
 			var src := RegionPanel.cover_region(lair.get_size(), under.size)
 			var uvs := PackedVector2Array()

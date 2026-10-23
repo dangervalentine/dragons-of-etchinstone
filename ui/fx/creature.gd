@@ -90,12 +90,8 @@ func setup(name: String, tint: Color, ether := "", particles := true) -> void:
 		bone_moves.append(Vector4(Art.MOVES[b.get("motion", "still")], b.get("angle", 0.0), b.get("period", 1.0), b.get("phase", 0.0)))
 		reach.append(b.get("reach", 0.0) / 512.0)
 		last.append(b.get("last", i))
-	# The scene's light on an Enemy (Art.ENEMY_LIGHT), or none.
-	var light: Dictionary = Art.ENEMY_LIGHT.get(name, {})
-	m.set_shader_parameter("fill", Color(light.get("fill", Color.WHITE), light.get("fill_amount", 0.0)))
-	m.set_shader_parameter("rim", Color(light.get("rim", Color.WHITE), light.get("rim_amount", 0.0)))
-	m.set_shader_parameter("rim_from", light.get("rim_from", Vector2.RIGHT))
-	m.set_shader_parameter("rim_width", light.get("rim_width", 0.012))
+	# The scene's light on an Enemy or a dragon (Art.light), or none.
+	set_light(Art.light(name))
 	m.set_shader_parameter("bones", bones.size())
 	m.set_shader_parameter("bone_lines", lines)
 	m.set_shader_parameter("bone_moves", bone_moves)
@@ -121,6 +117,15 @@ static func _idle(layer: TextureRect, name: String, tint: Color) -> void:
 	m.set_shader_parameter("mode", MODES[Art.motion(name)])
 	m.set_shader_parameter("speed", Art.speed(name))
 	m.set_shader_parameter("phase", float(hash(name) % 628) / 100.0)
+
+
+## The light of the scene on the art (as Art.ENEMY_LIGHT), or {} for its own colours.
+func set_light(light: Dictionary) -> void:
+	var m: ShaderMaterial = _picture.material
+	m.set_shader_parameter("fill", Color(light.get("fill", Color.WHITE), light.get("fill_amount", 0.0)))
+	m.set_shader_parameter("rim", Color(light.get("rim", Color.WHITE), light.get("rim_amount", 0.0)))
+	m.set_shader_parameter("rim_from", light.get("rim_from", Vector2.RIGHT))
+	m.set_shader_parameter("rim_width", light.get("rim_width", 0.012))
 
 
 ## Draws the art as one flat `tint` cut to its shape, painted or not, or, with a
