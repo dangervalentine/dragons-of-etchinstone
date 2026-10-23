@@ -69,3 +69,20 @@ func test_play_reveals_the_sum_and_verdict() -> void:
 	ok(texts.has(vs.preview.verdict_text), "and the verdict")
 	eq(panel.needed_height(400.0), before, "the box keeps one height before and after Play")
 	panel.free()
+
+
+## Against an Enemy the Initiative leads, as it is settled first; the verdict follows
+## the Attack, then what it means and each cost beside the reason for it.
+func test_initiative_first_and_each_cost_explained() -> void:
+	var vs := _ready_enemy()
+	var panel = PreviewPanel.new()
+	panel.render(vs)
+	panel.reveal()
+	panel.settle()
+	var texts := _texts(panel)
+	ok(texts.find("Initiative") < texts.find("Attack"), "the Initiative row before the Attack row")
+	ok(texts.find(vs.preview.verdict_text) > texts.find("Attack"), "the verdict under the Attack")
+	ok(vs.preview.aftermath != "" and texts.has(vs.preview.aftermath), "what the verdict means: %s" % vs.preview.aftermath)
+	for c in vs.preview.costs:
+		ok(c.why != "" and texts.has(c.why), "%s says why: %s" % [c.id, c.why])
+	panel.free()
