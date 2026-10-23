@@ -57,9 +57,10 @@ func render(vs: Dictionary, plan: Dictionary) -> void:
 				shown.append(_option(i, choice[0], choice[1], st.boost_to == choice[0]))
 		else:
 			shown.append(_fixed())
-		# The choices share the column's height, a gap between them; the fixed Move is
-		# one choice's height, in the middle.
-		var each := (r.size.y - T.SPACE_2) / 2.0
+		# The choices share the column's height, a gap between them, but no taller than
+		# a tap target each, so they stand clear of the Boost's symbol above; the fixed
+		# Move is one choice's height, in the middle.
+		var each := minf((r.size.y - T.SPACE_2) / 2.0, T.TAP_MIN)
 		var y := (r.size.y - (shown.size() * each + (shown.size() - 1) * T.SPACE_2)) / 2.0
 		for b in shown:
 			b.position = Vector2(0, y)

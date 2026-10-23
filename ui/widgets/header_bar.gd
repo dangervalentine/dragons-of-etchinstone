@@ -22,6 +22,8 @@ const BACK_W := 150
 const BAR_INSET := 6.0
 ## How far Back, the heading and the menu button stand in from the band's ends.
 const PAD_X := T.SPACE_4
+## The space between the piles' chips and the menu button, so the button stands apart.
+const MENU_GAP := T.SPACE_4
 
 var menu_button := Button.new()
 var back_button := Button.new()
@@ -95,19 +97,8 @@ func _init() -> void:
 		_piles.append(b)
 		_counts[pile] = count
 		_icons[pile] = icon
-	# The header is shorter than a thumb, so the menu button reaches below it.
-	menu_button.name = "MenuButton"
-	menu_button.custom_minimum_size = Vector2(T.TAP_MIN, T.TAP_MIN)
-	menu_button.flat = true
-	for state in ["normal", "hover", "pressed", "disabled"]:
-		menu_button.add_theme_stylebox_override(state, StyleBoxEmpty.new())
-	menu_button.add_theme_stylebox_override("focus", UI.focus_ring())
-	# A stone slab in the bar (specs/019 TopBar), its icon in the middle.
-	var icon := UI.icon_rect("menu", 34, T.PARCHMENT)
-	_menu_face.add_child(icon)
-	_slab_face(menu_button, _menu_face)
+	_make_menu(menu_button, _menu_face)
 	menu_button.pressed.connect(func(): intent.emit({"type": "menu"}))
-	UI.press_feedback(menu_button)
 	add_child(menu_button)
 	# Back mirrors the menu button: a full tap target reaching below the header, its
 	# word in the header's left end.
@@ -143,9 +134,43 @@ func _draw() -> void:
 	draw_rect(Rect2(band.position.x, band.end.y - T.BORDER_EDGE, band.size.x, T.BORDER_EDGE), T.CARD_FRAME)
 
 
+## The menu button `b` with its slab `face`: the header is shorter than a thumb, so
+## the button reaches below it, a stone slab in the bar (specs/019 TopBar) with the
+## icon in the middle. The landing page, which has no bar, makes its own alike.
+static func _make_menu(b: Button, face: PanelContainer) -> void:
+	b.name = "MenuButton"
+	b.custom_minimum_size = Vector2(T.TAP_MIN, T.TAP_MIN)
+	b.flat = true
+	for state in ["normal", "hover", "pressed", "disabled"]:
+		b.add_theme_stylebox_override(state, StyleBoxEmpty.new())
+	b.add_theme_stylebox_override("focus", UI.focus_ring())
+	face.add_child(UI.icon_rect("menu", 34, T.PARCHMENT))
+	_slab_face(b, face)
+	UI.press_feedback(b)
+
+
+## A menu button and its slab, for a screen without the bar; place it with
+## menu_face_rect().
+static func menu_button_alone() -> Button:
+	var b := Button.new()
+	var face := PanelContainer.new()
+	face.name = "Face"
+	_make_menu(b, face)
+	return b
+
+
+## Where the menu button's slab sits on it, for a bar resting at `header` (the
+## window's top at 0): as _fit() and _inside() place it.
+static func menu_face_rect(header: Rect2) -> Rect2:
+	var lift := roundf((4.0 - minf(header.position.y, T.SPACE_4)) / 2.0)
+	var top := maxf(-header.position.y, -T.SPACE_4) + BAR_INSET
+	var bottom := header.size.y + 4.0 - T.BORDER_EDGE - T.SHADOW_SLAB.drop - BAR_INSET
+	return Rect2(0, top - lift, T.TAP_MIN, maxf(0.0, bottom - top))
+
+
 ## A button's visible stone slab, inside the bar while its hit area reaches below:
 ## raised at rest, sunk while pressed.
-func _slab_face(b: Button, face: PanelContainer) -> void:
+static func _slab_face(b: Button, face: PanelContainer) -> void:
 	var rest := StoneStyle.new("plinth")
 	rest.size = "sm"
 	var down := StoneStyle.new("plinth")
@@ -231,10 +256,10 @@ func _fit() -> void:
 	back_button.size = Vector2(BACK_W, T.TAP_MIN)
 	back_button.position = Vector2(PAD_X, lift)
 	# A name alone is centred on the bar, clear of Back and the menu button alike;
-	# on the play screen the row runs from the left end, past the padding, to the
-	# menu button.
+	# on the play screen the row runs from the left end, past the padding, to a gap
+	# before the menu button.
 	var left: float = PAD_X + (maxf(BACK_W, T.TAP_MIN) if _titled else 0.0)
-	var right: float = PAD_X + (maxf(BACK_W, T.TAP_MIN) if _titled else float(T.TAP_MIN))
+	var right: float = PAD_X + (maxf(BACK_W, T.TAP_MIN) if _titled else float(T.TAP_MIN + MENU_GAP))
 	_row.position = Vector2(left, lift)
 	_row.size = Vector2(maxf(0.0, size.x - left - right), size.y)
 	# The slabs and chips sit inside the bar, clear of its foot line with their drop.

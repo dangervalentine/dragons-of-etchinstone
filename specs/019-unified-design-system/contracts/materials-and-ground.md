@@ -53,8 +53,10 @@ with no paper or inner sheet.
   - The Ether glyph is always present in the band.
   - A `CARD_RIBBON` ribbon with cost on the left and XP on the right in `BRASS_BRIGHT`.
   - Figures on `STAT_PLATE` (`RADIUS_PLATE`), never on the field.
-  - The highlighted figure fills with `ether_shade(pill)` and its ink is
-    `ether_shade(pill_ink)`.
+  - A highlighted basic action fills with `ether_shade(plate)` and its ink is
+    `ether_shade(plate_ink)`. Highlighted Initiative and Boost, whose Ether does not
+    matter, stay on `STAT_PLATE` in `PARCHMENT`, marked by the rim (owner, 2026-10-23,
+    replacing the bright `pill`).
 
 ## Ground and the Region wash (`ui/fx/backdrop.gdshader`, `ui/fx/backdrop_layer.gd`)
 

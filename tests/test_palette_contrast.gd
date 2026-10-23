@@ -32,9 +32,8 @@ func test_ink_reads_on_brass_and_paper() -> void:
 
 func test_ethers_read_as_plates_pills_and_inks() -> void:
 	for e in T.ETHER:
-		# A plate carries a large numeral (3:1); a highlighted pill a figure (4.5:1).
+		# A plate, or a highlighted basic action's pill, carries a large numeral (3:1).
 		_at_least(T.ether_shade(e, "plate_ink"), T.ether_shade(e, "plate"), 3.0, e + " plate")
-		_at_least(T.ether_shade(e, "pill_ink"), T.ether_shade(e, "pill"), 4.5, e + " pill")
 		_at_least(T.ether_shade(e, "lit"), T.STONE, 3.0, e + " as an icon on STONE")
 		_at_least(T.ether_shade(e, "paper"), T.PAPER, 3.0, e + " as an icon on PAPER")
 

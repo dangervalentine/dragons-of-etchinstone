@@ -88,12 +88,14 @@ static func _encounter(db, kind: String, size: Vector2, on_help: Callable) -> Co
 	var enc: Dictionary = ViewState.encounter_model(db, 1, kind, 1, null, key)
 	var col := UI.vbox(T.SPACE_1)
 	var face := EncounterFace.new()
-	# The face takes the room the page gives it (owner, 2026-10-23: every page the
-	# same height, so nothing may grow it), its badges as large as that allows; the
-	# Key Card line goes under the frame, and only where there is room for it.
-	var with_caption := size.y - CAPTION_H - T.SPACE_1 >= FACE_CHROME + 4.0 * BADGE_MIN
+	# The face takes the room the page gives it, its badges as large as that allows;
+	# the Key Card line goes under the frame, and only where there is room for it.
+	# Never shorter than its badges need: the frame does not hold them in, and where
+	# the page is shorter still the rulebook scales the whole figure down to fit.
+	var least := FACE_CHROME + (4.0 if kind == "enemy" else 2.0) * BADGE_MIN
+	var with_caption := size.y - CAPTION_H - T.SPACE_1 >= least
 	face.badge_min = BADGE_MIN
-	face.custom_minimum_size = Vector2(size.x, minf(size.y - (CAPTION_H + T.SPACE_1 if with_caption else 0.0), 360.0))
+	face.custom_minimum_size = Vector2(size.x, clampf(size.y - (CAPTION_H + T.SPACE_1 if with_caption else 0.0), least, 360.0))
 	face.intent.connect(func(d): on_help.call(d))
 	face.render(enc)
 	col.add_child(face)

@@ -1,14 +1,17 @@
 extends Control
 ## The landing page: the game's name cut into a lintel of stone and the story in a
-## line, and below them the ways in: Play and Learn to Play (the lessons,
-## specs/017) on one row, then How to Play, the Leaderboard and the Glossary. Settings and the History are in
-## the menu, from the title bar. Play leads on to the choice of dragon
-## (dragon_screen.gd). A flat woodcut tear, The Tear of the story, sits faint behind.
+## line, and below them the ways in: Play across the column, then Learn to Play
+## (the lessons, specs/017), the Leaderboard and the Glossary. How to Play is in the
+## menu. It has no title bar, so it takes the whole height; only the menu button
+## stands where the bar keeps it (owner, 2026-10-23). Settings and the History are
+## in the menu. Play leads on to the choice of dragon (dragon_screen.gd). A flat
+## woodcut tear, The Tear of the story, sits faint behind.
 
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
 const StoneStyle = preload("res://ui/theme/stone_style.gd")
 const Flavor = preload("res://ui/model/flavor.gd")
+const HeaderBar = preload("res://ui/widgets/header_bar.gd")
 
 signal intent(data: Dictionary)
 
@@ -25,6 +28,10 @@ var _layout := Control.new()
 var _column: VBoxContainer
 var _ways: VBoxContainer
 var _content := Rect2(16, 16, 1248, 688)
+## The menu, where every other screen's title bar keeps it (place_menu()).
+var menu_button: Button
+var _menu_at := Rect2()
+var _menu_face := Rect2(0, 0, T.TAP_MIN, 44)
 
 
 func setup(card_db, opts: Dictionary) -> void:
@@ -81,22 +88,14 @@ func _build() -> void:
 	_column.add_child(subtitle)
 
 	# Play across the column, then the other ways in side by side beneath it.
-	var first := UI.hbox(T.SPACE_2)
 	var play := UI.button("Play", "primary")
 	play.custom_minimum_size.y = T.TAP_MIN
 	play.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	play.size_flags_stretch_ratio = 2.0
 	play.pressed.connect(_play)
-	first.add_child(play)
-	var lessons := UI.button("Learn to Play", "normal")
-	lessons.custom_minimum_size.y = T.TAP_MIN
-	lessons.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	lessons.pressed.connect(func(): intent.emit({"type": "lessons"}))
-	first.add_child(lessons)
-	_ways.add_child(first)
+	_ways.add_child(play)
 	var ways := UI.hbox(T.SPACE_2)
-	var learn := UI.button("How to Play", "normal", "book")
-	learn.pressed.connect(func(): intent.emit({"type": "rulebook"}))
+	var learn := UI.button("Learn to Play", "normal", "book")
+	learn.pressed.connect(func(): intent.emit({"type": "lessons"}))
 	var board := UI.button("Leaderboard", "normal", "trophy")
 	board.pressed.connect(func(): intent.emit({"type": "records", "page": "leaderboard", "from": "title"}))
 	var help := UI.button("Glossary", "normal", "glossary")
@@ -106,8 +105,27 @@ func _build() -> void:
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		ways.add_child(b)
 	_ways.add_child(ways)
+	menu_button = HeaderBar.menu_button_alone()
+	menu_button.pressed.connect(func(): intent.emit({"type": "menu"}))
+	add_child(menu_button)
 	apply_layout(_content)
+	place_menu(_menu_at)
 	play.grab_focus.call_deferred(true)
+
+
+## The menu button at `at`, a global rectangle, its slab at `face` on it: where and
+## as the title bar keeps them.
+func place_menu(at: Rect2, face := Rect2()) -> void:
+	_menu_at = at
+	if face.size != Vector2.ZERO:
+		_menu_face = face
+	if menu_button == null or at.size == Vector2.ZERO:
+		return
+	menu_button.size = at.size
+	menu_button.global_position = at.position if is_inside_tree() else at.position - position
+	var slab: Control = menu_button.get_node("Face")
+	slab.position = _menu_face.position
+	slab.size = _menu_face.size
 
 
 ## A stretch of empty height, sharing what the column leaves with the others.

@@ -499,6 +499,10 @@ func _ribbon(text: String, icon_name: String, bg: Color, ink: Color) -> void:
 	# A tag in the lower right of the field, where the sigil is, so no figure is hidden.
 	var font := UI.font(T.BODY_STRONG)
 	var max_w := size.x * 0.6
+	# Clear of the "×2" chip beside the Armor, when the Armor soaks double.
+	var chip := _face.soaks_chip_rect()
+	if chip.has_area():
+		max_w = minf(max_w, size.x - size.x * 0.045 - (chip.end.x + _face.position.x) - 4.0)
 	# Printed on the card, fitted to it, never under the card-text floor that scales
 	# with the card (specs/019 FR-015, CardFace.name_floor); a word that will not fit
 	# leaves its icon alone.

@@ -25,9 +25,10 @@ const HUSH := 0.6
 const FADE := 0.6
 ## How far a dark plate in focus warms toward the focus colour.
 const LIT := 0.3
-## The figures on black plates, which fill with the Ether's bright partner when they
-## are the highlighted figure.
-const PILLS := ["initiative", "basic", "boost"]
+## The figures on black plates that fill with their Ether's colour when they are the
+## highlighted figure. Initiative and Boost, whose Ether does not matter, stay black
+## with parchment ink, marked by the rim alone (owner, 2026-10-23).
+const PILLS := ["basic"]
 const STEEL := T.METAL
 ## The widest line any Mage Card name needs in capitals, a single unbreakable word;
 ## every name is set at the size that fits it.
@@ -399,9 +400,10 @@ func _draw_ink() -> void:
 		_ink_for("armor", UI.best_ink(shield_fill) if armored and not dimmed else T.PARCHMENT), _fill_for("armor", shield_fill))
 	if armored:
 		_corner_sigil(lv.armor.element, Vector2(shield.end.x - shield.size.x * 0.12, shield.end.y - shield.size.y * 0.1), shield.size.y * 0.42)
-	if _focus.get("mark", "") == "soaks_more" and not dimmed:
-		_chip("×2", Vector2(r.position.x + r.size.y * (1.2 if armored else 1.05) + 3, shield.get_center().y),
-			shield.size.y * 0.62, T.ether_shade(_focus.get("damage_element", ""), "lit"), _focus_t)
+	var soaks := soaks_chip_rect()
+	if soaks.has_area():
+		_chip("×2", Vector2(soaks.position.x, soaks.get_center().y), soaks.size.y,
+			T.ether_shade(_focus.get("damage_element", ""), "lit"), _focus_t)
 
 	_draw_marks()
 	_draw_top_band(g, e)
@@ -441,6 +443,19 @@ func _draw_top_band(g: Dictionary, e) -> void:
 	var text_x: float = n.position.x + pip + g.pad * 0.1
 	_name(Rect2(text_x, n.position.y, n.end.x - text_x, n.size.y), model.name.to_upper(),
 		_ink_for("name", T.PARCHMENT) if not dimmed else T.PARCHMENT_MUTED)
+
+
+## Where the "×2" chip sits beside the Armor shield when the Armor soaks double, or
+## an empty rect when it is not shown. At the same place whether the Armor has an
+## Ether or not, so it does not move as a card is Downgraded; card_view.gd keeps
+## the soak ribbon clear of it.
+func soaks_chip_rect() -> Rect2:
+	if model.is_empty() or dimmed or _focus.get("mark", "") != "soaks_more":
+		return Rect2()
+	var r: Rect2 = _geo().armor
+	var h := r.size.y * 0.62
+	var x := r.position.x + r.size.y * 1.2 + 3
+	return Rect2(x, r.position.y + (r.size.y - h) / 2.0, Numerals.width("×2", int(h * 0.72)) + h * 0.6, h)
 
 
 ## Where the Hardship icon sits on the Key Card strip: after the Encounter icon
@@ -570,12 +585,11 @@ func _draw_sword(g: Dictionary) -> void:
 func _fill_for(key: String, fill: Color) -> Color:
 	if dimmed:
 		return fill if fill == T.STAT_PLATE else T.PARCHMENT_MUTED.darkened(0.55)
-	# A black plate in focus is the highlighted figure: it fills with the card's bright
-	# Ether partner (specs/019 MageCard); on the near-black plates a rim alone barely
-	# shows (owner, specs/011).
+	# The basic action in focus is the highlighted figure: it fills with its Ether's
+	# colour, as an enhanced action's plate.
 	var lift := _lift(key)
 	if lift > 0.0 and PILLS.has(key) and fill.is_equal_approx(T.STAT_PLATE):
-		fill = fill.lerp(T.ether_shade(model.get("element"), "pill"), lift)
+		fill = fill.lerp(T.ether_shade(model.get("element"), "plate"), lift)
 	var hush := _hush(key)
 	var out := fill.lerp(T.STAT_PLATE, QUIET * hush)
 	out.a = 1.0 - FADE * hush
@@ -585,9 +599,9 @@ func _fill_for(key: String, fill: Color) -> Color:
 func _ink_for(key: String, ink: Color) -> Color:
 	if dimmed:
 		return T.PARCHMENT_MUTED
-	# On a highlighted figure's bright pill, the dark ink (specs/019 research R4).
+	# On a highlighted figure's pill, the ink of its fill.
 	if PILLS.has(key) and _lift(key) >= 0.5:
-		return T.ether_shade(model.get("element"), "pill_ink")
+		return T.ether_shade(model.get("element"), "plate_ink")
 	var hush := _hush(key)
 	var out := ink.lerp(T.PARCHMENT_MUTED, hush)
 	out.a = 1.0 - FADE * hush

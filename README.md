@@ -17,12 +17,12 @@ Battle:
   journey Peril
 - Fusing, Diverting, Regrouping, Knock Out, poison, and scoring
 - The six difficulty levels and both alternate rules (Cavalier, Glass Cannon)
-- A landing page (How to Play, Records, Play), then the choice of dragon, one
+- A landing page (Play, Learn to Play, the Leaderboard, the Glossary), then the choice of dragon, one
   dragon's figures at a time, then the difficulty and alternate rules
 - A landscape interface for phones, tablets and desktop browsers, played by touch,
   mouse or keyboard
 - How to Play: the rules in this project's own words, written for the digital game,
-  readable from the landing page, the in-game menu or the H key without disturbing a
+  readable from the menu or the H key without disturbing a
   game in progress, with labelled example cards and links into the Glossary
 - Learn to Play: six short lessons played on the real screens under the real rules,
   each from a table of its own (setting out with Rodving, a Victory, a Narrow

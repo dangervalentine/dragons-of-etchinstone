@@ -372,6 +372,7 @@ func _check_wash(where: String) -> void:
 
 
 func _settle() -> void:
+	ui.finish_transitions()
 	ui.animator.skip()
 	await process_frame
 	# Notes dealt and thrown fly for a moment after the state is shown (specs/015):
@@ -763,7 +764,7 @@ func _check_type(where: String, l: Label) -> void:
 	var allowed := [T.PARCHMENT, T.PARCHMENT_MUTED, T.PARCHMENT_FAINT, T.BRASS, T.BRASS_BRIGHT, T.JADE, T.DANGER,
 		T.STAT_HP, T.ON_BRASS, T.PAPER_INK, T.PAPER_MUTED, T.STAT_PLATE]
 	for e in T.ETHER:
-		allowed.append_array([T.ether_shade(e, "lit"), T.ether_shade(e, "plate_ink"), T.ether_shade(e, "pill_ink"), T.ether_shade(e, "paper")])
+		allowed.append_array([T.ether_shade(e, "lit"), T.ether_shade(e, "plate_ink"), T.ether_shade(e, "paper")])
 	var opaque := Color(c, 1.0)
 	_ok(allowed.any(func(a): return a.is_equal_approx(opaque)), "%s: '%s' is in #%s, not a proven text colour" % [where, l.text.left(24), opaque.to_html(false)])
 
@@ -809,12 +810,17 @@ func _inspect_screen(where: String) -> void:
 	if ui.title_bar.visible:
 		nodes += ui.title_bar.find_children("*", "Control", true, false)
 	_check_one_primary(where)
-	# Every screen has the menu button, in the same place.
-	var bar: Control = ui.play.header if ui.play != null and ui.screen == ui.play else ui.title_bar
+	# Every screen has the menu button, in the same place; the landing page, which has
+	# no title bar, its own where the bar keeps it.
 	var header: Rect2 = ui.plan.regions.header
+	if ui.screen.get_script() == TitleScreen:
+		_ok(not ui.title_bar.visible, "%s: the landing page has no title bar" % where)
+		_ok(ui.screen.menu_button.is_visible_in_tree() and ui.screen.menu_button.get_global_rect().is_equal_approx(ui._menu_rect()),
+			"%s: the menu button is not where the title bar keeps it" % where)
+	var bar: Control = ui.play.header if ui.play != null and ui.screen == ui.play else ui.title_bar
 	var menu_rect: Rect2 = bar.menu_button.get_global_rect()
 	var inset := Vector2(bar.PAD_X, bar.lift())
-	_ok(bar.is_visible_in_tree() and menu_rect.position.is_equal_approx(Vector2(header.end.x - menu_rect.size.x - inset.x, header.position.y + inset.y)),
+	_ok(ui.screen.get_script() == TitleScreen or bar.is_visible_in_tree() and menu_rect.position.is_equal_approx(Vector2(header.end.x - menu_rect.size.x - inset.x, header.position.y + inset.y)),
 		"%s: the menu button is not at the title bar's right" % where)
 	if bar == ui.title_bar and bar.back_button.visible:
 		_ok(bar.back_button.get_global_rect().position.is_equal_approx(header.position + inset), "%s: Back is not at the title bar's left" % where)

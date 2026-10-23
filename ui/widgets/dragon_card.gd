@@ -215,7 +215,8 @@ func _put(c: Control, r: Rect2) -> void:
 
 
 func _draw() -> void:
-	if model.is_empty():
+	# Not yet laid out: no room to print in (its words would be set at size 0).
+	if model.is_empty() or size.x < 1.0 or size.y < 1.0:
 		return
 	var card := Rect2(Vector2.ZERO, size)
 	draw_style_box(_stone, card)
@@ -246,10 +247,10 @@ func _draw() -> void:
 	var name: String = model.name
 	# Printed on the card, the band's words scale with it as a card's name does
 	# (specs/019 FR-015, CardFace.name_floor).
-	var least := CardFace.name_floor(size.x)
+	var least := maxi(1, CardFace.name_floor(size.x))
 	# The title reads second, so it may be set smaller: still printed on the card and
 	# scaled with it (specs/019 plan, card-print text).
-	var title_least := roundi(least * TITLE_SHARE)
+	var title_least := maxi(1, roundi(least * TITLE_SHARE))
 	var label := UI.font(T.LABEL)
 	var title: String = model.title
 	var fs := maxi(least, roundi(band.size.y * 0.5))
@@ -276,7 +277,7 @@ func _draw() -> void:
 ## The locked band: the lock, then question marks where the name would be, in gold.
 func _draw_locked_band(band: Rect2) -> void:
 	var heading := UI.font(T.HEADING)
-	var fs := maxi(CardFace.name_floor(size.x), roundi(band.size.y * 0.5))
+	var fs := maxi(1, maxi(CardFace.name_floor(size.x), roundi(band.size.y * 0.5)))
 	var nw := heading.get_string_size(LOCKED_NAME, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 	var side := roundf(band.size.y * 0.5)
 	var gap := side * 0.4

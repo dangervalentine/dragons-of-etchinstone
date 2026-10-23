@@ -18,8 +18,12 @@ signal intent(data: Dictionary)
 ## Padding inside the panel, and the gap between the text and the aside.
 const PAD := 20
 const COLUMN_GAP := T.SPACE_4
-## Text sizes: body text, and the smaller text of tables and captions.
+## Text sizes: body text, and the smaller text of tables and captions. The body
+## text is the largest of TEXT_STEPS at which every page fits the window it is
+## read in (_fit_text()), one size for the whole book so nothing changes between
+## pages (owner, 2026-10-23); never below the design system's floor.
 const TEXT := T.BODY
+const TEXT_STEPS := [28, 26, 24]
 const SMALL := T.CAPTION
 ## Terms chips: tall enough to press, set at the smallest readable size.
 const CHIP_H := 44
@@ -56,6 +60,40 @@ var _contents_open := false
 var _text_w := 0.0
 var _aside_w := 0.0
 var _inner_w := 0.0
+## The body text's style at this window (_fit_text()).
+var _text: Dictionary = TEXT
+## The text size chosen for each window size the book has been read at.
+static var _text_for := {}
+
+
+## Holds one figure and scales it down, whole, to `room` when it needs more: an
+## example is drawn as in play at its own sizes, and a short window must not let
+## it grow the page (owner, 2026-10-23).
+class Fit extends Container:
+	var room := Vector2.ZERO
+
+	func _get_minimum_size() -> Vector2:
+		var c := _child()
+		if c == null:
+			return Vector2.ZERO
+		var m := c.get_combined_minimum_size()
+		return m * _k(m)
+
+	func _k(m: Vector2) -> float:
+		return minf(1.0, minf(room.x / maxf(m.x, 1.0), room.y / maxf(m.y, 1.0)))
+
+	func _child() -> Control:
+		return get_child(0) as Control if get_child_count() > 0 else null
+
+	func _notification(what: int) -> void:
+		if what == NOTIFICATION_SORT_CHILDREN:
+			var c := _child()
+			if c != null:
+				var m := c.get_combined_minimum_size()
+				var k := _k(m)
+				# Centred across the room it leaves when scaled down.
+				fit_child_in_rect(c, Rect2(Vector2(maxf(0.0, (size.x - m.x * k) / 2.0), 0.0), m))
+				c.scale = Vector2.ONE * k
 
 
 ## Fill `content` (a global rectangle) and show the page last read, or the first
@@ -90,7 +128,7 @@ func show_page(section: int, page_index: int, fade := true) -> void:
 	for c in _body.get_children():
 		_body.remove_child(c)
 		c.queue_free()
-	_body.add_child(_page_view(Rulebook.page(section, page_index)))
+	_body.add_child(_page_view(Rulebook.page(section, page_index), section == 0 and page_index == 0))
 	var first := Rulebook.step(_pos, -1) == _pos
 	var last := Rulebook.step(_pos, 1) == _pos
 	_prev.disabled = first
@@ -242,6 +280,41 @@ func _build(content: Rect2) -> void:
 	_close = place_close_button(content)
 	# Woodcut caps across the slab's top and bottom edges, as on the glossary.
 	_caps = add_edge_caps(content)
+	_fit_text()
+
+
+## The largest of TEXT_STEPS at which every page's text fits the page here: the
+## text column, measured in the tree at each size (the asides do not change with
+## it, and a figure fits itself). Kept for the window size.
+func _fit_text() -> void:
+	var key := "%dx%d" % [roundi(_content.size.x), roundi(_content.size.y)]
+	if _text_for.has(key):
+		_text = UI.restyle(TEXT, _text_for[key])
+		return
+	var room := _body_height()
+	var chosen: int = TEXT_STEPS[-1]
+	for fs in TEXT_STEPS:
+		_text = UI.restyle(TEXT, fs)
+		var all_fit := true
+		for s in Rulebook.section_count():
+			for i in Rulebook.page_count(s):
+				var col := UI.vbox(T.SPACE_2)
+				for b in Rulebook.page(s, i).text:
+					col.add_child(_block(b, _text_w))
+				_frame.add_child(col)
+				var h := col.get_combined_minimum_size().y
+				_frame.remove_child(col)
+				col.free()
+				if h > room + 0.5:
+					all_fit = false
+					break
+			if not all_fit:
+				break
+		if all_fit:
+			chosen = fs
+			break
+	_text_for[key] = chosen
+	_text = UI.restyle(TEXT, chosen)
 
 
 ## A position that exists, falling back to the first page.
@@ -278,7 +351,7 @@ func _contents_view() -> Control:
 
 # ---------------------------------------------------------------- pages
 
-func _page_view(p: Dictionary) -> Control:
+func _page_view(p: Dictionary, first := false) -> Control:
 	var page := UI.vbox(T.SPACE_2)
 	page.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	# The two columns, divided by a rule down the middle of the gap between them.
@@ -307,12 +380,16 @@ func _page_view(p: Dictionary) -> Control:
 			look.content_margin_left = 2
 			look.content_margin_right = 2
 			plate.add_theme_stylebox_override("panel", look)
-			plate.add_child(RulebookFigure.make(b.figure, db, room - Vector2(6, 10), func(d): intent.emit(d)))
+			var fit := Fit.new()
+			fit.room = room - Vector2(6, 10)
+			fit.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			fit.add_child(RulebookFigure.make(b.figure, db, fit.room, func(d): intent.emit(d)))
+			plate.add_child(fit)
 			aside.add_child(plate)
 		else:
 			aside.add_child(_block(b, _aside_w))
 	# The first page credits the game's makers, in the room its aside leaves.
-	if _pos.section == 0 and _pos.page == 0:
+	if first:
 		aside.add_child(UI.spacer())
 		var credit := UI.label(Rulebook.CREDIT, T.CAPTION, T.PARCHMENT_MUTED, true)
 		credit.custom_minimum_size.x = _aside_w
@@ -404,7 +481,7 @@ func _block(b: Dictionary, width: float) -> Control:
 		var col := UI.vbox(T.SPACE_1)
 		for i in items.size():
 			var line := UI.hbox(T.SPACE_1)
-			var mark := UI.label(("%d." % (i + 1)) if b.has("steps") else "•", UI.restyle(T.BODY_STRONG, TEXT.size), T.PARCHMENT_MUTED)
+			var mark := UI.label(("%d." % (i + 1)) if b.has("steps") else "•", UI.restyle(T.BODY_STRONG, _text.size), T.PARCHMENT_MUTED)
 			mark.custom_minimum_size.x = 32
 			mark.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 			line.add_child(mark)
@@ -421,7 +498,9 @@ func _block(b: Dictionary, width: float) -> Control:
 
 
 ## A paragraph: body text with bold terms and inline icons.
-func _rich(bbcode: String, width: float, size: Dictionary = TEXT) -> RichTextLabel:
+func _rich(bbcode: String, width: float, size: Dictionary = {}) -> RichTextLabel:
+	if size.is_empty():
+		size = _text
 	var r := RichTextLabel.new()
 	r.bbcode_enabled = true
 	r.fit_content = true

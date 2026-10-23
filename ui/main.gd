@@ -268,7 +268,7 @@ func _on_resize() -> void:
 		if screen == play:
 			play.apply_layout(plan)
 		else:
-			screen.apply_layout(plan.body)
+			_lay_out_screen(screen)
 	_place_title_bar()
 	for o in _overlays.get_children():
 		if o.has_method("close") and o.get_script() == InspectOverlay:
@@ -310,9 +310,33 @@ func _update_notice() -> void:
 
 # ---------------------------------------------------------------- screens
 
-func _switch(to: Control) -> void:
+## The way into a game, in order: from the landing page to the dragons, the
+## difficulty, and Set out into play. Moving along it pushes the screens sideways,
+## forward to the left and back to the right (owner, 2026-10-23); any other change
+## of screen fades.
+const FLOW := [TitleScreen, DragonScreen, RulesScreen]
+
+var _slides: Array = []
+## The first deal of a game entered by sliding, waiting for the play screen to land.
+var _pending_deal := Callable()
+
+
+## Which way the move from `old` to `to` pushes along FLOW: 1 forward, -1 back, 0
+## for a fade. Into play only Set out pushes (`into_play`).
+func _flow_dir(old: Control, to: Control, into_play: bool) -> int:
+	if old == null:
+		return 0
+	var a := FLOW.find(old.get_script())
+	var b := FLOW.size() if to == play and into_play else FLOW.find(to.get_script())
+	if a < 0 or b < 0 or a == b:
+		return 0
+	return signi(b - a)
+
+
+func _switch(to: Control, into_play := false) -> void:
 	var old := screen
 	screen = to
+	var dir := _flow_dir(old, to, into_play)
 	# Every screen stands on the same ground; only the play screen is washed in its
 	# Region's tint (specs/019 FR-006).
 	if to != play:
@@ -322,6 +346,34 @@ func _switch(to: Control) -> void:
 	if old != null:
 		if UI.reduced_motion or not is_inside_tree():
 			old.queue_free()
+			old = null
+	if old != null:
+		# A mask (clip_children) composites wrongly under a fading modulate: the Deck's
+		# zoomed face turns into a pale block, a white flash on phones. The old screen
+		# is on its way out, so it fades unmasked.
+		for n in old.find_children("*", "CanvasItem", true, false):
+			if n.clip_children != CanvasItem.CLIP_CHILDREN_DISABLED:
+				n.clip_children = CanvasItem.CLIP_CHILDREN_DISABLED
+		if dir != 0:
+			# The new screen pushes the old one off the side, both moving as one. The
+			# play screen places its cards by their place on the window, so it cannot
+			# slide: it rises in where it stands as the difficulty slides away.
+			var w := size.x
+			old.mouse_behavior_recursive = Control.MOUSE_BEHAVIOR_DISABLED
+			var tw := create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+			tw.tween_property(old, "position:x", -dir * w, T.MOVE)
+			if to == play:
+				# Over the second half, once the difficulty is mostly away.
+				to.modulate.a = 0.0
+				tw.tween_property(to, "modulate:a", 1.0, T.MOVE / 2.0).set_delay(T.MOVE / 2.0)
+			else:
+				to.position.x = dir * w
+				tw.tween_property(to, "position:x", 0.0, T.MOVE)
+			tw.chain().tween_callback(func():
+				if is_instance_valid(old):
+					old.queue_free()
+				_slid(tw))
+			_slides.append([tw, old, to])
 		else:
 			var tw := create_tween()
 			tw.tween_property(old, "modulate:a", 0.0, T.BASE)
@@ -332,19 +384,131 @@ func _switch(to: Control) -> void:
 		if to == play:
 			play.apply_layout(plan)
 		else:
-			to.apply_layout(plan.body)
-	_place_title_bar()
+			_lay_out_screen(to)
+	_place_title_bar(true)
 
 
-## The title bar shows the screen's name, where the play screen's header would be.
-func _place_title_bar() -> void:
-	title_bar.visible = screen != null and screen != play
-	if not title_bar.visible:
+## A screen other than play's in the room it has: under the title bar, or the
+## whole content where it has none (the landing page), with its menu button where
+## the bar keeps it.
+func _lay_out_screen(s: Control) -> void:
+	if _bare(s):
+		s.apply_layout(plan.content)
+		s.place_menu(_menu_rect(), HeaderBar.menu_face_rect(plan.regions.header))
+	else:
+		s.apply_layout(plan.body)
+
+
+## Whether `s` stands without the title bar: the landing page (owner, 2026-10-23).
+func _bare(s: Control) -> bool:
+	return s != null and s.get_script() == TitleScreen
+
+
+## Where the title bar keeps its menu button when it rests in the header, in this
+## node's coordinates (header_bar.gd _fit() and lift()).
+func _menu_rect() -> Rect2:
+	var h: Rect2 = plan.regions.header
+	var lift := roundf((4.0 - minf(h.position.y, T.SPACE_4)) / 2.0)
+	return Rect2(h.end.x - HeaderBar.PAD_X - T.TAP_MIN, h.position.y + lift, T.TAP_MIN, T.TAP_MIN)
+
+
+var _bar_tween: Tween
+## Whether the title bar is shown, or on its way in.
+var _bar_shown := false
+
+
+## The title bar shows the screen's name, where the play screen's header would be;
+## the landing page has none. Going to or from a screen that has it (`animate`), it
+## slides down into place from above the screen, or back up out of sight; under
+## reduced motion, or giving way to the play screen's header, it fades instead.
+func _place_title_bar(animate := false) -> void:
+	var want := screen != null and screen != play and not _bare(screen)
+	if want:
+		title_bar.set_title(screen.heading, screen.has_method("back"))
+	if plan.is_empty():
+		title_bar.visible = want
+		_bar_shown = want
 		return
-	title_bar.set_title(screen.heading, screen.has_method("back"))
-	if not plan.is_empty():
-		title_bar.position = plan.regions.header.position
-		title_bar.size = plan.regions.header.size
+	var rest: Vector2 = plan.regions.header.position
+	title_bar.size = plan.regions.header.size
+	# Far enough up that nothing of it shows, the menu button reaching below it too.
+	var away := Vector2(rest.x, -(title_bar.size.y + T.TAP_MIN + T.SPACE_4))
+	var moving := _bar_tween != null and _bar_tween.is_valid()
+	if want == _bar_shown and not moving:
+		title_bar.visible = want
+		title_bar.position = rest
+		title_bar.modulate.a = 1.0
+		return
+	if want == _bar_shown and moving:
+		return
+	_bar_shown = want
+	if moving:
+		_bar_tween.kill()
+	if not animate or not is_inside_tree():
+		title_bar.visible = want
+		title_bar.position = rest
+		title_bar.modulate.a = 1.0
+		title_bar.queue_redraw()
+		return
+	title_bar.visible = true
+	_bar_tween = create_tween()
+	# Into play the screen's own header takes the bar's place, so the bar fades
+	# there rather than lifting away over it.
+	if UI.reduced_motion or screen == play:
+		title_bar.position = rest
+		title_bar.modulate.a = 0.0 if want else 1.0
+		_bar_tween.tween_property(title_bar, "modulate:a", 1.0 if want else 0.0, T.MOVE / 2.0 if screen == play else T.BASE)
+	else:
+		title_bar.modulate.a = 1.0
+		var slide := func(y: float):
+			title_bar.position = Vector2(rest.x, y)
+			title_bar.queue_redraw()
+		slide.call(title_bar.position.y if title_bar.position.y < rest.y - 0.5 else (away.y if want else rest.y))
+		_bar_tween.tween_method(slide, title_bar.position.y, rest.y if want else away.y, T.BASE) \
+			.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT if want else Tween.EASE_IN)
+	_bar_tween.tween_callback(_bar_at_rest.bind(want, rest))
+
+
+func _bar_at_rest(shown: bool, rest: Vector2) -> void:
+	title_bar.visible = shown
+	title_bar.position = rest
+	title_bar.modulate.a = 1.0
+	title_bar.queue_redraw()
+
+
+## A screen's slide has landed: the first deal of a game entered by sliding starts.
+## The slide `done` is still running while its own last callback calls this, so it
+## is let go by name.
+func _slid(done: Tween = null) -> void:
+	_slides = _slides.filter(func(sl): return sl[0] != done and sl[0].is_valid() and sl[0].is_running())
+	if _slides.is_empty() and _pending_deal.is_valid():
+		var deal := _pending_deal
+		_pending_deal = Callable()
+		deal.call()
+
+
+## Every change of screen where it is going, at once: the screens slid home, the
+## title bar in its place, and a first deal waiting on them started.
+func finish_transitions() -> void:
+	for sl in _slides:
+		if sl[0].is_valid():
+			sl[0].kill()
+		if is_instance_valid(sl[1]):
+			sl[1].queue_free()
+		if is_instance_valid(sl[2]):
+			sl[2].position.x = 0.0
+			sl[2].modulate.a = 1.0
+	_slides = []
+	finish_title_bar()
+	_slid()
+
+
+## The title bar where its slide is going, at once.
+func finish_title_bar() -> void:
+	if _bar_tween != null and _bar_tween.is_valid():
+		_bar_tween.kill()
+		if not plan.is_empty():
+			_bar_at_rest(_bar_shown, plan.regions.header.position)
 
 
 func _show_title() -> void:
@@ -419,7 +583,7 @@ func _show_ending() -> void:
 	_place_title_bar()
 
 
-func start_game(opts: Dictionary) -> void:
+func start_game(opts: Dictionary, set_out := false) -> void:
 	# A game of one's own is not a lesson.
 	if tutorial != null:
 		_end_lesson()
@@ -452,7 +616,7 @@ func start_game(opts: Dictionary) -> void:
 	play = PlayScreen.new()
 	play.flight = _flight
 	play.intent.connect(dispatch)
-	_switch(play)
+	_switch(play, set_out)
 	_refresh(false)
 	if game.phase == "challenge":
 		_deal_start()
@@ -472,6 +636,14 @@ func _deal_start() -> void:
 	play.render(bare)
 	# The Deck starts zoomed out on the Region Card, for the first reveal.
 	play.deck.show_card()
+	# Entered by sliding, the cards are dealt once the screen has landed, so they fly
+	# to where the Hand will rest.
+	if not _slides.is_empty():
+		var for_play := play
+		_pending_deal = func():
+			if play == for_play and is_instance_valid(for_play):
+				animator.play(steps, play, vs)
+		return
 	animator.play(steps, play, vs)
 
 
@@ -729,7 +901,7 @@ func _dispatch(intent: Dictionary) -> void:
 			_end_lesson()
 			_show_title()
 		"start":
-			start_game(intent.options)
+			start_game(intent.options, true)
 		"play_again":
 			start_game(menu)
 		"to_title":

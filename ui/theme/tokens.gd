@@ -342,8 +342,8 @@ static func ether(element) -> Color:
 ## base: the pigment (a card's field, a wash);
 ## deep: the field's centre and its shadow;
 ## lit: its bright partner, for icons and text on stone;
-## plate: an enhanced action's plate; plate_ink: the ink on that plate;
-## pill: a highlighted figure's pill; pill_ink: the dark ink on it;
+## plate: an enhanced action's plate, and a highlighted basic action's pill;
+## plate_ink: the ink on either;
 ## paper: an icon of it printed on paper (deep enough to read on the warm sheet).
 static func ether_shade(element, role: String) -> Color:
 	var base := ether(element)
@@ -351,14 +351,12 @@ static func ether_shade(element, role: String) -> Color:
 	match role:
 		"deep":
 			return base.darkened(0.55)
-		"lit", "pill":
+		"lit":
 			return bright
 		"plate":
 			return base
 		"plate_ink":
 			return ON_BRASS if element == "lightning" else PARCHMENT
-		"pill_ink":
-			return ON_BRASS if element == "lightning" else STAT_PLATE
 		"paper":
 			return base.darkened(0.45 if element == "lightning" else 0.25)
 	return base

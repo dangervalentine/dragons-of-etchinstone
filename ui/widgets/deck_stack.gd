@@ -693,8 +693,25 @@ func _render_strip(enc: Dictionary, p: Dictionary) -> void:
 		landed.strip.add_child(row)
 
 
+## How many STRIP_LINEs the strip needs: one for the name, and for each effect as
+## many as its words take, wrapped beside their disc, so none is cut off at the
+## face's foot.
 func _strip_lines() -> int:
-	return maxi(1, landed.strip.get_child_count())
+	var rows := landed.strip.get_children()
+	if rows.size() <= 1:
+		return 1
+	# The words' width: the strip's (16 in from each side, lay_out()), less the disc
+	# and the gap after it.
+	var width := maxf(1.0, face_rect(size).size.x - 32.0 - 44.0 - T.SPACE_2)
+	var h := STRIP_LINE
+	for row in rows.slice(1):
+		var words: Label = row.get_child(1)
+		var font := words.get_theme_font("font")
+		var fs := words.get_theme_font_size("font_size")
+		var lines := ceili(font.get_multiline_string_size(words.text, HORIZONTAL_ALIGNMENT_LEFT, width, fs).y / font.get_height(fs) - 0.01)
+		var text_h := lines * font.get_height(fs) + (lines - 1) * words.get_theme_constant("line_spacing")
+		h += maxf(STRIP_LINE, text_h + STRIP_LINE - 44.0)
+	return ceili(h / STRIP_LINE - 0.01)
 
 
 ## The landed face's layout on a face rect `f`, in `f`'s own coordinates.

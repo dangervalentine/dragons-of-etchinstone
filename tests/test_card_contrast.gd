@@ -23,11 +23,6 @@ func test_enhanced_plate_ink_reads_on_every_ether() -> void:
 		ok(r >= 3.0, "%s plate numerals %.2f:1" % [e, r])
 
 
-func test_highlighted_pills_read_on_every_ether() -> void:
-	for e in T.ETHER:
-		var r := UI.contrast(T.ether_shade(e, "pill_ink"), T.ether_shade(e, "pill"))
-		ok(r >= 4.5, "%s highlighted figure %.2f:1" % [e, r])
-
 
 func test_bands_read() -> void:
 	ok(UI.contrast(T.PARCHMENT, T.CARD_FRAME) >= 4.5, "name on the frame")
