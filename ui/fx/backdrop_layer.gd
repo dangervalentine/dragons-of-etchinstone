@@ -1,7 +1,11 @@
 extends Control
 ## The ground's settings (specs/019 FR-005, FR-006): the flat ground, and the glow in
 ## the current Region's tint that lies behind the Encounter or Region Card in play.
-## It replaces feature 006's stone grounds, and the menu's choice of them (FR-006a).
+## In play the whole ground also takes the Region's own dark ground (T.REGION_GROUND),
+## or in the Final Battle the dragon's Ether's (T.LAIR_GROUND), so each Region, and
+## each dragon's lair, stands on its own country and moving on reads as the
+## journey going on. It replaces feature 006's stone grounds, and the menu's choice of
+## them (FR-006a).
 
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
@@ -32,18 +36,35 @@ func setup(m: ShaderMaterial) -> void:
 		m.set_shader_parameter("wash_radius", size.y * REACH))
 
 
-## The tint of a stage (vs.stage): a Region's own colour, the lair's for the Final
-## Battle, or null where there is no game.
+## The tint of a stage (vs.stage): a Region's own colour, the dragon's Ether for the
+## Final Battle, or null where there is no game.
 static func tint_of(stage) -> Variant:
 	if stage == null or not stage is Dictionary or stage.is_empty():
 		return null
 	if stage.get("kind") == "final":
-		return T.REGION_LAIR
+		return T.ETHER[stage.element].base if T.ETHER.has(stage.get("element", "")) else T.REGION_LAIR
 	return T.REGION.get(int(stage.get("region", 0)))
 
 
-## Wash the ground in `stage`'s tint, glowing round `centre` (global pixels), or
-## clear it. A change of tint fades over a move, or happens at once in reduced motion.
+## The ground and its wash where their fade is going, at once.
+func finish() -> void:
+	if _tween != null and _tween.is_valid():
+		_tween.custom_step(T.MOVE * 2.0)
+
+
+## The whole ground of a stage: its Region's own, the dragon's Ether's for the Final
+## Battle, or the plain ground where there is no game.
+static func ground_of(stage) -> Color:
+	if stage == null or not stage is Dictionary or stage.is_empty():
+		return T.GROUND
+	if stage.get("kind") == "final":
+		return T.LAIR_GROUND.get(stage.get("element", ""), T.GROUND)
+	return T.REGION_GROUND.get(int(stage.get("region", 0)), T.GROUND)
+
+
+## Lay `stage`'s ground and wash it in its tint, glowing round `centre` (global
+## pixels), or clear both. A change fades over a move, or happens at once in reduced
+## motion.
 func set_region(stage, centre := Vector2.ZERO) -> void:
 	if material_ref == null:
 		return
@@ -54,18 +75,23 @@ func set_region(stage, centre := Vector2.ZERO) -> void:
 		return
 	var from_amount: float = material_ref.get_shader_parameter("wash_amount")
 	var to_amount := T.REGION_WASH if tint != null else 0.0
+	var from_ground: Color = material_ref.get_shader_parameter("ground")
+	var to_ground := ground_of(stage)
 	if _tween != null and _tween.is_valid():
 		_tween.kill()
+	var at_once := UI.reduced_motion or not is_inside_tree()
 	if tint != null:
-		if _tint == null or UI.reduced_motion or not is_inside_tree():
+		if _tint == null or at_once:
 			material_ref.set_shader_parameter("wash", tint)
 		else:
 			_tween = create_tween()
 			_tween.tween_method(func(c): material_ref.set_shader_parameter("wash", c), _tint, tint, T.MOVE)
 	_tint = tint
-	if UI.reduced_motion or not is_inside_tree():
+	if at_once:
 		material_ref.set_shader_parameter("wash_amount", to_amount)
+		material_ref.set_shader_parameter("ground", to_ground)
 		return
 	if _tween == null or not _tween.is_valid():
 		_tween = create_tween()
 	_tween.parallel().tween_method(func(v): material_ref.set_shader_parameter("wash_amount", v), from_amount, to_amount, T.MOVE)
+	_tween.parallel().tween_method(func(c): material_ref.set_shader_parameter("ground", c), from_ground, to_ground, T.MOVE)

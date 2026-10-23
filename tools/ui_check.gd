@@ -372,6 +372,11 @@ func _check_wash(where: String) -> void:
 	_ok(want != null, "%s: the stage %s has a tint" % [where, str(stage)])
 	_ok(typeof(ui.backdrop_layer._tint) == typeof(want) and ui.backdrop_layer._tint == want,
 		"%s: the ground is washed in %s, not %s" % [where, str(want), str(ui.backdrop_layer._tint)])
+	# Each Region stands on its own ground, at rest once the move is done.
+	if ui.backdrop_layer.material_ref != null:
+		var ground: Color = ui.backdrop_layer.material_ref.get_shader_parameter("ground")
+		var wanted: Color = ui.backdrop_layer.ground_of(stage)
+		_ok(ground.is_equal_approx(wanted), "%s: the ground is %s's own %s, not %s" % [where, str(stage.get("region", "")), wanted.to_html(false), ground.to_html(false)])
 
 
 func _settle() -> void:

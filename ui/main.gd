@@ -501,6 +501,7 @@ func finish_transitions() -> void:
 			sl[2].modulate.a = 1.0
 	_slides = []
 	finish_title_bar()
+	backdrop_layer.finish()
 	_slid()
 
 
@@ -1376,7 +1377,7 @@ func _banner(values: Dictionary, duration: float) -> void:
 		var d: Dictionary = game.dragon
 		var art_name: String = Art.dragon(d.id)
 		b.show_banner("%s, %s" % [d.name, d.title], "The Final Journey" if values.phase == "final_journey" else "The Final Enemy",
-			UI.head(art_name), T.REGION_LAIR, duration)
+			UI.head(art_name), T.ETHER[d.early_damage.element].base, duration)
 	else:
 		# Each Region announces itself in its painted colour (specs/019 Banner).
 		b.show_banner("Region %d" % values.region, db.region(values.region).name, "sigil_region", T.REGION[values.region], duration)

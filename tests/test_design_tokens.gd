@@ -47,6 +47,12 @@ func test_every_colour_is_the_design_systems() -> void:
 			var element: String = {"lapis": "water", "ochre": "lightning", "amethyst": "shadow", "cinnabar": "fire"}[pigment]
 			var role := "bright" if n.ends_with("-bright") else "base"
 			eq(T.ETHER[element][role].to_html(false), _colour(tok.value).to_html(false), n)
+		elif n.begins_with("region-") and n.ends_with("-ground"):
+			var region: String = n.trim_prefix("region-").trim_suffix("-ground")
+			eq(T.REGION_GROUND[["jade", "marsh", "basin", "gath"].find(region) + 1].to_html(false), _colour(tok.value).to_html(false), n)
+		elif n.begins_with("lair-"):
+			var element: String = {"lapis": "water", "ochre": "lightning", "amethyst": "shadow", "cinnabar": "fire"}[n.trim_prefix("lair-").trim_suffix("-ground")]
+			eq(T.LAIR_GROUND[element].to_html(false), _colour(tok.value).to_html(false), n)
 		elif n.begins_with("region-"):
 			var region: String = n.trim_prefix("region-")
 			var got: Color = T.REGION_LAIR if region == "lair" else T.REGION[["jade", "marsh", "basin", "gath"].find(region) + 1]

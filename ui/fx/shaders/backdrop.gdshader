@@ -1,8 +1,9 @@
 shader_type canvas_item;
 // The table every screen stands on (specs/019 contracts/materials-and-ground.md): the
 // flat ground, and in play a large soft glow in the current Region's own tint behind
-// the Encounter or Region Card, so each Region feels like its painting. It replaces
-// the patterned stone of feature 006.
+// the Encounter or Region Card, so each Region feels like its painting. In play the
+// ground itself is the Region's own (T.REGION_GROUND), set by backdrop_layer.gd. It
+// replaces the patterned stone of feature 006.
 
 uniform vec4 ground : source_color = vec4(0.055, 0.082, 0.09, 1.0);
 uniform vec4 wash : source_color = vec4(0.0, 0.0, 0.0, 1.0);

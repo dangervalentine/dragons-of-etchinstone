@@ -5,7 +5,10 @@ extends "res://tests/base.gd"
 
 const T = preload("res://ui/theme/tokens.gd")
 
-const GROUNDS := {"GROUND": T.GROUND, "STONE": T.STONE, "STONE_RAISED": T.STONE_RAISED, "WELL": T.WELL}
+const GROUNDS := {"GROUND": T.GROUND, "STONE": T.STONE, "STONE_RAISED": T.STONE_RAISED, "WELL": T.WELL,
+	"REGION_GROUND 1": T.REGION_GROUND[1], "REGION_GROUND 2": T.REGION_GROUND[2], "REGION_GROUND 3": T.REGION_GROUND[3],
+	"REGION_GROUND 4": T.REGION_GROUND[4], "LAIR_GROUND water": T.LAIR_GROUND.water,
+	"LAIR_GROUND lightning": T.LAIR_GROUND.lightning, "LAIR_GROUND shadow": T.LAIR_GROUND.shadow, "LAIR_GROUND fire": T.LAIR_GROUND.fire}
 
 
 func _at_least(fg: Color, bg: Color, need: float, what: String) -> void:

@@ -156,10 +156,17 @@ const ETHER := {
 }
 ## Which character the card field shader draws for each Ether.
 const ETHER_ID := {"fire": 0, "water": 1, "lightning": 2, "shadow": 3}
-## Each Region's painted colour: the ground's wash, the banner's rim and medallion.
-const REGION := {1: Color("5f8a6e"), 2: Color("4d8080"), 3: Color("b5633a"), 4: Color("3f6b4a")}
-## The Final Journey and the dragon's lair.
+## Each Region's own colour, a hue apart from the others: the glow on the ground, the
+## banner's rim and medallion. Slate, teal, burnt copper, green.
+const REGION := {1: Color("7f8e95"), 2: Color("3f8f88"), 3: Color("b8703a"), 4: Color("4f8a4a")}
+## A won game's ending.
 const REGION_LAIR := Color("8a3b3a")
+## The whole ground in each Region: GROUND steeped in the Region's hue, so each leg of
+## the journey stands on its own country. Dark enough that text and edges keep their
+## contrast on it (test_palette_contrast).
+const REGION_GROUND := {1: Color("13181b"), 2: Color("0a1a1a"), 3: Color("20140b"), 4: Color("0d1a0e")}
+## The Final Battle's ground, by the dragon's Ether, under a glow of that Ether's base.
+const LAIR_GROUND := {"water": Color("0c1426"), "lightning": Color("1e170a"), "shadow": Color("170f25"), "fire": Color("220c0b")}
 ## Extends the design system (specs/019 R12): the colours of things the system does
 ## not name. Sword blades and metal glyphs; the time-penalty chip's glass; a locked
 ## dragon's silhouette; an unchosen dragon dimmed and hovered; the Deck's back.
