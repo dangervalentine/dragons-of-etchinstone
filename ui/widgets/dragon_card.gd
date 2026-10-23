@@ -60,11 +60,6 @@ var locked := false:
 const LOCKED_TONE := T.LOCKED
 const LOCKED_NAME := "? ? ?"
 var _creature := Creature.new()
-## The picture under the band, its foot rounded as the card's: the dragon is drawn
-## only inside it, so a dragon placed large (Art.DRAGON_PLACE) neither fills the
-## card's rounded corners square nor rises into the name band.
-var _window := Panel.new()
-var _window_style := StyleBoxFlat.new()
 var _chips: Array = []
 var _rows := {"figures": [], "mp": [], "hp": []}
 var _stone := StoneStyle.new("well", 0.5)
@@ -76,12 +71,7 @@ func _init() -> void:
 	# Clipped, the stone's drop shadow would show only in the bottom corners.
 	_stone.casts_shadow = false
 	_creature.held = true
-	_window.clip_children = CanvasItem.CLIP_CHILDREN_ONLY
-	_window.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_window_style.bg_color = Color.WHITE
-	_window.add_theme_stylebox_override("panel", _window_style)
-	add_child(_window)
-	_window.add_child(_creature)
+	add_child(_creature)
 	resized.connect(_fit)
 	_stone.changed.connect(queue_redraw)
 
@@ -197,15 +187,15 @@ func _fit() -> void:
 	_stone.round_radius = UI.card_radius(size.x)
 	if model.is_empty():
 		return
-	var top := size.y * LAYOUT.band.end.y
-	_window.position = Vector2(0, top)
-	_window.size = Vector2(size.x, size.y - top)
-	var corner := roundi(_stone.round_radius)
-	_window_style.corner_radius_bottom_left = corner
-	_window_style.corner_radius_bottom_right = corner
 	var at := art_rect(size, Art.dragon_body(model.art))
-	_creature.position = at.position - _window.position
+	_creature.position = at.position
 	_creature.size = at.size
+	# The dragon is cut by its own shader to the picture under the band, its foot
+	# rounded as the card's, so a dragon placed large (Art.DRAGON_PLACE) neither fills
+	# the rounded corners square nor rises into the name band. (A clipping parent
+	# drew white in place of the dragon on Android's GL.)
+	var top := size.y * LAYOUT.band.end.y
+	_creature.set_cut(Rect2(Vector2(0, top) - at.position, Vector2(size.x, size.y - top)), 0.0, 0.0, _stone.round_radius)
 	# The figures in one centred row.
 	var f: Rect2 = LAYOUT.figures
 	var row := Rect2(size * f.position, size * f.size)

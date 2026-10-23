@@ -20,6 +20,14 @@ uniform float pad = 0.0;
 // none while its alpha is 0. Its width is a share of the art's side, but never less
 // than line_min pixels on screen.
 uniform vec4 line_color : source_color = vec4(0.0);
+// The light of the scene a painted figure stands in (Art.ENEMY_LIGHT): a fill that
+// pulls its colours toward the scene's (fill.a, how far), and a rim of light along
+// the edges that face the light (rim.a, how bright), from rim_from, the direction the
+// light comes from, as x right and y down, and rim_width wide as a share of the art.
+uniform vec4 fill : source_color = vec4(1.0, 1.0, 1.0, 0.0);
+uniform vec4 rim : source_color = vec4(1.0, 1.0, 1.0, 0.0);
+uniform vec2 rim_from = vec2(1.0, 0.0);
+uniform float rim_width = 0.012;
 uniform float line_width = 0.0;
 uniform float line_min = 1.5;
 // Soft bones bend the art in place, with nothing cut out: each turns the art
@@ -44,6 +52,8 @@ uniform int bone_last[8];
 uniform bool cut = false;
 uniform vec4 cut_box = vec4(0.0);
 uniform vec2 cut_corners = vec2(0.0);
+// Or the frame's bottom corners rounded this far: the Dragon Card's foot.
+uniform float cut_round = 0.0;
 
 // The node's modulate, its parents' included (a screen fading in or out). It
 // arrives in the vertex colour, which writing COLOR would otherwise throw away.
@@ -68,6 +78,12 @@ float within_cut(vec2 p) {
 	}
 	if ((hi.x - p.x) + (p.y - lo.y) < cut_corners.x || (hi.x - p.x) + (hi.y - p.y) < cut_corners.y) {
 		return 0.0;
+	}
+	if (cut_round > 0.0 && p.y > hi.y - cut_round) {
+		float cx = p.x < lo.x + cut_round ? lo.x + cut_round : (p.x > hi.x - cut_round ? hi.x - cut_round : p.x);
+		if (length(p - vec2(cx, hi.y - cut_round)) > cut_round) {
+			return 0.0;
+		}
 	}
 	return 1.0;
 }
@@ -150,6 +166,24 @@ void fragment() {
 	float kept = within_cut(local);
 	if (painted) {
 		vec4 c = texture(TEXTURE, uv) * inside(uv);
+		if (fill.a > 0.0) {
+			// Lit by the scene: its colours multiplied toward the fill, keeping their
+			// lightness so the figure still reads.
+			float lum = dot(c.rgb, vec3(0.299, 0.587, 0.114));
+			vec3 lit = mix(c.rgb * fill.rgb * 1.6, vec3(lum) * fill.rgb * 1.8, 0.35);
+			c.rgb = mix(c.rgb, clamp(lit, 0.0, 1.0), fill.a);
+		}
+		if (rim.a > 0.0 && c.a > 0.0) {
+			// The rim: where the figure ends toward the light, a few steps along it.
+			vec2 d = normalize(rim_from) * rim_width;
+			float open = 0.0;
+			for (int k = 1; k <= 4; k++) {
+				vec2 o = uv + d * float(k) / 4.0;
+				open = max(open, (1.0 - texture(TEXTURE, o).a * inside(o)) * (1.0 - float(k - 1) * 0.2));
+			}
+			// Added as light, so it brightens the edge in the light's colour.
+			c.rgb = clamp(c.rgb + rim.rgb * open * rim.a, 0.0, 1.0);
+		}
 		if (line_color.a > 0.0) {
 			// The line: wherever the figure lies within its width, in two rings so a
 			// thin part (a staff, a horn) is not stepped over.
