@@ -361,6 +361,56 @@ static func enemy_shift(name: String) -> float:
 	return ENEMY_SHIFT.get(name, 0) / 100.0
 
 
+## A dragon's body is always its whole picture (<id>-full, uncut); its head is
+## <id>-head. Where each body is drawn, it is first fitted to its place (the Dragon
+## Card's room under its figures, the Final Enemy's lair floor, the ending screen's
+## stage), then placed by DRAGON_PLACE: per place and dragon, [size, x, y] in
+## percent. Size grows or shrinks it about its feet; x moves it right and y moves it
+## up, as a percentage of the place's width and height. Not listed: [100, 0, 0].
+## Tune them with tools/dragon_sizer.py, which draws each place with its guide.
+const DRAGON_PLACES := ["card", "battle", "ending"]
+const DRAGON_PLACE := {
+	"card": {
+		"grimroch": [126, -37, -10],
+		"helsang": [124, -36, -12],
+		"rodving": [136, -26, -8],
+		"vuurhast": [109, -15, -6],
+	},
+	"battle": {
+		"grimroch": [150, -20, -20],
+		"helsang": [150, -20, -20],
+		"rodving": [150, -20, -20],
+		"vuurhast": [150, -20, -20],
+	},
+	"ending": {
+		"grimroch": [140, -5, -40],
+		"helsang": [140, -5, -30],
+		"rodving": [140, 5, -40],
+		"vuurhast": [140, 5, -40],
+	},
+}
+
+
+static func dragon_body(id: String) -> String:
+	return id + "-full"
+
+
+## [size, x, y] as fractions for a dragon in a place.
+static func dragon_place(place: String, id: String) -> Vector3:
+	var p: Array = DRAGON_PLACE.get(place, {}).get(id.trim_suffix("-full"), [100, 0, 0])
+	return Vector3(p[0], p[1], p[2]) / 100.0
+
+
+## The square a dragon's art is drawn in once placed: `fitted` is where the place puts
+## it, `feet` its feet in the art's 512 units, `room` the place's size.
+static func placed(fitted: Rect2, feet: Vector2, room: Vector2, place: String, id: String) -> Rect2:
+	var p := dragon_place(place, id)
+	var k := fitted.size.x / FULL.size.x
+	var k2 := k * p.x
+	var at := fitted.position + feet * k - feet * k2 + Vector2(room.x * p.y, -room.y * p.z)
+	return Rect2(at, FULL.size * k2)
+
+
 ## The soft bones a picture bends by, or []: each as in BONES, and last, the index
 ## of the last bone it carries (itself, or the tip of its chain).
 static func bones(name: String) -> Array:

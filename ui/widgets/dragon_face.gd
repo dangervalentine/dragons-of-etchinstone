@@ -123,9 +123,8 @@ func _build(enc: Dictionary) -> void:
 		band.add_child(UI.icon_rect("sigil_" + d.id, 44, T.ether_ink(enc.element)))
 		body.add_child(_stage)
 		_road.setup(enc.scene, Color(colour.lightened(0.75), 1.0), "", false)
-		# The full-body picture, whole and uncut (the ending screen's).
-		var whole: String = enc.art + "-full"
-		_beast.setup(whole if UI.is_painted(whole) else enc.art, Color(colour.lightened(0.4), 0.9), enc.element, false)
+		# The whole picture, uncut, as everywhere a dragon's body is drawn.
+		_beast.setup(Art.dragon_body(enc.art), Color(colour.lightened(0.4), 0.9), enc.element, false)
 		_approach.texture = UI.painted("roads/" + enc.art)
 		_lair.texture = UI.painted("lairs/" + enc.art)
 	_road.visible = _approach.texture == null
@@ -151,10 +150,12 @@ func _build(enc: Dictionary) -> void:
 		eyebrow.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_panel.add_child(eyebrow)
 		# One row of figures, named once underneath; each explains itself when pressed.
-		var stats := HFlowContainer.new()
-		stats.alignment = FlowContainer.ALIGNMENT_CENTER
-		stats.add_theme_constant_override("h_separation", T.SPACE_4)
-		stats.add_theme_constant_override("v_separation", 2)
+		# Always one row: a dragon with more Armor sets its figures closer, so all of
+		# them fit across the panel instead of wrapping.
+		var stats := HBoxContainer.new()
+		stats.alignment = BoxContainer.ALIGNMENT_CENTER
+		var count: int = 2 + d.armor.size()
+		stats.add_theme_constant_override("separation", T.SPACE_4 if count <= 3 else (T.SPACE_2 if count == 4 else T.SPACE_1))
 		stats.add_child(_chip({"icon": "initiative", "text": str(d.initiative), "color": T.STAT_PLATE,
 			"glossary_id": "initiative", "min_size": Vector2(44, 44)}))
 		# The Early Damage as printed: its number on the Attack badge in its Ether's
@@ -282,12 +283,21 @@ func _place(crossing: bool) -> void:
 	_fit_ladder(panel)
 	if _tween != null and _tween.is_valid():
 		_tween.kill()
-	_scene.position = Vector2.ZERO
-	_scene.size = Vector2(w, h)
-	_road.position = road.position
+	# The scene covers the face's picture under the band, as the painted backdrops do,
+	# and clips to it, so a dragon placed large (Art.DRAGON_PLACE) is cut at the
+	# card's edge instead of drawing past it.
+	var field := Rect2(Vector2(EDGE, BAND_H) - (_stage.global_position - global_position),
+		Vector2(size.x - 2 * EDGE, size.y - BAND_H - EDGE))
+	_scene.clip_contents = true
+	_scene.position = field.position
+	_scene.size = field.size
+	_road.position = road.position - field.position
 	_road.size = road.size
 	_road.visible = _approach.texture == null
-	_beast.position = beast.position
+	if _beast.art_name != "":
+		var b: Rect2 = load("res://ui/widgets/encounter_face.gd").figure_bounds(_beast.art_name)
+		beast = Art.placed(beast, Vector2(b.get_center().x, b.end.y), Vector2(w, h), "battle", _beast.art_name)
+	_beast.position = beast.position - field.position
 	_beast.size = beast.size
 	_beast.crop = Art.FULL
 	_panel.size = panel.size

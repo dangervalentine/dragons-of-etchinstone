@@ -6,6 +6,7 @@ const T = preload("res://ui/theme/tokens.gd")
 const StoneStyle = preload("res://ui/theme/stone_style.gd")
 const UI = preload("res://ui/theme/theme.gd")
 const Creature = preload("res://ui/fx/creature.gd")
+const Art = preload("res://ui/model/art.gd")
 
 signal intent(data: Dictionary)
 
@@ -69,7 +70,7 @@ func render(vs: Dictionary) -> void:
 	# it start at its top; the art is whole and unclipped around it, so a tail swaying
 	# past the box is still drawn.
 	# The dragon's full-body picture; its plain picture is cut to the Dragon Card.
-	var body: String = vs.stage.art + "-full"
+	var body: String = Art.dragon_body(vs.stage.art)
 	var drawn := _drawn(body)
 	var place := Control.new()
 	place.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -97,8 +98,10 @@ func render(vs: Dictionary) -> void:
 		tall = minf(tall, (stage.size.x - 360.0) / aspect)
 		var k := tall / drawn.size.y
 		place.custom_minimum_size = drawn.size * k
-		sigil.position = -drawn.position * k
-		sigil.size = Vector2(512, 512) * k
+		var fitted := Rect2(-drawn.position * k, Vector2(512, 512) * k)
+		var at := Art.placed(fitted, Vector2(drawn.get_center().x, drawn.end.y), Vector2(stage.size.x, tall), "ending", body)
+		sigil.position = at.position
+		sigil.size = at.size
 		row.size = Vector2(stage.size.x, tall))
 	left.add_child(stage)
 	root.add_child(left)

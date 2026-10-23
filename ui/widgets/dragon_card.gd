@@ -60,6 +60,11 @@ var locked := false:
 const LOCKED_TONE := T.LOCKED
 const LOCKED_NAME := "? ? ?"
 var _creature := Creature.new()
+## The picture under the band, its foot rounded as the card's: the dragon is drawn
+## only inside it, so a dragon placed large (Art.DRAGON_PLACE) neither fills the
+## card's rounded corners square nor rises into the name band.
+var _window := Panel.new()
+var _window_style := StyleBoxFlat.new()
 var _chips: Array = []
 var _rows := {"figures": [], "mp": [], "hp": []}
 var _stone := StoneStyle.new("well", 0.5)
@@ -71,7 +76,12 @@ func _init() -> void:
 	# Clipped, the stone's drop shadow would show only in the bottom corners.
 	_stone.casts_shadow = false
 	_creature.held = true
-	add_child(_creature)
+	_window.clip_children = CanvasItem.CLIP_CHILDREN_ONLY
+	_window.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_window_style.bg_color = Color.WHITE
+	_window.add_theme_stylebox_override("panel", _window_style)
+	add_child(_window)
+	_window.add_child(_creature)
 	resized.connect(_fit)
 	_stone.changed.connect(queue_redraw)
 
@@ -87,8 +97,8 @@ func render(m: Dictionary) -> void:
 	_rows = {"figures": [], "mp": [], "hp": []}
 	var d: Dictionary = m.dragon
 	var e: String = m.element
-	if m.art != "" and _creature.art_name != m.art:
-		_creature.setup(m.art, Color(T.ether(e).lightened(0.3), 0.6), e, false)
+	if m.art != "" and _creature.art_name != Art.dragon_body(m.art):
+		_creature.setup(Art.dragon_body(m.art), Color(T.ether(e).lightened(0.3), 0.6), e, false)
 	_creature.silhouette(LOCKED_TONE if locked else Color(T.SHADE, 0))
 	if locked:
 		_fit()
@@ -138,14 +148,19 @@ static func target_rect(card_size: Vector2, target: String, _aspect := 1.0) -> R
 ## Where the art is drawn on a card of `card_size`: the dragon's box on its artboard
 ## (Art.BODY, where the head already clears the HP Tiers) as large as it fits under
 ## the row of figures, held in from the card's edges, and centred there, the ladders
-## lying over it as printed.
-static func art_rect(card_size: Vector2) -> Rect2:
-	var body := Art.BODY
+## lying over it as printed. `name` is the dragon's whole picture (Art.dragon_body):
+## the figure it draws is fitted to the room, centred, its feet on the room's foot,
+## then placed by Art.DRAGON_PLACE.card.
+static func art_rect(card_size: Vector2, name := "") -> Rect2:
 	var top := LAYOUT.figures.end.y + ART_GAP
 	var room := Rect2(card_size * Vector2(ART_SIDE, top), card_size * Vector2(1.0 - 2.0 * ART_SIDE, 1.0 - top - ART_SIDE))
-	var k := minf(room.size.x / body.size.x, room.size.y / body.size.y)
-	var at := room.get_center() - body.get_center() * k
-	return Rect2(at, Art.FULL.size * k)
+	var b: Rect2 = Art.BODY if name == "" else load("res://ui/widgets/encounter_face.gd").figure_bounds(name)
+	var k := minf(room.size.x / b.size.x, room.size.y / b.size.y)
+	var feet := Vector2(b.get_center().x, b.end.y)
+	var fitted := Rect2(Vector2(room.get_center().x, room.end.y) - feet * k, Art.FULL.size * k)
+	if name == "":
+		return fitted
+	return Art.placed(fitted, feet, card_size, "card", name)
 
 
 ## The words for each figure: the opening figures, each Armor, and each tier with
@@ -182,8 +197,14 @@ func _fit() -> void:
 	_stone.round_radius = UI.card_radius(size.x)
 	if model.is_empty():
 		return
-	var at := art_rect(size)
-	_creature.position = at.position
+	var top := size.y * LAYOUT.band.end.y
+	_window.position = Vector2(0, top)
+	_window.size = Vector2(size.x, size.y - top)
+	var corner := roundi(_stone.round_radius)
+	_window_style.corner_radius_bottom_left = corner
+	_window_style.corner_radius_bottom_right = corner
+	var at := art_rect(size, Art.dragon_body(model.art))
+	_creature.position = at.position - _window.position
 	_creature.size = at.size
 	# The figures in one centred row.
 	var f: Rect2 = LAYOUT.figures
