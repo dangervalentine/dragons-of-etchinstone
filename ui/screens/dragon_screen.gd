@@ -201,15 +201,28 @@ func _fit_cards() -> void:
 		return
 	# Measured on the layout, which keeps its size, not on the column, which grows
 	# when the cards outgrow it.
-	var cols := float(_table.columns)
-	var width := (_layout.size.x - (cols + 1.0) * RULE) / cols - 2.0 * DragonPick.GLOW
 	var lines := 0.0
 	for line in _flavours.values():
 		lines = maxf(lines, line.get_combined_minimum_size().y)
-	var room := _layout.size.y - _bottom.custom_minimum_size.y - lines - 2.0 * T.SPACE_2 - 3.0 * RULE - 3.0 * T.SPACE_2
-	var h := minf(DragonCard.card_size(maxf(1.0, width)).y + 2.0 * DragonPick.GLOW, room)
+	var h := card_row_height(_layout.size, lines)
 	for tile in _tiles.values():
 		tile.custom_minimum_size.y = maxf(tile.get_minimum_size().y, floorf(h))
+
+
+## The cards' row on a layout of `layout` with flavour `lines` tall under it: a
+## card at the column's width, or what the screen leaves for it.
+static func card_row_height(layout: Vector2, lines: float) -> float:
+	var cols := 4.0
+	var width := (layout.x - (cols + 1.0) * RULE) / cols - 2.0 * DragonPick.GLOW
+	var room := layout.y - T.TAP_MIN - lines - 2.0 * T.SPACE_2 - 3.0 * RULE - 3.0 * T.SPACE_2
+	return floorf(minf(DragonCard.card_size(maxf(1.0, width)).y + 2.0 * DragonPick.GLOW, room))
+
+
+## The whole table's height on a layout of `layout`, its flavour at the lines it
+## keeps: the next step's table matches it (owner, 2026-10-23).
+static func table_height(layout: Vector2) -> float:
+	var lines := UI.font(T.BODY_SM).get_height(T.BODY_SM.size) * FLAVOUR_LINES
+	return card_row_height(layout, lines) + lines + 2.0 * T.SPACE_2 + 3.0 * RULE
 
 
 ## The dragons by their Ether: Fire, Lightning, Water, Shadow.

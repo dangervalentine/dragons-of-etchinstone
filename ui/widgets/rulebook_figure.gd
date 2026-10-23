@@ -8,10 +8,13 @@ const UI = preload("res://ui/theme/theme.gd")
 const Art = preload("res://ui/model/art.gd")
 const ViewState = preload("res://ui/model/view_state.gd")
 const CardFace = preload("res://ui/widgets/card_face.gd")
-## The least height of an Encounter face on the page: a Region Enemy's four badge
-## rows with the Key Card line under the art (300, as play's face needed before
-## feature 013 replaced it with the printed panel).
-const FACE_MIN := 300.0
+## The badges' least size on the page, so an Armor shield (0.92 of it) is still a
+## tap target; and the face's height round four rows of them (its band, margins and
+## gaps; face_frame.gd and encounter_face.gd _fit()).
+const BADGE_MIN := 48.0
+const FACE_CHROME := 110.0
+## The Key Card line under the face, and the gap above it.
+const CAPTION_H := 30.0
 const EncounterFace = preload("res://ui/widgets/encounter_face.gd")
 const DragonStats = preload("res://ui/widgets/dragon_stats.gd")
 const Glossary = preload("res://ui/model/glossary.gd")
@@ -82,15 +85,25 @@ static func _encounter(db, kind: String, size: Vector2, on_help: Callable) -> Co
 			key_id = id
 			break
 	var key := {"id": key_id, "name": db.mage(key_id).name, "level": LEVEL, "element": db.mage(key_id).element}
+	var enc: Dictionary = ViewState.encounter_model(db, 1, kind, 1, null, key)
+	var col := UI.vbox(T.SPACE_1)
 	var face := EncounterFace.new()
-	# Badges a little smaller than play's, and never less height than they need, so
-	# the face fits above the page's terms with its caption inside the frame.
-	face.badge_min = 48.0
-	face.show_key_line = true
-	face.custom_minimum_size = Vector2(size.x, clampf(size.y, FACE_MIN, 360.0))
+	# The face takes the room the page gives it (owner, 2026-10-23: every page the
+	# same height, so nothing may grow it), its badges as large as that allows; the
+	# Key Card line goes under the frame, and only where there is room for it.
+	var with_caption := size.y - CAPTION_H - T.SPACE_1 >= FACE_CHROME + 4.0 * BADGE_MIN
+	face.badge_min = BADGE_MIN
+	face.custom_minimum_size = Vector2(size.x, minf(size.y - (CAPTION_H + T.SPACE_1 if with_caption else 0.0), 360.0))
 	face.intent.connect(func(d): on_help.call(d))
-	face.render(ViewState.encounter_model(db, 1, kind, 1, null, key))
-	return face
+	face.render(enc)
+	col.add_child(face)
+	if with_caption:
+		var caption := UI.label("%s · Key Card %s, Level %d" % [enc.subtitle, enc.key_card.name, enc.key_card.level], T.BODY_SM, T.PARCHMENT_MUTED)
+		caption.clip_text = true
+		caption.custom_minimum_size = Vector2(size.x, CAPTION_H)
+		caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		col.add_child(caption)
+	return col
 
 
 static func _dragon(db, size: Vector2) -> Control:

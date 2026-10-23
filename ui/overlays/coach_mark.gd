@@ -64,7 +64,7 @@ func _init() -> void:
 	d.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(d)
 	_dims.append(d)
-	bubble.add_theme_stylebox_override("panel", UI.tooltip_box())
+	bubble.add_theme_stylebox_override("panel", UI.paper_box(T.SPACE_2))
 	bubble.mouse_filter = Control.MOUSE_FILTER_STOP
 	var col := UI.vbox(T.SPACE_2)
 	bubble.add_child(col)
@@ -215,7 +215,7 @@ func _set_dims_filter(f: int) -> void:
 func _measure(width: float) -> Vector2:
 	if not is_equal_approx(width, _width):
 		_width = width
-		var pad: float = UI.tooltip_box().get_margin(SIDE_LEFT) + UI.tooltip_box().get_margin(SIDE_RIGHT)
+		var pad: float = UI.paper_box(T.SPACE_2).get_margin(SIDE_LEFT) + UI.paper_box(T.SPACE_2).get_margin(SIDE_RIGHT)
 		_text.custom_minimum_size.x = width - pad
 		_text.size.x = width - pad
 		bubble.custom_minimum_size.x = width

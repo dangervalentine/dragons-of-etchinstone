@@ -8,7 +8,7 @@ const HelpTip = preload("res://ui/widgets/help_tip.gd")
 ## At most this many entries to a page; fewer when their text will not fit.
 const PER_PAGE := 8
 const MARGIN := 20
-## The paper sheet's margin round the entries.
+## The sheet's margin round the entries.
 const SHEET_PAD := T.SPACE_2
 ## Entries read together, kept on one page: the four Ethers.
 const KEEP_TOGETHER := [["fire", "water", "lightning", "shadow"]]
@@ -60,6 +60,9 @@ func _show_page() -> void:
 	var pages := _pages.size()
 	_page = clampi(_page, 0, pages - 1)
 	var p := UI.slab(Color(T.SHADE, 0), MARGIN)
+	# The whole glossary is dark, parchment on near-black for the most contrast
+	# (owner, 2026-10-23: no paper, and not only the entries).
+	p.get_theme_stylebox("panel").face = T.WELL
 	p.position = _content.position
 	p.size = _content.size
 	_panel = p
@@ -77,10 +80,9 @@ func _show_page() -> void:
 	clear.custom_minimum_size.x = close_clearance(MARGIN)
 	head.add_child(clear)
 	col.add_child(head)
-	# The entries are read, so they are printed on paper inside the slab (specs/019
-	# FR-020).
+	# The entries have no sheet of their own: they lie on the glossary's dark face.
 	var sheet := PanelContainer.new()
-	sheet.add_theme_stylebox_override("panel", UI.paper_box(SHEET_PAD))
+	sheet.add_theme_stylebox_override("panel", UI.box(Color(T.SHADE, 0), Color(T.SHADE, 0), 0, 0, SHEET_PAD))
 	sheet.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	var grid := GridContainer.new()
 	grid.columns = 2
@@ -89,11 +91,11 @@ func _show_page() -> void:
 	for e in all.slice(_pages[_page][0], _pages[_page][1]):
 		var row := UI.hbox(T.SPACE_4)
 		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		row.add_child(UI.icon_rect(e.icon if e.icon != "" else "help", 36, UI.paper_ink(e.id)))
+		row.add_child(UI.icon_rect(e.icon if e.icon != "" else "help", 36, UI.icon_ink(e.id)))
 		var text := UI.vbox(0)
 		text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		text.add_child(UI.label(e.name, T.HEADING, T.PAPER_INK))
-		var desc := UI.label(e.text, T.BODY_SM, T.PAPER_MUTED, true)
+		text.add_child(UI.label(e.name, T.HEADING, T.PARCHMENT))
+		var desc := UI.label(e.text, T.BODY_SM, T.PARCHMENT, true)
 		desc.custom_minimum_size.x = _desc_w()
 		text.add_child(desc)
 		row.add_child(text)

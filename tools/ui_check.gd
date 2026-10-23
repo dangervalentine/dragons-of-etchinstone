@@ -1259,7 +1259,7 @@ func _rulebook_walk(where: String) -> void:
 			c.modulate.a = 1.0
 		var at: Dictionary = book.shown()
 		var label := "%s rulebook %s p%d" % [where, Rulebook.SECTIONS[at.section].id, at.page + 1]
-		_ok(book.fits(), "%s: the page does not fit (%s in %s)" % [label, str(book._panel.get_combined_minimum_size()), str(book._content.size)])
+		_ok(book.fits(), "%s: the page does not fit (%s in %s)" % [label, str(book._body.get_combined_minimum_size()), str(book._frame.size)])
 		_inspect_screen(label)
 		var chips: Array = book.find_children("*", "Button", true, false).filter(func(b): return b.has_meta("term"))
 		_ok(chips.size() == Rulebook.terms(at.section, at.page).size(), "%s: %d terms chips for %d terms" % [label, chips.size(), Rulebook.terms(at.section, at.page).size()])

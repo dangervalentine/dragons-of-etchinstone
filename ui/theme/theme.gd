@@ -113,16 +113,15 @@ static func build_theme() -> Theme:
 	theme.default_font = font(T.BODY)
 	theme.default_font_size = T.BODY.size
 	theme.set_color("font_color", "Label", T.PARCHMENT)
-	# Tooltips are printed on paper (specs/019 FR-020), so the text never mixes with
-	# what is beneath.
+	# Tooltips are a raised stone sheet, so the text never mixes with what is beneath.
 	theme.set_stylebox("panel", "TooltipPanel", tooltip_box())
-	theme.set_color("font_color", "TooltipLabel", T.PAPER_INK)
+	theme.set_color("font_color", "TooltipLabel", T.PARCHMENT)
 	theme.set_font_size("font_size", "TooltipLabel", T.BODY_SM.size)
 	return theme
 
 
-## Paper, for what is read at length (specs/019 contracts/materials-and-ground.md):
-## coach tips, the glossary, rulebook pages, the unspent XP question. A dim, warm
+## Paper (specs/019 contracts/materials-and-ground.md): coach tips and the unspent
+## XP question; the glossary and the rulebook moved to stone (owner, 2026-10-23). A dim, warm
 ## sheet with a darker paper edge, rounded as paper is, lifted off the table by the
 ## card shadow. Text on it is PAPER_INK, PAPER_MUTED for the secondary.
 static func paper_box(margin: int = T.SPACE_3) -> StyleBoxFlat:
@@ -133,9 +132,15 @@ static func paper_box(margin: int = T.SPACE_3) -> StyleBoxFlat:
 	return s
 
 
-## Every tooltip, the help a tap opens and the coach's message: paper.
+## Every tooltip and the help a tap opens: a raised stone sheet with the etched rim,
+## lifted off the table by the card shadow, its text parchment (owner, 2026-10-23:
+## no paper behind the glossary).
 static func tooltip_box() -> StyleBoxFlat:
-	return paper_box(T.SPACE_2)
+	var s := box(T.STONE_RAISED, T.EDGE, T.BORDER_ETCH, T.RADIUS_PLATE, T.SPACE_2)
+	s.shadow_color = T.SHADOW_CARD.colour
+	s.shadow_size = int(T.SHADOW_CARD.blur / 2.0)
+	s.shadow_offset = Vector2(0, T.SHADOW_CARD.drop)
+	return s
 
 
 ## Notes the size of text a widget drew by hand at `site`, with the least it may be,
@@ -154,7 +159,7 @@ static func wrapped_tooltip(text: String, width := 340.0, icon_name := "") -> Co
 	var cut := text.find(": ")
 	if cut > 0 and cut < 32:
 		return entry_content(text.left(cut), text.substr(cut + 2), icon_name, width)
-	var l := label(text, T.BODY_SM, T.PAPER_INK, true)
+	var l := label(text, T.BODY_SM, T.PARCHMENT, true)
 	l.custom_minimum_size.x = minf(width, font(T.BODY_SM).get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, T.BODY_SM.size).x + 2)
 	return l
 
@@ -168,12 +173,12 @@ static func entry_content(title: String, body: String, icon_name := "", width :=
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", T.SPACE_2)
 	if icon_name != "":
-		head.add_child(icon_rect(icon_name, 26, paper_ink(icon_name)))
-	var t := label(title, T.HEADING, T.PAPER_INK)
+		head.add_child(icon_rect(icon_name, 26, icon_ink(icon_name)))
+	var t := label(title, T.HEADING, T.PARCHMENT)
 	t.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	head.add_child(t)
 	col.add_child(head)
-	var l := label(body, T.BODY_SM, T.PAPER_INK, true)
+	var l := label(body, T.BODY_SM, T.PARCHMENT, true)
 	l.custom_minimum_size.x = width
 	col.add_child(l)
 	return col

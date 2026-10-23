@@ -54,9 +54,9 @@ const SECTIONS := [
 			{"p": "Your sixteen Mage Cards are your spells, your shield and your clock. Each belongs to one of the four Ethers, shown by its colour and the mark beside its name."},
 			{"p": "A card has four [[crown|Levels]], each with its own figures; higher is stronger. Only the current Level counts, and it is the only one drawn; hold a card to see all four."},
 			{"list": [
-				"The strip under the name: the Encounter this card brings as [[key_card|Key Card]], and any Hardship.",
+				"The strip under the name: the Encounter it brings as [[key_card|Key Card]], and any Hardship.",
 				"{icon:initiative} Initiative: your speed when it is the Element.",
-				"Basic and [[enhanced|enhanced action]]: the Attack or Move it gives as the Spell.",
+				"Basic and [[enhanced|enhanced action]]: its Attack or Move as the Spell.",
 				"{icon:boost} Boost, {icon:armor} Armor and the {icon:xp} XP cost of its next Level.",
 			]},
 		], "aside": [
@@ -90,7 +90,7 @@ const SECTIONS := [
 				"Three {icon:mp} MP tiers for the Final Journey, each with the time it costs.",
 				"Three {icon:hp} HP tiers for the Final Enemy, each with the damage it hits back with.",
 			]},
-			{"p": "Reaching a higher tier always costs you less. The dragon screen shows all of these, so compare the dragons before you choose."},
+			{"p": "A higher tier always costs you less. Compare the dragons on the dragon screen before you choose."},
 		], "aside": [
 			{"figure": "dragon"},
 		]},
@@ -148,7 +148,7 @@ const SECTIONS := [
 			{"p": "The card left out is your [[reserve|Reserve]]. It stays in your Hand for the next Encounter."},
 		]},
 		{"text": [
-			{"p": "Your Hand is held in the rulebook's order, from the left: Reserve, Element, Spell, Boost. The Hand is dealt into those places in the order it was drawn; tap two cards, or drag one onto another, to swap their Roles. Against an Enemy, tap Attack or Initiative in the box under the Encounter to add the Boost there."},
+			{"p": "Your Hand is held in the rulebook's order, from the left: Reserve, Element, Spell, Boost, dealt in the order it was drawn. Tap two cards, or drag one onto another, to swap their Roles. Against an Enemy, tap Attack or Initiative under the Encounter to add the Boost there."},
 			{"p": "A Spell whose actions do not suit the Encounter still counts, at a value of 1. Actions marked with both the Attack and the Move icon work as either."},
 			{"p": "With fewer than three cards in your Hand, as after a Divert, fill the Roles you can; one of them must be the Spell."},
 			{"p": "Without an Element your Initiative is 0, apart from any Boost you put into it."},
@@ -365,8 +365,8 @@ static func step(pos: Dictionary, delta: int) -> Dictionary:
 static func page(section: int, page_index: int) -> Dictionary:
 	var raw: Dictionary = SECTIONS[section].pages[page_index]
 	return {
-		"text": _expand_all(raw.get("text", [])),
-		"aside": _expand_all(raw.get("aside", [])),
+		"text": _expand_all(raw.get("text", []), false),
+		"aside": _expand_all(raw.get("aside", []), false),
 		"terms": terms(section, page_index),
 	}
 
@@ -391,8 +391,9 @@ static func terms_in(strings: Array) -> Array:
 	return out
 
 
-## Marks to BBCode: bold terms, inline icons and engine numbers.
-static func expand(text: String) -> String:
+## Marks to BBCode: bold terms, inline icons and engine numbers. `on_paper` for the
+## lessons' messages, printed on paper; the rulebook's pages are stone.
+static func expand(text: String, on_paper := true) -> String:
 	_compile()
 	var out := text
 	for m in _term_re.search_all(text):
@@ -400,9 +401,14 @@ static func expand(text: String) -> String:
 		out = out.replace(m.get_string(0), "[b]%s[/b]" % words)
 	for m in _icon_re.search_all(text):
 		var id := m.get_string(1)
-		# Printed on paper, in the rulebook and the lessons' messages: an Ether in its deep
-		# pigment, any other sign in the paper's ink (specs/019 FR-020).
-		var colour: Color = T.ether_shade(id, "paper") if T.ETHER.has(id) else T.PAPER_INK
+		# On paper (the lessons' messages): an Ether in its deep pigment, any other sign
+		# in the paper's ink (specs/019 FR-020). On stone (the rulebook's pages), an
+		# Ether in its own ink, any other sign in parchment.
+		var colour: Color
+		if on_paper:
+			colour = T.ether_shade(id, "paper") if T.ETHER.has(id) else T.PAPER_INK
+		else:
+			colour = T.ether_ink(id) if T.ETHER.has(id) else T.PARCHMENT
 		out = out.replace(m.get_string(0), "[img width=%d height=%d color=#%s]res://art/icons/%s.svg[/img]" % [ICON_SIZE, ICON_SIZE, colour.to_html(false), id])
 	for m in _number_re.search_all(text):
 		out = out.replace(m.get_string(0), str(NUMBERS.get(m.get_string(1), m.get_string(0))))
@@ -427,23 +433,23 @@ static func _compile() -> void:
 	_number_re = RegEx.create_from_string("\\{n:([A-Z_]+)\\}")
 
 
-static func _expand_all(blocks: Array) -> Array:
+static func _expand_all(blocks: Array, on_paper := true) -> Array:
 	var out := []
 	for b in blocks:
-		out.append(_expand_value(b))
+		out.append(_expand_value(b, on_paper))
 	return out
 
 
-static func _expand_value(v):
+static func _expand_value(v, on_paper := true):
 	if v is String:
-		return expand(v)
+		return expand(v, on_paper)
 	if v is Array:
-		return v.map(func(x): return _expand_value(x))
+		return v.map(func(x): return _expand_value(x, on_paper))
 	if v is Dictionary:
 		var d := {}
 		for k in v:
 			# A figure or a generated table names a kind; it is not text.
-			d[k] = v[k] if k == "figure" or (k == "table" and v[k] is String) else _expand_value(v[k])
+			d[k] = v[k] if k == "figure" or (k == "table" and v[k] is String) else _expand_value(v[k], on_paper)
 		return d
 	return v
 

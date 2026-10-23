@@ -29,12 +29,14 @@ const CHIP_TEXT := T.TEXT_MIN
 const CHIP_ICON := 26
 ## Room either side of the text in a table's cell.
 const CELL_PAD := 8
-## The paper page's margin round its text and aside.
+## The page's margin above and below its text and aside, and either side of them.
 const PAGE_PAD := T.SPACE_1
-## The text's share of the page's width, by what its aside holds: only the terms, the
-## narrow Mage Card, or a wide table or Encounter. The body text grew to the design
-## system's (specs/019), so a page gives its text the room its aside does not need.
-const TEXT_SHARE := {"terms": 0.7, "mage": 0.63, "table": 0.62}
+## (Between the space scale's 7 and 15: the widest aside, a dragon's Armor row, needs the rest.)
+const PAGE_SIDE := 12
+## The text's share of the page's width: one for every page, so the columns and the
+## rule between them stay put as the pages turn (owner, 2026-10-23); the widest
+## aside, a table or an Encounter, sets it.
+const TEXT_SHARE := 0.615
 ## Previous and Next, alike so Contents sits in the middle between them.
 const FOOT_W := 240
 
@@ -45,6 +47,7 @@ var _panel: PanelContainer
 var _title: Label
 var _where: Label
 var _body: VBoxContainer
+var _frame: Control
 var _prev: Button
 var _next: Button
 var _close: Button
@@ -141,9 +144,13 @@ func shown() -> Dictionary:
 	return _pos.duplicate()
 
 
-## True when everything on the page fits inside the content rectangle.
+## True when everything on the page fits inside the content rectangle: the book
+## within it, and the page within the frame it lies in.
 func fits() -> bool:
-	return _panel.get_combined_minimum_size().y <= _content.size.y + 0.5 and _panel.get_combined_minimum_size().x <= _content.size.x + 0.5
+	var page := _body.get_combined_minimum_size()
+	var room := _frame.size if _frame.size.y > 0.0 else Vector2(_inner_w + COLUMN_GAP, _body_height())
+	return _panel.get_combined_minimum_size().y <= _content.size.y + 0.5 and _panel.get_combined_minimum_size().x <= _content.size.x + 0.5 \
+		and page.y <= room.y + 0.5 and page.x <= room.x + 0.5
 
 
 # ---------------------------------------------------------------- frame
@@ -157,6 +164,9 @@ func _build(content: Rect2) -> void:
 		remove_child(_panel)
 		_panel.queue_free()
 	_panel = UI.slab(Color(T.SHADE, 0), PAD)
+	# The whole book is dark, parchment on near-black for the most contrast (owner,
+	# 2026-10-23: no paper, and not only the page).
+	_panel.get_theme_stylebox("panel").face = T.WELL
 	_panel.position = content.position
 	_panel.size = content.size
 	for c in _caps:
@@ -164,8 +174,9 @@ func _build(content: Rect2) -> void:
 	_caps = []
 	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	var inner := content.size.x - PAD * 2 - COLUMN_GAP
-	_inner_w = inner - 2 * PAGE_PAD
-	_split(TEXT_SHARE.table)
+	_inner_w = inner - 2 * PAGE_SIDE
+	_text_w = floorf(_inner_w * TEXT_SHARE)
+	_aside_w = floorf(_inner_w - _text_w)
 	# Heading, page and footer close together, so the page has the most room.
 	var col := UI.vbox(T.SPACE_1)
 
@@ -186,13 +197,23 @@ func _build(content: Rect2) -> void:
 	head.add_child(clear)
 	col.add_child(head)
 
-	# The page is printed on paper, inside the stone frame (specs/019 FR-020).
+	# The page has no sheet of its own: it lies on the book's dark face.
 	var sheet := PanelContainer.new()
-	sheet.add_theme_stylebox_override("panel", UI.paper_box(PAGE_PAD))
+	var well := UI.box(Color(T.SHADE, 0), Color(T.SHADE, 0), 0, 0, PAGE_PAD)
+	well.content_margin_left = PAGE_SIDE
+	well.content_margin_right = PAGE_SIDE
+	sheet.add_theme_stylebox_override("panel", well)
 	sheet.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	# The page lies in a plain frame that asks for no room of its own, so no page can
+	# grow the book: every page is the same size (owner, 2026-10-23). fits() still
+	# checks each page fits it.
+	_frame = Control.new()
+	_frame.clip_contents = true
+	_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_body = UI.vbox(0)
-	_body.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	sheet.add_child(_body)
+	_body.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_frame.add_child(_body)
+	sheet.add_child(_frame)
 	col.add_child(sheet)
 
 	# Previous and Next at the two ends, Contents midway between them: the ends are
@@ -258,10 +279,6 @@ func _contents_view() -> Control:
 # ---------------------------------------------------------------- pages
 
 func _page_view(p: Dictionary) -> Control:
-	var holds := "terms"
-	for b in p.aside:
-		holds = "mage" if b.get("figure") == "mage" and holds == "terms" else ("table" if b.has("figure") or b.has("table") else holds)
-	_split(TEXT_SHARE["table" if _pos.section == 0 and _pos.page == 0 else holds])
 	var page := UI.vbox(T.SPACE_2)
 	page.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	# The two columns, divided by a rule down the middle of the gap between them.
@@ -284,21 +301,20 @@ func _page_view(p: Dictionary) -> Control:
 	for b in p.aside:
 		if b.has("figure"):
 			var room := Vector2(_aside_w, _body_height() - (terms_h + T.SPACE_1 if terms_h > 0.0 else 0.0))
-			# A figure is drawn as in play, for the stone, so it lies on a dark plate set
-			# into the page.
+			# A figure is drawn as in play, on a stone plate set into the page.
 			var plate := PanelContainer.new()
-			var look := UI.box(T.STONE, T.PAPER.darkened(0.25), 1, T.RADIUS_PLATE, PAGE_PAD)
+			var look := UI.box(T.STONE, T.LINE, 1, T.RADIUS_PLATE, 4)
 			look.content_margin_left = 2
 			look.content_margin_right = 2
 			plate.add_theme_stylebox_override("panel", look)
-			plate.add_child(RulebookFigure.make(b.figure, db, room - Vector2(4, 2 * PAGE_PAD), func(d): intent.emit(d)))
+			plate.add_child(RulebookFigure.make(b.figure, db, room - Vector2(6, 10), func(d): intent.emit(d)))
 			aside.add_child(plate)
 		else:
 			aside.add_child(_block(b, _aside_w))
 	# The first page credits the game's makers, in the room its aside leaves.
 	if _pos.section == 0 and _pos.page == 0:
 		aside.add_child(UI.spacer())
-		var credit := UI.label(Rulebook.CREDIT, T.CAPTION, T.PAPER_MUTED, true)
+		var credit := UI.label(Rulebook.CREDIT, T.CAPTION, T.PARCHMENT_MUTED, true)
 		credit.custom_minimum_size.x = _aside_w
 		aside.add_child(credit)
 	if not p.terms.is_empty():
@@ -306,11 +322,6 @@ func _page_view(p: Dictionary) -> Control:
 	row.add_child(aside)
 	page.add_child(row)
 	return page
-
-
-func _split(share: float) -> void:
-	_text_w = floorf(_inner_w * share)
-	_aside_w = floorf(_inner_w - _text_w)
 
 
 ## The height the body has for a page at this size.
@@ -364,7 +375,7 @@ func _terms(ids: Array, width: float) -> Control:
 	# Takes the aside's spare height and sits at its foot, just above Next.
 	var row := UI.hbox(T.SPACE_1)
 	row.size_flags_vertical = Control.SIZE_EXPAND | Control.SIZE_SHRINK_END
-	var label := UI.label("Terms on this page", T.CAPTION, T.PAPER_MUTED, true)
+	var label := UI.label("Terms on this page", T.CAPTION, T.PARCHMENT_MUTED, true)
 	label.custom_minimum_size.x = TERMS_LABEL_W
 	label.size_flags_vertical = Control.SIZE_SHRINK_END
 	row.add_child(label)
@@ -393,7 +404,7 @@ func _block(b: Dictionary, width: float) -> Control:
 		var col := UI.vbox(T.SPACE_1)
 		for i in items.size():
 			var line := UI.hbox(T.SPACE_1)
-			var mark := UI.label(("%d." % (i + 1)) if b.has("steps") else "•", UI.restyle(T.BODY_STRONG, TEXT.size), T.PAPER_MUTED)
+			var mark := UI.label(("%d." % (i + 1)) if b.has("steps") else "•", UI.restyle(T.BODY_STRONG, TEXT.size), T.PARCHMENT_MUTED)
 			mark.custom_minimum_size.x = 32
 			mark.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 			line.add_child(mark)
@@ -401,7 +412,7 @@ func _block(b: Dictionary, width: float) -> Control:
 			col.add_child(line)
 		return col
 	if b.has("note"):
-		var panel := UI.panel(T.PAPER.darkened(0.06), T.PAPER.darkened(0.15), 1, T.RADIUS_PLATE, 12)
+		var panel := UI.panel(T.STONE_RAISED, T.LINE, 1, T.RADIUS_PLATE, 12)
 		panel.add_child(_rich(b.note, width - 24))
 		return panel
 	if b.has("table"):
@@ -422,7 +433,7 @@ func _rich(bbcode: String, width: float, size: Dictionary = TEXT) -> RichTextLab
 	r.add_theme_font_override("bold_font", UI.font(T.BODY_STRONG))
 	r.add_theme_font_size_override("normal_font_size", size.size)
 	r.add_theme_font_size_override("bold_font_size", size.size)
-	r.add_theme_color_override("default_color", T.PAPER_INK)
+	r.add_theme_color_override("default_color", T.PARCHMENT)
 	r.text = bbcode
 	return r
 
@@ -440,19 +451,19 @@ func _table(t, width: float) -> Control:
 		head = t.head
 		rows = t.rows
 	# A margin of the border's width, so the head band never covers the frame.
-	var frame := UI.panel(Color(T.PAPER_INK, 0.03), T.PAPER.darkened(0.15), 1, T.RADIUS_PLATE, 1)
+	var frame := UI.panel(T.STONE, T.LINE, 1, T.RADIUS_PLATE, 1)
 	var widths := _column_widths([head] + rows, width - 2 - CELL_PAD * 2 * head.size())
 	var col := UI.vbox(0)
 	for i in rows.size() + 1:
 		var r: Array = head if i == 0 else rows[i - 1]
 		if i > 1:
 			var rule := ColorRect.new()
-			rule.color = T.PAPER.darkened(0.15)
+			rule.color = T.LINE
 			rule.custom_minimum_size.y = 1
 			col.add_child(rule)
 		var band := PanelContainer.new()
 		var look := StyleBoxFlat.new()
-		look.bg_color = T.PAPER.darkened(0.08) if i == 0 else Color(T.SHADE, 0)
+		look.bg_color = T.STONE_RAISED if i == 0 else Color(T.SHADE, 0)
 		look.corner_radius_top_left = T.RADIUS_PLATE if i == 0 else 0
 		look.corner_radius_top_right = look.corner_radius_top_left
 		look.content_margin_top = 5 if i == 0 else 6
@@ -465,7 +476,7 @@ func _table(t, width: float) -> Control:
 			cell.add_theme_constant_override("margin_right", CELL_PAD)
 			var text := _rich("[b]%s[/b]" % r[c] if i == 0 else r[c], widths[c], SMALL)
 			if i == 0:
-				text.add_theme_color_override("default_color", T.PAPER_MUTED)
+				text.add_theme_color_override("default_color", T.PARCHMENT_MUTED)
 			cell.add_child(text)
 			line.add_child(cell)
 		band.add_child(line)

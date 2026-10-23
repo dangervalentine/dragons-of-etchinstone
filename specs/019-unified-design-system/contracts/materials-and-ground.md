@@ -29,9 +29,13 @@
 Text on paper is `PAPER_INK` in `BODY`, with secondary text in `PAPER_MUTED`. Lines are at
 most about 50 characters, with the box at most `COACH_MAX_W` wide.
 
-It is used for tooltips (`wrapped_tooltip`, `help_tip`, `tip_box`), the coach bubble, the
-glossary popover and full view, rulebook pages (the page body; the overlay's frame is a
-slab), and the unspent-XP question.
+It is used for the coach bubble and the unspent-XP question.
+
+Amended 2026-10-23 (owner): tooltips (`wrapped_tooltip`, `help_tip`, `tip_box`) and the
+glossary popover's single entry are a raised stone sheet (`UI.tooltip_box()`: `STONE_RAISED`
+face, `EDGE` rim, `SHADOW_CARD`), text in `PARCHMENT`. The glossary's full view and the
+rulebook are a slab with a `WELL` face throughout, their text in `PARCHMENT` straight on it,
+with no paper or inner sheet.
 
 ## Cards
 
