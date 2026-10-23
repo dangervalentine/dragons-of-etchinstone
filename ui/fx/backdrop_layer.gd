@@ -1,15 +1,27 @@
 extends Control
-## The stone backdrop's settings: whether the play screen stands on stone or on
-## the old flat background, and how large the view is. (Feature 006 first lit the
-## stone's cracks with Ether light and drifting motes; the owner set that aside at
-## the stage 2 review in favour of flat lines and strong raised boxes.)
+## The ground's settings (specs/019 FR-005, FR-006): the flat ground, and the glow in
+## the current Region's tint that lies behind the Encounter or Region Card in play.
+## In play the whole ground also takes the Region's own dark ground (T.REGION_GROUND),
+## or in the Final Battle the dragon's Ether's (T.LAIR_GROUND), so each Region, and
+## each dragon's lair, stands on its own country and moving on reads as the
+## journey going on. It replaces feature 006's stone grounds, and the menu's choice of
+## them (FR-006a).
 
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
-const Stone = preload("res://ui/theme/stone.gd")
+const Art = preload("res://ui/model/art.gd")
+
+## How far the wash reaches, as a share of the view's height: far enough that it
+## shows round the card it lies behind and under the tray (the system's "large soft
+## radial glow").
+const REACH := 0.9
 
 var material_ref: ShaderMaterial
 var _tween: Tween
+## The tint now washing the ground, or null for none.
+var _tint = null
+## The ground texture now showing, or null for none.
+var _texture: Texture2D = null
 
 
 func _init() -> void:
@@ -20,26 +32,111 @@ func _init() -> void:
 ## Take charge of the backdrop's shader.
 func setup(m: ShaderMaterial) -> void:
 	material_ref = m
-	m.set_shader_parameter("grain", Stone.grain())
-	resized.connect(func(): m.set_shader_parameter("view_size", size))
+	m.set_shader_parameter("ground", T.GROUND)
+	m.set_shader_parameter("wash_amount", 0.0)
+	resized.connect(func():
+		m.set_shader_parameter("view_size", size)
+		m.set_shader_parameter("wash_radius", size.y * REACH))
 
 
-## Show the ground chosen in the menu.
-func refresh_ground() -> void:
-	if material_ref != null:
-		material_ref.set_shader_parameter("grain", Stone.grain())
+## The tint of a stage (vs.stage): a Region's own colour, the dragon's Ether for the
+## Final Battle, or null where there is no game.
+static func tint_of(stage) -> Variant:
+	if stage == null or not stage is Dictionary or stage.is_empty():
+		return null
+	if stage.get("kind") == "final":
+		return T.ETHER[stage.element].base if T.ETHER.has(stage.get("element", "")) else T.REGION_LAIR
+	return T.REGION.get(int(stage.get("region", 0)))
 
 
-## Stone (true) or the old flat background (false).
-func set_stone(on: bool) -> void:
+## A stage's grey ground texture: its Region's (Art.GROUNDS), or null for the Final
+## Battle, where there is no game, or before the picture is imported.
+static func texture_of(stage) -> Texture2D:
+	if stage == null or not stage is Dictionary or stage.get("kind") != "region":
+		return null
+	var name: String = Art.GROUNDS.get(int(stage.get("region", 0)), "")
+	return UI.painted(name) if name != "" else null
+
+
+## The ground and its wash where their fade is going, at once.
+func finish() -> void:
+	if _tween != null and _tween.is_valid():
+		_tween.custom_step(T.MOVE * 2.0)
+
+
+## The whole ground of a stage: its Region's own, the dragon's Ether's for the Final
+## Battle, or the plain ground where there is no game.
+static func ground_of(stage) -> Color:
+	if stage == null or not stage is Dictionary or stage.is_empty():
+		return T.GROUND
+	if stage.get("kind") == "final":
+		return T.LAIR_GROUND.get(stage.get("element", ""), T.GROUND)
+	return T.REGION_GROUND.get(int(stage.get("region", 0)), T.GROUND)
+
+
+## Lay `stage`'s ground and wash it in its tint, glowing round `centre` (global
+## pixels), or clear both. A change fades over a move, or happens at once in reduced
+## motion.
+func set_region(stage, centre := Vector2.ZERO) -> void:
 	if material_ref == null:
 		return
-	var to := 1.0 if on else 0.0
-	var from = material_ref.get_shader_parameter("stone_amount")
+	var tint = tint_of(stage)
+	if tint != null:
+		material_ref.set_shader_parameter("wash_centre", centre - global_position)
+	if typeof(tint) == typeof(_tint) and (tint == null or tint == _tint):
+		return
+	var from_amount: float = material_ref.get_shader_parameter("wash_amount")
+	var to_amount := T.REGION_WASH if tint != null else 0.0
+	var from_ground: Color = material_ref.get_shader_parameter("ground")
+	var to_ground := ground_of(stage)
 	if _tween != null and _tween.is_valid():
 		_tween.kill()
-	if from == null or UI.reduced_motion or not is_inside_tree():
-		material_ref.set_shader_parameter("stone_amount", to)
+	var at_once := UI.reduced_motion or not is_inside_tree()
+	if tint != null:
+		if _tint == null or at_once:
+			material_ref.set_shader_parameter("wash", tint)
+		else:
+			_tween = create_tween()
+			_tween.tween_method(func(c): material_ref.set_shader_parameter("wash", c), _tint, tint, T.MOVE)
+	_tint = tint
+	# After the wash's tween is made, so the texture's fade joins it.
+	_set_texture(texture_of(stage), at_once)
+	if at_once:
+		material_ref.set_shader_parameter("wash_amount", to_amount)
+		material_ref.set_shader_parameter("ground", to_ground)
 		return
-	_tween = create_tween()
-	_tween.tween_method(func(v): material_ref.set_shader_parameter("stone_amount", v), from, to, T.BASE)
+	if _tween == null or not _tween.is_valid():
+		_tween = create_tween()
+	_tween.parallel().tween_method(func(v): material_ref.set_shader_parameter("wash_amount", v), from_amount, to_amount, T.MOVE)
+	_tween.parallel().tween_method(func(c): material_ref.set_shader_parameter("ground", c), from_ground, to_ground, T.MOVE)
+
+
+## Crossfade the ground texture to `tex` (null for none) over a move, or at once. The
+## outgoing one stays as texture_from while texture_mix runs to the new one.
+func _set_texture(tex: Texture2D, at_once: bool) -> void:
+	if tex == _texture:
+		return
+	var m := material_ref
+	var from_amount: float = m.get_shader_parameter("texture_amount")
+	var to_amount := T.REGION_TEXTURE if tex != null else 0.0
+	# With none showing, the new one comes in by its amount alone; going to none, the
+	# old one fades out by its amount.
+	if _texture == null:
+		m.set_shader_parameter("texture_from", tex)
+		m.set_shader_parameter("texture_to", tex)
+	elif tex == null:
+		m.set_shader_parameter("texture_to", _texture)
+		m.set_shader_parameter("texture_from", _texture)
+	else:
+		m.set_shader_parameter("texture_from", _texture)
+		m.set_shader_parameter("texture_to", tex)
+		m.set_shader_parameter("texture_mix", 0.0)
+	_texture = tex
+	if at_once:
+		m.set_shader_parameter("texture_mix", 1.0)
+		m.set_shader_parameter("texture_amount", to_amount)
+		return
+	if _tween == null or not _tween.is_valid():
+		_tween = create_tween()
+	_tween.parallel().tween_method(func(v): m.set_shader_parameter("texture_mix", v), m.get_shader_parameter("texture_mix"), 1.0, T.MOVE)
+	_tween.parallel().tween_method(func(v): m.set_shader_parameter("texture_amount", v), from_amount, to_amount, T.MOVE)

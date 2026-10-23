@@ -33,7 +33,7 @@ func _init() -> void:
 	add_child(_field)
 	add_child(_creature)
 	_creature.visible = false
-	band.add_theme_constant_override("separation", T.S)
+	band.add_theme_constant_override("separation", T.SPACE_2)
 	band.alignment = BoxContainer.ALIGNMENT_BEGIN
 	add_child(band)
 	body.add_theme_constant_override("separation", 6)
@@ -50,7 +50,7 @@ func _init() -> void:
 func set_look(ether, art_name := "", crop := Art.FULL) -> void:
 	element = ether
 	art = art_name
-	var tint: Color = T.ether(ether) if ether != null and ether != "" else T.LINE_SOFT.lightened(0.2)
+	var tint: Color = T.ether(ether) if ether != null and ether != "" else T.EDGE.lightened(0.2)
 	_field.material.set_shader_parameter("tint", tint)
 	_field.material.set_shader_parameter("ether", T.ETHER_ID.get(ether, -1) if ether != null else -1)
 	_field.material.set_shader_parameter("motion", 0.0 if UI.reduced_motion else 1.0)
@@ -92,15 +92,20 @@ func _fit() -> void:
 		var a := minf(field.size.x * 0.62, field.size.y - 92.0)
 		_creature.size = Vector2(a, a)
 		_creature.position = Vector2(field.end.x - a - 6, field.end.y - a - 4)
-	band.position = Vector2(T.M, 0)
-	band.size = Vector2(size.x - 2 * T.M, BAND_H)
-	body.position = Vector2(T.M - 4, BAND_H + T.S)
-	body.size = Vector2(size.x - 2 * (T.M - 4), size.y - BAND_H - T.S - T.S - EDGE)
+	band.position = Vector2(T.SPACE_4, 0)
+	band.size = Vector2(size.x - 2 * T.SPACE_4, BAND_H)
+	body.position = Vector2(T.SPACE_4 - 4, BAND_H + T.SPACE_2)
+	body.size = Vector2(size.x - 2 * (T.SPACE_4 - 4), size.y - BAND_H - T.SPACE_2 - T.SPACE_2 - EDGE)
 	_edge.size = size
 	_edge.queue_redraw()
 
 
 func _draw() -> void:
+	# An Encounter or Dragon face is a card: rounded as cards are, with a card's
+	# shadow (specs/019 FR-016).
+	_stone.round_radius = UI.card_radius(size.x)
+	_stone.casts_shadow = false
+	UI.draw_card_shadow(self, Rect2(Vector2.ZERO, size), UI.card_radius(size.x))
 	draw_style_box(_stone, Rect2(Vector2.ZERO, size))
 
 
@@ -108,5 +113,5 @@ func _draw() -> void:
 func _draw_edge() -> void:
 	var pts := _stone.outline(Rect2(Vector2.ZERO, size), EDGE / 2.0)
 	pts.append(pts[0])
-	var colour: Color = T.muted(T.ether(element)) if element != null and element != "" else T.LINE_SOFT
+	var colour: Color = T.ether(element) if element != null and element != "" else T.EDGE
 	_edge.draw_polyline(pts, colour, EDGE, true)

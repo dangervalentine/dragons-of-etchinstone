@@ -17,6 +17,7 @@ const Game = preload("res://engine/game.gd")
 const CardDB = preload("res://engine/card_db.gd")
 const CardView = preload("res://ui/widgets/card_view.gd")
 const StatChip = preload("res://ui/widgets/stat_chip.gd")
+const StoneStyle = preload("res://ui/theme/stone_style.gd")
 const TitleScreen = preload("res://ui/screens/title_screen.gd")
 const RulesScreen = preload("res://ui/screens/rules_screen.gd")
 const DragonScreen = preload("res://ui/screens/dragon_screen.gd")
@@ -37,7 +38,7 @@ const LessonsScreen = preload("res://ui/screens/lessons_screen.gd")
 ## Games played here are recorded in their own folder, never the player's records.
 const HISTORY_DIR := "user://tool_history/"
 
-const HELP_MIN := 44.0
+const HELP_MIN := float(T.HELP_MIN)
 
 var failures := 0
 ## The viewport the game runs in, sized for each window in the matrix.
@@ -105,6 +106,9 @@ func _run() -> void:
 	if _want("play"):
 		await _open("phone-16x9")
 		await _play("phone-16x9 animated", 5, "normal", true)
+		# Persistent XP: the XP kept through Cleanup and shown in the bar, the screens
+		# still agreeing with the engine.
+		await _play("phone-16x9 persistent XP", 5, "normal", false, true)
 	if _want("ending"):
 		await _open("desktop")
 		await _ending_placing("desktop")
@@ -360,7 +364,23 @@ func _check_note(where: String) -> void:
 				_ok(not shown.any(func(l): return l.text == s.label), "%s: no %s row before Play" % [where, s.label])
 
 
+## The ground in play is washed in the current Region's own tint, or the lair's in the
+## Final Battle (specs/019 FR-006); the tint aimed at, as a change fades in over a move.
+func _check_wash(where: String) -> void:
+	var stage = ui.vs.get("stage")
+	var want = ui.backdrop_layer.tint_of(stage)
+	_ok(want != null, "%s: the stage %s has a tint" % [where, str(stage)])
+	_ok(typeof(ui.backdrop_layer._tint) == typeof(want) and ui.backdrop_layer._tint == want,
+		"%s: the ground is washed in %s, not %s" % [where, str(want), str(ui.backdrop_layer._tint)])
+	# Each Region stands on its own ground, at rest once the move is done.
+	if ui.backdrop_layer.material_ref != null:
+		var ground: Color = ui.backdrop_layer.material_ref.get_shader_parameter("ground")
+		var wanted: Color = ui.backdrop_layer.ground_of(stage)
+		_ok(ground.is_equal_approx(wanted), "%s: the ground is %s's own %s, not %s" % [where, str(stage.get("region", "")), wanted.to_html(false), ground.to_html(false)])
+
+
 func _settle() -> void:
+	ui.finish_transitions()
 	ui.animator.skip()
 	await process_frame
 	# Notes dealt and thrown fly for a moment after the state is shown (specs/015):
@@ -369,6 +389,7 @@ func _settle() -> void:
 		ui.play.deck.pile.finish()
 	await process_frame
 	if ui.game != null:
+		_check_one_target("%s %s" % [current_size, ui.game.phase])
 		_check_deck_settled("%s %s" % [current_size, ui.game.phase])
 		_check_note("%s %s" % [current_size, ui.game.phase])
 		await _check_space("%s %s" % [current_size, ui.game.phase])
@@ -403,12 +424,15 @@ func _check_deck_settled(where: String) -> void:
 		var at: Dictionary = deck._landing(Rect2(Vector2.ZERO, f.size))
 		_ok(deck.landed.card.position.is_equal_approx(at.card.position) and deck.landed.card.size.is_equal_approx(at.card.size),
 			"%s: the landed card is where the zoom ends" % where)
-		_ok(deck.landed.panel == deck.landed.card.panel(deck.landed.key) and deck.landed.panel.interactive, "%s: its panel is lit and explains itself" % where)
+		_ok(deck.landed.panel.interactive, "%s: its panel is lit and explains itself" % where)
+		_ok(not deck.landed.card.panel(deck.landed.key).visible, "%s: the panel is lifted out of its place on the card" % where)
+		_ok(deck.landed.panel.position.is_equal_approx(at.panel.position) and deck.landed.panel.size.is_equal_approx(at.panel.size),
+			"%s: the panel is where the zoom ends" % where)
 		# Zoomed in, the Encounter is named without its number (specs/014).
 		_ok(deck.landed.panel.number_alpha == 0.0, "%s: no number plate on the zoomed panel" % where)
 		for l in deck.landed.strip.get_child(0).find_children("*", "Label", true, false):
 			_ok(not l.text.is_valid_int(), "%s: the strip names the Encounter without its number ('%s')" % [where, l.text])
-		_ok(deck.landed.clip_children == CanvasItem.CLIP_CHILDREN_AND_DRAW, "%s: the zoomed card keeps its rounded corners" % where)
+		_ok(deck.landed.clip_children == CanvasItem.CLIP_CHILDREN_ONLY, "%s: the zoomed card keeps its rounded corners" % where)
 		for l in deck.landed.strip.find_children("*", "Label", true, false):
 			_ok(l.get_theme_font_size("font_size") >= T.TEXT_MIN, "%s: the strip's '%s' is at least %d" % [where, l.text.left(20), T.TEXT_MIN])
 	# Cards are drawn from the Deck and go to its back (specs/012 R9).
@@ -736,6 +760,52 @@ func _watch_deck(where: String, gathered := -1) -> void:
 	_ok(deck.view == "face" and not deck.held, "%s: the reveal ends on the face (%s, held %s)" % [where, deck.view, deck.held])
 
 
+## Every label is set in the design system's faces and in a colour whose contrast is
+## proven (specs/019 SC-002, FR-012): the text tokens, an Ether's inks, or the ink on
+## a plate or pill; faint only on what cannot be pressed.
+func _check_type(where: String, l: Label) -> void:
+	var font: Font = l.get_theme_font("font")
+	var base: Font = font.base_font if font is FontVariation and font.base_font != null else font
+	var face: String = base.resource_path.get_file() if base != null else ""
+	_ok(face.begins_with("Fraunces") or face.begins_with("AlegreyaSans"), "%s: '%s' is set in %s" % [where, l.text.left(24), face])
+	var c: Color = l.get_theme_color("font_color")
+	var allowed := [T.PARCHMENT, T.PARCHMENT_MUTED, T.PARCHMENT_FAINT, T.BRASS, T.BRASS_BRIGHT, T.JADE, T.DANGER,
+		T.STAT_HP, T.ON_BRASS, T.PAPER_INK, T.PAPER_MUTED, T.STAT_PLATE]
+	for e in T.ETHER:
+		allowed.append_array([T.ether_shade(e, "lit"), T.ether_shade(e, "plate_ink"), T.ether_shade(e, "paper")])
+	var opaque := Color(c, 1.0)
+	_ok(allowed.any(func(a): return a.is_equal_approx(opaque)), "%s: '%s' is in #%s, not a proven text colour" % [where, l.text.left(24), opaque.to_html(false)])
+
+
+## The scale of the note content a control is printed in, or 0 when it is not.
+func _card_text_scale(c: Node) -> float:
+	var n := c
+	while n != null:
+		if n is Control and n.has_meta("card_text"):
+			return n.scale.y
+		n = n.get_parent()
+	return 0.0
+
+
+## Brass means "here" (specs/019 FR-008): of what is on top, the coach mark and the
+## overlays or else the screen, at most one button is the brass primary action that
+## can be pressed now.
+func _check_one_primary(where: String) -> void:
+	var brass := func(root: Node) -> Array:
+		return root.find_children("*", "BaseButton", true, false).filter(func(b):
+			return b.is_visible_in_tree() and b.get_meta("primary", false) and not b.disabled)
+	var top: Array = brass.call(ui.coach) + brass.call(ui._overlays)
+	var found: Array = top if not top.is_empty() or ui._overlays.get_child_count() > 0 else brass.call(ui.screen)
+	_ok(found.size() <= 1, "%s: one brass button, found %d (%s)" % [where, found.size(), found.map(func(b): return b.text)])
+
+
+## At most one place is the brass target, the one the next tap fills (specs/019 data-
+## model "Place state").
+func _check_one_target(where: String) -> void:
+	var targets: Array = ui.vs.get("places", []).filter(func(p): return p.state == "target")
+	_ok(targets.size() <= 1, "%s: one target place, found %d" % [where, targets.size()])
+
+
 ## Everything a player can press or must read, checked against the screen.
 ## Skipped while a sequence is moving things about.
 func _inspect_screen(where: String) -> void:
@@ -747,12 +817,18 @@ func _inspect_screen(where: String) -> void:
 		+ ui.coach.find_children("*", "Control", true, false)
 	if ui.title_bar.visible:
 		nodes += ui.title_bar.find_children("*", "Control", true, false)
-	# Every screen has the menu button, in the same place.
-	var bar: Control = ui.play.header if ui.play != null and ui.screen == ui.play else ui.title_bar
+	_check_one_primary(where)
+	# Every screen has the menu button, in the same place; the landing page, which has
+	# no title bar, its own where the bar keeps it.
 	var header: Rect2 = ui.plan.regions.header
+	if ui.screen.get_script() == TitleScreen:
+		_ok(not ui.title_bar.visible, "%s: the landing page has no title bar" % where)
+		_ok(ui.screen.menu_button.is_visible_in_tree() and ui.screen.menu_button.get_global_rect().is_equal_approx(ui._menu_rect()),
+			"%s: the menu button is not where the title bar keeps it" % where)
+	var bar: Control = ui.play.header if ui.play != null and ui.screen == ui.play else ui.title_bar
 	var menu_rect: Rect2 = bar.menu_button.get_global_rect()
 	var inset := Vector2(bar.PAD_X, bar.lift())
-	_ok(bar.is_visible_in_tree() and menu_rect.position.is_equal_approx(Vector2(header.end.x - menu_rect.size.x - inset.x, header.position.y + inset.y)),
+	_ok(ui.screen.get_script() == TitleScreen or bar.is_visible_in_tree() and menu_rect.position.is_equal_approx(Vector2(header.end.x - menu_rect.size.x - inset.x, header.position.y + inset.y)),
 		"%s: the menu button is not at the title bar's right" % where)
 	if bar == ui.title_bar and bar.back_button.visible:
 		_ok(bar.back_button.get_global_rect().position.is_equal_approx(header.position + inset), "%s: Back is not at the title bar's left" % where)
@@ -777,7 +853,12 @@ func _inspect_screen(where: String) -> void:
 			_ok(not c.text.contains("DOE-"), "%s: a card code shows in '%s'" % [where, c.text.left(30)])
 		if c is Label and c.text != "" and not c.has_meta("small_ok"):
 			var fs: int = c.get_theme_font_size("font_size")
-			_ok(fs >= T.TEXT_MIN, "%s: text '%s' is set at %d" % [where, c.text.left(30), fs])
+			# Words on a note shrink with it, to the card-text floor (owner, 2026-10-22).
+			var k := _card_text_scale(c)
+			if k > 0.0:
+				_ok(fs * k >= T.CARD_TEXT_MIN - 0.5, "%s: note text '%s' shows at %.1f" % [where, c.text.left(30), fs * k])
+			else:
+				_ok(fs >= T.TEXT_MIN, "%s: text '%s' is set at %d" % [where, c.text.left(30), fs])
 		if c is Label and not ui.plan.undersized and c.text != "":
 			_ok(view.encloses(c.get_global_rect()), "%s: text '%s' runs off the screen" % [where, c.text.left(30)])
 			_ok(safe.encloses(c.get_global_rect()), "%s: text '%s' at %s is outside the safe area %s" % [where, c.text.left(30), str(c.get_global_rect()), str(safe)])
@@ -788,6 +869,17 @@ func _inspect_screen(where: String) -> void:
 			if not ui.plan.undersized:
 				_ok(view.encloses(c.get_global_rect()), "%s: text '%s' runs off the screen" % [where, shown])
 				_ok(safe.encloses(c.get_global_rect()), "%s: text '%s' at %s is outside the safe area %s" % [where, shown, str(c.get_global_rect()), str(safe)])
+		# Text drawn by hand is held to the floors as labels are (specs/019 FR-015).
+		if c.has_meta("drawn_text") and c.is_visible_in_tree():
+			var drawn: Dictionary = c.get_meta("drawn_text")
+			for site in drawn:
+				_ok(drawn[site][0] >= drawn[site][1], "%s: %s draws its %s at %d, under %d" % [where, _name(c), site, drawn[site][0], drawn[site][1]])
+		if c is Label and c.text != "":
+			_check_type(where, c)
+		if c is BaseButton and c.has_focus() and not c.get_meta("draws_focus", false):
+			var ring := c.get_theme_stylebox("focus")
+			_ok((ring is StoneStyle and ring.focus) or (ring is StyleBoxFlat and ring.border_color.is_equal_approx(T.JADE)),
+				"%s: %s's focus is not the jade rim" % [where, _name(c)])
 
 
 func _name(c: Control) -> String:
@@ -811,8 +903,9 @@ func _soak_ids(g) -> Array:
 	return ids
 
 
-func _play(where: String, game_seed: int, difficulty: String, animated: bool) -> void:
-	var opts := {"seed": game_seed, "dragon": db.dragon_ids()[game_seed % 4], "difficulty": difficulty, "cavalier": false, "glass_cannon": false}
+func _play(where: String, game_seed: int, difficulty: String, animated: bool, persistent_xp := false) -> void:
+	var opts := {"seed": game_seed, "dragon": db.dragon_ids()[game_seed % 4], "difficulty": difficulty, "cavalier": false, "glass_cannon": false,
+		"persistent_xp": persistent_xp}
 	var shadow = Game.new(db, opts)
 	ui.start_game(opts)
 	var recorded := HistoryStore.records.size()
@@ -826,7 +919,14 @@ func _play(where: String, game_seed: int, difficulty: String, animated: bool) ->
 			await _settle()
 		if not animated and (first or guard % 7 == 0):
 			_inspect_screen("%s %s" % [where, g.phase])
+			_check_wash("%s %s" % [where, g.phase])
 		first = false
+		if not animated:
+			var xp_shown: bool = ui.play.header.has_xp()
+			var xp_wanted: bool = persistent_xp and not g.phase.begins_with("final")
+			_ok(xp_shown == xp_wanted, "%s %s: the bar shows the XP kept only with Persistent XP, before the Final Battle" % [where, g.phase])
+			if xp_shown and g.phase != "upgrade":
+				_ok(ui.play.header._counts.xp.text == str(g.xp), "%s %s: the bar's XP %s is the %d kept" % [where, g.phase, ui.play.header._counts.xp.text, g.xp])
 		match g.phase:
 			"setup":
 				var picks: Array = g.setup_offer.slice(0, g.setup_picks)
@@ -868,10 +968,13 @@ func _play(where: String, game_seed: int, difficulty: String, animated: bool) ->
 				if not animated:
 					_inspect_screen("%s upgrade" % where)
 				var can_spend: bool = g.xp > 0 and g.hand.any(func(id): return ui.vs.cards[id].get("eligible", false))
+				var had: int = g.xp
 				await _press({"type": "primary"}, animated)
 				var top = ui._top_overlay()
 				var asked: bool = top != null and top.get_script() == ConfirmDialog
-				_ok(asked == (can_spend and Settings.warn_unspent_xp), "%s: unspent XP asks first only when a card could be Upgraded" % where)
+				_ok(asked == (can_spend and Settings.warn_unspent_xp and not persistent_xp), "%s: unspent XP asks first only when a card could be Upgraded and would be lost" % where)
+				if persistent_xp and g.phase != "upgrade":
+					_ok(g.xp == had, "%s: Persistent XP keeps the %d XP through Cleanup (%d)" % [where, had, g.xp])
 				if asked:
 					_ok(g.phase == "upgrade", "%s: nothing moves on until answered" % where)
 					if not animated:
@@ -935,6 +1038,7 @@ func _screens_and_overlays(where: String) -> void:
 	_inspect_screen("%s title" % where)
 	_ok(ui.screen.get_script() == TitleScreen, "%s: launch shows the landing page" % where)
 	_ok(ui.screen._tiles.is_empty(), "%s: the landing page offers no choices" % where)
+	_ok(ui.backdrop_layer._tint == null, "%s: the landing page stands on the plain ground" % where)
 	_ok(not _has_label(ui.screen, "Journey") and not _has_label(ui.screen, "Battle"), "%s: the landing page shows no dragon's figures" % where)
 	ui.dispatch({"type": "menu"})
 	await _settle()
@@ -945,12 +1049,27 @@ func _screens_and_overlays(where: String) -> void:
 			menu = o
 	_ok(menu != null, "%s: settings open" % where)
 	if menu != null:
-		# Feature 008: the Window row is only on a desktop with a real window. Its
-		# tiles are not pressed here, as a headless window cannot change mode.
-		var tiles: Dictionary = menu._window_tiles
-		_ok(tiles.size() == (2 if WindowSizer.applies() else 0), "%s: Window row on desktops only (%d tiles)" % [where, tiles.size()])
-		if not tiles.is_empty():
-			_ok(tiles.values().filter(func(t): return t.selected).size() == 1, "%s: one window mode is chosen" % where)
+		# Specs/019 FR-006a: the board stands on one ground; there is no choice of it.
+		_ok(not _has_label(menu, "Ground"), "%s: the menu has no Ground row" % where)
+		# Feature 008: the Window setting is only on a desktop with a real window. Its
+		# button is not pressed here, as a headless window cannot change mode.
+		_ok((menu.window_button != null) == WindowSizer.applies(), "%s: Window setting on desktops only" % where)
+		if menu.window_button != null:
+			_ok(menu.window_button._title.text == menu.WINDOW_CHOICES[Settings.window_mode][0], "%s: the Window button shows the window mode" % where)
+		# One button steps through the three motion choices and back to the first.
+		var was: String = Settings.motion
+		var seen := []
+		for i in 3:
+			seen.append(menu.motion_button._title.text)
+			menu.motion_button.pressed.emit()
+		_ok(Settings.motion == was and seen.size() == 3 and seen[0] != seen[1] and seen[1] != seen[2], "%s: the Motion button steps through %s and back" % [where, str(seen)])
+		# Rules: Classic and House rules, one press each way.
+		var house: bool = Settings.house_rules
+		var named: String = menu.rules_button._title.text
+		menu.rules_button.pressed.emit()
+		_ok(Settings.house_rules != house and menu.rules_button._title.text != named, "%s: the Rules button turns %s to %s" % [where, named, menu.rules_button._title.text])
+		menu.rules_button.pressed.emit()
+		_ok(Settings.house_rules == house, "%s: and back" % where)
 	ui._close_overlays()
 	# The tallest the menu gets: in a game, on a desktop with the Window row.
 	var tall := MenuOverlay.new()
@@ -1177,7 +1296,7 @@ func _rulebook_walk(where: String) -> void:
 			c.modulate.a = 1.0
 		var at: Dictionary = book.shown()
 		var label := "%s rulebook %s p%d" % [where, Rulebook.SECTIONS[at.section].id, at.page + 1]
-		_ok(book.fits(), "%s: the page does not fit" % label)
+		_ok(book.fits(), "%s: the page does not fit (%s in %s)" % [label, str(book._body.get_combined_minimum_size()), str(book._frame.size)])
 		_inspect_screen(label)
 		var chips: Array = book.find_children("*", "Button", true, false).filter(func(b): return b.has_meta("term"))
 		_ok(chips.size() == Rulebook.terms(at.section, at.page).size(), "%s: %d terms chips for %d terms" % [label, chips.size(), Rulebook.terms(at.section, at.page).size()])
@@ -1255,7 +1374,7 @@ func _rulebook_mid_game(where: String) -> void:
 	for c in book.find_children("*", "Control", true, false):
 		c.modulate.a = 1.0
 	_inspect_screen("%s rulebook contents" % where)
-	_ok(book.fits(), "%s rulebook contents: does not fit" % where)
+	_ok(book.fits(), "%s rulebook contents: does not fit (%s in %s)" % [where, str(book._panel.get_combined_minimum_size()), str(book._content.size)])
 	var entries: Array = book.find_children("*", "Button", true, false).filter(func(b): return b.has_meta("section"))
 	_ok(entries.size() == Rulebook.section_count(), "%s: the contents list every section (%d)" % [where, entries.size()])
 	var penalty: Button = null
@@ -1314,8 +1433,15 @@ func _setup_steps(where: String) -> void:
 	_inspect_screen("%s rules" % where)
 	_ok(ui.screen.get_script() == RulesScreen, "%s: continue shows the rules screen" % where)
 	var keys: Array = ui.screen._tiles.keys()
-	_ok(keys.size() == 8 and keys.has("cavalier") and keys.has("glass_cannon") and keys.filter(func(k): return k.begins_with("difficulty:")).size() == 6,
-		"%s: the rules screen offers six difficulties and both rules" % where)
+	_ok(not Settings.house_rules and keys.size() == 8 and keys.has("cavalier") and keys.has("glass_cannon") and keys.filter(func(k): return k.begins_with("difficulty:")).size() == 6,
+		"%s: under Classic the rules screen offers six difficulties and the rulebook's two rules" % where)
+	# House rules add Persistent XP beside them (editions.gd).
+	Settings.house_rules = true
+	ui.dispatch({"type": "setup_rules", "options": ui.screen.options})
+	await _settle()
+	_inspect_screen("%s rules, house rules" % where)
+	keys = ui.screen._tiles.keys()
+	_ok(keys.size() == 9 and keys.has("persistent_xp"), "%s: House rules offer Persistent XP too" % where)
 	ui.dispatch({"type": "glossary"})
 	await _settle()
 	_inspect_screen("%s rules glossary" % where)
@@ -1323,6 +1449,7 @@ func _setup_steps(where: String) -> void:
 	await process_frame
 	ui.screen._choose("difficulty", "hard")
 	ui.screen._choose("cavalier", null)
+	ui.screen._choose("persistent_xp", null)
 	var kept: Dictionary = ui.screen.options.duplicate()
 	ui.screen.back()
 	await _settle()
@@ -1332,7 +1459,7 @@ func _setup_steps(where: String) -> void:
 	ui.dispatch({"type": "setup_rules", "options": ui.screen.options})
 	await _settle()
 	var now: Dictionary = ui.screen.options
-	_ok(now.dragon == other and now.difficulty == kept.difficulty and now.cavalier == kept.cavalier and now.glass_cannon == kept.glass_cannon,
+	_ok(now.dragon == other and now.difficulty == kept.difficulty and now.cavalier == kept.cavalier and now.glass_cannon == kept.glass_cannon and now.persistent_xp == kept.persistent_xp,
 		"%s: going back and on keeps the choices, %s" % [where, str(now)])
 	var esc := InputEventKey.new()
 	esc.keycode = KEY_ESCAPE
@@ -1346,8 +1473,14 @@ func _setup_steps(where: String) -> void:
 	ui.dispatch({"type": "start", "options": chosen})
 	await _settle()
 	_ok(ui.game != null and ui.screen == ui.play, "%s: set out starts a game" % where)
-	for key in ["dragon", "difficulty", "cavalier", "glass_cannon"]:
+	for key in ["dragon", "difficulty", "cavalier", "glass_cannon", "persistent_xp"]:
 		_ok(Settings.last_options[key] == chosen[key], "%s: set out remembers %s" % [where, key])
+	_ok(ui.game.keeps_xp() == chosen.persistent_xp, "%s: the game has the house rule chosen" % where)
+	# Back to Classic: the remembered house rule is not carried into a Classic game.
+	Settings.house_rules = false
+	ui.dispatch({"type": "start", "options": chosen})
+	await _settle()
+	_ok(not ui.game.keeps_xp(), "%s: a Classic game never has a house rule" % where)
 	ui.dispatch({"type": "to_title"})
 	await _settle()
 

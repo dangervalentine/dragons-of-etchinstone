@@ -99,6 +99,10 @@ static func build(game, draft, db, extra := {}) -> Dictionary:
 		vs.xp = game.xp - staged_cost(game, draft)
 		# All the XP there was to spend, before any Upgrade chosen: the bar it empties.
 		vs["xp_total"] = game.xp
+	# The XP kept between Encounters, for the bar (Persistent XP); -1 hides it. Nothing
+	# spends it in the Final Battle, so it is not shown there.
+	var regions_left: bool = not phase.begins_with("final") and phase != "won" and phase != "lost"
+	vs["banked_xp"] = vs.xp if game.keeps_xp() and regions_left else -1
 	if SOAK_PHASES.has(phase):
 		var total := 0
 		for id in draft.picks:
@@ -121,6 +125,10 @@ static func build(game, draft, db, extra := {}) -> Dictionary:
 					vs.cards[id]["played_role"] = [0, role]
 	vs["held"] = draft.held
 	vs["places"] = places(vs, game, draft)
+	# A Reserve given up is out of play (specs/019 "Out of play").
+	for p in vs.places:
+		if p.given_up and p.card_id != null and vs.cards.has(p.card_id):
+			vs.cards[p.card_id]["out_of_play"] = true
 	for id in vs.hand:
 		vs.cards[id]["place"] = null
 	for pl in vs.places:
@@ -257,7 +265,7 @@ static func preview(game, draft, previous = null) -> Dictionary:
 	var final: bool = game.phase != "challenge"
 	var r: Dictionary = game.preview_final(action) if final else game.preview(action)
 	var out := {"status": "ready", "missing": [], "reason": "", "comparisons": [], "verdict": "",
-		"verdict_text": "", "rewards": {"xp": 0}, "costs": [], "fatal": false, "tier": -1,
+		"verdict_text": "", "aftermath": "", "rewards": {"xp": 0}, "costs": [], "fatal": false, "tier": -1,
 		"figures": {}, "changed": []}
 	# Against an Enemy each placed Boost waits for the player to send it to Attack or
 	# to Initiative; until then there is no outcome to show.
@@ -321,17 +329,63 @@ static func _preview_region(game, draft, r: Dictionary, out: Dictionary) -> void
 	else:
 		out.comparisons.append({"label": "Move", "icon": "move", "value": r.move,
 			"target": r.mp, "target_icon": "mp", "result": r.outcome, "note": ""})
+	var hardship = enc.hardship
+	var ability = enc.data.get("ability") if enc.kind == "enemy" else null
+	# Each cost says what brought it, so a Narrow victory or a Loss reads as the harm
+	# it does, not only as a badge.
+	var hurt := []
+	if enc.kind == "enemy":
+		# An enemy that struck first has already hurt you, so a Complete victory
+		# cannot say it fell untouched.
+		out.aftermath = ({"complete": "It strikes first, but falls to your blow",
+			"narrow": "It strikes first, and hits back as it falls",
+			"loss": "It strikes first and stands: no XP, and it hits back"} if r.early else
+			{"complete": "It falls before it can strike",
+			"narrow": "It falls, but hits back as it does",
+			"loss": "It stands: no XP, and it hits back"})[r.outcome]
+		if r.early:
+			var forced: bool = ability == "ranged" and enc.data.initiative <= r.initiative
+			hurt.append([r.early_damage, ("from its Ranged shot" if forced else "as it strikes first")
+				+ (", doubled by Ambush" if hardship == "ambush" else "")])
+		if r.combat_damage > 0:
+			hurt.append([r.combat_damage, "as it hits back"])
+	else:
+		out.aftermath = {"complete": "Through in good time",
+			"narrow": "Through, but it takes time",
+			"loss": "Turned back: no XP, and time lost"}[r.outcome]
+		var treacherous: int = r.damage - (r.time_penalty if hardship == "storm" else 0)
+		if treacherous > 0:
+			hurt.append([treacherous, "from the Treacherous path"])
+	if hardship == "storm" and r.time_penalty > 0:
+		hurt.append([r.time_penalty, "from the Storm"])
 	if r.damage > 0:
 		out.costs.append({"id": "damage", "icon": "hp", "value": r.damage,
-			"element": r.damage_element, "text": "Damage"})
+			"element": r.damage_element, "text": "Damage", "why": _damage_why(hurt)})
 	if r.time_penalty > 0:
-		out.costs.append({"id": "time", "icon": "time", "value": r.time_penalty, "element": "", "text": "Time penalty"})
+		out.costs.append({"id": "time", "icon": "time", "value": r.time_penalty, "element": "", "text": "Time penalty",
+			"why": ("Hazards: %s off the Deck" if enc.kind == "enemy" else "Time Penalty: %s off the Deck") % _cards(r.time_penalty)})
 	if r.get("poison", 0) > 0:
-		out.costs.append({"id": "poison", "icon": "poison", "value": r.poison, "element": "", "text": "Poison next Hand"})
+		out.costs.append({"id": "poison", "icon": "poison", "value": r.poison, "element": "", "text": "Poison next Hand",
+			"why": "Poison: %d more damage on your next Hand" % r.poison})
 	if r.get("discard_reserve", false):
-		out.costs.append({"id": "reserve", "icon": "reserve", "value": 0, "element": "", "text": "Reserve discarded"})
+		out.costs.append({"id": "reserve", "icon": "reserve", "value": 0, "element": "", "text": "Reserve discarded",
+			"why": "Frozen: your Reserve is discarded" if ability == "freeze" and r.early else "Your Reserve is discarded to dodge the shot"})
 	if _would_knock_out(game, draft, r):
-		out.costs.append({"id": "knock_out", "icon": "down_arrow", "value": 0, "element": "", "text": "Knocked Out"})
+		out.costs.append({"id": "knock_out", "icon": "down_arrow", "value": 0, "element": "", "text": "Knocked Out",
+			"why": "Your Hand cannot Soak it all: Knocked Out"})
+
+
+## The damage to Soak and what dealt it, from `hurt` ([amount, "as it hits back"]
+## each): the amounts are left out when there is only one cause.
+static func _damage_why(hurt: Array) -> String:
+	if hurt.size() == 1:
+		return "Damage to Soak, " + hurt[0][1]
+	return "Damage to Soak: " + ", ".join(hurt.map(func(h): return "%d %s" % h))
+
+
+## "1 card", "3 cards".
+static func _cards(n: int) -> String:
+	return "%d card%s" % [n, "" if n == 1 else "s"]
 
 
 ## Mirrors the engine's damage bookkeeping in play() to warn of a Knock Out.
@@ -368,8 +422,13 @@ static func _preview_final_journey(game, r: Dictionary, out: Dictionary) -> void
 		return
 	out.verdict = out.comparisons[0].result
 	out.verdict_text = "Tier %d reached" % (r.tier + 1)
+	# How the chase leaves you for the fight, by the tier reached: the top tier, the
+	# lowest, or one between.
+	out.aftermath = "You feel ready for this confrontation" if r.tier == tiers.size() - 1 \
+		else ("True terror stands before you" if r.tier == 0 else "The real battle begins now")
 	if r.time_penalty > 0:
-		out.costs.append({"id": "time", "icon": "time", "value": r.time_penalty, "element": "", "text": "Time penalty"})
+		out.costs.append({"id": "time", "icon": "time", "value": r.time_penalty, "element": "", "text": "Time penalty",
+			"why": "Tier time: %s off the Deck; any the Deck lacks hit you in the fight" % _cards(r.time_penalty)})
 
 
 static func _preview_final_enemy(game, r: Dictionary, out: Dictionary) -> void:
@@ -388,8 +447,13 @@ static func _preview_final_enemy(game, r: Dictionary, out: Dictionary) -> void:
 		out.verdict = "loss"
 		out.verdict_text = "The dragon prevails"
 		return
+	var hurt := [[tiers[r.tier].attack.value, "as it strikes back"]]
+	if r.early:
+		hurt.append([d.early_damage.value, "as it strikes first"])
+	if game.carried_damage > 0:
+		hurt.append([game.carried_damage, "from time the Deck could not pay"])
 	out.costs.append({"id": "damage", "icon": "hp", "value": r.damage,
-		"element": d.early_damage.element, "text": "Damage to Soak"})
+		"element": d.early_damage.element, "text": "Damage to Soak", "why": _damage_why(hurt)})
 	out.fatal = not r.survivable
 	out.verdict = "loss" if out.fatal else out.comparisons[0].result
 	out.verdict_text = "Your Hand cannot Soak this" if out.fatal else "Tier %d reached" % (r.tier + 1)
@@ -398,11 +462,14 @@ static func _preview_final_enemy(game, r: Dictionary, out: Dictionary) -> void:
 static func _stage(game, db) -> Dictionary:
 	if game.phase.begins_with("final") or game.phase == "won" or game.phase == "lost":
 		return {"kind": "final", "region": game.region, "name": game.dragon.name, "title": game.dragon.title,
-			"heading": "Final Battle · %s, %s" % [game.dragon.name, game.dragon.title],
+			# The place first, the stage after it, muted (specs/019 TopBar).
+			"heading": "%s, %s · Final Battle" % [game.dragon.name, game.dragon.title],
+			"heading_parts": ["%s, %s" % [game.dragon.name, game.dragon.title], " · Final Battle"],
 			"element": game.dragon.early_damage.element, "dragon": game.dragon.id, "art": Art.dragon(game.dragon.id)}
 	var r: Dictionary = db.region(game.region)
 	return {"kind": "region", "region": game.region, "name": r.name, "title": "",
-		"heading": "Region %d · %s" % [game.region, r.name], "element": "", "dragon": game.dragon.id,
+		"heading": "%s · Region %d" % [r.name, game.region],
+		"heading_parts": [r.name, " · Region %d" % game.region], "element": "", "dragon": game.dragon.id,
 		"art": Art.dragon(game.dragon.id)}
 
 
@@ -532,6 +599,13 @@ static func places(vs: Dictionary, game = null, draft = null) -> Array:
 		return _indexed(out)
 	var held = draft.held if draft != null else null
 	var idle: bool = held == null and vs.mode == "none"
+	# One target at a time (specs/019 data-model "Place state"): with a card held, the
+	# place it is aimed at (by the keyboard or the pointer), the rest open to it; with
+	# none held, the empty Role the next card goes to.
+	var aim = vs.get("key_target")
+	var next_key := ""
+	if held == null and draft != null and str(vs.get("next_role", "")) != "":
+		next_key = "%d/%s" % [draft.active[0], vs.next_role]
 	# With a card held, every other place takes it: a place with a card trades with it.
 	var tap_for := func(id, target) -> Variant:
 		if held != null:
@@ -539,8 +613,11 @@ static func places(vs: Dictionary, game = null, draft = null) -> Array:
 				return {"type": "put_down"}
 			return {"type": "put", "target": {"card": id} if id != null else target}
 		return {"type": "pick", "id": id} if id != null and idle else null
-	var state_for := func(id, filled: bool) -> String:
+	var state_for := func(id, filled: bool, key := "", target = null) -> String:
 		if held != null and id != held:
+			var put = {"card": id} if id != null else target
+			return "target" if aim != null and typeof(put) == typeof(aim) and put == aim else "open"
+		if key != "" and key == next_key and not filled:
 			return "target"
 		return "filled" if filled else "empty"
 	if draft == null or draft.with_reserve:
@@ -549,7 +626,7 @@ static func places(vs: Dictionary, game = null, draft = null) -> Array:
 		var given_up: bool = r != null and draft != null and draft.give_up_reserve
 		var state: String = "inactive"
 		if offered:
-			state = state_for.call(r, r != null)
+			state = state_for.call(r, r != null, "reserve", "reserve")
 		if given_up:
 			state = "given_up"
 		var place := _place("reserve", 0, "reserve", state, r, tap_for.call(r, "reserve") if offered else null,
@@ -567,7 +644,7 @@ static func places(vs: Dictionary, game = null, draft = null) -> Array:
 		var st: Dictionary = vs.sets[i]
 		for role in ORDER:
 			var id = st.roles.get(role)
-			var place := _place("%d/%s" % [i, role], i, role, state_for.call(id, id != null), id,
+			var place := _place("%d/%s" % [i, role], i, role, state_for.call(id, id != null, "%d/%s" % [i, role], [i, role]), id,
 				tap_for.call(id, [i, role]), _tip(vs, i, role, id))
 			place["set_start"] = two and i == 1 and role == ORDER[0]
 			out.append(place)
@@ -862,12 +939,13 @@ static func _prompt(game, draft, vs: Dictionary) -> Dictionary:
 			for id in vs.hand:
 				affordable = affordable or vs.cards[id].get("can_raise", false)
 			p.step = "Upgrade"
+			var leftover := "Unspent XP carries over." if game.keeps_xp() else "Unspent XP is lost."
 			if not draft.picks.is_empty():
-				p.text = "Tap a card again to Upgrade it further, or take its Upgrades back. Unspent XP is lost."
+				p.text = "Tap a card again to Upgrade it further, or take its Upgrades back. " + leftover
 			elif game.xp <= 0:
 				p.text = "No XP to spend."
 			elif affordable:
-				p.text = "Tap cards to Upgrade them, then Confirm. Unspent XP is lost."
+				p.text = "Tap cards to Upgrade them, then Confirm. " + leftover
 			else:
 				p.text = "No card can be Upgraded with this XP."
 			p.primary.label = "Confirm" if not draft.picks.is_empty() else "Continue"

@@ -9,6 +9,7 @@ extends Control
 
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
+const CardFace = preload("res://ui/widgets/card_face.gd")
 const RegionPanel = preload("res://ui/widgets/region_panel.gd")
 const StoneStyle = preload("res://ui/theme/stone_style.gd")
 
@@ -111,7 +112,7 @@ func _draw_rim() -> void:
 	var r := rim_rect()
 	var line := RegionPanel.outline(r, RegionPanel.bevel(panel_rect(size, focus_key).size) + rim_width() * 0.2)
 	line.append(line[0])
-	_rim_layer.draw_polyline(line, Color(T.GOLD, rim), rim_width(), true)
+	_rim_layer.draw_polyline(line, Color(T.PARCHMENT, rim), rim_width(), true)
 
 
 func panel(key: String) -> Control:
@@ -167,29 +168,34 @@ func _draw() -> void:
 	draw_style_box(_stone, card)
 	var b: Rect2 = LAYOUT.band
 	var band := Rect2(card.size * b.position, card.size * b.size)
-	draw_colored_polygon(_stone.part(card, band), T.BG_BAND)
+	draw_colored_polygon(_stone.part(card, band), T.STAT_PLATE)
 	# Its foot torn as a Mage Card's band is, edged in gold; each Region tears its own way.
-	UI.draw_torn_edge(self, band.position.x, band.end.x, band.end.y, band.size.y * 0.12, hash(model.name), T.BG_BAND,
-		T.muted(T.GOLD), maxf(1.0, size.y * 0.003))
+	UI.draw_torn_edge(self, band.position.x, band.end.x, band.end.y, band.size.y * 0.12, hash(model.name), T.STAT_PLATE,
+		T.EDGE, maxf(1.0, size.y * 0.003))
 	# An ornament at each end, the name between them, and the Region's number under it.
 	var o := band.size.y * 0.72
 	var oy := band.get_center().y - o / 2.0
 	var mark: Texture2D = UI.icon("sigil_region")
 	for x in [band.position.x + band.size.y * 0.2, band.end.x - band.size.y * 0.2 - o]:
-		draw_texture_rect(mark, Rect2(x, oy, o, o), false, Color(T.INK, 0.85))
+		draw_texture_rect(mark, Rect2(x, oy, o, o), false, Color(T.PARCHMENT, 0.85))
 	var room := band.size.x - 2.0 * (o + band.size.y * 0.4)
-	var heading := UI.font(T.HEADING[0])
-	var name: String = model.name.to_upper()
-	var fs := maxi(6, roundi(band.size.y * 0.46))
-	while fs > 6 and heading.get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > room:
+	var heading := UI.font(T.HEADING)
+	var name: String = model.name
+	# Printed on the card, the band's words scale with it as a card's name does
+	# (specs/019 FR-015, CardFace.name_floor).
+	var least := CardFace.name_floor(size.x)
+	var fs := maxi(least, roundi(band.size.y * 0.46))
+	while fs > least and heading.get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > room:
 		fs -= 1
 	var nw := heading.get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-	draw_string(heading, Vector2(band.get_center().x - nw / 2.0, band.position.y + band.size.y * 0.52), name, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, T.INK)
-	var label := UI.font(T.LABEL_BOLD[0])
+	draw_string(heading, Vector2(band.get_center().x - nw / 2.0, band.position.y + band.size.y * 0.52), name, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, T.PARCHMENT)
+	UI.drew_text(self, "name", fs, least)
+	var label := UI.font(T.LABEL)
 	var line := "REGION %d" % model.region
-	var ls := maxi(6, roundi(band.size.y * 0.26))
+	var ls := maxi(roundi(least * 0.7), roundi(band.size.y * 0.26))
 	var lw := label.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, ls).x
-	draw_string(label, Vector2(band.get_center().x - lw / 2.0, band.position.y + band.size.y * 0.88), line, HORIZONTAL_ALIGNMENT_LEFT, -1, ls, T.GOLD)
+	draw_string(label, Vector2(band.get_center().x - lw / 2.0, band.position.y + band.size.y * 0.88), line, HORIZONTAL_ALIGNMENT_LEFT, -1, ls, T.PARCHMENT_MUTED)
+	UI.drew_text(self, "region", ls, roundi(least * 0.7))
 	# The card's own band and stone step back with the other panels (set_focus).
 	if focus > 0.0:
-		draw_colored_polygon(_stone.outline(card), Color(0, 0, 0, 0.62 * focus))
+		draw_colored_polygon(_stone.outline(card), Color(T.SHADE, 0.62 * focus))

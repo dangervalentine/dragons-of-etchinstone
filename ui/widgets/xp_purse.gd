@@ -20,7 +20,7 @@ var recap := true
 
 
 func _init() -> void:
-	add_theme_stylebox_override("panel", UI.stone_zone(T.GOLD))
+	add_theme_stylebox_override("panel", UI.stone_zone())
 	_box.add_theme_constant_override("separation", 8)
 	add_child(_box)
 	_bar.custom_minimum_size.y = 34
@@ -49,9 +49,9 @@ func render(vs: Dictionary) -> void:
 	var r: Dictionary = vs.recap if recap else {}
 	if not r.is_empty():
 		var look: Dictionary = T.VERDICT[r.outcome]
-		var head := UI.hbox(T.S)
+		var head := UI.hbox(T.SPACE_2)
 		head.add_child(UI.icon_rect(look.icon, 34, look.color))
-		head.add_child(UI.label(look.text.to_upper(), T.SUBHEAD, look.color))
+		head.add_child(UI.label(look.text, T.HEADING, look.color))
 		_box.add_child(head)
 		var notes := []
 		if r.damage > 0:
@@ -61,21 +61,21 @@ func render(vs: Dictionary) -> void:
 		if r.knocked_out:
 			notes.append("Knocked Out")
 		if not notes.is_empty():
-			_box.add_child(UI.label("Cost: " + ", ".join(notes), T.LABEL, T.INK_MUTED))
-	var purse := UI.hbox(T.S)
-	_icon = UI.icon_rect("xp", T.NOTE_ICON, T.GOLD)
+			_box.add_child(UI.label("Cost: " + ", ".join(notes), T.BODY_SM, T.PARCHMENT_MUTED))
+	var purse := UI.hbox(T.SPACE_2)
+	_icon = UI.icon_rect("xp", T.NOTE_ICON, T.BRASS_BRIGHT)
 	_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	purse.add_child(_icon)
-	amount = UI.label(str(roundi(_left)), T.HEADING, T.GOLD)
+	amount = UI.label(str(roundi(_left)), T.NUMERAL, T.BRASS_BRIGHT)
 	amount.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	purse.add_child(amount)
-	var cap := UI.label("XP to spend", T.BODY, T.INK)
+	var cap := UI.label("XP to spend", T.BODY, T.PARCHMENT)
 	cap.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	purse.add_child(cap)
 	_box.add_child(purse)
 	_box.add_child(_bar)
 	_bar.queue_redraw()
-	_box.add_child(UI.label(vs.prompt.text, T.LABEL, T.INK_MUTED, true))
+	_box.add_child(UI.label(vs.prompt.text, T.BODY_SM, T.PARCHMENT_MUTED, true))
 	if draining:
 		count_to(vs.xp, T.FILL)
 
@@ -84,16 +84,17 @@ func render(vs: Dictionary) -> void:
 ## count of what is left over all there was.
 func _draw_bar() -> void:
 	var r := Rect2(Vector2.ZERO, _bar.size)
-	_bar.draw_style_box(UI.box(T.BG_RAISED, T.LINE_SOFT, 1, 10, 0), r)
+	_bar.draw_style_box(UI.box(T.WELL, T.LINE, 1, T.RADIUS_PLATE, 0), r)
 	var frac := clampf(_left / float(_total), 0.0, 1.0) if _total > 0 else 0.0
 	if frac > 0.0:
-		_bar.draw_style_box(UI.box(T.GOLD, Color.TRANSPARENT, 0, 10, 0),
+		_bar.draw_style_box(UI.box(T.BRASS_BRIGHT, Color.TRANSPARENT, 0, T.RADIUS_PLATE, 0),
 			Rect2(r.position, Vector2(maxf(20.0, r.size.x * frac), r.size.y)))
-	var font := UI.font("display_bold")
+	var font := UI.font(T.NUMERAL_SM)
+	var fs: int = T.NUMERAL_SM.size
 	var text := "%d / %d" % [roundi(_left), _total]
-	var sz := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 24)
-	_bar.draw_string(font, Vector2((r.size.x - sz.x) / 2.0, r.size.y / 2.0 + 9), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 24,
-		T.BG_BASE if frac >= 0.5 else T.INK)
+	var sz := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs)
+	_bar.draw_string(font, Vector2((r.size.x - sz.x) / 2.0, r.size.y / 2.0 + fs * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs,
+		T.GROUND if frac >= 0.5 else T.PARCHMENT)
 
 
 func _set_left(v: float) -> void:

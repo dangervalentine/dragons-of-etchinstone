@@ -817,3 +817,53 @@ func test_a_refused_boost_is_titled() -> void:
 			eq(vs.prompt.primary.title, "Boost Assignment", "the Boost's aim missing")
 			return
 	ok(false, "an Enemy set missing only the Boost's aim")
+
+
+## Every cost a Play can bring says what brought it, and a Narrow victory or a Loss
+## says the harm it does (the result card ties the verdict to its costs).
+func test_every_cost_says_why() -> void:
+	var seen := {}
+	for game_seed in range(1, 40):
+		var g = Game.new(db, {"seed": game_seed, "dragon": "rodving", "difficulty": "normal"})
+		if g.phase != "challenge":
+			continue
+		var d = Draft.new()
+		d.deal(g.hand)
+		d.cycle_boost_to(0)
+		var p: Dictionary = ViewState.preview(g, d)
+		if p.status != "ready":
+			continue
+		ok(p.aftermath != "", "seed %d: the %s verdict says what it means" % [game_seed, p.verdict])
+		seen[p.verdict] = true
+		for c in p.costs:
+			ok(c.get("why", "") != "", "seed %d: %s says why" % [game_seed, c.id])
+			if c.id == "damage":
+				ok(c.why.begins_with("Damage to Soak"), "seed %d: the damage is to Soak" % game_seed)
+	ok(seen.size() >= 2, "more than one verdict seen: %s" % [seen.keys()])
+
+
+## The Final Journey's result says how the chase leaves you for the fight, by tier;
+## the Final Enemy's says nothing beyond its verdict and costs.
+func test_final_journey_line_by_tier() -> void:
+	var g = _game()
+	_to_final(g)
+	var lines := ["True terror stands before you", "The real battle begins now", "You feel ready for this confrontation"]
+	for tier in 3:
+		var out := {"comparisons": [], "costs": [], "aftermath": ""}
+		ViewState._preview_final_journey(g, {"move": 0, "tier": tier, "time_penalty": 0}, out)
+		eq(out.aftermath, lines[tier], "tier %d" % (tier + 1))
+	var lost := {"comparisons": [], "costs": [], "aftermath": ""}
+	ViewState._preview_final_journey(g, {"move": 0, "tier": -1, "time_penalty": 0}, lost)
+	eq(lost.aftermath, "", "the dragon escapes: its verdict says it all")
+
+
+func test_the_heading_leads_with_the_place() -> void:
+	# specs/019 TopBar: the place first, its number after it, muted.
+	var g = _game()
+	var vs: Dictionary = ViewState.build(g, Draft.new(), db)
+	var name: String = db.region(g.region).name
+	eq(vs.stage.heading, "%s · Region %d" % [name, g.region], "the place, then the Region's number")
+	eq(vs.stage.heading_parts, [name, " · Region %d" % g.region], "and the number apart, to be set muted")
+	_to_final(g)
+	vs = ViewState.build(g, Draft.new(), db)
+	ok(vs.stage.heading.ends_with(" · Final Battle"), "the finale names the dragon first: %s" % vs.stage.heading)

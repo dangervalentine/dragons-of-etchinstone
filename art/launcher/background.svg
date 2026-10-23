@@ -1,3 +1,3 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-<defs><radialGradient id="ground" cx="0.5" cy="0.42" r="0.75"><stop offset="0" stop-color="#3a3157"/><stop offset="0.55" stop-color="#1d1a29"/><stop offset="1" stop-color="#0b0a10"/></radialGradient></defs><rect width="1024" height="1024" fill="url(#ground)"/>
+<defs><radialGradient id="ground" cx="0.5" cy="0.42" r="0.75"><stop offset="0" stop-color="#2e4347"/><stop offset="0.55" stop-color="#172225"/><stop offset="1" stop-color="#0a1012"/></radialGradient></defs><rect width="1024" height="1024" fill="url(#ground)"/>
 </svg>

@@ -37,7 +37,7 @@ func render(vs: Dictionary, plan: Dictionary) -> void:
 		return
 	var label_h: float = plan.get("label_h", 0.0)
 	if label_h > 0.0:
-		var head := UI.icon_rect("boost", 22, T.INK_MUTED)
+		var head := UI.icon_rect("boost", 22, T.PARCHMENT_MUTED)
 		head.tooltip_text = "Where each Boost goes"
 		head.position = rects[0].position - Vector2(0, label_h) - global_position
 		head.size = Vector2(rects[0].size.x, label_h)
@@ -57,15 +57,16 @@ func render(vs: Dictionary, plan: Dictionary) -> void:
 				shown.append(_option(i, choice[0], choice[1], st.boost_to == choice[0]))
 		else:
 			shown.append(_fixed())
-		# The choices share the column's height, a gap between them; the fixed Move is
-		# one choice's height, in the middle.
-		var each := (r.size.y - T.S) / 2.0
-		var y := (r.size.y - (shown.size() * each + (shown.size() - 1) * T.S)) / 2.0
+		# The choices share the column's height, a gap between them, but no taller than
+		# a tap target each, so they stand clear of the Boost's symbol above; the fixed
+		# Move is one choice's height, in the middle.
+		var each := minf((r.size.y - T.SPACE_2) / 2.0, T.TAP_MIN)
+		var y := (r.size.y - (shown.size() * each + (shown.size() - 1) * T.SPACE_2)) / 2.0
 		for b in shown:
 			b.position = Vector2(0, y)
 			b.size = Vector2(r.size.x, each)
 			col.add_child(b)
-			y += each + T.S
+			y += each + T.SPACE_2
 
 
 ## The buttons shown for set `set_index`: Attack and Initiative, or the fixed Move.
@@ -81,9 +82,10 @@ func choice(set_index: int, to: String) -> Button:
 	return null
 
 
-## One choice: its symbol, leafed in gold when it is the set's aim.
+## One choice of two, as a tab: its symbol, rimmed in brass when it is the set's aim
+## (specs/019: selected, not the screen's one primary action).
 func _option(set_index: int, to: String, name: String, chosen: bool) -> Button:
-	var b := _plinth(to, "primary" if chosen else "normal")
+	var b := _plinth(to, "active" if chosen else "normal")
 	b.tooltip_text = "Boost %d adds to %s" % [set_index + 1, name]
 	b.pressed.connect(func(): intent.emit({"type": "set_boost_to", "set": set_index, "to": to}))
 	return b
@@ -91,14 +93,14 @@ func _option(set_index: int, to: String, name: String, chosen: bool) -> Button:
 
 ## On a Journey: Move, the only place the Boost can go, so nothing to press.
 func _fixed() -> Button:
-	var b := _plinth("move", "primary")
+	var b := _plinth("move", "normal")
 	b.tooltip_text = "On a Journey the Boost adds to Move"
 	b.disabled = true
 	b.focus_mode = Control.FOCUS_NONE
 	# Not greyed out: the aim is set, just not a choice.
 	b.add_theme_stylebox_override("disabled", b.get_theme_stylebox("normal"))
-	b.add_theme_color_override("font_disabled_color", T.INK)
-	b.add_theme_color_override("icon_disabled_color", T.INK)
+	b.add_theme_color_override("font_disabled_color", T.PARCHMENT)
+	b.add_theme_color_override("icon_disabled_color", T.PARCHMENT)
 	return b
 
 

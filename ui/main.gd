@@ -6,6 +6,7 @@ extends Control
 
 const CardDB = preload("res://engine/card_db.gd")
 const Game = preload("res://engine/game.gd")
+const Editions = preload("res://ui/model/editions.gd")
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
 const Draft = preload("res://ui/model/turn_draft.gd")
@@ -63,7 +64,6 @@ var _overlays := Control.new()
 var _backdrop := ColorRect.new()
 ## The stone backdrop's settings.
 var backdrop_layer := BackdropLayer.new()
-var _backdrop_ether := ""
 var _notice: Control = null
 var _notice_dismissed := false
 var _lost_at := ""
@@ -269,13 +269,13 @@ func _on_resize() -> void:
 		if screen == play:
 			play.apply_layout(plan)
 		else:
-			screen.apply_layout(plan.body)
+			_lay_out_screen(screen)
 	_place_title_bar()
 	for o in _overlays.get_children():
 		if o.has_method("close") and o.get_script() == InspectOverlay:
 			o.close()
 		elif o.get_script() == RulebookOverlay and not o.is_queued_for_deletion():
-			o.relayout(plan.content.grow(-T.M))
+			o.relayout(plan.content.grow(-T.SPACE_4))
 	_update_notice()
 	_show_coach.call_deferred()
 
@@ -311,16 +311,70 @@ func _update_notice() -> void:
 
 # ---------------------------------------------------------------- screens
 
-func _switch(to: Control) -> void:
+## The way into a game, in order: from the landing page to the dragons, the
+## difficulty, and Set out into play. Moving along it pushes the screens sideways,
+## forward to the left and back to the right (owner, 2026-10-23); any other change
+## of screen fades.
+const FLOW := [TitleScreen, DragonScreen, RulesScreen]
+
+var _slides: Array = []
+## The first deal of a game entered by sliding, waiting for the play screen to land.
+var _pending_deal := Callable()
+
+
+## Which way the move from `old` to `to` pushes along FLOW: 1 forward, -1 back, 0
+## for a fade. Into play only Set out pushes (`into_play`).
+func _flow_dir(old: Control, to: Control, into_play: bool) -> int:
+	if old == null:
+		return 0
+	var a := FLOW.find(old.get_script())
+	var b := FLOW.size() if to == play and into_play else FLOW.find(to.get_script())
+	if a < 0 or b < 0 or a == b:
+		return 0
+	return signi(b - a)
+
+
+func _switch(to: Control, into_play := false) -> void:
 	var old := screen
 	screen = to
-	# Feature 006: every screen stands on the same ground.
-	backdrop_layer.set_stone(true)
+	var dir := _flow_dir(old, to, into_play)
+	# Every screen stands on the same ground; only the play screen is washed in its
+	# Region's tint (specs/019 FR-006).
+	if to != play:
+		backdrop_layer.set_region(null)
 	_screen_host.add_child(to)
 	to.set_anchors_preset(Control.PRESET_FULL_RECT)
 	if old != null:
 		if UI.reduced_motion or not is_inside_tree():
 			old.queue_free()
+			old = null
+	if old != null:
+		# A mask (clip_children) composites wrongly under a fading modulate: the Deck's
+		# zoomed face turns into a pale block, a white flash on phones. The old screen
+		# is on its way out, so it fades unmasked.
+		for n in old.find_children("*", "CanvasItem", true, false):
+			if n.clip_children != CanvasItem.CLIP_CHILDREN_DISABLED:
+				n.clip_children = CanvasItem.CLIP_CHILDREN_DISABLED
+		if dir != 0:
+			# The new screen pushes the old one off the side, both moving as one. The
+			# play screen places its cards by their place on the window, so it cannot
+			# slide: it rises in where it stands as the difficulty slides away.
+			var w := size.x
+			old.mouse_behavior_recursive = Control.MOUSE_BEHAVIOR_DISABLED
+			var tw := create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+			tw.tween_property(old, "position:x", -dir * w, T.MOVE)
+			if to == play:
+				# Over the second half, once the difficulty is mostly away.
+				to.modulate.a = 0.0
+				tw.tween_property(to, "modulate:a", 1.0, T.MOVE / 2.0).set_delay(T.MOVE / 2.0)
+			else:
+				to.position.x = dir * w
+				tw.tween_property(to, "position:x", 0.0, T.MOVE)
+			tw.chain().tween_callback(func():
+				if is_instance_valid(old):
+					old.queue_free()
+				_slid(tw))
+			_slides.append([tw, old, to])
 		else:
 			var tw := create_tween()
 			tw.tween_property(old, "modulate:a", 0.0, T.BASE)
@@ -331,19 +385,132 @@ func _switch(to: Control) -> void:
 		if to == play:
 			play.apply_layout(plan)
 		else:
-			to.apply_layout(plan.body)
-	_place_title_bar()
+			_lay_out_screen(to)
+	_place_title_bar(true)
 
 
-## The title bar shows the screen's name, where the play screen's header would be.
-func _place_title_bar() -> void:
-	title_bar.visible = screen != null and screen != play
-	if not title_bar.visible:
+## A screen other than play's in the room it has: under the title bar, or the
+## whole content where it has none (the landing page), with its menu button where
+## the bar keeps it.
+func _lay_out_screen(s: Control) -> void:
+	if _bare(s):
+		s.apply_layout(plan.content)
+		s.place_menu(_menu_rect(), HeaderBar.menu_face_rect(plan.regions.header))
+	else:
+		s.apply_layout(plan.body)
+
+
+## Whether `s` stands without the title bar: the landing page (owner, 2026-10-23).
+func _bare(s: Control) -> bool:
+	return s != null and s.get_script() == TitleScreen
+
+
+## Where the title bar keeps its menu button when it rests in the header, in this
+## node's coordinates (header_bar.gd _fit() and lift()).
+func _menu_rect() -> Rect2:
+	var h: Rect2 = plan.regions.header
+	var lift := roundf((4.0 - minf(h.position.y, T.SPACE_4)) / 2.0)
+	return Rect2(h.end.x - HeaderBar.PAD_X - T.TAP_MIN, h.position.y + lift, T.TAP_MIN, T.TAP_MIN)
+
+
+var _bar_tween: Tween
+## Whether the title bar is shown, or on its way in.
+var _bar_shown := false
+
+
+## The title bar shows the screen's name, where the play screen's header would be;
+## the landing page has none. Going to or from a screen that has it (`animate`), it
+## slides down into place from above the screen, or back up out of sight; under
+## reduced motion, or giving way to the play screen's header, it fades instead.
+func _place_title_bar(animate := false) -> void:
+	var want := screen != null and screen != play and not _bare(screen)
+	if want:
+		title_bar.set_title(screen.heading, screen.has_method("back"))
+	if plan.is_empty():
+		title_bar.visible = want
+		_bar_shown = want
 		return
-	title_bar.set_title(screen.heading, screen.has_method("back"))
-	if not plan.is_empty():
-		title_bar.position = plan.regions.header.position
-		title_bar.size = plan.regions.header.size
+	var rest: Vector2 = plan.regions.header.position
+	title_bar.size = plan.regions.header.size
+	# Far enough up that nothing of it shows, the menu button reaching below it too.
+	var away := Vector2(rest.x, -(title_bar.size.y + T.TAP_MIN + T.SPACE_4))
+	var moving := _bar_tween != null and _bar_tween.is_valid()
+	if want == _bar_shown and not moving:
+		title_bar.visible = want
+		title_bar.position = rest
+		title_bar.modulate.a = 1.0
+		return
+	if want == _bar_shown and moving:
+		return
+	_bar_shown = want
+	if moving:
+		_bar_tween.kill()
+	if not animate or not is_inside_tree():
+		title_bar.visible = want
+		title_bar.position = rest
+		title_bar.modulate.a = 1.0
+		title_bar.queue_redraw()
+		return
+	title_bar.visible = true
+	_bar_tween = create_tween()
+	# Into play the screen's own header takes the bar's place, so the bar fades
+	# there rather than lifting away over it.
+	if UI.reduced_motion or screen == play:
+		title_bar.position = rest
+		title_bar.modulate.a = 0.0 if want else 1.0
+		_bar_tween.tween_property(title_bar, "modulate:a", 1.0 if want else 0.0, T.MOVE / 2.0 if screen == play else T.BASE)
+	else:
+		title_bar.modulate.a = 1.0
+		var slide := func(y: float):
+			title_bar.position = Vector2(rest.x, y)
+			title_bar.queue_redraw()
+		slide.call(title_bar.position.y if title_bar.position.y < rest.y - 0.5 else (away.y if want else rest.y))
+		_bar_tween.tween_method(slide, title_bar.position.y, rest.y if want else away.y, T.BASE) \
+			.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT if want else Tween.EASE_IN)
+	_bar_tween.tween_callback(_bar_at_rest.bind(want, rest))
+
+
+func _bar_at_rest(shown: bool, rest: Vector2) -> void:
+	title_bar.visible = shown
+	title_bar.position = rest
+	title_bar.modulate.a = 1.0
+	title_bar.queue_redraw()
+
+
+## A screen's slide has landed: the first deal of a game entered by sliding starts.
+## The slide `done` is still running while its own last callback calls this, so it
+## is let go by name.
+func _slid(done: Tween = null) -> void:
+	_slides = _slides.filter(func(sl): return sl[0] != done and sl[0].is_valid() and sl[0].is_running())
+	if _slides.is_empty() and _pending_deal.is_valid():
+		var deal := _pending_deal
+		_pending_deal = Callable()
+		deal.call()
+
+
+## Every change of screen where it is going, at once: the screens slid home, the
+## title bar in its place, and a first deal waiting on them started.
+func finish_transitions() -> void:
+	for sl in _slides:
+		if sl[0].is_valid():
+			sl[0].kill()
+		if is_instance_valid(sl[1]):
+			sl[1].queue_free()
+		if is_instance_valid(sl[2]):
+			sl[2].position.x = 0.0
+			sl[2].modulate.a = 1.0
+	_slides = []
+	finish_title_bar()
+	backdrop_layer.finish()
+	_slid()
+
+
+## The title bar where its slide is going, at once.
+func finish_title_bar() -> void:
+	if _bar_tween != null and _bar_tween.is_valid():
+		_bar_tween.kill()
+		if not plan.is_empty():
+			_bar_at_rest(_bar_shown, plan.regions.header.position)
 
 
 func _show_title() -> void:
@@ -418,7 +585,7 @@ func _show_ending() -> void:
 	_place_title_bar()
 
 
-func start_game(opts: Dictionary) -> void:
+func start_game(opts: Dictionary, set_out := false) -> void:
 	# A game of one's own is not a lesson.
 	if tutorial != null:
 		_end_lesson()
@@ -451,7 +618,7 @@ func start_game(opts: Dictionary) -> void:
 	play = PlayScreen.new()
 	play.flight = _flight
 	play.intent.connect(dispatch)
-	_switch(play)
+	_switch(play, set_out)
 	_refresh(false)
 	if game.phase == "challenge":
 		_deal_start()
@@ -471,6 +638,14 @@ func _deal_start() -> void:
 	play.render(bare)
 	# The Deck starts zoomed out on the Region Card, for the first reveal.
 	play.deck.show_card()
+	# Entered by sliding, the cards are dealt once the screen has landed, so they fly
+	# to where the Hand will rest.
+	if not _slides.is_empty():
+		var for_play := play
+		_pending_deal = func():
+			if play == for_play and is_instance_valid(for_play):
+				animator.play(steps, play, vs)
+		return
 	animator.play(steps, play, vs)
 
 
@@ -643,7 +818,7 @@ func _offer_lessons() -> bool:
 	Settings.save_all()
 	var c := ConfirmDialog.new()
 	_overlays.add_child(c)
-	c.setup("New to Etchinstone? Learn to Play takes about ten minutes.", "Learn to Play", "Play")
+	c.setup("Learn to Play takes about ten minutes.", "Learn to Play", "Play", "", "New to Etchinstone?")
 	var chose := [false]
 	c.confirmed.connect(func():
 		chose[0] = true
@@ -675,9 +850,10 @@ func _refresh(animate := true, show := true) -> void:
 	if draft.held == null:
 		_key_target = null
 	vs = ViewState.build(game, draft, db, {"previous_preview": previous, "lost_at": _lost_at, "placing": placing, "key_target": _key_target})
+	if play != null and screen == play:
+		_wash_backdrop()
 	if show and play != null and screen == play and not animator.is_playing():
 		play.render(vs, animate)
-		_tint_backdrop(vs)
 
 
 # ---------------------------------------------------------------- intents
@@ -727,7 +903,7 @@ func _dispatch(intent: Dictionary) -> void:
 			_end_lesson()
 			_show_title()
 		"start":
-			start_game(intent.options)
+			start_game(Editions.apply(intent.options), true)
 		"play_again":
 			start_game(menu)
 		"to_title":
@@ -757,7 +933,7 @@ func _dispatch(intent: Dictionary) -> void:
 		"records_clear":
 			var c := ConfirmDialog.new()
 			_overlays.add_child(c)
-			c.setup("Clear every recorded game? This cannot be undone.", "Clear records", "Keep them")
+			c.setup("This cannot be undone.", "Clear records", "Keep them", "", "Clear every recorded game?", "trash")
 			c.confirmed.connect(func():
 				HistoryStore.clear_all()
 				_close_overlays()
@@ -777,20 +953,18 @@ func _dispatch(intent: Dictionary) -> void:
 		"back":
 			if screen != null and screen.has_method("back"):
 				screen.back()
-		"ground":
-			backdrop_layer.refresh_ground()
 		"menu":
 			_open_menu(play != null and screen == play)
 		"glossary":
 			var g := GlossaryPopover.new()
 			_overlays.add_child(g)
-			g.show_all(plan.content.grow(-T.M))
+			g.show_all(plan.content.grow(-T.SPACE_4))
 			_return_to_menu(g, intent)
 		"rulebook":
 			var r := RulebookOverlay.new()
 			_overlays.add_child(r)
 			r.intent.connect(dispatch)
-			r.open(plan.content.grow(-T.M), intent.get("section", ""), db)
+			r.open(plan.content.grow(-T.SPACE_4), intent.get("section", ""), db)
 			_return_to_menu(r, intent)
 		"leave":
 			# Leaving a lesson loses nothing of the player's: no question.
@@ -800,7 +974,7 @@ func _dispatch(intent: Dictionary) -> void:
 				return
 			var c := ConfirmDialog.new()
 			_overlays.add_child(c)
-			c.setup("Abandon this run? It cannot be resumed.", "Abandon run", "Keep playing")
+			c.setup("It cannot be resumed.", "Abandon run", "Keep playing", "", "Abandon this run?", "close")
 			c.confirmed.connect(func():
 				_record("abandoned")
 				_close_overlays()
@@ -828,6 +1002,14 @@ func _dispatch(intent: Dictionary) -> void:
 				_refuse(err, intent.id)
 		"put":
 			_put(intent.target)
+		"aim":
+			# The pointer over a place while a card is held aims it there, as Tab does:
+			# only the places are drawn again, so nothing in the Hand moves.
+			if draft.held != null and play != null and screen == play and intent.target != _key_target:
+				_key_target = intent.target
+				vs.key_target = _key_target
+				vs.places = ViewState.places(vs, game, draft)
+				play.reaim(vs)
 		"drag_put":
 			draft.held = null
 			var err: String = draft.pick(intent.id)
@@ -1009,8 +1191,9 @@ func _on_primary() -> void:
 			var affordable := false
 			for id in vs.hand:
 				affordable = affordable or vs.cards[id].get("can_raise", false)
-			# A lesson says itself what unspent XP costs, without the question.
-			if Settings.warn_unspent_xp and vs.xp > 0 and affordable and tutorial == null:
+			# A lesson says itself what unspent XP costs, without the question; with
+			# Persistent XP it costs nothing, so there is nothing to ask.
+			if Settings.warn_unspent_xp and vs.xp > 0 and affordable and tutorial == null and not game.keeps_xp():
 				_confirm_unspent_xp()
 				return
 			_finish_upgrade()
@@ -1021,8 +1204,9 @@ func _on_primary() -> void:
 func _confirm_unspent_xp() -> void:
 	var c := ConfirmDialog.new()
 	_overlays.add_child(c)
-	c.setup("You have %d XP left, enough to Upgrade a card. Unspent XP is lost. Continue anyway?" % vs.xp,
-		"Continue anyway", "Keep upgrading", "Don't show this again")
+	# The question as the title, the consequence printed on paper (specs/019 Dialog).
+	c.setup("You have %d XP left, enough to Upgrade a card, and unspent XP is lost." % vs.xp,
+		"Continue anyway", "Keep upgrading", "Don't show this again", "Continue without spending it?", "", true)
 	c.confirmed.connect(_finish_upgrade)
 	c.tree_exiting.connect(func():
 		if c.opted_out:
@@ -1098,7 +1282,6 @@ func _act(action: Dictionary, call: Callable) -> void:
 	_refresh(false, false)
 	if steps.is_empty():
 		play.render(vs, true)
-		_tint_backdrop(vs)
 		return
 	animator.play(steps, play, vs)
 
@@ -1150,23 +1333,9 @@ func _refusal_title() -> String:
 	return "Placing Cards"
 
 
-## The backdrop takes on a little of the Encounter's Ether behind it.
-func _tint_backdrop(state: Dictionary) -> void:
-	var enc = state.get("encounter")
-	var ether: String = str(enc.element) if enc != null and enc.element != null else ""
-	if ether == _backdrop_ether:
-		return
-	_backdrop_ether = ether
-	var m: ShaderMaterial = _backdrop.material
-	var to := 1.0 if ether != "" else 0.0
-	if ether != "":
-		m.set_shader_parameter("ether_tint", T.ether_shade(ether, "deep").lightened(0.2))
-	if Settings.reduced_motion() or not is_inside_tree():
-		m.set_shader_parameter("tint_amount", to)
-		return
-	var set = m.get_shader_parameter("tint_amount")
-	var from: float = set if set != null else 0.0
-	create_tween().tween_method(func(v): m.set_shader_parameter("tint_amount", v), from, to, T.BASE)
+## The ground takes on the current Region's tint behind its card (specs/019 FR-006).
+func _wash_backdrop() -> void:
+	backdrop_layer.set_region(vs.get("stage"), play.wash_centre())
 
 
 ## Cards' Ether fields move only while no overlay covers the play screen.
@@ -1182,18 +1351,20 @@ func _respond(event: String, ether = null, card_id := "") -> void:
 	if play == null or screen != play or not BoardResponse.TABLE.has(event):
 		return
 	var r: Dictionary = BoardResponse.TABLE[event]
+	# The roles' colours (specs/019 research R6): emphasis in parchment, rewards in
+	# bright brass, harm in danger, an Ether in its bright pigment, the rest the edge.
 	var colour: Color
 	match r.colour:
 		"ether":
-			colour = T.ether_shade(ether, "lit") if ether != null and ether != "" else T.RESPONSE_NEUTRAL
+			colour = T.ether_shade(ether, "lit") if ether != null and ether != "" else T.EDGE
 		"focus":
-			colour = T.FOCUS
+			colour = T.PARCHMENT
 		"gold":
-			colour = T.GOLD
+			colour = T.BRASS_BRIGHT
 		"bad":
-			colour = T.BAD
+			colour = T.DANGER
 		_:
-			colour = T.RESPONSE_NEUTRAL
+			colour = T.EDGE
 	play.flare(r.target, colour, r.motion.kind, r.motion.duration, card_id)
 
 
@@ -1206,9 +1377,10 @@ func _banner(values: Dictionary, duration: float) -> void:
 		var d: Dictionary = game.dragon
 		var art_name: String = Art.dragon(d.id)
 		b.show_banner("%s, %s" % [d.name, d.title], "The Final Journey" if values.phase == "final_journey" else "The Final Enemy",
-			UI.head(art_name), T.ether(d.early_damage.element), duration)
+			UI.head(art_name), T.ETHER[d.early_damage.element].base, duration)
 	else:
-		b.show_banner("Region %d" % values.region, db.region(values.region).name, "sigil_region", T.GOLD, duration)
+		# Each Region announces itself in its painted colour (specs/019 Banner).
+		b.show_banner("Region %d" % values.region, db.region(values.region).name, "sigil_region", T.REGION[values.region], duration)
 
 
 ## The Key Card that named the Encounter on show, at its Levels, its Key Card part
@@ -1385,7 +1557,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		# Move the target across the places that can take the held card.
 		var targets: Array = []
 		for p in vs.get("places", []):
-			if p.state == "target" and p.tap != null and p.tap.type == "put":
+			if p.state in ["open", "target"] and p.tap != null and p.tap.type == "put":
 				targets.append(p.tap.target)
 		if targets.is_empty():
 			return

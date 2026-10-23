@@ -123,13 +123,16 @@ func _show_face() -> void:
 	if not _face_turned or trashed:
 		_face.set_model(model)
 		_face.dimmed = not model.get("eligible", true)
+		_face.out_of_play = model.get("out_of_play", false)
 	else:
 		var m := model.duplicate()
 		m.level = alt.level
 		m.stats = alt.stats
-		_face.set_model(m, alt.changed, T.GOLD if alt.level > model.level else T.BAD)
+		_face.set_model(m, alt.changed, T.PARCHMENT if alt.level > model.level else T.DANGER)
 		_face.dimmed = false
 	_face.set_focus(model.get("focus", {}))
+	# The card picked up casts the larger shadow of a card held up (specs/019).
+	_face.lifted = model.get("state", "") == "selected" or _dragging
 	_marks.queue_redraw()
 
 
@@ -239,6 +242,7 @@ func _gui_input(event: InputEvent) -> void:
 		# then is not a hold, so the inspector does not open.
 		if _pressing and not _held and not _dragging and event.position.distance_to(_press_at) > DRAG_START:
 			_dragging = true
+			_face.lifted = true
 			_hold.stop()
 			UI.pulse_scale(self, 1.0)
 			drag_started.emit(id)
@@ -265,6 +269,7 @@ func _gui_input(event: InputEvent) -> void:
 				UI.pulse_scale(self, 1.0)
 				if _dragging:
 					_dragging = false
+					_face.lifted = model.get("state", "") == "selected"
 					dropped.emit(id, get_global_transform() * event.position)
 				elif not _held and Rect2(Vector2.ZERO, size).has_point(event.position):
 					hovered.emit(id, false)
@@ -403,29 +408,33 @@ func _draw_marks() -> void:
 	if model.is_empty():
 		return
 	var w := size.x
-	var radius := int(w * 0.075)
+	var radius := UI.card_radius(w)
 	var state: String = model.get("state", "available")
 	var outline := Color.TRANSPARENT
-	if state == "assigned" or state == "selected":
-		outline = T.muted(T.GOLD)
+	# The card picked up takes the brass ring (specs/019 "Selected"); a card placed in
+	# a set needs none, its place's header names it; a hovered one a parchment edge.
+	if state == "selected":
+		outline = T.BRASS
 	elif _hover and model.get("eligible", true):
-		outline = T.INK
+		outline = T.PARCHMENT
 	if outline.a > 0.0:
 		var s := StyleBoxFlat.new()
 		s.draw_center = false
 		s.border_color = outline
-		s.set_border_width_all(maxi(3, int(w * 0.022)))
+		s.set_border_width_all(T.BORDER_SELECT if outline == T.BRASS else maxi(3, int(w * 0.022)))
 		s.set_corner_radius_all(radius + 2)
 		s.set_expand_margin_all(2)
 		_marks.draw_style_box(s, Rect2(Vector2.ZERO, size))
 	var boosting: bool = model.get("reserve_boosts", false)
 	if state == "reserve":
-		_dashed_outline(T.muted(T.GOLD) if boosting else T.INK_MUTED)
+		_dashed_outline(T.PARCHMENT if boosting else T.PARCHMENT_MUTED)
 
 	var ribbon := ""
 	var ribbon_icon := ""
-	var ribbon_bg := T.GOLD_FACE
-	var ribbon_ink := T.BG_BASE
+	# A card's ribbons are the leather of its stat ribbon, lettered in parchment
+	# (specs/019 MageCard; 5.5:1).
+	var ribbon_bg := T.CARD_RIBBON
+	var ribbon_ink := T.PARCHMENT
 	if state == "assigned":
 		var role: Array = model.role
 		ribbon = ROLE_NAMES[role[1]] + (" %d" % (role[0] + 1) if show_set_number else "")
@@ -436,22 +445,26 @@ func _draw_marks() -> void:
 	elif state == "reserve":
 		ribbon = "Reserve"
 		ribbon_icon = "reserve"
-		ribbon_bg = T.BG_RAISED
-		ribbon_ink = T.INK
+		ribbon_bg = T.STONE_RAISED
+		ribbon_ink = T.PARCHMENT
 	elif state == "fused_bottom":
 		ribbon = "Tucked"
 		ribbon_icon = "fuse"
-		ribbon_bg = T.BG_RAISED
-		ribbon_ink = T.INK
+		ribbon_bg = T.STONE_RAISED
+		ribbon_ink = T.PARCHMENT
 	elif not model.get("eligible", true) and model.get("reason", "") != "":
 		ribbon = model.reason
-		ribbon_bg = T.BG_BAND
-		ribbon_ink = T.INK
+		ribbon_bg = T.STAT_PLATE
+		ribbon_ink = T.PARCHMENT
 	elif model.get("note", "") != "":
 		ribbon = model.note
 		ribbon_icon = model.get("note_icon", "")
-		ribbon_bg = T.GOOD if model.get("match", false) else T.BG_BAND
-		ribbon_ink = T.BG_BASE if model.get("match", false) else T.INK
+		var good: bool = model.get("match", false)
+		# A good match is jade, and never by colour alone (specs/019 FR-009).
+		if good and ribbon_icon == "":
+			ribbon_icon = "victory"
+		ribbon_bg = T.JADE if good else T.STAT_PLATE
+		ribbon_ink = T.STAT_PLATE if good else T.PARCHMENT
 	# The Trashed back carries nothing but its own mark.
 	if _back.visible:
 		return
@@ -462,34 +475,42 @@ func _draw_marks() -> void:
 	var alt = model.get("alt")
 	if _face_turned and alt != null:
 		var up: bool = alt.level > model.level
-		_tag("Level %d" % alt.level, "crown" if up else "down_arrow", T.GOLD if up else T.BAD, T.BG_BASE)
+		_tag("Level %d" % alt.level, "crown" if up else "down_arrow", T.BRASS_BRIGHT if up else T.DANGER, T.ON_BRASS if up else T.STAT_PLATE)
 	elif model.get("fate", "") == "stays":
-		_tag("Stays in Hand", "reserve", T.GOLD, T.BG_BASE)
+		_tag("Stays in Hand", "reserve", T.CARD_RIBBON, T.PARCHMENT)
 	elif model.get("fate", "") == "spent":
 		# The role it was just played as, so the recap needs no names.
 		var played = model.get("played_role")
 		if played != null:
-			_tag("%s · Discarded after" % ROLE_NAMES[played[1]], ROLE_ICONS[played[1]], T.BG_RAISED, T.INK_MUTED)
+			_tag("%s · Discarded after" % ROLE_NAMES[played[1]], ROLE_ICONS[played[1]], T.STONE_RAISED, T.PARCHMENT_MUTED)
 		else:
-			_tag("Discarded after", "discard", T.BG_RAISED, T.INK_MUTED)
+			_tag("Discarded after", "discard", T.STONE_RAISED, T.PARCHMENT_MUTED)
 
 	var fuse = model.get("fuse")
 	if fuse != null and fuse.part == "top":
 		var d := maxf(40.0, w * 0.26)
 		var c := Vector2(w - d * 0.4, size.y * 0.46)
-		_marks.draw_circle(c, d / 2.0 + 3, T.GOLD)
-		_marks.draw_circle(c, d / 2.0, T.BG_BASE)
+		_marks.draw_circle(c, d / 2.0 + 3, T.PARCHMENT)
+		_marks.draw_circle(c, d / 2.0, T.GROUND)
 		_marks.draw_texture_rect(UI.icon(fuse.element), Rect2(c - Vector2(d, d) * 0.3, Vector2(d, d) * 0.6), false, T.ether_ink(fuse.element))
 
 
 func _ribbon(text: String, icon_name: String, bg: Color, ink: Color) -> void:
 	# A tag in the lower right of the field, where the sigil is, so no figure is hidden.
-	var font := UI.font("body_bold")
+	var font := UI.font(T.BODY_STRONG)
 	var max_w := size.x * 0.6
-	var fs := int(clampf(size.x * 0.12, 16.0, T.LABEL[1]))
+	# Clear of the "×2" chip beside the Armor, when the Armor soaks double.
+	var chip := _face.soaks_chip_rect()
+	if chip.has_area():
+		max_w = minf(max_w, size.x - size.x * 0.045 - (chip.end.x + _face.position.x) - 4.0)
+	# Printed on the card, fitted to it, never under the card-text floor that scales
+	# with the card (specs/019 FR-015, CardFace.name_floor); a word that will not fit
+	# leaves its icon alone.
+	var least := CardFace.name_floor(size.x)
+	var fs := int(clampf(size.x * 0.12, 16.0, T.BODY_SM.size))
 	var h := fs * 1.45
 	var icon_w := (h * 0.68 + 3) if icon_name != "" else 0.0
-	while fs > 15 and font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + icon_w + 14 > max_w:
+	while fs > least and font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + icon_w + 14 > max_w:
 		fs -= 1
 	var tw := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 	if tw + icon_w + 14 > max_w and icon_name != "":
@@ -501,9 +522,9 @@ func _ribbon(text: String, icon_name: String, bg: Color, ink: Color) -> void:
 	var s := StyleBoxFlat.new()
 	s.bg_color = bg
 	s.set_corner_radius_all(int(h / 2.0))
-	s.border_color = Color(0, 0, 0, 0.5)
+	s.border_color = Color(T.SHADE, 0.5)
 	s.set_border_width_all(1)
-	s.shadow_color = Color(0, 0, 0, 0.45)
+	s.shadow_color = Color(T.SHADE, 0.45)
 	s.shadow_size = 4
 	_marks.draw_style_box(s, rect)
 	var x := rect.position.x + (rect.size.x - tw - icon_w) / 2.0
@@ -513,10 +534,13 @@ func _ribbon(text: String, icon_name: String, bg: Color, ink: Color) -> void:
 	if text != "":
 		var base := rect.get_center().y + (font.get_ascent(fs) - font.get_descent(fs)) / 2.0
 		_marks.draw_string(font, Vector2(x, base), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, ink)
+		UI.drew_text(self, "ribbon", fs, least)
 
 
 func _tag(text: String, icon_name: String, bg: Color, ink: Color) -> void:
-	var font := UI.font("body_bold")
+	var font := UI.font(T.BODY_STRONG)
+	# Fitted to the card like the ribbon, on the card-text floor (specs/019 FR-015).
+	var least := CardFace.name_floor(size.x)
 	var fs := int(clampf(size.x * 0.105, 15.0, 20.0))
 	var h := fs * 1.5
 	var icon_w := h * 0.66 + 3
@@ -525,7 +549,7 @@ func _tag(text: String, icon_name: String, bg: Color, ink: Color) -> void:
 	var widest := text
 	if font.get_string_size(TAG_LONGEST, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x:
 		widest = TAG_LONGEST
-	while fs > 13 and font.get_string_size(widest, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + icon_w + 16 > size.x + 8:
+	while fs > least and font.get_string_size(widest, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + icon_w + 16 > size.x + 8:
 		fs -= 1
 	var tw := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 	var w := tw + icon_w + 16
@@ -533,23 +557,17 @@ func _tag(text: String, icon_name: String, bg: Color, ink: Color) -> void:
 	var s := StyleBoxFlat.new()
 	s.bg_color = bg
 	s.set_corner_radius_all(int(h / 2.0))
-	s.border_color = Color(0, 0, 0, 0.55)
+	s.border_color = Color(T.SHADE, 0.55)
 	s.set_border_width_all(1)
-	s.shadow_color = Color(0, 0, 0, 0.4)
+	s.shadow_color = Color(T.SHADE, 0.4)
 	s.shadow_size = 3
 	_marks.draw_style_box(s, rect)
 	var x := rect.position.x + 8
 	_marks.draw_texture_rect(UI.icon(icon_name), Rect2(x, rect.position.y + h * 0.17, h * 0.66, h * 0.66), false, ink)
 	var base := rect.get_center().y + (font.get_ascent(fs) - font.get_descent(fs)) / 2.0
 	_marks.draw_string(font, Vector2(x + icon_w, base), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, ink)
+	UI.drew_text(self, "tag", fs, least)
 
-
-func _centred(rect: Rect2, text: String, font_size: float, color: Color, font_name: String) -> void:
-	var font := UI.font(font_name)
-	var fs := int(font_size)
-	var sz := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs)
-	var base := rect.get_center().y + (font.get_ascent(fs) - font.get_descent(fs)) / 2.0
-	_marks.draw_string(font, Vector2(rect.get_center().x - sz.x / 2.0, base), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, color)
 
 
 func _dashed_outline(colour: Color) -> void:

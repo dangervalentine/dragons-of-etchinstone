@@ -17,28 +17,25 @@ var _tween: Tween
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	visible = false
-	_panel.add_theme_stylebox_override("panel", UI.stone_slab(T.GOLD, 12))
-	var col := UI.vbox(T.S)
-	var title := UI.label("The fused card counts as", T.LABEL_BOLD, T.INK)
+	_panel.add_theme_stylebox_override("panel", UI.stone_slab(Color(T.SHADE, 0), 12))
+	var col := UI.vbox(T.SPACE_2)
+	var title := UI.label("The fused card counts as", T.LABEL, T.PARCHMENT_MUTED)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(title)
-	var row := UI.hbox(T.S)
+	var row := UI.hbox(T.SPACE_2)
 	for e in T.ETHER:
 		var b := Button.new()
-		b.custom_minimum_size = Vector2(104, 104)
+		b.custom_minimum_size = Vector2(maxi(104, T.TAP_MIN), maxi(104, T.TAP_MIN))
 		b.focus_mode = Control.FOCUS_ALL
-		var c: Color = T.ether(e)
-		b.add_theme_stylebox_override("normal", UI.box(T.BG_BAND, c, 2))
-		b.add_theme_stylebox_override("hover", UI.box(Color(c, 0.25), c, 3))
-		b.add_theme_stylebox_override("pressed", UI.box(Color(c, 0.4), c, 3))
-		var focus := UI.box(Color.TRANSPARENT, T.GOLD, 3)
-		focus.set_expand_margin_all(4)
-		b.add_theme_stylebox_override("focus", focus)
+		# A stone plinth with the Ether's glyph in its bright pigment (specs/019): the
+		# glyph tells the Ethers apart, as on the cards.
+		var c: Color = T.ether_shade(e, "lit")
+		UI.style_stone_button(b, "normal")
 		var inner := UI.vbox(2)
 		inner.alignment = BoxContainer.ALIGNMENT_CENTER
 		inner.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		inner.add_child(UI.icon_rect(e, 46, c))
-		var name := UI.label(e.capitalize(), T.LABEL, T.INK)
+		var name := UI.label(e.capitalize(), T.BODY_SM, T.PARCHMENT)
 		name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		inner.add_child(name)
 		UI.ignore_mouse(inner)
@@ -51,7 +48,7 @@ func _init() -> void:
 	add_child(_panel)
 	_pointer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_pointer.draw.connect(func():
-		_pointer.draw_colored_polygon(PackedVector2Array([Vector2(0, 0), Vector2(28, 0), Vector2(14, 16)]), T.GOLD))
+		_pointer.draw_colored_polygon(PackedVector2Array([Vector2(0, 0), Vector2(28, 0), Vector2(14, 16)]), T.PARCHMENT))
 	_pointer.size = Vector2(28, 16)
 	add_child(_pointer)
 

@@ -12,23 +12,49 @@ static var reduced_motion := false
 static var _fonts := {}
 static var _icons := {}
 
+## Alegreya Sans by weight (specs/019 research R3).
+const SANS := {500: "Medium", 700: "Bold", 800: "ExtraBold"}
+## The font for a type style (tokens.gd), one cached variation per face: Fraunces at
+## the style's weight and optical size, softened (SOFT 50) and never wonky (WONK 0), or
+## Alegreya Sans at its weight with lining, tabular figures. Fraunces falls back to
+## Alegreya for the few signs it lacks (→). Letter spacing is set for `size` (the
+## style's own when -1).
+static func font(st: Dictionary, size := -1) -> Font:
+	var px: int = size if size > 0 else st.get("size", 0)
+	var key := "%s/%d/%d/%d" % [st.family, st.weight, st.get("opsz", 0), roundi(st.spacing * px)]
+	if not _fonts.has(key):
+		_fonts[key] = _face(st, roundi(st.spacing * px))
+	return _fonts[key]
 
-static func font(name: String) -> Font:
-	if _fonts.is_empty():
-		var ts := TextServerManager.get_primary_interface()
-		var cinzel: Font = load("res://art/fonts/Cinzel.ttf")
-		for entry in [["display", 600], ["display_bold", 800], ["numeral", 900]]:
-			var v := FontVariation.new()
-			v.base_font = cinzel
-			v.variation_opentype = {ts.name_to_tag("wght"): entry[1]}
-			_fonts[entry[0]] = v
-		for entry in [["body", "Regular"], ["body_medium", "Medium"], ["body_bold", "Bold"]]:
-			var v := FontVariation.new()
-			v.base_font = load("res://art/fonts/AlegreyaSans-%s.ttf" % entry[1])
-			# Lining, tabular figures: numbers sit on the baseline and line up.
-			v.opentype_features = {ts.name_to_tag("lnum"): 1, ts.name_to_tag("tnum"): 1}
-			_fonts[entry[0]] = v
-	return _fonts[name]
+
+static func _face(st: Dictionary, spacing: int) -> Font:
+	var ts := TextServerManager.get_primary_interface()
+	var v := FontVariation.new()
+	var figures := "res://art/fonts/FrauncesFigures-%d-%d.ttf" % [st.weight, st.get("opsz", 0)]
+	if st.family == "display" and ResourceLoader.exists(figures):
+		# A numeral style: its static cut with tabular digits (tools/make_figures.py),
+		# since Fraunces has none, so sums and tables line up (FR-014).
+		v.base_font = load(figures)
+	elif st.family == "display":
+		v.base_font = load("res://art/fonts/Fraunces.ttf")
+		v.variation_opentype = {ts.name_to_tag("wght"): st.weight, ts.name_to_tag("opsz"): st.opsz,
+			ts.name_to_tag("SOFT"): 50, ts.name_to_tag("WONK"): 0}
+	if st.family == "display":
+		v.fallbacks = [_face({"family": "sans", "weight": SANS.keys().reduce(
+			func(a, w): return w if absi(w - st.weight) < absi(a - st.weight) else a), "spacing": 0.0}, 0)]
+	else:
+		v.base_font = load("res://art/fonts/AlegreyaSans-%s.ttf" % SANS[st.weight])
+		# Lining, tabular figures: numbers sit on the baseline and line up.
+		v.opentype_features = {ts.name_to_tag("lnum"): 1, ts.name_to_tag("tnum"): 1}
+	v.spacing_glyph = spacing
+	return v
+
+
+## A type style at another size (a fitted name, a figure sized to its box).
+static func restyle(style: Dictionary, size: int) -> Dictionary:
+	var out := style.duplicate()
+	out.size = size
+	return out
 
 
 ## A creature's painted picture from art/painted/, or, for art with none (the Final
@@ -84,21 +110,46 @@ static func icon(name: String) -> Texture2D:
 ## The project-wide Theme: default font and the looks of plain controls.
 static func build_theme() -> Theme:
 	var theme := Theme.new()
-	theme.default_font = font("body")
-	theme.default_font_size = T.BODY[1]
-	theme.set_color("font_color", "Label", T.INK)
-	# Tooltips: an opaque raised panel, so the text never mixes with what is beneath.
+	theme.default_font = font(T.BODY)
+	theme.default_font_size = T.BODY.size
+	theme.set_color("font_color", "Label", T.PARCHMENT)
+	# Tooltips are a raised stone sheet, so the text never mixes with what is beneath.
 	theme.set_stylebox("panel", "TooltipPanel", tooltip_box())
-	theme.set_color("font_color", "TooltipLabel", T.INK)
-	theme.set_font_size("font_size", "TooltipLabel", T.LABEL[1])
+	theme.set_color("font_color", "TooltipLabel", T.PARCHMENT)
+	theme.set_font_size("font_size", "TooltipLabel", T.BODY_SM.size)
 	return theme
 
 
-static func tooltip_box() -> StyleBoxFlat:
-	var s := box(Color(T.BG_BASE, 0.97), Color(T.GOLD, 0.6), 1, T.RADIUS_S, T.S + 2)
-	s.shadow_color = Color(0, 0, 0, 0.5)
-	s.shadow_size = 8
+## Paper (specs/019 contracts/materials-and-ground.md): coach tips and the unspent
+## XP question; the glossary and the rulebook moved to stone (owner, 2026-10-23). A dim, warm
+## sheet with a darker paper edge, rounded as paper is, lifted off the table by the
+## card shadow. Text on it is PAPER_INK, PAPER_MUTED for the secondary.
+static func paper_box(margin: int = T.SPACE_3) -> StyleBoxFlat:
+	var s := box(T.PAPER, T.PAPER.darkened(0.15), T.BORDER_ETCH, T.RADIUS_PLATE, margin)
+	s.shadow_color = T.SHADOW_CARD.colour
+	s.shadow_size = int(T.SHADOW_CARD.blur / 2.0)
+	s.shadow_offset = Vector2(0, T.SHADOW_CARD.drop)
 	return s
+
+
+## Every tooltip and the help a tap opens: a raised stone sheet with the etched rim,
+## lifted off the table by the card shadow, its text parchment (owner, 2026-10-23:
+## no paper behind the glossary).
+static func tooltip_box() -> StyleBoxFlat:
+	var s := box(T.STONE_RAISED, T.EDGE, T.BORDER_ETCH, T.RADIUS_PLATE, T.SPACE_2)
+	s.shadow_color = T.SHADOW_CARD.colour
+	s.shadow_size = int(T.SHADOW_CARD.blur / 2.0)
+	s.shadow_offset = Vector2(0, T.SHADOW_CARD.drop)
+	return s
+
+
+## Notes the size of text a widget drew by hand at `site`, with the least it may be,
+## so the UI check holds drawn text to the floors as it does labels (specs/019
+## FR-015). Each site keeps its latest size.
+static func drew_text(owner: Object, site: String, fs: int, least: int = T.TEXT_MIN) -> void:
+	var drawn: Dictionary = owner.get_meta("drawn_text", {})
+	drawn[site] = [fs, least]
+	owner.set_meta("drawn_text", drawn)
 
 
 ## A tooltip in the one explanation look. Text written "Name: what it means" gets
@@ -108,8 +159,8 @@ static func wrapped_tooltip(text: String, width := 340.0, icon_name := "") -> Co
 	var cut := text.find(": ")
 	if cut > 0 and cut < 32:
 		return entry_content(text.left(cut), text.substr(cut + 2), icon_name, width)
-	var l := label(text, T.LABEL, T.INK, true)
-	l.custom_minimum_size.x = minf(width, font(T.LABEL[0]).get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, T.LABEL[1]).x + 2)
+	var l := label(text, T.BODY_SM, T.PARCHMENT, true)
+	l.custom_minimum_size.x = minf(width, font(T.BODY_SM).get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, T.BODY_SM.size).x + 2)
 	return l
 
 
@@ -120,26 +171,32 @@ static func entry_content(title: String, body: String, icon_name := "", width :=
 	col.add_theme_constant_override("separation", 4)
 	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var head := HBoxContainer.new()
-	head.add_theme_constant_override("separation", T.S)
+	head.add_theme_constant_override("separation", T.SPACE_2)
 	if icon_name != "":
 		head.add_child(icon_rect(icon_name, 26, icon_ink(icon_name)))
-	var t := label(title.to_upper(), T.SUBHEAD, T.INK)
+	var t := label(title, T.HEADING, T.PARCHMENT)
 	t.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	head.add_child(t)
 	col.add_child(head)
-	var l := label(body, T.LABEL, T.INK, true)
+	var l := label(body, T.BODY_SM, T.PARCHMENT, true)
 	l.custom_minimum_size.x = width
 	col.add_child(l)
 	return col
 
 
+## The colour an icon is printed in on paper: an Ether in its deep pigment, any other
+## sign in the paper's ink.
+static func paper_ink(id: String) -> Color:
+	return T.ether_shade(id, "paper") if T.ETHER.has(id) else T.PAPER_INK
+
+
 ## The colour an explanation's icon is drawn in: an Ether in its own ink, any other
-## term in gold.
+## term in the text's (brass is for what you can do next, specs/019 research R6).
 static func icon_ink(id: String) -> Color:
-	return T.ether_ink(id) if T.ETHER.has(id) else T.GOLD
+	return T.ether_ink(id) if T.ETHER.has(id) else T.PARCHMENT
 
 
-static func label(text: String, type: Array = T.BODY, color: Color = T.INK, wrap := false) -> Label:
+static func label(text: String, type: Dictionary = T.BODY, color: Color = T.PARCHMENT, wrap := false) -> Label:
 	var l := Label.new()
 	l.text = text
 	style_label(l, type, color)
@@ -149,17 +206,20 @@ static func label(text: String, type: Array = T.BODY, color: Color = T.INK, wrap
 	return l
 
 
-static func style_label(l: Label, type: Array, color: Color) -> void:
-	l.add_theme_font_override("font", font(type[0]))
-	l.add_theme_font_size_override("font_size", type[1])
+## Sets a label in a type style: its face, its size, its colour, and capitals when
+## the style is set in them (banner, card name, label).
+static func style_label(l: Label, type: Dictionary, color: Color) -> void:
+	l.add_theme_font_override("font", font(type))
+	l.add_theme_font_size_override("font_size", type.size)
+	l.uppercase = type.get("upper", false)
 	l.add_theme_color_override("font_color", color)
 
 
-static func icon_rect(name: String, side: float, color: Color = T.INK) -> TextureRect:
+static func icon_rect(name: String, side: float, color: Color = T.PARCHMENT) -> TextureRect:
 	return texture_rect(icon(name), side, color)
 
 
-static func texture_rect(texture: Texture2D, side: float, color: Color = T.INK) -> TextureRect:
+static func texture_rect(texture: Texture2D, side: float, color: Color = T.PARCHMENT) -> TextureRect:
 	var t := TextureRect.new()
 	t.texture = texture
 	t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -172,11 +232,24 @@ static func texture_rect(texture: Texture2D, side: float, color: Color = T.INK) 
 	return t
 
 
-## The corner radius of a card `width` wide, as a Mage Card draws its own
-## (card_face.gd): the Region and Dragon Cards and the Deck's edges match it
-## (specs/014 FR-016).
+## The corner radius of a card `width` wide: every card, of any kind and size, is cut
+## alike (specs/014 FR-016; the share is the design system's, specs/019).
 static func card_radius(width: float) -> int:
-	return roundi(width * 0.075)
+	return roundi(width * T.CARD_RADIUS_SHARE)
+
+
+## A card's shadow on `canvas` under `rect` (specs/019 "Depth"): a hard drop onto the
+## table and a soft shade, the larger lift while it is held, dragged or inspected.
+static func draw_card_shadow(canvas: CanvasItem, rect: Rect2, radius: int, lifted := false) -> void:
+	var sh: Dictionary = T.SHADOW_LIFT if lifted else T.SHADOW_CARD
+	var soft := StyleBoxFlat.new()
+	soft.bg_color = Color(sh.colour, 0.0)
+	soft.set_corner_radius_all(radius)
+	soft.shadow_color = sh.colour
+	soft.shadow_size = int(sh.blur / 2.0)
+	soft.shadow_offset = Vector2(0, sh.offset / 2.0)
+	canvas.draw_style_box(soft, rect)
+	canvas.draw_style_box(box(T.SHADOW_DROP, Color.TRANSPARENT, 0, radius, 0), Rect2(rect.position + Vector2(0, sh.drop), rect.size))
 
 
 ## A title band's foot torn as a Mage Card's is (card_face.gd _draw_tears): from
@@ -203,7 +276,7 @@ static func draw_torn_edge(canvas: CanvasItem, x0: float, x1: float, y: float, d
 	canvas.draw_colored_polygon(pts, colour)
 
 
-static func box(bg: Color, border: Color = Color.TRANSPARENT, width := 0, radius: int = T.RADIUS_M, margin: int = T.S) -> StyleBoxFlat:
+static func box(bg: Color, border: Color = Color.TRANSPARENT, width := 0, radius: int = T.CHAMFER_MD, margin: int = T.SPACE_2) -> StyleBoxFlat:
 	var s := StyleBoxFlat.new()
 	s.bg_color = bg
 	s.border_color = border
@@ -221,37 +294,26 @@ static func contrast(a: Color, b: Color) -> float:
 
 ## The ink, light or dark, that reads best on a background.
 static func best_ink(bg: Color) -> Color:
-	return T.INK if contrast(T.INK, bg) >= contrast(T.BG_BASE, bg) else T.BG_BASE
+	return T.PARCHMENT if contrast(T.PARCHMENT, bg) >= contrast(T.GROUND, bg) else T.GROUND
 
 
-## A play-screen panel lifted off the backdrop by its shadow. "active" is the one
-## waiting on the player: lighter, with a focus rim. "rest" steps back. `border`
-## keeps a panel's own meaningful edge colour (such as the damage on the Soak meter).
-static func raised_panel_box(kind: String, border := Color(0, 0, 0, 0), margin: int = T.S) -> StyleBoxFlat:
-	var active := kind == "active"
-	var s := box(T.BG_RAISED if active else T.BG_SURFACE,
-		border if border.a > 0.0 else (Color(T.FOCUS, 0.6) if active else Color(T.LINE_SOFT, 0.5)),
-		2 if active or border.a > 0.0 else 1, T.RADIUS_M, margin)
-	s.shadow_color = Color(0, 0, 0, 0.4 if active else 0.3)
-	s.shadow_size = 12 if active else 6
-	s.shadow_offset = Vector2(0, 4 if active else 2)
-	return s
-
-
-static func panel(bg: Color = T.BG_SURFACE, border: Color = T.LINE_SOFT, width := 1, radius: int = T.RADIUS_M, margin: int = T.S) -> PanelContainer:
+static func panel(bg: Color = T.STONE, border: Color = T.EDGE, width := 1, radius: int = T.CHAMFER_MD, margin: int = T.SPACE_2) -> PanelContainer:
 	var p := PanelContainer.new()
 	p.add_theme_stylebox_override("panel", box(bg, border, width, radius, margin))
 	return p
 
 
-## kind: "normal", "primary" (the one gold action), "warning", "active" or "quiet".
+## kind: "normal" (a stone slab), "primary" (the one brass action on a screen, marked
+## with the meta `primary` for the UI check), "active" (a toggled action, rimmed in
+## brass as selected) or "quiet" (the lesser actions in a row) (specs/019
+## contracts/components.md).
 static func button(text: String, kind := "normal", icon_name := "") -> Button:
 	var b := Button.new()
 	b.text = text
 	b.custom_minimum_size = Vector2(T.TAP_MIN, T.TAP_MIN)
 	b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	b.add_theme_font_override("font", font(T.BUTTON[0]))
-	b.add_theme_font_size_override("font_size", T.BUTTON[1])
+	b.add_theme_font_override("font", font(T.BUTTON))
+	b.add_theme_font_size_override("font_size", T.BUTTON.size)
 	b.focus_mode = Control.FOCUS_ALL
 	if icon_name != "":
 		b.icon = icon(icon_name)
@@ -259,63 +321,15 @@ static func button(text: String, kind := "normal", icon_name := "") -> Button:
 		b.add_theme_constant_override("icon_max_width", 34)
 	# Feature 006: every button is a plinth of stone.
 	style_stone_button(b, kind)
+	b.set_meta("primary", kind == "primary")
 	press_feedback(b)
 	return b
 
 
-static func style_button(b: Button, kind: String) -> void:
-	var bg := T.BG_RAISED
-	var border := T.LINE_SOFT
-	var ink := T.INK
-	var width := 2
-	match kind:
-		"primary":
-			bg = T.GOLD
-			border = T.GOLD.lightened(0.3)
-			ink = T.BG_BASE
-		"warning":
-			bg = T.BAD
-			border = T.BAD.lightened(0.3)
-			ink = T.BG_BASE
-		"active":
-			bg = T.BG_RAISED.lightened(0.08)
-			border = T.GOLD
-			width = 3
-		"quiet":
-			bg = T.BG_SURFACE
-	var normal := box(bg, border, width)
-	normal.shadow_color = Color(0, 0, 0, 0.3)
-	normal.shadow_size = 5
-	normal.shadow_offset = Vector2(0, 2)
-	b.add_theme_stylebox_override("normal", normal)
-	var hover := normal.duplicate()
-	hover.bg_color = bg.lightened(0.08)
-	hover.border_color = border.lightened(0.25)
-	b.add_theme_stylebox_override("hover", hover)
-	b.add_theme_stylebox_override("pressed", box(bg.darkened(0.15), border, width))
-	b.add_theme_stylebox_override("disabled", box(Color(T.BG_SURFACE, 0.6), Color(T.LINE_SOFT, 0.5), 1))
-	var focus := box(Color.TRANSPARENT, T.GOLD, 3)
-	focus.set_expand_margin_all(4)
-	b.add_theme_stylebox_override("focus", focus)
-	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_hover_pressed_color"]:
-		b.add_theme_color_override(c, ink)
-	b.add_theme_color_override("font_disabled_color", Color(T.INK_MUTED, 0.6))
-	for c in ["icon_normal_color", "icon_hover_color", "icon_pressed_color", "icon_focus_color"]:
-		b.add_theme_color_override(c, ink)
-	b.add_theme_color_override("icon_disabled_color", Color(T.INK_MUTED, 0.6))
-
-
-## A place cut into or standing out of the carved stone (feature 006): "well" for
-## a zone, "inset" for a chip, "plinth" for a button, "slab" for an overlay, "lintel"
-## for a band across the screen.
-static func stone_box(kind: String, depth := 0.5) -> StyleBox:
-	return StoneStyle.new(kind, depth)
-
-
-## A zone well on the play screen, edged in a colour that means something (damage
-## owed, XP, a fatal choice), or plain stone when `edge_colour` is clear.
-static func stone_zone(edge_colour := Color(0, 0, 0, 0), margin := 12, edge_width := 2.0) -> StyleBox:
-	var s := StoneStyle.new("well", 0.6)
+## A zone on the play screen: a stone panel, edged in a colour that means something
+## (damage owed), or the etched edge when `edge_colour` is clear.
+static func stone_zone(edge_colour := Color(T.SHADE, 0), margin := 12, edge_width: float = T.BORDER_EDGE) -> StyleBox:
+	var s := StoneStyle.new("slab")
 	s.edge = edge_colour
 	s.edge_width = edge_width
 	for side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
@@ -323,9 +337,11 @@ static func stone_zone(edge_colour := Color(0, 0, 0, 0), margin := 12, edge_widt
 	return s
 
 
-## A raised slab of stone for a popup, edged in `edge_colour`.
-static func stone_slab(edge_colour := T.GOLD, margin := 14) -> StyleBox:
-	var s := StoneStyle.new("slab", 0.3)
+## A raised slab of stone for a popup or dialog, with the large cut; an edge colour
+## only when it means something (specs/019: no gold outline at rest).
+static func stone_slab(edge_colour := Color(T.SHADE, 0), margin := 14) -> StyleBox:
+	var s := StoneStyle.new("slab")
+	s.size = "lg"
 	s.edge = edge_colour
 	for side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
 		s.set_content_margin(side, margin)
@@ -334,79 +350,130 @@ static func stone_slab(edge_colour := T.GOLD, margin := 14) -> StyleBox:
 
 ## A PanelContainer drawn as a raised slab (menus, dialogs, the rulebook): the frame
 ## every overlay shares from feature 006 on.
-static func slab(edge_colour := T.GOLD, margin := 14) -> PanelContainer:
+static func slab(edge_colour := Color(T.SHADE, 0), margin := 14) -> PanelContainer:
 	var p := PanelContainer.new()
 	p.add_theme_stylebox_override("panel", stone_slab(edge_colour, margin))
 	return p
 
 
-static func stone_panel(kind: String, depth := 0.5) -> PanelContainer:
+## A chip: a small sunken counter for one figure (specs/019 contracts/components.md
+## "Chip"): a well with the game's icon, then the figure in the small numeral style.
+## tone "plain" is parchment, "reward" bright brass, "harm" danger (whose figure
+## carries its sign or the heart). A caller wraps it in a hit area when it opens the
+## glossary.
+static func chip(icon_name: String, figure: String, tone := "plain") -> PanelContainer:
 	var p := PanelContainer.new()
-	p.add_theme_stylebox_override("panel", stone_box(kind, depth))
+	var well := StoneStyle.new("well")
+	well.size = "sm"
+	for side in [SIDE_LEFT, SIDE_RIGHT]:
+		well.set_content_margin(side, T.SPACE_2)
+	for side in [SIDE_TOP, SIDE_BOTTOM]:
+		well.set_content_margin(side, 0)
+	p.add_theme_stylebox_override("panel", well)
+	p.custom_minimum_size.y = T.CHIP_H
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var ink: Color = {"plain": T.PARCHMENT, "reward": T.BRASS_BRIGHT, "harm": T.DANGER}[tone]
+	var row := hbox(T.SPACE_1)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	if icon_name != "":
+		row.add_child(icon_rect(icon_name, 26, ink))
+	var l := label(figure, T.NUMERAL_SM, ink)
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(l)
+	p.add_child(row)
+	p.set_meta("figure", l)
 	return p
 
 
-## A button carved as a plinth of stone. kind as for style_button: the "primary"
-## plinth is gold-leafed, a "warning" one is red, and "active" is lit at the rim.
+## A panel with a head (specs/019 contracts/components.md "Panel"): a slab whose head
+## is a muted glyph and the heading in parchment over a hairline, then `content`.
+static func titled_panel(heading: String, icon_name: String, content: Control, size := "md") -> PanelContainer:
+	var p := PanelContainer.new()
+	var st := StoneStyle.new("slab")
+	st.size = size
+	p.add_theme_stylebox_override("panel", st)
+	var col := vbox(T.SPACE_2)
+	var head := hbox(T.SPACE_2)
+	if icon_name != "":
+		head.add_child(icon_rect(icon_name, 30, T.PARCHMENT_MUTED))
+	head.add_child(label(heading, T.HEADING, T.PARCHMENT))
+	col.add_child(head)
+	var rule := ColorRect.new()
+	rule.color = T.LINE
+	rule.custom_minimum_size.y = T.BORDER_ETCH
+	col.add_child(rule)
+	col.add_child(content)
+	p.add_child(col)
+	return p
+
+
+## A button carved as a plinth of stone (specs/019 contracts/materials-and-ground.md):
+## the raised stone you press, or brass for the "primary" action with dark ink on it.
+## Pressed, its bevel collapses; disabled, it is flat stone with a faint label that is
+## kept, so the player sees what will unlock; focused, its rim is jade.
 static func style_stone_button(b: Button, kind := "normal") -> void:
-	var ink := T.INK
-	var leaf := Color(0, 0, 0, 0)
-	match kind:
-		"primary":
-			leaf = T.GOLD_FACE
-			ink = T.BG_BASE
-		"warning":
-			leaf = T.BAD.lerp(T.BG_RAISED, 0.2)
-			ink = T.BG_BASE
-	var normal := StoneStyle.new("plinth", 0.3 if kind == "quiet" else 0.5)
-	normal.face = leaf
-	if kind == "active":
-		normal.glow = 1.0
-		normal.glow_colour = T.GOLD
-	b.add_theme_stylebox_override("normal", normal)
-	var hover := StoneStyle.new("plinth", 0.2)
-	hover.face = leaf.lightened(0.1) if leaf.a > 0.0 else Color(1, 1, 1, 0.04)
-	hover.glow = normal.glow
-	hover.glow_colour = normal.glow_colour
-	b.add_theme_stylebox_override("hover", hover)
-	var down := StoneStyle.new("plinth", 0.7)
-	down.pressed = true
-	down.face = leaf.darkened(0.15) if leaf.a > 0.0 else Color(0, 0, 0, 0)
-	b.add_theme_stylebox_override("pressed", down)
-	b.add_theme_stylebox_override("hover_pressed", down)
-	var off := StoneStyle.new("plinth", 0.3)
-	off.face = Color(T.BG_BASE, 0.45)
-	b.add_theme_stylebox_override("disabled", off)
-	var focus := box(Color.TRANSPARENT, T.muted(T.GOLD), 3)
-	focus.set_expand_margin_all(4)
-	b.add_theme_stylebox_override("focus", focus)
+	var primary := kind == "primary"
+	var ink := T.ON_BRASS if primary else T.PARCHMENT
+	var leaf := T.BRASS if primary else Color(T.SHADE, 0)
+	var make := func(hover := false, down := false, off := false) -> StoneStyle:
+		var st := StoneStyle.new("plinth")
+		st.face = leaf.lightened(0.08) if hover and primary else (T.STONE_RAISED.lerp(T.PARCHMENT, 0.04) if hover else leaf)
+		st.pressed = down
+		st.disabled = off
+		# A toggled action (Divert under way, the current section) is selected.
+		st.selected = kind == "active" and not off
+		return st
+	b.add_theme_stylebox_override("normal", make.call())
+	b.add_theme_stylebox_override("hover", make.call(true))
+	b.add_theme_stylebox_override("pressed", make.call(false, true))
+	b.add_theme_stylebox_override("hover_pressed", make.call(true, true))
+	b.add_theme_stylebox_override("disabled", make.call(false, false, true))
+	b.add_theme_stylebox_override("focus", focus_ring())
 	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_hover_pressed_color"]:
 		b.add_theme_color_override(c, ink)
-	b.add_theme_color_override("font_disabled_color", Color(T.INK_MUTED, 0.6))
+	b.add_theme_color_override("font_disabled_color", T.PARCHMENT_FAINT)
 	for c in ["icon_normal_color", "icon_hover_color", "icon_pressed_color", "icon_focus_color"]:
 		b.add_theme_color_override(c, ink)
-	b.add_theme_color_override("icon_disabled_color", Color(T.INK_MUTED, 0.6))
+	b.add_theme_color_override("icon_disabled_color", T.PARCHMENT_FAINT)
+
+
+## Sets a button's words at its left, clear of the chamfer's cut (specs/019): a
+## centred label needs no more room, a left-aligned one does.
+static func align_left(b: Button) -> void:
+	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	for state in ["normal", "hover", "pressed", "hover_pressed", "disabled"]:
+		var st := b.get_theme_stylebox(state)
+		if st != null:
+			st.content_margin_left = T.SPACE_3
+
+
+## Keyboard or controller focus: a jade rim in the control's own chamfered shape,
+## drawn over its face (specs/019 FR-019).
+static func focus_ring(size := "") -> StyleBox:
+	var st := StoneStyle.new("plinth")
+	st.focus = true
+	st.ring_only = true
+	st.size = size
+	return st
 
 
 ## A display heading cut into the stone: a dark edge above the letters and a light
 ## one below, so they read as incised.
-static func carved_label(text: String, type: Array = T.HEADING, color: Color = T.INK) -> Label:
+static func carved_label(text: String, type: Dictionary = T.HEADING, color: Color = T.PARCHMENT) -> Label:
 	var l := label(text, type, color)
-	l.add_theme_color_override("font_shadow_color", Color(1, 1, 1, 0.10))
+	l.add_theme_color_override("font_shadow_color", Color(T.SHEEN, 0.10))
 	l.add_theme_constant_override("shadow_offset_x", 0)
 	l.add_theme_constant_override("shadow_offset_y", 1)
-	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.55))
+	l.add_theme_color_override("font_outline_color", Color(T.SHADE, 0.55))
 	l.add_theme_constant_override("outline_size", 2)
 	return l
 
 
-## Scale a control down a touch while it is held, and tick the phone on the press,
-## so every press is felt at once.
+## Tick the phone on the press, so every press is felt at once. The slab itself
+## sinks by its pressed style (StoneStyle.pressed), not by moving the control, which a
+## container would undo (specs/019 "Pressed").
 static func press_feedback(c: Control) -> void:
-	c.resized.connect(func(): c.pivot_offset = c.size / 2.0)
 	if c is BaseButton:
-		c.button_down.connect(func(): pulse_scale(c, 0.96))
-		c.button_up.connect(func(): pulse_scale(c, 1.0))
 		c.pressed.connect(Haptics.tap)
 
 
@@ -429,7 +496,7 @@ static func shake(c: Control, strength := 8.0) -> void:
 
 
 ## A brief brightening, used when a figure changes.
-static func flash(c: CanvasItem, color: Color = T.GOLD) -> void:
+static func flash(c: CanvasItem, color: Color = T.PARCHMENT) -> void:
 	if not c.is_inside_tree():
 		return
 	if not c.has_meta("flash_base"):
@@ -445,13 +512,13 @@ static func ignore_mouse(node: Control) -> void:
 			ignore_mouse(child)
 
 
-static func hbox(separation: int = T.S) -> HBoxContainer:
+static func hbox(separation: int = T.SPACE_2) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", separation)
 	return row
 
 
-static func vbox(separation: int = T.S) -> VBoxContainer:
+static func vbox(separation: int = T.SPACE_2) -> VBoxContainer:
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", separation)
 	return col

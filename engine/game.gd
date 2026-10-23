@@ -175,6 +175,12 @@ func stage(table: Dictionary) -> String:
 	return ""
 
 
+## Whether XP left unspent carries over to the next Encounter: Persistent XP, this
+## edition's own alternate rule (the rulebook loses it at Cleanup).
+func keeps_xp() -> bool:
+	return options.get("persistent_xp", false)
+
+
 func key_card():
 	return deck[0] if deck.size() > 0 else null
 
@@ -216,7 +222,7 @@ func play(action: Dictionary) -> String:
 	result = r
 	_action = {"cards": _roles(action), "reserve": reserve, "fuse": fuse}
 	_discard_reserve = result.get("discard_reserve", false)
-	xp = result.xp
+	xp = (xp if keeps_xp() else 0) + result.xp
 	damage_element = result.damage_element
 	faced = {"key": key_card(), "level": cards[key_card()].level, "encounter": encounter()}
 	var damage: int = result.damage + _pay_time(result.time_penalty)
@@ -359,7 +365,8 @@ func finish() -> String:
 	for id in spent:
 		if hand.has(id):
 			_move(id, hand, discard)
-	xp = 0
+	if not keeps_xp():
+		xp = 0
 	diverts = 0
 	downgraded = []
 	_action = {}

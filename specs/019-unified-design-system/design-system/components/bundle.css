@@ -1,0 +1,130 @@
+/* Etchinstone — reference CSS for the components. Values come from tokens.css; this file only composes them.
+   The game itself is Godot: read these rules as the spec for each StyleBox, not as code to ship. */
+
+/* ---------- base ---------- */
+.es-root, body.es-root {
+  margin: 0;
+  background: var(--ground);
+  color: var(--parchment);
+  font-family: var(--font-sans);
+  font-size: 15px; line-height: 21px; font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+}
+.es-display { font-family: var(--font-display); font-variation-settings: "SOFT" 50, "WONK" 0; font-optical-sizing: auto; }
+.es-num { font-family: var(--font-display); font-variation-settings: "SOFT" 50, "WONK" 0; font-variant-numeric: tabular-nums lining-nums; font-weight: 800; }
+
+/* The table: ground washed with the current region's tint */
+.es-table-ground {
+  --region: var(--region-jade);
+  background:
+    radial-gradient(120% 90% at 22% 40%, color-mix(in srgb, var(--region) 22%, transparent), transparent 70%),
+    var(--ground);
+}
+
+/* ---------- chamfered stone: every stone surface below shares one shape ----------
+   An outer rim (--rim, the edge line) clipped to an octagon, and a ::before fill inset by --bw carrying the bevel.
+   Godot: StyleBoxFlat, corner_radius_* = chamfer, corner_detail = 1, border_width = border-edge. */
+
+/* ---------- Button ---------- */
+.es-btn {
+  --c: var(--chamfer-md);
+  --fill: var(--stone-raised);
+  --rim: var(--edge);
+  display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 0;
+  min-height: var(--action-height); min-width: var(--touch-min);
+  padding: 0 var(--space-4);
+  border: 0; cursor: pointer;
+  font: 800 16px/20px var(--font-sans); letter-spacing: 0.01em;
+  color: var(--parchment);
+}
+.es-btn, .es-btn--primary, .es-tab, .es-panel, .es-slot, .es-banner, .es-dialog, .es-chip, .es-topbar__menu { position: relative; isolation: isolate; background: var(--rim); clip-path: polygon(var(--c) 0, calc(100% - var(--c)) 0, 100% var(--c), 100% calc(100% - var(--c)), calc(100% - var(--c)) 100%, var(--c) 100%, 0 calc(100% - var(--c)), 0 var(--c)); }
+.es-btn::before, .es-tab::before, .es-panel::before, .es-slot::before, .es-banner::before, .es-dialog::before, .es-chip::before, .es-topbar__menu::before {
+  content: ""; position: absolute; z-index: -1; inset: var(--bw, var(--border-edge));
+  background: var(--fill); box-shadow: var(--bevel, inset 0 1px 0 rgba(241, 227, 209, 0.10), inset 0 -3px 0 rgba(0, 0, 0, 0.35));
+  --ci: max(0px, calc(var(--c) - 1px));
+  clip-path: polygon(var(--ci) 0, calc(100% - var(--ci)) 0, 100% var(--ci), 100% calc(100% - var(--ci)), calc(100% - var(--ci)) 100%, var(--ci) 100%, 0 calc(100% - var(--ci)), 0 var(--ci));
+}
+.es-btn__icon { font-size: 18px; line-height: 18px; opacity: .9; }
+.es-btn__count { font-family: var(--font-display); font-variation-settings: "SOFT" 50; font-weight: 800; font-variant-numeric: tabular-nums; }
+.es-btn:active, .es-btn.is-pressed { --bevel: inset 0 2px 0 rgba(0, 0, 0, 0.45); transform: translateY(2px); }
+.es-btn--primary { --fill: var(--brass); --rim: var(--brass-deep); color: var(--on-brass); --bevel: inset 0 1px 0 rgba(255, 244, 214, 0.55), inset 0 -3px 0 var(--brass-deep); }
+.es-btn--primary:active, .es-btn--primary.is-pressed { --fill: #c99f4a; --bevel: inset 0 2px 0 rgba(0, 0, 0, 0.3); }
+.es-btn[disabled], .es-btn.is-disabled { --fill: var(--stone); --rim: var(--line); color: var(--parchment-faint); --bevel: none; cursor: default; transform: none; }
+.es-btn:focus-visible { outline: none; --rim: var(--jade); --bw: 3px; }
+
+/* ---------- Panel ---------- */
+.es-panel { --c: var(--chamfer-lg); --fill: var(--stone); --rim: var(--edge); padding: var(--space-3) var(--space-4) var(--space-4); }
+.es-panel__head { display: flex; align-items: center; gap: var(--space-2); padding-bottom: var(--space-2); margin-bottom: var(--space-3); border-bottom: 1px solid var(--line); font: 700 17px/22px var(--font-display); font-variation-settings: "SOFT" 50; color: var(--parchment); }
+.es-panel__head .es-glyph { color: var(--brass); }
+.es-panel--tray { --fill: var(--stone); padding: var(--space-2); }
+
+/* ---------- Top bar ---------- */
+.es-topbar { display: flex; align-items: center; gap: var(--space-4); height: var(--topbar-height); padding: 0 var(--space-4); background: var(--stone); border-bottom: 2px solid var(--card-frame); box-shadow: inset 0 -1px 0 rgba(241, 227, 209, 0.06); }
+.es-topbar__title { flex: 1; font: 700 22px/26px var(--font-display); font-variation-settings: "SOFT" 50; letter-spacing: 0.01em; color: var(--parchment); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.es-topbar__title small { color: var(--parchment-muted); font-weight: 600; font-size: 15px; }
+.es-topbar__counters { display: flex; gap: var(--space-2); }
+.es-topbar__menu { --c: var(--chamfer-sm); --fill: var(--stone-raised); --rim: var(--edge); width: var(--touch-min); height: 36px; display: grid; place-items: center; color: var(--parchment); border: 0; font-size: 18px; }
+
+/* ---------- Chip (counters) ---------- */
+.es-chip { --c: var(--chamfer-sm); --fill: var(--well); --rim: var(--line); --bw: 1px; --bevel: none; display: inline-flex; align-items: center; gap: var(--space-1); height: 28px; padding: 0 var(--space-2); font: 800 14px/14px var(--font-display); font-variation-settings: "SOFT" 50; font-variant-numeric: tabular-nums; color: var(--parchment); }
+.es-chip__icon { color: var(--parchment-muted); font: 700 12px/1 var(--font-sans); }
+.es-chip--reward { color: var(--brass-bright); }
+.es-chip--harm { color: var(--danger); }
+
+/* ---------- Slot header + slot ---------- */
+.es-slothead { display: flex; align-items: center; justify-content: center; gap: 6px; height: 28px; font: 800 12px/16px var(--font-sans); letter-spacing: 0.1em; text-transform: uppercase; color: var(--parchment-muted); border-bottom: 2px solid transparent; }
+.es-slothead__glyph { width: 10px; height: 10px; background: currentColor; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+.es-slothead.is-target { color: var(--brass); border-bottom-color: var(--brass); }
+.es-slothead.is-filled { color: var(--parchment); }
+.es-slot { --c: var(--chamfer-sm); --fill: var(--well); --rim: var(--line); --bw: 1px; --bevel: inset 0 2px 6px rgba(0, 0, 0, 0.6); width: var(--card-width); aspect-ratio: 5 / 7; display: grid; place-items: center; color: var(--parchment-faint); font: 800 12px/16px var(--font-sans); letter-spacing: .1em; text-transform: uppercase; }
+.es-slot.is-target { --rim: var(--brass); --bw: 3px; color: var(--brass); }
+
+/* ---------- Tabs ---------- */
+.es-tabs { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.es-tabs--vertical { flex-direction: column; }
+.es-tab { --c: var(--chamfer-sm); --fill: var(--stone-raised); --rim: var(--edge); min-height: var(--touch-min); padding: 0 var(--space-4); display: inline-flex; align-items: center; border: 0; font: 700 15px/20px var(--font-sans); color: var(--parchment-muted); cursor: pointer; }
+.es-tab.is-selected { --rim: var(--brass); --bw: 3px; --fill: var(--stone); color: var(--parchment); }
+
+/* ---------- Banner ---------- */
+.es-banner { --c: var(--chamfer-lg); --fill: var(--stone); --rim: var(--region, var(--region-jade)); --bw: 2px; display: flex; align-items: center; gap: var(--space-5); padding: var(--space-4) var(--space-6); }
+.es-banner__medal { width: 64px; height: 64px; border-radius: 50%; border: 3px solid var(--region, var(--region-jade)); box-shadow: inset 0 0 0 3px var(--stone), inset 0 0 0 64px color-mix(in srgb, var(--region, var(--region-jade)) 30%, var(--stone)); flex: none; }
+.es-banner__kicker { font: 800 12px/16px var(--font-sans); letter-spacing: .1em; text-transform: uppercase; color: var(--parchment-muted); }
+.es-banner__title { font: 800 34px/36px var(--font-display); font-variation-settings: "SOFT" 50; letter-spacing: .01em; text-transform: uppercase; color: var(--brass-bright); margin: 2px 0 0; }
+
+/* ---------- Coach tip (paper) ---------- */
+.es-tip { position: relative; max-width: 340px; padding: var(--space-3) var(--space-4); background: var(--paper); color: var(--paper-ink); border-radius: 2px; box-shadow: 0 0 0 1px #b9a685, 0 3px 0 #070b0c, 0 12px 24px rgba(0, 0, 0, .5); font: 500 15px/21px var(--font-sans); }
+.es-tip b { font-weight: 800; }
+.es-tip u { text-decoration-color: var(--brass-deep); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+.es-tip__foot { display: flex; justify-content: space-between; align-items: center; margin-top: var(--space-2); padding-top: var(--space-2); border-top: 1px solid #cdbb9c; font: 500 12px/16px var(--font-sans); color: var(--paper-muted); }
+.es-tip::after { content: ""; position: absolute; left: 28px; bottom: -8px; width: 16px; height: 8px; background: var(--paper); clip-path: polygon(0 0, 100% 0, 50% 100%); }
+
+/* ---------- Dialog ---------- */
+.es-dialog { --c: var(--chamfer-lg); --fill: var(--stone); --rim: var(--edge); width: 360px; padding: var(--space-5); display: grid; gap: var(--space-3); }
+.es-dialog__title { font: 700 22px/26px var(--font-display); font-variation-settings: "SOFT" 50; margin: 0; }
+.es-dialog__body { color: var(--parchment-muted); margin: 0; }
+.es-dialog__actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin-top: var(--space-2); }
+
+/* ---------- Mage Card frame ---------- */
+.es-card { --field: var(--ether-lapis); --hi: var(--ether-lapis-bright); --hi-ink: var(--parchment);
+  width: var(--card-width); aspect-ratio: 5 / 7; border-radius: var(--radius-card); background: var(--card-frame); padding: 3px; box-sizing: border-box; display: grid; grid-template-rows: auto auto 1fr; box-shadow: 0 2px 0 #070b0c, 0 8px 18px rgba(0, 0, 0, .45); overflow: hidden; }
+.es-card[data-ether="ochre"] { --field: var(--ether-ochre); --hi: var(--ether-ochre-bright); --hi-ink: var(--on-brass); }
+.es-card[data-ether="amethyst"] { --field: var(--ether-amethyst); --hi: var(--ether-amethyst-bright); }
+.es-card[data-ether="cinnabar"] { --field: var(--ether-cinnabar); --hi: var(--ether-cinnabar-bright); }
+.es-card.is-selected { box-shadow: 0 0 0 3px var(--brass), 0 4px 0 #070b0c, 0 16px 32px rgba(0, 0, 0, .55); }
+.es-card.is-out { filter: grayscale(1); opacity: .45; }
+.es-card__name { display: flex; align-items: center; gap: 4px; min-height: 26px; padding: 0 3px; box-sizing: border-box; font: 700 11px/12px var(--font-display); font-variation-settings: "SOFT" 50; letter-spacing: .02em; text-transform: uppercase; color: var(--parchment); overflow: hidden; }
+.es-card__lvl { flex: none; display: grid; place-items: center; width: 14px; height: 14px; border-radius: 3px; background: var(--parchment); color: var(--card-frame); font: 900 10px/1 var(--font-display); }
+.es-card__ribbon { display: flex; justify-content: space-between; padding: 0 5px; height: 15px; align-items: center; background: var(--card-ribbon); color: var(--parchment); font: 800 11px/14px var(--font-display); font-variation-settings: "SOFT" 50; font-variant-numeric: tabular-nums; }
+.es-card__ribbon .xp { color: var(--brass-bright); }
+.es-card__field { background: radial-gradient(90% 70% at 70% 55%, rgba(255, 255, 255, .14), transparent 70%), var(--field); border-radius: 0 0 6px 6px; padding: 3px 4px; display: grid; align-content: start; gap: 2px; }
+.es-plate { justify-self: start; min-width: 20px; height: 16px; padding: 0 4px; box-sizing: border-box; display: inline-grid; place-items: center; border-radius: var(--radius-plate); background: var(--stat-plate); color: var(--parchment); font: 800 13px/1 var(--font-display); font-variation-settings: "SOFT" 50; font-variant-numeric: tabular-nums; }
+.es-plate.is-hi { background: var(--hi); color: var(--hi-ink); box-shadow: 0 0 0 1.5px var(--card-frame); }
+.es-plate.is-boost { box-shadow: 0 0 0 2px var(--brass); }
+
+/* ---------- Score / ledger table ---------- */
+.es-ledger { width: 100%; border-collapse: collapse; font: 500 13px/18px var(--font-sans); }
+.es-ledger th { text-align: left; font: 800 12px/16px var(--font-sans); letter-spacing: .1em; text-transform: uppercase; color: var(--parchment-muted); padding: 0 var(--space-2) var(--space-2); }
+.es-ledger td { padding: 6px var(--space-2); border-top: 1px solid var(--line); color: var(--parchment); }
+.es-ledger td.n { font: 800 17px/1 var(--font-display); font-variation-settings: "SOFT" 50; font-variant-numeric: tabular-nums; }
+.es-ledger tr.is-best td { color: var(--brass-bright); }
+.es-ledger td.muted { color: var(--parchment-muted); }

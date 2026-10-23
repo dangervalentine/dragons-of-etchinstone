@@ -13,6 +13,7 @@ extends RefCounted
 ## "rows": [[text]]}} or {"table": "difficulty"}, and {"figure": kind}.
 
 const Glossary = preload("res://ui/model/glossary.gd")
+const Editions = preload("res://ui/model/editions.gd")
 const Game = preload("res://engine/game.gd")
 const ViewState = preload("res://ui/model/view_state.gd")
 const T = preload("res://ui/theme/tokens.gd")
@@ -52,18 +53,18 @@ const SECTIONS := [
 	{"id": "mage_cards", "title": "Mage Cards", "pages": [
 		{"text": [
 			{"p": "Your sixteen Mage Cards are your spells, your shield and your clock. Each belongs to one of the four Ethers, shown by its colour and the mark beside its name."},
-			{"p": "A card has four [[crown|Levels]], each with its own figures; higher is stronger. Only the current Level counts, and it is the only one drawn; hold a card to see all four. In each step, the figures that matter are lit."},
+			{"p": "A card has four [[crown|Levels]], each with its own figures; higher is stronger. Only the current Level counts, and it is the only one drawn; hold a card to see all four."},
 			{"list": [
-				"The strip under the name: the Encounter this card brings as [[key_card|Key Card]], and any Hardship.",
+				"The strip under the name: the Encounter it brings as [[key_card|Key Card]], and any Hardship.",
 				"{icon:initiative} Initiative: your speed when it is the Element.",
-				"Basic and [[enhanced|enhanced action]]: the Attack or Move it gives as the Spell.",
+				"Basic and [[enhanced|enhanced action]]: its Attack or Move as the Spell.",
 				"{icon:boost} Boost, {icon:armor} Armor and the {icon:xp} XP cost of its next Level.",
 			]},
 		], "aside": [
 			{"figure": "mage"},
 		]},
 		{"text": [
-			{"p": "Levels change all game. Spending XP [[upgrade|Upgrades]] a card; taking damage [[downgrade|Downgrades]] one. A Level 1 card that is Downgraded is [[trash|Trashed]] and gone for good."},
+			{"p": "In each step, the figures that matter are lit. Levels change all game. Spending XP [[upgrade|Upgrades]] a card; taking damage [[downgrade|Downgrades]] one. A Level 1 card that is Downgraded is [[trash|Trashed]] and gone for good."},
 			{"p": "The card on top of your [[deck|Deck]] is the [[key_card|Key Card]]. Its strip decides your next Encounter, so the same card can be a fine spell in your Hand and a nasty fight on top of the Deck."},
 			{"note": "Hover a card to see every figure spelled out, hold it to see its other Levels, and press any figure in play to have it explained."},
 		]},
@@ -90,7 +91,7 @@ const SECTIONS := [
 				"Three {icon:mp} MP tiers for the Final Journey, each with the time it costs.",
 				"Three {icon:hp} HP tiers for the Final Enemy, each with the damage it hits back with.",
 			]},
-			{"p": "Reaching a higher tier always costs you less. The dragon screen shows all of these, so compare the dragons before you choose."},
+			{"p": "A higher tier always costs you less. Compare the dragons on the dragon screen before you choose."},
 		], "aside": [
 			{"figure": "dragon"},
 		]},
@@ -148,7 +149,7 @@ const SECTIONS := [
 			{"p": "The card left out is your [[reserve|Reserve]]. It stays in your Hand for the next Encounter."},
 		]},
 		{"text": [
-			{"p": "Your Hand is held in the rulebook's order, from the left: Reserve, Element, Spell, Boost. The Hand is dealt into those places in the order it was drawn; tap two cards, or drag one onto another, to swap their Roles. Against an Enemy, tap Attack or Initiative in the box under the Encounter to add the Boost there."},
+			{"p": "Your Hand is held in the rulebook's order, from the left: Reserve, Element, Spell, Boost, dealt in the order it was drawn. Tap two cards, or drag one onto another, to swap their Roles. Against an Enemy, tap Attack or Initiative under the Encounter to add the Boost there."},
 			{"p": "A Spell whose actions do not suit the Encounter still counts, at a value of 1. Actions marked with both the Attack and the Move icon work as either."},
 			{"p": "With fewer than three cards in your Hand, as after a Divert, fill the Roles you can; one of them must be the Spell."},
 			{"p": "Without an Element your Initiative is 0, apart from any Boost you put into it."},
@@ -242,7 +243,10 @@ const SECTIONS := [
 				"Your Reserve and Fused cards can be Upgraded too, and a card can go up more than once.",
 				"A card Downgraded this Encounter cannot be Upgraded.",
 				"XP cannot be saved: whatever you leave unspent is lost.",
+				"{house}With Persistent XP, a house rule, unspent XP carries over to the next Encounter instead.",
 			]},
+		]},
+		{"text": [
 			{"p": "Then Cleanup. Your Action Set is discarded, and your Reserve stays in your Hand unless Freeze or Ranged took it."},
 			{"note": "The game draws you back up to {n:HAND_SIZE} cards. Tap a card to Upgrade it, and again to go up another Level while your XP allows; past the highest it can reach, each tap takes a Level back. No XP is spent until you confirm."},
 		]},
@@ -308,10 +312,11 @@ const SECTIONS := [
 	{"id": "difficulty", "title": "Difficulty and Alternate Rules", "pages": [
 		{"text": [
 			{"p": "You choose the difficulty on the second setup screen. It sets the starting Level of a few cards: the game draws the number shown, and you choose which of them change, unless all of them do."},
-			{"p": "Two alternate rules sit on the same screen. Use either, both or neither:"},
+			{"p": "Alternate rules sit on the same screen. Use any of them, all or none:"},
 			{"list": [
 				"Cavalier: you cannot [[fuse|Fuse]].",
 				"Glass Cannon: Armor whose Ether matches the damage Soaks just 1 extra instead of double.",
+				"{house}Persistent XP, a house rule not in the original rulebook: XP you leave unspent is kept, and what you win in the next Encounter is added to it. House rules are chosen under Rules in the menu.",
 			]},
 		], "aside": [
 			{"table": "difficulty"},
@@ -363,8 +368,8 @@ static func step(pos: Dictionary, delta: int) -> Dictionary:
 static func page(section: int, page_index: int) -> Dictionary:
 	var raw: Dictionary = SECTIONS[section].pages[page_index]
 	return {
-		"text": _expand_all(raw.get("text", [])),
-		"aside": _expand_all(raw.get("aside", [])),
+		"text": _expand_all(raw.get("text", []), false),
+		"aside": _expand_all(raw.get("aside", []), false),
 		"terms": terms(section, page_index),
 	}
 
@@ -389,8 +394,9 @@ static func terms_in(strings: Array) -> Array:
 	return out
 
 
-## Marks to BBCode: bold terms, inline icons and engine numbers.
-static func expand(text: String) -> String:
+## Marks to BBCode: bold terms, inline icons and engine numbers. `on_paper` for the
+## lessons' messages, printed on paper; the rulebook's pages are stone.
+static func expand(text: String, on_paper := true) -> String:
 	_compile()
 	var out := text
 	for m in _term_re.search_all(text):
@@ -398,7 +404,14 @@ static func expand(text: String) -> String:
 		out = out.replace(m.get_string(0), "[b]%s[/b]" % words)
 	for m in _icon_re.search_all(text):
 		var id := m.get_string(1)
-		var colour: Color = T.ETHER.get(id, T.GOLD)
+		# On paper (the lessons' messages): an Ether in its deep pigment, any other sign
+		# in the paper's ink (specs/019 FR-020). On stone (the rulebook's pages), an
+		# Ether in its own ink, any other sign in parchment.
+		var colour: Color
+		if on_paper:
+			colour = T.ether_shade(id, "paper") if T.ETHER.has(id) else T.PAPER_INK
+		else:
+			colour = T.ether_ink(id) if T.ETHER.has(id) else T.PARCHMENT
 		out = out.replace(m.get_string(0), "[img width=%d height=%d color=#%s]res://art/icons/%s.svg[/img]" % [ICON_SIZE, ICON_SIZE, colour.to_html(false), id])
 	for m in _number_re.search_all(text):
 		out = out.replace(m.get_string(0), str(NUMBERS.get(m.get_string(1), m.get_string(0))))
@@ -423,30 +436,32 @@ static func _compile() -> void:
 	_number_re = RegEx.create_from_string("\\{n:([A-Z_]+)\\}")
 
 
-static func _expand_all(blocks: Array) -> Array:
+static func _expand_all(blocks: Array, on_paper := true) -> Array:
 	var out := []
 	for b in blocks:
-		out.append(_expand_value(b))
+		out.append(_expand_value(b, on_paper))
 	return out
 
 
-static func _expand_value(v):
+static func _expand_value(v, on_paper := true):
 	if v is String:
-		return expand(v)
+		return expand(Editions.text(v), on_paper)
 	if v is Array:
-		return v.map(func(x): return _expand_value(x))
+		# A list's house-rule lines are left out under Classic (editions.gd).
+		return v.filter(func(x): return not (x is String and Editions.text(x) == "" and x != "")) \
+			.map(func(x): return _expand_value(x, on_paper))
 	if v is Dictionary:
 		var d := {}
 		for k in v:
 			# A figure or a generated table names a kind; it is not text.
-			d[k] = v[k] if k == "figure" or (k == "table" and v[k] is String) else _expand_value(v[k])
+			d[k] = v[k] if k == "figure" or (k == "table" and v[k] is String) else _expand_value(v[k], on_paper)
 		return d
 	return v
 
 
 static func _collect(v, out: Array) -> void:
 	if v is String:
-		out.append(v)
+		out.append(Editions.text(v))
 	elif v is Array:
 		for x in v:
 			_collect(x, out)

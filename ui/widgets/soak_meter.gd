@@ -16,7 +16,7 @@ var _fill: Tween
 
 
 func _init() -> void:
-	add_theme_stylebox_override("panel", UI.stone_zone(T.BAD))
+	add_theme_stylebox_override("panel", UI.stone_zone(T.DANGER))
 	_box.add_theme_constant_override("separation", 8)
 	add_child(_box)
 	_meter.custom_minimum_size.y = 34
@@ -46,14 +46,14 @@ func render(vs: Dictionary) -> void:
 	for c in _box.get_children():
 		_box.remove_child(c)
 		c.queue_free()
-	var head := UI.hbox(T.S)
-	head.add_child(UI.icon_rect("poison" if s.poison else "hp", T.NOTE_ICON, T.BAD))
-	head.add_child(UI.label(("Poison: %d damage" if s.poison else "%d damage") % s.due, T.HEADING, T.BAD))
+	var head := UI.hbox(T.SPACE_2)
+	head.add_child(UI.icon_rect("poison" if s.poison else "hp", T.NOTE_ICON, T.DANGER))
+	head.add_child(UI.label(("Poison: %d damage" if s.poison else "%d damage") % s.due, T.HEADING, T.DANGER))
 	if s.element != "":
 		head.add_child(UI.icon_rect(s.element, T.NOTE_ICON, T.ether_ink(s.element)))
 	_box.add_child(head)
 	_box.add_child(_meter)
-	var how := UI.label("Tap cards to Downgrade them.", T.LABEL, T.INK_MUTED, true)
+	var how := UI.label("Tap cards to Downgrade them.", T.BODY_SM, T.PARCHMENT_MUTED, true)
 	how.custom_minimum_size.x = 300
 	_box.add_child(how)
 	_meter.queue_redraw()
@@ -61,15 +61,16 @@ func render(vs: Dictionary) -> void:
 
 func _draw_meter() -> void:
 	var r := Rect2(Vector2.ZERO, _meter.size)
-	_meter.draw_style_box(UI.box(T.BG_RAISED, T.LINE_SOFT, 1, 10, 0), r)
+	_meter.draw_style_box(UI.box(T.WELL, T.LINE, 1, T.RADIUS_PLATE, 0), r)
 	var frac := clampf(_shown / float(_due), 0.0, 1.0)
 	if frac > 0.0:
-		_meter.draw_style_box(UI.box(T.GOOD if frac >= 1.0 else T.GOLD, Color.TRANSPARENT, 0, 10, 0),
+		_meter.draw_style_box(UI.box(T.JADE if frac >= 1.0 else T.PARCHMENT_MUTED, Color.TRANSPARENT, 0, T.RADIUS_PLATE, 0),
 			Rect2(r.position, Vector2(maxf(20.0, r.size.x * frac), r.size.y)))
-	var font := UI.font("display_bold")
+	var font := UI.font(T.NUMERAL_SM)
+	var fs: int = T.NUMERAL_SM.size
 	var text := "%d / %d" % [roundi(_shown), _due]
-	var sz := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 24)
-	_meter.draw_string(font, Vector2((r.size.x - sz.x) / 2.0, r.size.y / 2.0 + 9), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 24, T.INK)
+	var sz := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs)
+	_meter.draw_string(font, Vector2((r.size.x - sz.x) / 2.0, r.size.y / 2.0 + fs * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, T.PARCHMENT)
 
 
 func _show(v: float) -> void:

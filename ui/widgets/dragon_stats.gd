@@ -10,7 +10,7 @@ const TipBox = preload("res://ui/widgets/tip_box.gd")
 const HelpTip = preload("res://ui/widgets/help_tip.gd")
 
 const ICON := 20.0
-const FIGURE := T.NUMERAL_S
+const FIGURE := T.NUMERAL_SM
 
 
 ## The tiers of one ladder, easiest first, as {need, cost, element}: on the
@@ -44,17 +44,17 @@ static func ladder_text(d: Dictionary) -> String:
 ## them, over the two ladders. With `explain`, each part tells on hover what it
 ## means; without, it ignores the mouse so whatever holds it takes the press.
 static func make(d: Dictionary, explain := false) -> Control:
-	var col := UI.vbox(T.XS)
+	var col := UI.vbox(T.SPACE_1)
 	# Two halves like the ladders below, so Armor starts where Battle does.
-	var top := UI.hbox(T.S)
+	var top := UI.hbox(T.SPACE_2)
 	var opening := UI.hbox(0)
 	opening.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	opening.add_child(_opening(d, explain))
 	top.add_child(opening)
-	var armor := UI.hbox(T.XS)
+	var armor := UI.hbox(T.SPACE_1)
 	armor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(armor)
-	var name := UI.label("Armor", T.LABEL, T.INK_MUTED)
+	var name := UI.label("Armor", T.BODY_SM, T.PARCHMENT_MUTED)
 	name.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	armor.add_child(name)
 	for a in d.armor:
@@ -65,7 +65,7 @@ static func make(d: Dictionary, explain := false) -> Control:
 			HelpTip.show(chip, armor_text(a), "armor")
 		armor.add_child(chip)
 	col.add_child(top)
-	var ladders := UI.hbox(T.S)
+	var ladders := UI.hbox(T.SPACE_2)
 	ladders.add_child(_ladder("Journey", rungs(d, true), true, explain))
 	ladders.add_child(_ladder("Battle", rungs(d, false), false, explain))
 	col.add_child(ladders)
@@ -104,7 +104,7 @@ static func ladder_heading_text(journey: bool) -> String:
 static func _ladder(heading: String, tiers: Array, journey: bool, explain := false) -> Control:
 	var col := UI.vbox(0)
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var name := UI.label(heading, T.LABEL, T.INK_MUTED)
+	var name := UI.label(heading, T.BODY_SM, T.PARCHMENT_MUTED)
 	if explain:
 		var tipped := TipBox.make(ladder_heading_text(journey), "move" if journey else "attack")
 		tipped.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
@@ -127,7 +127,7 @@ static func _rung(rung: Dictionary, journey: bool, explain := false) -> Control:
 	row.add_child(UI.label(str(rung.need), FIGURE))
 	if journey:
 		row.add_child(UI.icon_rect(rung.element, ICON * 0.8, T.ether_ink(rung.element)))
-	row.add_child(UI.label("→", FIGURE, T.INK_MUTED))
+	row.add_child(UI.label("→", FIGURE, T.PARCHMENT_MUTED))
 	row.add_child(UI.icon_rect("time" if journey else "hp", ICON))
 	row.add_child(UI.label(str(rung.cost), FIGURE))
 	return row.seal() if explain else row
@@ -140,30 +140,32 @@ static func _opening(d: Dictionary, explain := false) -> Control:
 	var plate := PanelContainer.new()
 	plate.custom_minimum_size.y = 34
 	plate.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	var look := UI.box(T.ether(element), Color(0, 0, 0, 0.35), 1, T.RADIUS_S, 0)
-	look.content_margin_left = T.S
-	look.content_margin_right = T.S
+	# The ink that reads on the Ether's plate (specs/019 research R11).
+	var ink := T.ether_shade(element, "plate_ink")
+	var look := UI.box(T.ether(element), Color(T.SHADE, 0.35), 1, T.RADIUS_PLATE, 0)
+	look.content_margin_left = T.SPACE_2
+	look.content_margin_right = T.SPACE_2
 	plate.add_theme_stylebox_override("panel", look)
 	var row := UI.hbox(3)
 	var speed: HBoxContainer = TipBox.make(initiative_text(d), "initiative") if explain else UI.hbox(3)
-	speed.add_child(UI.icon_rect("initiative", ICON, T.BG_BASE))
-	speed.add_child(UI.label(str(d.initiative), FIGURE, T.BG_BASE))
+	speed.add_child(UI.icon_rect("initiative", ICON, ink))
+	speed.add_child(UI.label(str(d.initiative), FIGURE, ink))
 	row.add_child(speed.seal() if explain else speed)
 	var rule := ColorRect.new()
-	rule.color = Color(T.BG_BASE, 0.45)
+	rule.color = Color(ink, 0.45)
 	rule.custom_minimum_size = Vector2(2, 22)
 	rule.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	var gap := Control.new()
-	gap.custom_minimum_size.x = T.XS
+	gap.custom_minimum_size.x = T.SPACE_1
 	row.add_child(gap)
 	row.add_child(rule)
 	row.add_child(gap.duplicate())
 	var early: HBoxContainer = TipBox.make(early_damage_text(d), "attack") if explain else UI.hbox(3)
-	early.add_child(UI.label("+%d" % d.early_damage.value, FIGURE, T.BG_BASE))
-	early.add_child(UI.icon_rect("attack", ICON, T.BG_BASE))
+	early.add_child(UI.label("+%d" % d.early_damage.value, FIGURE, ink))
+	early.add_child(UI.icon_rect("attack", ICON, ink))
 	row.add_child(early.seal() if explain else early)
 	var ether: HBoxContainer = TipBox.make(ether_text(d), element) if explain else UI.hbox(3)
-	ether.add_child(UI.icon_rect(element, ICON, T.BG_BASE))
+	ether.add_child(UI.icon_rect(element, ICON, ink))
 	row.add_child(ether.seal() if explain else ether)
 	plate.add_child(row)
 	return plate

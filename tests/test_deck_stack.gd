@@ -50,13 +50,18 @@ func test_the_pile_is_drawn_from_its_count_alone() -> void:
 
 
 func test_every_card_has_the_mage_cards_corners() -> void:
-	eq(DeckStack.card_radius(190.0), 14, "a Hand card's corners")
-	eq(DeckStack.card_radius(400.0), 30, "and a Region Card's, at its own width")
+	# 8% of the card's width, the design system's radius-card on its card (specs/019).
+	eq(DeckStack.card_radius(190.0), 15, "a Hand card's corners")
+	eq(DeckStack.card_radius(400.0), 32, "and a Region Card's, at its own width")
 
 
 func test_the_face_leaves_the_edges_their_margin() -> void:
-	eq(DeckStack.face_rect(Vector2(500, 400)), Rect2(0, 0, 476, 376), "the face")
-	eq(DeckStack.card_rect(Vector2(500, 400), "face", true), Rect2(0, 0, 476, 376), "zoomed in, the top card is under the face")
+	# The face is a card of the Hand's shape, the largest that fits inside the edges'
+	# margin, centred there (owner, 2026-10-22).
+	eq(DeckStack.face_rect(Vector2(500, 400)), Rect2(104, 0, 268, 376), "the face")
+	eq(DeckStack.card_rect(Vector2(500, 400), "face", true), Rect2(104, 0, 268, 376), "zoomed in, the top card is under the face")
+	var tall := DeckStack.face_rect(Vector2(400, 900))
+	ok(absf(tall.size.x / tall.size.y - T.CARD_ASPECT) < 0.01, "a tall Deck's face is a playing card's shape too")
 
 
 func test_the_key_card_rises_by_its_band_and_strip() -> void:
@@ -81,9 +86,10 @@ func test_the_card_leaves_room_for_a_key_card_of_its_own_size() -> void:
 		var ph := DeckStack.peek_h(cr.size)
 		ok(cr.position.y - (ph - DeckStack.dip(ph)) < 2.5, "%s: no more room than that" % deck)
 		ok(absf(_aspect(cr) - RegionCard.ASPECT) < 0.01, "%s: printed 5 by 7" % deck)
-	# Narrow and tall: as wide as the face, as before.
+	# Narrow and tall: the face is a card's shape, so the card is as tall as fits under
+	# its rise on it.
 	var tall := DeckStack.card_rect(Vector2(400, 900), "card", true)
-	eq(tall.size.x, DeckStack.face_rect(Vector2(400, 900)).size.x, "a tall Deck: the card is as wide as the face")
+	ok(tall.end.y <= DeckStack.face_rect(Vector2(400, 900)).end.y + 0.5, "a tall Deck: the card stays on the face")
 	_room_ok(tall, "tall")
 	# The Dragon Card has nothing rising from under it.
 	var dragon := DeckStack.card_rect(Vector2(600, 500), "card", false)
@@ -142,10 +148,9 @@ func test_the_dragon_card_zooms_into_its_two_ladders() -> void:
 		ok(mp.position.y >= cr.size.y * 0.21, "%s: under the row of figures" % name)
 
 
-## Zoomed in, the Deck rests on the card grown round the Encounter's panel (specs/013
-## research R3): the panel as large as fits above the reading strip, the card where
-## that puts it, covering the face.
-func test_the_zoom_rests_on_the_card_grown_round_its_panel() -> void:
+## Zoomed in, the Encounter's panel is lifted out of the card as large as fits above
+## the reading strip, the card as it is filling the face behind it (owner, 2026-10-22).
+func test_the_zoom_lifts_the_panel_over_the_card() -> void:
 	for name in Solver.MATRIX:
 		var f := DeckStack.face_rect(_plan(name).regions.encounter.size)
 		var face := Rect2(Vector2.ZERO, f.size)
@@ -156,14 +161,13 @@ func test_the_zoom_rests_on_the_card_grown_round_its_panel() -> void:
 					var at := DeckStack.landing(face, key, lines)
 					var where := "%s %s, %d lines" % [name, key, lines]
 					ok(face.grow(0.5).encloses(at.panel), "%s: the panel is on the face" % where)
-					ok(at.card.grow(0.5).encloses(Rect2(face.position, Vector2(face.size.x, at.strip.position.y))) or at.card.size.x < face.size.x or at.card.size.y < at.strip.position.y,
-						"%s: no bare face round the card" % where)
+					ok(face.grow(0.5).encloses(at.card) and (absf(at.card.size.x - face.size.x) < 0.5 or absf(at.card.size.y - face.size.y) < 0.5),
+						"%s: the card fills the face" % where)
 					ok(not at.panel.intersects(at.strip), "%s: clear of the strip" % where)
 					ok(absf(at.strip.position.y - at.panel.end.y) < 0.5, "%s: the strip right under the panel" % where)
 					ok(at.strip.end.y <= face.end.y + 0.5, "%s: the strip on the face" % where)
 					var on_card := RegionCard.panel_rect(at.card.size, key)
-					ok(on_card.position.distance_to(at.panel.position - at.card.position) < 0.5 and on_card.size.distance_to(at.panel.size) < 0.5,
-						"%s: the panel is the card's own, grown" % where)
+					ok(absf(on_card.size.aspect() - at.panel.size.aspect()) < 0.01, "%s: the panel keeps its printed shape" % where)
 					ok(is_equal_approx(at.panel.size.x, face.size.x) or is_equal_approx(at.panel.size.y, face.size.y - at.strip.size.y),
 						"%s: as large as fits" % where)
 		var three := DeckStack.landing(face, "journey:1", 3)

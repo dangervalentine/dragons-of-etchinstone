@@ -156,10 +156,10 @@ static func is_final(vs: Dictionary) -> bool:
 ## column after the cards holds each Action Set's Boost aim (`boost_aims`, one rect
 ## per set, beside that set's row).
 static func solve(view: Vector2, safe: Rect2, hand_count := 4, place_count := 4, points_per_unit := 0.5, upright := false, final := false, action_cells := 3) -> Dictionary:
-	var left := maxf(safe.position.x, T.M)
-	var top := maxf(safe.position.y, T.M)
-	var right := minf(safe.end.x, view.x - T.M)
-	var bottom := minf(safe.end.y, view.y - T.M)
+	var left := maxf(safe.position.x, T.LAYOUT_GUTTER)
+	var top := maxf(safe.position.y, T.LAYOUT_GUTTER)
+	var right := minf(safe.end.x, view.x - T.LAYOUT_GUTTER)
+	var bottom := minf(safe.end.y, view.y - T.LAYOUT_GUTTER)
 	var c := Rect2(left, top, right - left, bottom - top)
 	# Past the maximum the content stops growing and sits in the middle.
 	if c.size.x > T.DESIGN_MAX.x:
@@ -250,11 +250,11 @@ static func _boost_aims(band: Rect2, positions: Array) -> Array:
 ## always the last cell, on the right.
 static func action_cells_for(actions: Rect2, cells: int) -> Dictionary:
 	var parts := 4 if cells <= 4 else cells
-	var each := floorf((actions.size.x - (parts - 1) * T.S) / parts)
+	var each := floorf((actions.size.x - (parts - 1) * T.LAYOUT_GAP) / parts)
 	var secondary := []
 	for i in maxi(2, cells - 1):
-		secondary.append(Rect2(actions.position.x + i * (each + T.S), actions.position.y, each, actions.size.y))
-	var commit_x: float = secondary[-1].end.x + T.S
+		secondary.append(Rect2(actions.position.x + i * (each + T.LAYOUT_GAP), actions.position.y, each, actions.size.y))
+	var commit_x: float = secondary[-1].end.x + T.LAYOUT_GAP
 	return {"secondary": secondary, "commit": Rect2(commit_x, actions.position.y, actions.end.x - commit_x, actions.size.y)}
 
 

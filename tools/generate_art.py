@@ -34,9 +34,10 @@ Run:
       --mask build/art/grimroch-mask.png [--fill "the throat, solid"]
   python3 tools/generate_art.py pattern ground --count 4
 
-pattern draws a flat, repeating ground pattern from the PATTERNS prompts below, not
-from the doc, into build/art/pattern/. tools/make_ground.gd then makes it seamless,
-flattens it to three tones and fits it to the game's stone (feature 006).
+pattern draws a ground texture from the PATTERNS prompts below, not from the doc,
+into build/art/pattern/. Feature 006 turned "ground" into the stone grounds; specs/019
+replaced those with a flat ground. The region-* textures are each Region's ground in
+play: grey and quiet, so the backdrop tints them in the Region's own colours.
 """
 import argparse
 import json
@@ -60,6 +61,19 @@ PATTERNS = {
               "two tones, no shading, no glow, evenly spaced engraved strokes, linocut "
               "texture, tileable",
 }
+# Each Region's ground in play: a low-detail wash behind the table, only a hint of its
+# country in broad soft shapes, grey so the backdrop shader tints it from the tokens,
+# and low in contrast so the cards and text stay first. Drawn small (--size 512).
+REGION_TEXTURE = ("abstract background texture, very low detail, large soft blotches and gentle "
+                  "tonal variation, blurred and out of focus, flat and seen straight down, filling "
+                  "the frame, no objects, no horizon, no sharp lines, no text, monochrome grey, "
+                  "low contrast, muted painterly wash")
+PATTERNS.update({
+    "region-jade": "soft mottled slate stone with faint broad strata, " + REGION_TEXTURE,
+    "region-marsh": "soft mottled murky water with faint broad ripples, " + REGION_TEXTURE,
+    "region-basin": "soft mottled ash and cooled lava with faint broad cracks, " + REGION_TEXTURE,
+    "region-gath": "soft mottled mossy forest floor with faint leaf shapes, " + REGION_TEXTURE,
+})
 ART = os.path.join(ROOT, "art", "creatures")
 SERVER = "http://127.0.0.1:8188"
 
@@ -323,7 +337,7 @@ def start_for(name):
 # Commands
 
 def main():
-    global SERVER, models
+    global SERVER, models, SIZE
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     p.add_argument("command", choices=["list", "prompt", "generate", "restyle", "start", "body", "pattern"])
     p.add_argument("names", nargs="*", help="file names from the doc's tables, e.g. panda-fighter, "
@@ -344,9 +358,12 @@ def main():
     p.add_argument("--fill", help="body: what fills the gap, if not the doc's")
     p.add_argument("--server", default=SERVER, help="the ComfyUI to use; %(default)s by default")
     p.add_argument("--q8", action="store_true", help="use the Q8 models")
+    p.add_argument("--size", type=int, default=SIZE, help="pattern: the square's side in "
+                   "pixels; %(default)s by default")
     a = p.parse_args()
     SERVER = a.server.rstrip("/")
     models = MODELS["q8" if a.q8 else "q4"]
+    SIZE = a.size
     if a.command == "pattern":
         names = a.names or list(PATTERNS)
         for name in names:

@@ -19,7 +19,7 @@ var _shown_id := ""
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	visible = false
-	add_theme_stylebox_override("panel", UI.stone_slab(T.GOLD, 14))
+	add_theme_stylebox_override("panel", UI.stone_slab(Color(T.SHADE, 0), 14))
 	var row := UI.hbox(14)
 	_face.custom_minimum_size = Vector2(170, 238)
 	_face.motion = false
@@ -40,7 +40,7 @@ func show_card(m: Dictionary, area: Rect2) -> void:
 		_rows.remove_child(c)
 		c.queue_free()
 	var lv: Dictionary = m.stats
-	var name := UI.label(m.name.to_upper(), T.SUBHEAD, T.INK, true)
+	var name := UI.label(m.name, T.HEADING, T.PARCHMENT, true)
 	name.custom_minimum_size.x = 230
 	_rows.add_child(name)
 	_line(m.element, "%s Ether · Level %d of %d" % [m.element.capitalize(), m.level, m.max_level], T.ether_ink(m.element))
@@ -58,10 +58,10 @@ func show_card(m: Dictionary, area: Rect2) -> void:
 	if lv.armor.element != null:
 		armor += ", %d against %s" % [lv.armor.value * 2, String(lv.armor.element).capitalize()]
 	_row("armor", "Armor (Soaks)", armor)
-	_row("upgrade", "Upgrade", ("%d XP to Level %d" % [lv.upgrade_cost, m.level + 1]) if lv.upgrade_cost != null else "Highest Level", T.GOLD)
+	_row("upgrade", "Upgrade", ("%d XP to Level %d" % [lv.upgrade_cost, m.level + 1]) if lv.upgrade_cost != null else "Highest Level", T.PARCHMENT)
 	var now := _context(m)
 	if now != "":
-		var l := UI.label(now, T.LABEL_BOLD, T.GOLD, true)
+		var l := UI.label(now, T.LABEL, T.PARCHMENT_MUTED, true)
 		l.custom_minimum_size.x = 230
 		_rows.add_child(l)
 	reset_size()
@@ -105,15 +105,15 @@ func _context(m: Dictionary) -> String:
 	return "\n".join(parts)
 
 
-func _row(icon: String, label: String, value: String, colour: Color = T.INK) -> void:
+func _row(icon: String, label: String, value: String, colour: Color = T.PARCHMENT) -> void:
 	var r := UI.hbox(8)
 	var i := UI.icon_rect(icon, 26, colour)
 	i.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	r.add_child(i)
 	var col := UI.vbox(0)
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	col.add_child(UI.label(label, T.LABEL, T.INK_MUTED))
-	var v := UI.label(value, T.LABEL_BOLD, T.INK, true)
+	col.add_child(UI.label(label, T.BODY_SM, T.PARCHMENT_MUTED))
+	var v := UI.label(value, T.LABEL, T.PARCHMENT, true)
 	v.custom_minimum_size.x = 190
 	col.add_child(v)
 	r.add_child(col)
@@ -123,5 +123,5 @@ func _row(icon: String, label: String, value: String, colour: Color = T.INK) -> 
 func _line(icon: String, text: String, colour: Color) -> void:
 	var r := UI.hbox(6)
 	r.add_child(UI.icon_rect(icon, 22, colour))
-	r.add_child(UI.label(text, T.LABEL, T.INK_MUTED))
+	r.add_child(UI.label(text, T.BODY_SM, T.PARCHMENT_MUTED))
 	_rows.add_child(r)

@@ -26,7 +26,8 @@ var _dim := ColorRect.new()
 func _init() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	_dim.color = Color(T.BG_BASE, 0.78)
+	# The scrim behind dialogs, the menu and banners (specs/019).
+	_dim.color = T.SCRIM
 	_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_dim)
@@ -58,10 +59,10 @@ func make_close_button() -> Button:
 	b.flat = true
 	for state in ["normal", "hover", "pressed", "disabled"]:
 		b.add_theme_stylebox_override(state, StyleBoxEmpty.new())
-	var focus := UI.box(Color.TRANSPARENT, T.muted(T.GOLD), 3)
+	var focus := UI.box(Color.TRANSPARENT, T.JADE, T.BORDER_SELECT)
 	focus.set_expand_margin_all(-12)
 	b.add_theme_stylebox_override("focus", focus)
-	var icon := UI.icon_rect("close", 36, T.INK)
+	var icon := UI.icon_rect("close", 36, T.PARCHMENT)
 	icon.set_anchors_preset(Control.PRESET_CENTER)
 	icon.offset_left = -18
 	icon.offset_top = -18
@@ -69,8 +70,8 @@ func make_close_button() -> Button:
 	icon.offset_bottom = 18
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	b.add_child(icon)
-	b.mouse_entered.connect(func(): icon.modulate = T.GOLD)
-	b.mouse_exited.connect(func(): icon.modulate = T.INK)
+	b.mouse_entered.connect(func(): icon.modulate = T.PARCHMENT)
+	b.mouse_exited.connect(func(): icon.modulate = T.PARCHMENT)
 	b.pressed.connect(close)
 	UI.press_feedback(b)
 	return b
@@ -93,7 +94,7 @@ func add_edge_caps(rect: Rect2) -> Array:
 	var w := minf(rect.size.x * 0.4, 360.0)
 	var h := w * 16.0 / 192.0
 	for y in [rect.position.y, rect.end.y]:
-		var cap := UI.icon_rect("orn_divider", 10, T.muted(T.GOLD))
+		var cap := UI.icon_rect("orn_divider", 10, T.EDGE)
 		cap.custom_minimum_size = Vector2.ZERO
 		cap.size = Vector2(w, h)
 		cap.position = Vector2(rect.get_center().x - w / 2.0, y - h / 2.0)

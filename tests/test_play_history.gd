@@ -106,6 +106,7 @@ func test_a_marker_becomes_an_abandoned_record() -> void:
 	eq(r.stage, "region_3", "stage")
 	eq(r.difficulty, "easy", "difficulty")
 	eq(r.glass_cannon, true, "rules")
+	eq(r.persistent_xp, false, "persistent xp off")
 	eq(r.score, 0, "score")
 	r.id = 1
 	ok(PlayHistory.is_valid(r), "valid")
@@ -192,6 +193,8 @@ func test_texts() -> void:
 	eq(PlayHistory.rules_text(r), "Cavalier", "one rule")
 	r.glass_cannon = true
 	eq(PlayHistory.rules_text(r), "Cavalier, Glass Cannon", "both")
+	r.persistent_xp = true
+	eq(PlayHistory.rules_text(r), "Cavalier, Glass Cannon, Persistent XP", "all three")
 	ok(PlayHistory.date_text(1792071474).ends_with("2026"), "a date")
 	eq(PlayHistory.difficulty_name("dont_even_try"), "Don't Even Try It", "difficulty")
 	eq(PlayHistory.difficulty_name("legendary"), "Legendary", "an unknown one")

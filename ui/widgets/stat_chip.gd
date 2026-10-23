@@ -12,8 +12,8 @@ signal help(glossary_id: String, source: Control)
 
 var icon := ""
 var text := ""
-var color := T.BG_RAISED
-var ink := T.INK
+var color := T.STONE_RAISED
+var ink := T.PARCHMENT
 var caption := ""
 ## A small Ether icon beside the figure.
 var element := ""
@@ -73,9 +73,9 @@ func _gui_input(event: InputEvent) -> void:
 func _draw() -> void:
 	var caption_h := 24.0 if caption != "" else 0.0
 	var area := Rect2(0, 0, size.x, size.y - caption_h)
-	var font := UI.font("display_bold")
+	var font := UI.font(T.NUMERAL)
 	if _hover:
-		draw_style_box(UI.box(Color(1, 1, 1, 0.08), Color.TRANSPARENT, 0, T.RADIUS_S), Rect2(Vector2.ZERO, size))
+		draw_style_box(UI.box(Color(T.SHEEN, 0.08), Color.TRANSPARENT, 0, T.RADIUS_PLATE), Rect2(Vector2.ZERO, size))
 	if plate:
 		var h := minf(area.size.y, 48.0)
 		var fs := int(h * 0.72)
@@ -84,10 +84,11 @@ func _draw() -> void:
 		var count := (1 if icon != "" else 0) + (1 if element != "" else 0)
 		var w := minf(size.x, tw + count * (i + 3) + 18)
 		var rect := Rect2((size.x - w) / 2.0, (area.size.y - h) / 2.0, w, h)
-		draw_style_box(UI.box(color, Color(0, 0, 0, 0.35), 1, int(h * 0.24), 0), rect)
+		draw_style_box(UI.box(color, Color(T.SHADE, 0.35), 1, int(h * 0.24), 0), rect)
 		var x := rect.position.x + 9
 		var base := rect.get_center().y + (font.get_ascent(fs) - font.get_descent(fs)) / 2.0
 		draw_string(font, Vector2(x, base), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, ink)
+		UI.drew_text(self, "plate", fs)
 		x += tw + 3
 		for name in [icon, element]:
 			if name != "":
@@ -104,13 +105,13 @@ func _draw() -> void:
 			draw_colored_polygon(pts, backing)
 			var closed := pts.duplicate()
 			closed.append(pts[0])
-			draw_polyline(closed, Color(T.INK, 0.45), maxf(1.0, side * 0.025), true)
+			draw_polyline(closed, Color(T.PARCHMENT, 0.45), maxf(1.0, side * 0.025), true)
 			rect = rect.grow(-side * 0.05)
 		if ring.a > 0.0:
 			# The disc is a circle of radius 22 in the icon's 48-unit view box.
 			draw_circle(rect.get_center(), rect.size.x * 22.0 / 48.0 + maxf(2.0, side * 0.07), ring, true, -1.0, true)
 		# A thin pale rim, as the printed badges have.
-		draw_texture_rect(UI.icon(icon), rect.grow(maxf(1.0, side * 0.03)), false, Color(T.INK, 0.45))
+		draw_texture_rect(UI.icon(icon), rect.grow(maxf(1.0, side * 0.03)), false, Color(T.PARCHMENT, 0.45))
 		draw_texture_rect(UI.icon(icon), rect, false, color)
 		if inset.a > 0.0 and inset_icon != "":
 			draw_texture_rect(UI.icon(inset_icon), rect, false, inset)
@@ -120,12 +121,13 @@ func _draw() -> void:
 		if element != "":
 			_corner_sigil(element, box.end - Vector2(side * 0.14, side * 0.12), side * 0.36)
 	if caption != "":
-		var cf := UI.font("body_medium")
-		var cs: int = T.LABEL[1]
+		var cf := UI.font(T.BODY_SM)
+		var cs: int = T.BODY_SM.size
 		while cs > 16 and cf.get_string_size(caption, HORIZONTAL_ALIGNMENT_LEFT, -1, cs).x > size.x + 6:
 			cs -= 1
 		var cw := cf.get_string_size(caption, HORIZONTAL_ALIGNMENT_LEFT, -1, cs).x
-		draw_string(cf, Vector2((size.x - cw) / 2.0, size.y - 5), caption, HORIZONTAL_ALIGNMENT_LEFT, -1, cs, T.INK_MUTED)
+		draw_string(cf, Vector2((size.x - cw) / 2.0, size.y - 5), caption, HORIZONTAL_ALIGNMENT_LEFT, -1, cs, T.PARCHMENT_MUTED)
+		UI.drew_text(self, "caption", cs)
 
 
 ## The window for `name`'s number when its shape is drawn in `rect`.
@@ -142,7 +144,7 @@ func _corner_sigil(e: String, centre: Vector2, d: float) -> void:
 	var w := maxf(1.0, d * 0.08)
 	for k in 8:
 		var off := Vector2.RIGHT.rotated(k * PI / 4.0) * w + Vector2(w * 0.4, w * 1.2)
-		draw_texture_rect(UI.icon(e), Rect2(r.position + off, r.size), false, Color(0, 0, 0, 0.22))
+		draw_texture_rect(UI.icon(e), Rect2(r.position + off, r.size), false, Color(T.SHADE, 0.22))
 	draw_texture_rect(UI.icon(e), r, false, T.ether_shade(e, "plate").lerp(T.ether_shade(e, "lit"), 0.5))
 
 

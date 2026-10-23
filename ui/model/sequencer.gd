@@ -82,8 +82,9 @@ static func build(before: Dictionary, action: Dictionary, result: Dictionary, af
 			_level_steps(steps, before, after, before.hand)
 		"finish":
 			# XP not spent by the end of the Upgrade step is lost (rulebook): say so first.
-			if before.phase == "upgrade" and before.get("xp", 0) > 0:
-				steps.append(_step("xp_lost", [], {"amount": before.xp}, "xp"))
+			# With Persistent XP it is kept, and nothing fades.
+			if before.phase == "upgrade" and before.get("xp", 0) > after.get("xp", 0):
+				steps.append(_step("xp_lost", [], {"amount": before.xp - after.get("xp", 0)}, "xp"))
 			# Back out to the whole Region Card before the Hand is refilled from under it.
 			steps.append(_step("zoom_out", [], {}, "deck"))
 			var spent := []

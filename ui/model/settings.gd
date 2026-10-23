@@ -1,6 +1,6 @@
 extends RefCounted
-## The few things remembered between games: the motion preference, the ground the
-## board stands on, whether a desktop window is full screen, the options of the
+## The few things remembered between games: the motion preference, whether a
+## desktop window is full screen, the options of the
 ## last game started, which dragons have been unlocked and which lessons are finished
 ## (specs/017). Kept in a small file on the device.
 
@@ -10,7 +10,7 @@ const TOOL_PATH := "user://tool_settings.cfg"
 const MOTION := ["system", "reduced", "full"]
 ## How a desktop game's window opens (feature 008).
 const WINDOW := ["windowed", "fullscreen"]
-const DEFAULT_OPTIONS := {"dragon": "rodving", "difficulty": "normal", "cavalier": false, "glass_cannon": false}
+const DEFAULT_OPTIONS := {"dragon": "rodving", "difficulty": "normal", "cavalier": false, "glass_cannon": false, "persistent_xp": false}
 
 ## The dragons locked on a fresh install. What unlocks each is to come; for now,
 ## in development, a triple tap on the menu's title unlocks them all.
@@ -20,16 +20,15 @@ const LOCKED_AT_START := ["vuurhast", "grimroch", "helsang"]
 ## test checks, so a saved id that no longer names a lesson is dropped on load.
 const LESSON_IDS := ["setting_out", "victory", "narrow", "loss", "fuse", "region_end"]
 
-## The ground patterns (feature 006): art/stone/ground-<n>.png, picked in the menu.
-const GROUNDS := 4
-
 static var motion := "system"
-static var ground := 1
 static var window_mode := "windowed"
 static var last_options := DEFAULT_OPTIONS.duplicate()
 ## Ask before leaving the Upgrade step with XP that could still Upgrade a card; off
 ## once the player ticks "Don't show this again".
 static var warn_unspent_xp := true
+## Which edition new games are played in: false for Classic, the rulebook as printed;
+## true for House rules, which offers this edition's own rules too (editions.gd).
+static var house_rules := false
 ## The dragons of LOCKED_AT_START unlocked since.
 static var unlocked: Array = []
 ## Every dragon open for this run only, never saved: set by the tools that walk
@@ -52,11 +51,12 @@ static func load_all() -> void:
 		return
 	var m = cfg.get_value("display", "motion", "system")
 	motion = m if MOTION.has(m) else "system"
-	var g = cfg.get_value("display", "ground", 1)
-	ground = g if g is int and g >= 1 and g <= GROUNDS else 1
+	# display/ground, the stone pattern earlier versions let the player choose, is
+	# left unread: the board stands on one ground now (specs/019 FR-006a).
 	var w = cfg.get_value("display", "window", "windowed")
 	window_mode = w if WINDOW.has(w) else "windowed"
 	warn_unspent_xp = cfg.get_value("play", "warn_unspent_xp", true) == true
+	house_rules = cfg.get_value("play", "house_rules", false) == true
 	var u = cfg.get_value("progress", "unlocked", [])
 	unlocked = Array(u).filter(func(id): return LOCKED_AT_START.has(id)) if u is Array else []
 	var l = cfg.get_value("progress", "lessons", [])
@@ -73,10 +73,10 @@ static func load_all() -> void:
 static func save_all() -> void:
 	var cfg := ConfigFile.new()
 	cfg.set_value("display", "motion", motion)
-	cfg.set_value("display", "ground", ground)
 	cfg.set_value("display", "window", window_mode)
 	cfg.set_value("game", "last_options", last_options)
 	cfg.set_value("play", "warn_unspent_xp", warn_unspent_xp)
+	cfg.set_value("play", "house_rules", house_rules)
 	cfg.set_value("progress", "unlocked", unlocked)
 	cfg.set_value("progress", "lessons", lessons)
 	cfg.set_value("progress", "tutorial_done", tutorial_done)
@@ -89,10 +89,10 @@ static func save_all() -> void:
 static func use_path(p: String) -> void:
 	path = p
 	motion = "system"
-	ground = 1
 	window_mode = "windowed"
 	last_options = DEFAULT_OPTIONS.duplicate()
 	warn_unspent_xp = true
+	house_rules = false
 	unlocked = []
 	lessons = []
 	tutorial_done = false

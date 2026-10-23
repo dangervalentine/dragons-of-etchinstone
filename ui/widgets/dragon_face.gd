@@ -18,7 +18,7 @@ const CROSSING := 0.9
 ## The smallest the band's name and title step down to.
 const NAME_MIN := 16
 ## How far the figures keep in from the face's sides.
-const INSET := 2 * T.M
+const INSET := 2 * T.SPACE_4
 ## How strongly the silhouette road shows in battle, where there is no painted one.
 const FAINT := 0.35
 
@@ -82,17 +82,19 @@ func set_reached(tier: int) -> void:
 	for i in _rungs.size():
 		var on: bool = i <= tier
 		var rung: PanelContainer = _rungs[i]
-		var box := UI.box(Color(T.GOLD, 0.92) if on else Color(T.BG_BAND, 0.85),
-			T.GOLD if on else Color(T.INK, 0.25), 2 if on else 1, T.RADIUS_S, 4 if _kind == "final_journey" else 2)
+		# A rung reached is lit in parchment: progress, not a choice, so not brass
+		# (specs/019 research R6).
+		var box := UI.box(T.PARCHMENT if on else Color(T.STAT_PLATE, 0.85),
+			T.PARCHMENT if on else T.LINE, 2 if on else 1, T.RADIUS_PLATE, 4 if _kind == "final_journey" else 2)
 		# Room inside each end of the rung, so its figures keep off its edge.
-		box.content_margin_left = T.M
-		box.content_margin_right = T.M
+		box.content_margin_left = T.SPACE_4
+		box.content_margin_right = T.SPACE_4
 		rung.add_theme_stylebox_override("panel", box)
 		for l in rung.find_children("*", "Label", true, false):
-			l.add_theme_color_override("font_color", T.BG_BASE if on else T.INK)
+			l.add_theme_color_override("font_color", T.STAT_PLATE if on else T.PARCHMENT)
 		for t in rung.find_children("*", "TextureRect", true, false):
 			if not t.has_meta("keep_colour"):
-				t.modulate = T.BG_BASE if on else T.INK
+				t.modulate = T.STAT_PLATE if on else T.PARCHMENT
 
 
 func _build(enc: Dictionary) -> void:
@@ -110,11 +112,11 @@ func _build(enc: Dictionary) -> void:
 		var names := UI.vbox(-8)
 		names.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		names.alignment = BoxContainer.ALIGNMENT_CENTER
-		for line in [[d.name.to_upper(), T.SUBHEAD, T.INK], [d.title, T.LABEL, T.INK_MUTED]]:
+		for line in [[d.name, T.HEADING, T.PARCHMENT], [d.title, T.BODY_SM, T.PARCHMENT_MUTED]]:
 			var l := UI.label(line[0], line[1], line[2])
 			l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			l.clip_text = true
-			l.set_meta("base_font", line[1][1])
+			l.set_meta("base_font", line[1].size)
 			names.add_child(l)
 		names.resized.connect(_fit_names.bind(names))
 		band.add_child(names)
@@ -136,24 +138,24 @@ func _build(enc: Dictionary) -> void:
 	# The battle shares the column with a taller math box: its lines sit closer.
 	_panel.add_theme_constant_override("separation", 6 if journey else 3)
 	if journey:
-		var intro := UI.label("THE FINAL JOURNEY", T.EYEBROW, T.GOLD)
+		var intro := UI.label("The Final Journey", T.LABEL, T.PARCHMENT_MUTED)
 		intro.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_panel.add_child(intro)
-		var how := UI.label("Add the Move of both sets. Each tier reached costs less time.", T.LABEL, T.INK, true)
+		var how := UI.label("Add the Move of both sets. Each tier reached costs less time.", T.BODY_SM, T.PARCHMENT, true)
 		how.custom_minimum_size.x = 200
 		how.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_panel.add_child(how)
 		_spare = [how]
 	else:
-		var eyebrow := UI.label("THE FINAL ENEMY", T.EYEBROW, T.GOLD)
+		var eyebrow := UI.label("The Final Enemy", T.LABEL, T.PARCHMENT_MUTED)
 		eyebrow.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_panel.add_child(eyebrow)
 		# One row of figures, named once underneath; each explains itself when pressed.
 		var stats := HFlowContainer.new()
 		stats.alignment = FlowContainer.ALIGNMENT_CENTER
-		stats.add_theme_constant_override("h_separation", T.M)
+		stats.add_theme_constant_override("h_separation", T.SPACE_4)
 		stats.add_theme_constant_override("v_separation", 2)
-		stats.add_child(_chip({"icon": "initiative", "text": str(d.initiative), "color": T.BG_BAND,
+		stats.add_child(_chip({"icon": "initiative", "text": str(d.initiative), "color": T.STAT_PLATE,
 			"glossary_id": "initiative", "min_size": Vector2(44, 44)}))
 		# The Early Damage as printed: its number on the Attack badge in its Ether's
 		# colour, the Ether's sigil on the badge's corner.
@@ -168,7 +170,7 @@ func _build(enc: Dictionary) -> void:
 		var names := "Initiative · early · Armor"
 		if enc.carried_damage > 0:
 			names += " · %d carried" % enc.carried_damage
-		var caption := UI.label(names, T.LABEL, T.INK, true)
+		var caption := UI.label(names, T.BODY_SM, T.PARCHMENT, true)
 		caption.custom_minimum_size.x = 200
 		caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_panel.add_child(caption)
@@ -188,7 +190,7 @@ func _build(enc: Dictionary) -> void:
 	# never swallows them; the rungs carry their own dark boxes.
 	for c in _panel.get_children():
 		if c is Label:
-			c.add_theme_color_override("font_outline_color", Color(T.BG_BASE, 0.9))
+			c.add_theme_color_override("font_outline_color", Color(T.GROUND, 0.9))
 			c.add_theme_constant_override("outline_size", 8)
 	# Every size in the panel as built, for _grow() to scale from.
 	for c in _sized(_panel):
@@ -275,7 +277,7 @@ func _place(crossing: bool) -> void:
 	var bottom := Rect2(0, half, w, h - half)
 	var beast := _square_in(bottom)
 	var road := _square_in(bottom)
-	var panel := top.grow_individual(-INSET, -T.S, -INSET, -T.S)
+	var panel := top.grow_individual(-INSET, -T.SPACE_2, -INSET, -T.SPACE_2)
 	_fill(panel)
 	_fit_ladder(panel)
 	if _tween != null and _tween.is_valid():
@@ -322,7 +324,7 @@ static func _square_in(r: Rect2) -> Rect2:
 ## checks after each sort of the panel.
 func _fit_ladder(panel: Rect2) -> void:
 	# The stage can run on under the frame's foot; only what the frame shows counts.
-	var shown := size.y - (_stage.global_position.y - global_position.y) - T.M
+	var shown := size.y - (_stage.global_position.y - global_position.y) - T.SPACE_4
 	_room = minf(panel.size.y, shown) if size.y > 0.0 else panel.size.y
 	for c in _spare:
 		c.visible = true
@@ -348,17 +350,17 @@ func _rung(tier: Dictionary, journey: bool, element: String) -> Control:
 	var need: int = tier.mp.value if journey else tier.hp
 	var cost: int = tier.time_penalty if journey else tier.attack.value
 	row.add_child(UI.icon_rect("move" if journey else "attack", 24))
-	row.add_child(UI.label(str(need), T.NUMERAL_S))
+	row.add_child(UI.label(str(need), T.NUMERAL_SM))
 	if journey:
 		var e := UI.icon_rect(element, 20, T.ether_ink(element))
 		e.set_meta("keep_colour", true)
 		row.add_child(e)
-	var arrow := UI.label("→", T.NUMERAL_S, T.INK)
+	var arrow := UI.label("→", T.NUMERAL_SM, T.PARCHMENT)
 	arrow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	arrow.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	row.add_child(arrow)
 	row.add_child(UI.icon_rect("time" if journey else "hp", 24))
-	row.add_child(UI.label(str(cost), T.NUMERAL_S))
+	row.add_child(UI.label(str(cost), T.NUMERAL_SM))
 	# A rung stretched into spare height keeps its figures on its middle.
 	for l in row.get_children():
 		if l is Label:

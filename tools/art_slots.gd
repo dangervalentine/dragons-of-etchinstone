@@ -14,6 +14,7 @@ func _initialize() -> void:
 	var journeys := []
 	for region in Art.JOURNEYS:
 		journeys.append_array(Art.JOURNEYS[region])
-	var out := {"enemies": enemies, "journeys": journeys, "dragons": Art.DRAGONS.values()}
+	var grounds := Art.GROUNDS.values().map(func(n: String): return n.trim_prefix("grounds/"))
+	var out := {"enemies": enemies, "journeys": journeys, "dragons": Art.DRAGONS.values(), "grounds": grounds}
 	print("ART_SLOTS " + JSON.stringify(out))
 	quit()

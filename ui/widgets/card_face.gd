@@ -25,10 +25,16 @@ const HUSH := 0.6
 const FADE := 0.6
 ## How far a dark plate in focus warms toward the focus colour.
 const LIT := 0.3
-const STEEL := Color("8f8aa0")
+## The figures on black plates that fill with their Ether's colour when they are the
+## highlighted figure. Initiative and Boost, whose Ether does not matter, stay black
+## with parchment ink, marked by the rim alone (owner, 2026-10-23).
+const PILLS := ["basic"]
+const STEEL := T.METAL
 ## The widest line any Mage Card name needs in capitals, a single unbreakable word;
 ## every name is set at the size that fits it.
 const LONGEST_LINE := "DESTRUCTION"
+## A name's line height, as a share of its size.
+const LINE := 1.06
 ## Where each figure's number belongs inside its shape, as shares of the shape's
 ## rectangle: the pennant above its notch, the plate's left octagon inside its cut
 ## corners, the Boost block inside its steps, the shield above its point, the crown
@@ -40,9 +46,21 @@ const WINDOW := {"initiative": Rect2(0.06, 0.03, 0.88, 0.75), "action": Rect2(0.
 var model := {}
 ## Greyed out, for a card that cannot be chosen.
 var dimmed := false: set = set_dimmed
+## Out of play: wholly grey, at OUT_OF_PLAY (specs/019 "Out of play"); dimmed too.
+var out_of_play := false:
+	set(v):
+		out_of_play = v
+		modulate.a = T.OUT_OF_PLAY if v else 1.0
+		set_dimmed(dimmed or v)
+## Held, dragged or inspected: the card casts the larger lift shadow (specs/019).
+var lifted := false:
+	set(v):
+		if v != lifted:
+			lifted = v
+			queue_redraw()
 ## Figures to ring, such as those an Upgrade or Downgrade would change.
 var changed: Array = []
-var glow: Color = T.GOLD
+var glow: Color = T.PARCHMENT
 ## How lit the rings are, 0 to 1: the Key Card's Encounter number lights up as it
 ## is revealed on the Deck (specs/014 research R3); everywhere else it stays 1.
 var lit := 1.0: set = set_lit
@@ -70,7 +88,7 @@ func _init() -> void:
 	resized.connect(_layout)
 
 
-func set_model(m: Dictionary, ring: Array = [], ring_colour: Color = T.GOLD) -> void:
+func set_model(m: Dictionary, ring: Array = [], ring_colour: Color = T.PARCHMENT) -> void:
 	model = m
 	changed = ring
 	glow = ring_colour
@@ -91,12 +109,12 @@ func ring_colour() -> Color:
 ## The gold leaf behind a ringed Encounter mark, as the Boost's chosen aim is leafed
 ## (boost_aim.gd); clear when the Encounter is not ringed.
 func wash_colour() -> Color:
-	return Color(T.GOLD, 0.28 * lit) if changed.has("encounter") else Color(T.GOLD, 0.0)
+	return Color(T.PARCHMENT, 0.28 * lit) if changed.has("encounter") else Color(T.PARCHMENT, 0.0)
 
 
 func set_dimmed(value: bool) -> void:
 	dimmed = value
-	_field.material.set_shader_parameter("dim", 0.85 if dimmed else 0.0)
+	_field.material.set_shader_parameter("dim", (1.0 if out_of_play else 0.85) if dimmed else 0.0)
 	_apply_focus_to_field()
 	_ink.queue_redraw()
 
@@ -255,7 +273,7 @@ func marks() -> Dictionary:
 	var out := {}
 	var aim = _focus.get("aim")
 	if aim != null:
-		out["boost"] = [{"icon": aim.to} if aim.to != null else {"glyph": "?", "colour": T.GOLD}]
+		out["boost"] = [{"icon": aim.to} if aim.to != null else {"glyph": "?", "colour": T.PARCHMENT}]
 	for m in _focus.get("impacts", []):
 		if not out.has(m.region):
 			out[m.region] = []
@@ -310,6 +328,7 @@ func _layout() -> void:
 # ---------------------------------------------------------------- drawing
 
 func _draw() -> void:
+	UI.draw_card_shadow(self, Rect2(Vector2.ZERO, size), UI.card_radius(size.x), lifted)
 	var s := _frame_box(true)
 	draw_style_box(s, Rect2(Vector2.ZERO, size))
 
@@ -320,12 +339,8 @@ func _frame_box(filled: bool) -> StyleBoxFlat:
 	s.draw_center = filled
 	s.border_color = T.CARD_FRAME
 	s.set_border_width_all(int(_geo().b) + 1)
-	s.set_corner_radius_all(int(size.x * 0.075))
+	s.set_corner_radius_all(UI.card_radius(size.x))
 	s.anti_aliasing_size = 0.6
-	if filled:
-		s.shadow_color = Color(0, 0, 0, 0.5)
-		s.shadow_size = maxi(4, int(size.x * 0.04))
-		s.shadow_offset = Vector2(0, maxf(2.0, size.x * 0.018))
 	return s
 
 
@@ -346,23 +361,23 @@ func _draw_ink() -> void:
 	# Initiative, on its pennant.
 	var r: Rect2 = g.initiative
 	_ring("initiative", _pennant(r))
-	var ink := _ink_for("initiative", T.INK)
-	_raised(_pennant(r), _fill_for("initiative", T.BG_BAND), "initiative")
-	_number(window("initiative", r), str(lv.initiative), 0, ink, _fill_for("initiative", T.BG_BAND))
+	var ink := _ink_for("initiative", T.PARCHMENT)
+	_raised(_pennant(r), _fill_for("initiative", T.STAT_PLATE), "initiative")
+	_number(window("initiative", r), str(lv.initiative), 0, ink, _fill_for("initiative", T.STAT_PLATE))
 
 	# The basic action, the arrow down to the enhanced action, and the enhanced action.
 	r = g.basic
 	_ring("basic", _twin_octagon(r))
-	_raised(_twin_octagon(r), _fill_for("basic", T.BG_BAND), "basic")
-	_action(r, lv.basic, _ink_for("basic", T.INK), _fill_for("basic", T.BG_BAND))
+	_raised(_twin_octagon(r), _fill_for("basic", T.STAT_PLATE), "basic")
+	_action(r, lv.basic, _ink_for("basic", T.PARCHMENT), _fill_for("basic", T.STAT_PLATE))
 	r = g.enhanced
 	var enh = lv.enhanced.element
 	_ring("enhanced", _twin_octagon(r))
 	var enh_fill := T.ether_shade(enh, "plate")
 	var enh_ink := T.ether_shade(enh, "plate_ink")
 	if dimmed:
-		enh_fill = T.INK_MUTED.darkened(0.55)
-		enh_ink = T.INK_MUTED
+		enh_fill = T.PARCHMENT_MUTED.darkened(0.55)
+		enh_ink = T.PARCHMENT_MUTED
 	_raised(_twin_octagon(r), _fill_for("enhanced", enh_fill), "enhanced")
 	_action(r, lv.enhanced, _ink_for("enhanced", enh_ink), _fill_for("enhanced", enh_fill))
 	_corner_sigil(enh, Vector2(r.end.x - r.size.y * 0.06, r.end.y - r.size.y * 0.06), r.size.y * 0.42)
@@ -371,23 +386,24 @@ func _draw_ink() -> void:
 	# Boost.
 	r = g.boost
 	_ring("boost", _notched(r))
-	_raised(_notched(r), _fill_for("boost", T.BG_BAND), "boost")
-	_number(window("boost", r), "+%d" % lv.boost, 0, _ink_for("boost", T.INK), _fill_for("boost", T.BG_BAND))
+	_raised(_notched(r), _fill_for("boost", T.STAT_PLATE), "boost")
+	_number(window("boost", r), "+%d" % lv.boost, 0, _ink_for("boost", T.PARCHMENT), _fill_for("boost", T.STAT_PLATE))
 
 	# Armor, on its shield: filled with the Armor's Ether when it has one.
 	r = g.armor
 	var armored: bool = lv.armor.element != null
 	var shield := Rect2(r.position, Vector2(r.size.y, r.size.y))
 	_ring("armor", _shield(shield))
-	var shield_fill := T.ether_shade(lv.armor.element, "plate") if armored and not dimmed else T.BG_BAND
+	var shield_fill := T.ether_shade(lv.armor.element, "plate") if armored and not dimmed else T.STAT_PLATE
 	_raised(_shield(shield), _fill_for("armor", shield_fill), "armor")
 	_number(window("armor", shield), str(lv.armor.value), 0,
-		_ink_for("armor", UI.best_ink(shield_fill) if armored and not dimmed else T.INK), _fill_for("armor", shield_fill))
+		_ink_for("armor", UI.best_ink(shield_fill) if armored and not dimmed else T.PARCHMENT), _fill_for("armor", shield_fill))
 	if armored:
 		_corner_sigil(lv.armor.element, Vector2(shield.end.x - shield.size.x * 0.12, shield.end.y - shield.size.y * 0.1), shield.size.y * 0.42)
-	if _focus.get("mark", "") == "soaks_more" and not dimmed:
-		_chip("×2", Vector2(r.position.x + r.size.y * (1.2 if armored else 1.05) + 3, shield.get_center().y),
-			shield.size.y * 0.62, T.ether_shade(_focus.get("damage_element", ""), "lit"), _focus_t)
+	var soaks := soaks_chip_rect()
+	if soaks.has_area():
+		_chip("×2", Vector2(soaks.position.x, soaks.get_center().y), soaks.size.y,
+			T.ether_shade(_focus.get("damage_element", ""), "lit"), _focus_t)
 
 	_draw_marks()
 	_draw_top_band(g, e)
@@ -399,32 +415,47 @@ func _draw_ink() -> void:
 	_ink.draw_style_box(_frame_box(false), Rect2(Vector2.ZERO, size))
 	var rim := StyleBoxFlat.new()
 	rim.draw_center = false
-	rim.border_color = Color(T.ether_shade(e, "lit") if not dimmed else T.LINE_SOFT, 0.3)
+	rim.border_color = Color(T.ether_shade(e, "lit") if not dimmed else T.EDGE, 0.3)
 	rim.set_border_width_all(1)
-	rim.set_corner_radius_all(int(size.x * 0.075) - int(g.b))
+	rim.set_corner_radius_all(UI.card_radius(size.x) - int(g.b))
 	_ink.draw_style_box(rim, Rect2(Vector2.ZERO, size).grow(-g.b))
 
 
 ## The Level crown, the Ether pip and the name, on the black top band.
 func _draw_top_band(g: Dictionary, e) -> void:
 	var band: float = g.band
-	_ink.draw_line(Vector2(g.b + 2, 1.5), Vector2(size.x - g.b - 2, 1.5), Color(1, 1, 1, 0.08), 1.0)
+	_ink.draw_line(Vector2(g.b + 2, 1.5), Vector2(size.x - g.b - 2, 1.5), Color(T.SHEEN, 0.08), 1.0)
 	var c: Rect2 = g.level
 	_ring("level", _rect_pts(c.grow(1), c.size.y * 0.2))
 	_glow_rim(_rect_pts(c.grow(1), c.size.y * 0.2), _lift("level"))
-	_icon("crown", c, _ink_for("level", T.INK) if not dimmed else T.INK_MUTED)
-	_number(window("level", c), str(model.level), c.size.y * 0.5, T.BG_BASE, T.INK)
+	_icon("crown", c, _ink_for("level", T.PARCHMENT) if not dimmed else T.PARCHMENT_MUTED)
+	_number(window("level", c), str(model.level), c.size.y * 0.5, T.GROUND, T.PARCHMENT)
 	var n: Rect2 = g.name
+	# The Ether's glyph before the name, in the title band where the Ethers are told
+	# apart (specs/019 MageCard); clear of the Level on the crown (owner, 2026-10-22).
 	var pip: float = band * 0.3
 	var pip_c := Vector2(n.position.x + pip * 0.5, band / 2.0)
 	# The Ether in focus (an Element, a Fuse) rings this pip, as the plates are rimmed.
 	var lift := _lift("ether")
 	if lift > 0.0:
-		_ink.draw_arc(pip_c, pip * 0.78, 0.0, TAU, 32, Color(T.muted(T.FOCUS), lift), maxf(2.0, size.x * 0.012), true)
-	_icon(e, Rect2(pip_c - Vector2(pip, pip) / 2.0, Vector2(pip, pip)), T.ether_shade(e, "lit") if not dimmed else T.INK_MUTED)
+		_ink.draw_arc(pip_c, pip * 0.78, 0.0, TAU, 32, Color(T.PARCHMENT, lift), maxf(2.0, size.x * 0.012), true)
+	_icon(e, Rect2(pip_c - Vector2(pip, pip) / 2.0, Vector2(pip, pip)), T.ether_shade(e, "lit") if not dimmed else T.PARCHMENT_MUTED)
 	var text_x: float = n.position.x + pip + g.pad * 0.1
 	_name(Rect2(text_x, n.position.y, n.end.x - text_x, n.size.y), model.name.to_upper(),
-		_ink_for("name", T.INK) if not dimmed else T.INK_MUTED)
+		_ink_for("name", T.PARCHMENT) if not dimmed else T.PARCHMENT_MUTED)
+
+
+## Where the "×2" chip sits beside the Armor shield when the Armor soaks double, or
+## an empty rect when it is not shown. At the same place whether the Armor has an
+## Ether or not, so it does not move as a card is Downgraded; card_view.gd keeps
+## the soak ribbon clear of it.
+func soaks_chip_rect() -> Rect2:
+	if model.is_empty() or dimmed or _focus.get("mark", "") != "soaks_more":
+		return Rect2()
+	var r: Rect2 = _geo().armor
+	var h := r.size.y * 0.62
+	var x := r.position.x + r.size.y * 1.2 + 3
+	return Rect2(x, r.position.y + (r.size.y - h) / 2.0, Numerals.width("×2", int(h * 0.72)) + h * 0.6, h)
 
 
 ## Where the Hardship icon sits on the Key Card strip: after the Encounter icon
@@ -451,10 +482,10 @@ func _draw_strip(g: Dictionary, lv: Dictionary) -> void:
 	var tab := strip * 0.45
 	var pts := PackedVector2Array([Vector2(b + tab, band), Vector2(w - b, band), Vector2(w - b, band + strip),
 		Vector2(b + tab, band + strip), Vector2(b, band + strip / 2.0)])
-	var bronze := T.BRONZE if not dimmed else T.BG_RAISED
+	var bronze := T.CARD_RIBBON if not dimmed else T.STONE_RAISED
 	_ink.draw_colored_polygon(pts, bronze)
-	_ink.draw_line(Vector2(b + tab, band + 1), Vector2(w - b, band + 1), Color(T.BRONZE_LIGHT, 0.45), 1.0)
-	_ink.draw_line(Vector2(b + tab, band + strip - 1), Vector2(w - b, band + strip - 1), Color(T.BRONZE_DARK, 0.9), 1.5)
+	_ink.draw_line(Vector2(b + tab, band + 1), Vector2(w - b, band + 1), Color(T.CARD_RIBBON_LIGHT, 0.45), 1.0)
+	_ink.draw_line(Vector2(b + tab, band + strip - 1), Vector2(w - b, band + strip - 1), Color(T.CARD_RIBBON_DARK, 0.9), 1.5)
 
 	var si := roundf(strip * 0.72)
 	var key: Dictionary = lv.encounter
@@ -464,27 +495,29 @@ func _draw_strip(g: Dictionary, lv: Dictionary) -> void:
 	if wash_colour().a > 0.0 and not dimmed:
 		_ink.draw_colored_polygon(_rect_pts(kr.grow(-1), strip * 0.3), wash_colour())
 	_strip_glows.append([_rect_pts(kr.grow(-1), strip * 0.3), _lift("key")])
-	var ink := _ink_for("key", T.INK) if not dimmed else T.INK_MUTED
+	var ink := _ink_for("key", T.PARCHMENT) if not dimmed else T.PARCHMENT_MUTED
 	var x: float = b + tab + g.pad * 0.2
 	_icon(key.type, Rect2(x, band + (strip - si) / 2.0, si, si), ink)
 	x += si + 2
 	x += Numerals.draw_left(_ink, x, band, strip, str(key.index), int(strip * 0.8), ink, bronze) + g.pad * 0.5
 	if lv.hardship != null:
-		_icon(lv.hardship, hardship_rect(), _ink_for("key", T.INK) if not dimmed else T.INK_MUTED)
+		_icon(lv.hardship, hardship_rect(), _ink_for("key", T.PARCHMENT) if not dimmed else T.PARCHMENT_MUTED)
 
 	# The Upgrade cost, its colour saying whether it can be paid now.
 	var mark: String = _focus.get("mark", "")
 	var cost: String = str(lv.upgrade_cost) if lv.upgrade_cost != null else "max"
-	var colour := T.GOLD
+	var colour := T.PARCHMENT
 	match mark:
 		"unaffordable":
-			colour = T.BAD
+			# Harm does not read on the leather (2.5:1), so this cost sits on a dark
+			# plate of its own (specs/019 research R4).
+			colour = T.DANGER
 		"max_level":
 			cost = "MAX"
-			colour = T.INK_MUTED
+			colour = T.PARCHMENT_MUTED
 	if dimmed:
-		colour = T.INK_MUTED
-	colour = colour.lerp(T.INK_MUTED, _hush("cost"))
+		colour = T.PARCHMENT_MUTED
+	colour = colour.lerp(T.PARCHMENT_MUTED, _hush("cost"))
 	var cr: Rect2 = g.cost
 	var cost_w := Numerals.width(cost, int(strip * 0.8))
 	var cx: float = cr.end.x - g.pad * 0.4 - si
@@ -493,10 +526,12 @@ func _draw_strip(g: Dictionary, lv: Dictionary) -> void:
 	_ring("upgrade_cost", _rect_pts(rim_rect, rim_rect.size.y * 0.4))
 	if mark == "" or mark == "affordable":
 		_strip_glows.append([_rect_pts(rim_rect, rim_rect.size.y * 0.4), _lift("cost")])
+	if mark == "unaffordable" and not dimmed:
+		_ink.draw_style_box(UI.box(T.STAT_PLATE, Color.TRANSPARENT, 0, T.RADIUS_PLATE, 0), rim_rect.grow(-2))
 	_icon("upgrade", Rect2(cx, band + (strip - si) / 2.0, si, si), colour)
 	Numerals.draw_left(_ink, cx - cost_w - 3, band, strip, cost, int(strip * 0.8), colour, bronze)
 	# The thin rule running from the cost to the card's edge, as printed.
-	_ink.draw_line(Vector2(cx + si + 2, band + strip / 2.0), Vector2(w - b, band + strip / 2.0), Color(T.BRONZE_LIGHT, 0.7), 1.0)
+	_ink.draw_line(Vector2(cx + si + 2, band + strip / 2.0), Vector2(w - b, band + strip / 2.0), Color(T.CARD_RIBBON_LIGHT, 0.7), 1.0)
 
 
 ## Ragged edges where the bands meet: between the name and the strip, and where the
@@ -526,7 +561,7 @@ func _draw_sigil(g: Dictionary, e) -> void:
 	var sig := minf(f.size.x * 0.62, f.size.y * 0.7)
 	var rect := Rect2(f.end.x - sig - g.pad * 0.3, f.get_center().y - sig / 2.0, sig, sig)
 	# The same whatever the step: the Ether's focus shows on the pip by the name.
-	_icon("sigil_" + str(e), rect, Color(T.ether_shade(e, "lit") if not dimmed else T.INK_MUTED, 0.3))
+	_icon("sigil_" + str(e), rect, Color(T.ether_shade(e, "lit") if not dimmed else T.PARCHMENT_MUTED, 0.3))
 
 
 ## The sword the stat column hangs from: blade, crossguard at the actions, pommel at the Armor.
@@ -536,8 +571,8 @@ func _draw_sword(g: Dictionary) -> void:
 	var blade := maxf(2.0, roundf(size.x * 0.016))
 	var top: float = g.initiative.get_center().y
 	var bottom: float = g.armor.end.y + row * 0.12
-	var steel := STEEL if not dimmed else T.LINE_SOFT
-	_ink.draw_rect(Rect2(cx - blade / 2.0 + 1, top + 1, blade, bottom - top), Color(0, 0, 0, 0.4))
+	var steel := STEEL if not dimmed else T.EDGE
+	_ink.draw_rect(Rect2(cx - blade / 2.0 + 1, top + 1, blade, bottom - top), Color(T.SHADE, 0.4))
 	_ink.draw_rect(Rect2(cx - blade / 2.0, top, blade, bottom - top), steel.darkened(0.15))
 	_ink.draw_line(Vector2(cx - blade / 2.0 + 0.5, top), Vector2(cx - blade / 2.0 + 0.5, bottom), steel.lightened(0.35), 1.0)
 	_ink.draw_circle(Vector2(cx, bottom), blade * 1.5, steel.darkened(0.2))
@@ -549,23 +584,26 @@ func _draw_sword(g: Dictionary) -> void:
 ## A plate's fill as the focus leaves it: full, or drawn back toward the band colour.
 func _fill_for(key: String, fill: Color) -> Color:
 	if dimmed:
-		return fill if fill == T.BG_BAND else T.INK_MUTED.darkened(0.55)
-	# A dark plate in focus takes a warm glow of its own: on the near-black plates a
-	# rim alone barely shows (owner, specs/011).
+		return fill if fill == T.STAT_PLATE else T.PARCHMENT_MUTED.darkened(0.55)
+	# The basic action in focus is the highlighted figure: it fills with its Ether's
+	# colour, as an enhanced action's plate.
 	var lift := _lift(key)
-	if lift > 0.0 and fill.get_luminance() < 0.2:
-		fill = fill.lerp(T.FOCUS, LIT * lift)
+	if lift > 0.0 and PILLS.has(key) and fill.is_equal_approx(T.STAT_PLATE):
+		fill = fill.lerp(T.ether_shade(model.get("element"), "plate"), lift)
 	var hush := _hush(key)
-	var out := fill.lerp(T.BG_BAND, QUIET * hush)
+	var out := fill.lerp(T.STAT_PLATE, QUIET * hush)
 	out.a = 1.0 - FADE * hush
 	return out
 
 
 func _ink_for(key: String, ink: Color) -> Color:
 	if dimmed:
-		return T.INK_MUTED
+		return T.PARCHMENT_MUTED
+	# On a highlighted figure's pill, the ink of its fill.
+	if PILLS.has(key) and _lift(key) >= 0.5:
+		return T.ether_shade(model.get("element"), "plate_ink")
 	var hush := _hush(key)
-	var out := ink.lerp(T.INK_MUTED, hush)
+	var out := ink.lerp(T.PARCHMENT_MUTED, hush)
 	out.a = 1.0 - FADE * hush
 	return out
 
@@ -578,7 +616,7 @@ func _raised(pts: PackedVector2Array, fill: Color, key: String) -> void:
 	var shadow := PackedVector2Array()
 	for p in pts:
 		shadow.append(p + Vector2(0, drop))
-	_ink.draw_colored_polygon(shadow, Color(0, 0, 0, 0.4 * fill.a))
+	_ink.draw_colored_polygon(shadow, Color(T.SHADE, 0.4 * fill.a))
 	var body := pts
 	if lift > 0.0:
 		body = PackedVector2Array()
@@ -608,8 +646,7 @@ func _glow_rim(pts: PackedVector2Array, amount: float) -> void:
 	var closed := pts.duplicate()
 	closed.append(pts[0])
 	# A soft halo outside, then the rim itself at full focus colour.
-	_ink.draw_polyline(closed, Color(T.FOCUS, 0.22 * amount), maxf(6.0, size.x * 0.045), true)
-	_ink.draw_polyline(closed, Color(T.FOCUS, amount), maxf(2.0, size.x * 0.016), true)
+	_ink.draw_polyline(closed, Color(T.PARCHMENT, amount), maxf(2.0, size.x * 0.016), true)
 
 
 ## Marks a figure that would change. The outline follows the figure's own shape and
@@ -641,12 +678,12 @@ func _draw_marks() -> void:
 		for i in list.size():
 			var r: Rect2 = rects[i]
 			var m: Dictionary = list[i]
-			_ink.draw_circle(r.get_center(), r.size.x / 2.0, Color(T.BG_BASE, 0.85))
-			_ink.draw_arc(r.get_center(), r.size.x / 2.0, 0.0, TAU, 24, Color(T.LINE_SOFT, 0.6), 1.0, true)
+			_ink.draw_circle(r.get_center(), r.size.x / 2.0, Color(T.GROUND, 0.85))
+			_ink.draw_arc(r.get_center(), r.size.x / 2.0, 0.0, TAU, 24, Color(T.EDGE, 0.6), 1.0, true)
 			if m.has("glyph"):
-				_number(r.grow(-r.size.x * 0.2), m.glyph, r.size.y * 0.72, m.colour, T.BG_BASE)
+				_number(r.grow(-r.size.x * 0.2), m.glyph, r.size.y * 0.72, m.colour, T.GROUND)
 			else:
-				_icon(m.icon, Rect2(r.get_center() - r.size * 0.35, r.size * 0.7), T.INK)
+				_icon(m.icon, Rect2(r.get_center() - r.size * 0.35, r.size * 0.7), T.PARCHMENT)
 
 
 ## A small round mark with text, fading in with the focus.
@@ -657,7 +694,7 @@ func _chip(text: String, centre: Vector2, h: float, bg: Color, alpha: float) -> 
 	var s := StyleBoxFlat.new()
 	s.bg_color = Color(bg, alpha)
 	s.set_corner_radius_all(int(h / 2.0))
-	s.border_color = Color(0, 0, 0, 0.5 * alpha)
+	s.border_color = Color(T.SHADE, 0.5 * alpha)
 	s.set_border_width_all(1)
 	_ink.draw_style_box(s, rect)
 	_number(rect.grow(-h * 0.12), text, fs, Color(UI.best_ink(bg), alpha), Color(bg, alpha))
@@ -668,12 +705,12 @@ func _chip(text: String, centre: Vector2, h: float, bg: Color, alpha: float) -> 
 func _corner_sigil(element, centre: Vector2, d: float) -> void:
 	if element == null:
 		return
-	var colour: Color = T.ether_shade(element, "plate").lerp(T.ether_shade(element, "lit"), 0.5) if not dimmed else T.INK_MUTED
+	var colour: Color = T.ether_shade(element, "plate").lerp(T.ether_shade(element, "lit"), 0.5) if not dimmed else T.PARCHMENT_MUTED
 	var r := Rect2(centre - Vector2(d, d) / 2.0, Vector2(d, d))
 	var w := maxf(1.0, d * 0.08)
 	for k in 8:
 		var off := Vector2.RIGHT.rotated(k * PI / 4.0) * w + Vector2(w * 0.4, w * 1.2)
-		_icon(element, Rect2(r.position + off, r.size), Color(0, 0, 0, 0.22))
+		_icon(element, Rect2(r.position + off, r.size), Color(T.SHADE, 0.22))
 	_icon(element, r, colour)
 
 
@@ -733,8 +770,8 @@ func _down_arrow(g: Dictionary) -> void:
 		Vector2(cx + head, neck), Vector2(cx, bottom), Vector2(cx - head, neck), Vector2(cx - shaft, neck)])
 	var closed := pts.duplicate()
 	closed.append(pts[0])
-	_ink.draw_polyline(closed, Color(T.BG_BASE, 0.9), maxf(2.0, row * 0.06), true)
-	_ink.draw_colored_polygon(pts, STEEL if not dimmed else T.LINE_SOFT)
+	_ink.draw_polyline(closed, Color(T.GROUND, 0.9), maxf(2.0, row * 0.06), true)
+	_ink.draw_colored_polygon(pts, STEEL if not dimmed else T.EDGE)
 
 
 ## Glows around parts of the Key Card strip, drawn once the band above is down.
@@ -804,15 +841,16 @@ static func window(key: String, r: Rect2) -> Rect2:
 
 ## The name on one or two lines, at the largest size that fits.
 func _name(rect: Rect2, text: String, color: Color) -> void:
-	var fs := name_size(rect.size)
+	var fs := name_size(rect.size, name_floor(size.x))
 	var font := _name_font(fs)
 	var lines := name_lines(text, fs, rect.size.x)
-	var line_h := fs * 1.06
+	var line_h := fs * LINE
 	var cap := fs * 0.72
 	var y := rect.position.y + (rect.size.y - line_h * (lines.size() - 1) + cap) / 2.0
 	for line in lines:
 		_ink.draw_string(font, Vector2(rect.position.x, y), line, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, color)
 		y += line_h
+	UI.drew_text(self, "name", fs, name_floor(size.x))
 
 
 ## A name on one line if it fits, or else on two broken where the longer line is
@@ -836,26 +874,25 @@ static func name_lines(text: String, fs: int, width: float) -> Array:
 
 
 ## The one name size for every card of this size: two lines' worth of the band, at
-## most, and no wider than the widest line any name breaks into, so all names match.
-static func name_size(area: Vector2) -> int:
-	var fs := int(area.y * 0.43)
-	while fs > 6 and _name_font(fs).get_string_size(LONGEST_LINE, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > area.x:
+## most, and no wider than the widest line any name breaks into, so all names match;
+## never below `least` (name_floor).
+static func name_size(area: Vector2, least := 6) -> int:
+	# As large as two lines (at LINE of the size apart) fill the band's height.
+	var fs := int(area.y / (2.0 * LINE))
+	while fs > least and _name_font(fs).get_string_size(LONGEST_LINE, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > area.x:
 		fs -= 1
 	return fs
 
 
-static var _name_fonts := {}
+## The smallest a name is set on a card `width` wide, in step with the card's width:
+## what the longest name fits beside the Ether glyph, 18 on the narrowest phone's
+## 220-wide card. A step under the design system's card-name size (CARD_NAME_MIN),
+## which the glyph's room does not leave (owner, 2026-10-22; specs/019 plan).
+static func name_floor(width: float) -> int:
+	return floori(width * T.CARD_NAME_SHARE)
 
 
-## The display face, heavy enough to read at small sizes, with its letters drawn a
-## little closer in step with the size, as on the printed card's title. Built on the
-## font file itself: a variation of a variation drops the weight back to Regular.
+## The card-name face (specs/019): Fraunces at its small optical size, set in
+## capitals a touch apart, as on the printed card's title.
 static func _name_font(fs: int) -> Font:
-	var squeeze := -roundi(fs * 0.05)
-	if not _name_fonts.has(squeeze):
-		var v := FontVariation.new()
-		v.base_font = load("res://art/fonts/Cinzel.ttf")
-		v.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): 800}
-		v.spacing_glyph = squeeze
-		_name_fonts[squeeze] = v
-	return _name_fonts[squeeze]
+	return UI.font(T.CARD_NAME, fs)

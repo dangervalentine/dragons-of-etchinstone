@@ -13,8 +13,8 @@ const DragonCard = preload("res://ui/widgets/dragon_card.gd")
 const DESATURATE = preload("res://ui/fx/shaders/desaturate.gdshader")
 
 ## How bright an unchosen dragon is, and one under the pointer or in focus.
-const DIM := Color(0.5, 0.5, 0.55)
-const DIM_HOVER := Color(0.78, 0.78, 0.8)
+const DIM := T.DIM_MODULATE
+const DIM_HOVER := T.DIM_HOVER
 ## The edge around the chosen card, and the glow beyond it.
 const EDGE := 4
 const GLOW := 14
@@ -24,7 +24,7 @@ const MUTED := 0.65
 var selected := false: set = set_selected
 ## Whether any dragon is chosen; until one is, none is dimmed.
 var any_chosen := false: set = set_any_chosen
-var accent: Color = T.GOLD
+var accent: Color = T.BRASS
 var card: Control
 ## Set before the tile is shown; a locked dragon cannot be chosen.
 var locked := false: set = set_locked
@@ -41,6 +41,8 @@ static func make(dragon_model: Dictionary, colour: Color) -> Button:
 	b.focus_mode = Control.FOCUS_ALL
 	for state in ["normal", "hover", "pressed", "hover_pressed", "disabled", "focus"]:
 		b.add_theme_stylebox_override(state, StyleBoxEmpty.new())
+	# Its jade focus ring is drawn round the card itself (_draw), not by a style.
+	b.set_meta("draws_focus", true)
 	b.card = DragonCard.new()
 	b.card.explain = true
 	b._group.material = ShaderMaterial.new()
@@ -141,14 +143,15 @@ func _draw() -> void:
 	var r := card_rect()
 	var radius := UI.card_radius(r.size.x)
 	if selected:
-		# The chosen card is ringed in its Ether's colour, glowing out from the edge.
-		var ring := UI.box(Color.TRANSPARENT, accent, EDGE, radius + EDGE)
-		ring.shadow_color = Color(accent, 0.45)
-		ring.shadow_size = GLOW
+		# The chosen card is ringed in brass and lifted (specs/019 "Selected"); no glow.
+		var ring := UI.box(Color.TRANSPARENT, T.BRASS, T.BORDER_SELECT, radius + T.BORDER_SELECT)
+		ring.shadow_color = T.SHADOW_LIFT.colour
+		ring.shadow_size = int(T.SHADOW_LIFT.blur / 2.0)
+		ring.shadow_offset = Vector2(0, T.SHADOW_LIFT.drop)
 		ring.draw_center = false
-		draw_style_box(ring, r.grow(EDGE))
+		draw_style_box(ring, r.grow(T.BORDER_SELECT))
 	elif has_focus():
-		# Keyboard focus on an unchosen card: a thin muted ring.
-		var ring := UI.box(Color.TRANSPARENT, T.muted(T.GOLD), 2, radius + 3)
+		# Keyboard focus: the jade ring.
+		var ring := UI.box(Color.TRANSPARENT, T.JADE, T.BORDER_SELECT, radius + T.BORDER_SELECT)
 		ring.draw_center = false
-		draw_style_box(ring, r.grow(3))
+		draw_style_box(ring, r.grow(T.BORDER_SELECT))

@@ -54,7 +54,7 @@ func _run(kinds: Array) -> void:
 	layer.layer = 100
 	root.add_child(layer)
 	var table := ColorRect.new()
-	table.color = T.BG_BASE
+	table.color = T.GROUND
 	table.size = Vector2(WINDOW)
 	layer.add_child(table)
 	_stage = Control.new()

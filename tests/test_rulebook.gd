@@ -4,6 +4,8 @@ extends "res://tests/base.gd"
 const Rulebook = preload("res://ui/model/rulebook.gd")
 const Glossary = preload("res://ui/model/glossary.gd")
 const Game = preload("res://engine/game.gd")
+const Settings = preload("res://ui/model/settings.gd")
+const Editions = preload("res://ui/model/editions.gd")
 
 const ORDER := ["welcome", "ethers", "mage_cards", "regions", "dragons", "setup", "encounter", "challenge",
 	"action", "enemies", "journeys", "penalty", "upgrade_cleanup", "region_end", "final_journey", "final_enemy",
@@ -187,6 +189,25 @@ func test_covers_difficulty_and_rules() -> void:
 	ok(has_table, "the difficulty section has the generated difficulty table")
 	ok(text.contains("Cavalier"), "Cavalier is described")
 	ok(text.contains("Glass Cannon"), "Glass Cannon is described")
+
+
+
+## A house rule is described under House rules only, with its mark taken off.
+func test_house_rules_only_under_house_rules() -> void:
+	var was: bool = Settings.house_rules
+	for house in [false, true]:
+		Settings.house_rules = house
+		var text := ""
+		for id in ["difficulty", "upgrade_cleanup"]:
+			var at := Rulebook.find(id)
+			for p in Rulebook.page_count(at):
+				var strings := []
+				_collect(Rulebook.page(at, p), strings)
+				text += " ".join(strings)
+		eq(text.contains("Persistent XP"), house, "Persistent XP described under %s" % ("House rules" if house else "Classic"))
+		ok(not text.contains(Editions.HOUSE_MARK), "no mark left showing")
+		eq(Glossary.entry("xp").text.contains("Persistent XP"), house, "the XP entry under %s" % ("House rules" if house else "Classic"))
+	Settings.house_rules = was
 
 
 func test_terms_and_icons_resolve() -> void:

@@ -22,9 +22,9 @@ func _run() -> void:
 	Engine.max_fps = 0
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
 	var db = load("res://engine/card_db.gd").new()
-	# Behind the faces, the stone backdrop (feature 006), as on the play screen.
+	# Behind the faces, the ground washed in Region 1's tint, as on the play screen
+	# (specs/019 FR-006).
 	var bg := ColorRect.new()
-	bg.color = Color("100e17")
 	bg.size = Vector2(1280, 720)
 	bg.material = ShaderMaterial.new()
 	bg.material.shader = load("res://ui/fx/shaders/backdrop.gdshader")
@@ -34,7 +34,7 @@ func _run() -> void:
 	root.add_child(layer)
 	layer.setup(bg.material)
 	layer.material_ref.set_shader_parameter("view_size", Vector2(1280, 720))
-	layer.set_stone(true)
+	layer.set_region({"kind": "region", "region": 1}, Vector2(320, 360))
 	var ids: Array = db.mage_ids()
 	for i in FACES:
 		var id: String = ids[(i * 5) % ids.size()]

@@ -301,7 +301,7 @@ func test_each_set_has_a_boost_aim_beside_its_row() -> void:
 			for pos in p.positions:
 				right = maxf(right, pos.card.end.x)
 			for r in aims:
-				ok(r.size.x >= T.TAP_MIN and r.size.y >= 2 * T.TAP_MIN + T.S, "%s %s: room for two tap targets, %s" % [name, str(case), str(r.size)])
+				ok(r.size.x >= T.TAP_MIN and r.size.y >= 2 * T.TAP_MIN + T.SPACE_2, "%s %s: room for two tap targets, %s" % [name, str(case), str(r.size)])
 				ok(p.regions.hand.encloses(r), "%s %s: inside the Hand" % [name, str(case)])
 				ok(r.position.x >= right + Solver.CARD_GAP_MIN - 0.5, "%s %s: after the cards" % [name, str(case)])
 	eq(_plan("phone-16x9", 5, 0).boost_aims, [], "setup and Soak have no aim")

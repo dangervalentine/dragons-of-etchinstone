@@ -18,10 +18,12 @@ extends SceneTree
 ## The icon's dragon when none is named. The console's art import reads this to know
 ## when a new rig means a new icon (tools/console/art_import.py).
 const DEFAULT_DRAGON := "grimroch"
-const INK := "#f1ecdf"
-## The ground glows from behind the head: tokens BG_RAISED lifted at the centre, down to
-## darker than BG_BASE at the corners, so the icon has depth without leaving the palette.
-const GROUND := "<defs><radialGradient id=\"ground\" cx=\"0.5\" cy=\"0.42\" r=\"0.75\"><stop offset=\"0\" stop-color=\"#3a3157\"/><stop offset=\"0.55\" stop-color=\"#1d1a29\"/><stop offset=\"1\" stop-color=\"#0b0a10\"/></radialGradient></defs>"
+## tokens PARCHMENT, the colour of all primary text and icons on stone (specs/019).
+const INK := "#f1e3d1"
+## The ground glows from behind the head: tokens STONE_RAISED lifted at the centre, through
+## STONE, down to WELL (darker than GROUND) at the corners, so the icon has depth without
+## leaving the Inkstone and Brass palette (specs/019).
+const GROUND := "<defs><radialGradient id=\"ground\" cx=\"0.5\" cy=\"0.42\" r=\"0.75\"><stop offset=\"0\" stop-color=\"#2e4347\"/><stop offset=\"0.55\" stop-color=\"#172225\"/><stop offset=\"1\" stop-color=\"#0a1012\"/></radialGradient></defs>"
 ## How much of the 1024 square the head's longer side fills: the icon, and the adaptive
 ## layers, whose outer third can be cut away by the launcher's mask.
 const ICON_FILL := 0.8

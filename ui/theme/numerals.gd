@@ -4,6 +4,7 @@ extends RefCounted
 ## by what the eye sees, sized to fit the window its shape leaves for it, and given
 ## a dark edge so light digits read on any fill.
 
+const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
 
 ## The dark edge drawn under light digits, each side, as a share of the font size.
@@ -13,7 +14,7 @@ static var _inks := {}
 
 
 static func font() -> Font:
-	return UI.font("numeral")
+	return UI.font(T.NUMERAL_XL)
 
 
 ## The digits' ink at `fs`, relative to where the string is drawn (its baseline start).

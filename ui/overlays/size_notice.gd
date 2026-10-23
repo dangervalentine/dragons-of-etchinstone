@@ -11,14 +11,14 @@ signal dismissed
 
 
 func _init() -> void:
-	add_theme_stylebox_override("panel", UI.stone_slab(T.GOLD, 16))
-	var row := UI.hbox(T.M)
-	row.add_child(UI.icon_rect("regroup", 48, T.GOLD))
+	add_theme_stylebox_override("panel", UI.stone_slab(Color(T.SHADE, 0), 16))
+	var row := UI.hbox(T.SPACE_4)
+	row.add_child(UI.icon_rect("regroup", 48, T.PARCHMENT))
 	var touch := DisplayServer.is_touchscreen_available()
 	var col := UI.vbox(0)
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	col.add_child(UI.label("Turn your device sideways" if touch else "Widen the window", T.H1, T.INK))
-	var why := UI.label("Dragons of Etchinstone is laid out for a landscape screen.", T.BODY, T.INK_MUTED, true)
+	col.add_child(UI.label("Turn your device sideways" if touch else "Widen the window", T.TITLE, T.PARCHMENT))
+	var why := UI.label("Dragons of Etchinstone is laid out for a landscape screen.", T.BODY, T.PARCHMENT_MUTED, true)
 	why.custom_minimum_size.x = 640
 	col.add_child(why)
 	row.add_child(col)

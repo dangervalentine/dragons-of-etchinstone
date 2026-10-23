@@ -222,18 +222,21 @@ func _run(st: Dictionary, d: float) -> void:
 			if screen.preview.visible:
 				screen.preview.reveal_verdict(d)
 		"gain_xp":
-			# The XP counts up in its pill beside the verdict, on the note.
+			# The XP counts up in its pill beside the verdict, on the note, and the XP
+			# kept in the bar takes it in as it lands (Persistent XP).
 			if screen.preview.visible:
 				screen.preview.count_xp(d)
+			if screen.header.has_xp():
+				_keep(_later(d, func(): screen.header.bump("xp", st.values.amount)))
 		"damage":
 			var amount: int = st.values.amount
 			if amount > 0:
 				var e: String = st.values.element
 				var icon := e if e != "" else "hp"
-				_keep(flight.float_text("−%d" % amount, screen.point("hand"), T.BAD, 52, d * 1.6, icon))
+				_keep(flight.float_text("−%d" % amount, screen.point("hand"), T.DANGER, 52, d * 1.6, icon))
 				if screen.preview.visible:
 					screen.preview.pulse_cost("damage", d)
-			_keep(flight.tint(Color(T.BAD, 0.16), d))
+			_keep(flight.tint(Color(T.DANGER, 0.16), d))
 			for id in screen.hand.ids():
 				UI.shake(screen.hand.card(id), 10.0)
 			if st.values.get("poison", false) and _poison_at >= 0:
@@ -249,7 +252,7 @@ func _run(st: Dictionary, d: float) -> void:
 			if screen.preview.visible:
 				screen.preview.pulse_cost("poison", d)
 		"knock_out":
-			_keep(flight.float_text("KNOCKED OUT", screen.point("hand") + Vector2(0, -60), T.BAD, 48, d * 2.5, "down_arrow"))
+			_keep(flight.float_text("Knocked Out", screen.point("hand") + Vector2(0, -60), T.DANGER, 48, d * 2.5, "down_arrow"))
 			for id in st.cards:
 				var v: Control = screen.hand.card(id)
 				if v != null:
@@ -272,7 +275,7 @@ func _run(st: Dictionary, d: float) -> void:
 				_discard_hand(st, d)
 				return
 			for id in st.cards:
-				_keep(flight.ghost("card_back", screen.point("deck"), screen.point("discard"), d, T.INK_MUTED, 44))
+				_keep(flight.ghost("card_back", screen.point("deck"), screen.point("discard"), d, T.PARCHMENT_MUTED, 44))
 				screen.header.bump("deck", -1)
 				screen.deck.bump(-1)
 				screen.header.bump("discard", 1)
@@ -288,7 +291,7 @@ func _run(st: Dictionary, d: float) -> void:
 				if v != null:
 					_fly(v, screen.point("deck"), d, 0.15)
 			if not UI.reduced_motion:
-				_keep(flight.ghost("deck", screen.point("deck"), screen.point("deck") + Vector2(0, 30), d, T.GOLD, 60))
+				_keep(flight.ghost("deck", screen.point("deck"), screen.point("deck") + Vector2(0, 30), d, T.PARCHMENT, 60))
 			# The Deck fills up to the reshuffled cards before the next Hand is drawn.
 			var gathered: int = st.values.deck.size()
 			_keep(_later(d * 0.8, func(): screen.deck.set_count(gathered)))
@@ -318,7 +321,7 @@ func _run(st: Dictionary, d: float) -> void:
 		"zoom_in":
 			screen.deck.zoom_in(st.values.target, d)
 		"ending":
-			_keep(flight.tint(Color(T.GOLD if st.values.won else T.BAD, 0.2), d))
+			_keep(flight.tint(Color(T.BRASS_BRIGHT if st.values.won else T.DANGER, 0.2), d))
 
 
 ## A Time Penalty: each card leaves from under the top card on the Deck, at its
@@ -341,7 +344,7 @@ func _pay_time(st: Dictionary, d: float) -> void:
 		if models.has(st.cards[i]):
 			screen.hand.pass_to(models[st.cards[i]], from, to, delay, fly, land)
 		else:
-			_keep(flight.ghost("card_back", screen.point("deck"), to.get_center(), fly, T.INK_MUTED, 40, delay))
+			_keep(flight.ghost("card_back", screen.point("deck"), to.get_center(), fly, T.PARCHMENT_MUTED, 40, delay))
 			_keep(_later(delay + fly, land))
 
 
@@ -400,7 +403,7 @@ func _regather(st: Dictionary, d: float) -> void:
 		if models.has(st.cards[i]):
 			screen.hand.pass_from(models[st.cards[i]], from, to, delay, fly, land)
 		else:
-			_keep(flight.ghost("card_back", from.get_center(), to.get_center(), fly, T.INK_MUTED, 40, delay))
+			_keep(flight.ghost("card_back", from.get_center(), to.get_center(), fly, T.PARCHMENT_MUTED, 40, delay))
 			_keep(_later(delay + fly, land))
 
 
@@ -438,7 +441,7 @@ func _level(id: String, st: Dictionary, d: float) -> void:
 		v.set_model(m)
 	if UI.reduced_motion:
 		_keep(_pulse(v, d))
-	var c: Color = T.GOLD if up else T.BAD
+	var c: Color = T.BRASS_BRIGHT if up else T.DANGER
 	_keep(flight.float_text("Level %d" % st.values.level, v.global_position + Vector2(v.size.x / 2.0, v.size.y * 0.2), c, 30, d * 2.0,
 		"crown" if up else "down_arrow"))
 

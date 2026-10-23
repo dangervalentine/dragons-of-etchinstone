@@ -10,9 +10,9 @@ const Glossary = preload("res://ui/model/glossary.gd")
 signal intent(data: Dictionary)
 
 ## The pale grey of the printed hourglass.
-const STEEL := Color("aaa6b8")
+const STEEL := T.METAL_LIGHT
 ## The printed hourglass's glass, a shade darker than its bars.
-const GLASS := Color("75717f")
+const GLASS := T.GLASS_LIGHT
 
 var _shown := {}
 var _enemy := false
@@ -59,12 +59,12 @@ func render(enc: Dictionary) -> void:
 	number.mouse_filter = Control.MOUSE_FILTER_PASS
 	band.add_child(number)
 	# Long names step down a size so they fit the band.
-	var text: String = enc.title.to_upper()
-	var room := (size.x if size.x > 0.0 else 400.0) - 80.0 - number.get_combined_minimum_size().x - T.S
-	var fs: int = T.HEADING[1]
-	while fs > T.TEXT_MIN and UI.font(T.HEADING[0]).get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > room:
+	var text: String = enc.title
+	var room := (size.x if size.x > 0.0 else 400.0) - 80.0 - number.get_combined_minimum_size().x - T.SPACE_2
+	var fs: int = T.HEADING.size
+	while fs > T.TEXT_MIN and UI.font(T.HEADING).get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > room:
 		fs -= 1
-	var title := UI.label(text, [T.HEADING[0], fs], T.INK)
+	var title := UI.label(text, UI.restyle(T.HEADING, fs), T.PARCHMENT)
 	title.clip_text = true
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -73,24 +73,24 @@ func render(enc: Dictionary) -> void:
 	# As printed: the figures in a column of shaped badges down the left, the art in
 	# a framed panel beside them, XP on the panel's corner and any Hardship, Ability
 	# or Peril on its top edge.
-	var row := UI.hbox(T.M)
+	var row := UI.hbox(T.SPACE_4)
 	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_column = UI.vbox(T.XS)
+	_column = UI.vbox(T.SPACE_1)
 	# Top-aligned, so the first badge starts level with the top of the art beside it.
 	_column.alignment = BoxContainer.ALIGNMENT_BEGIN
 	if enemy:
-		_column.add_child(_chip({"icon": "hp", "text": str(d.hp), "color": T.HP, "glossary_id": "hp"}))
-		_column.add_child(_chip({"icon": "initiative", "text": str(d.initiative), "color": T.BG_BAND, "glossary_id": "initiative"}))
+		_column.add_child(_chip({"icon": "hp", "text": str(d.hp), "color": T.STAT_HP, "glossary_id": "hp"}))
+		_column.add_child(_chip({"icon": "initiative", "text": str(d.initiative), "color": T.STAT_PLATE, "glossary_id": "initiative"}))
 		_column.add_child(_chip({"icon": "attack_badge", "text": str(d.attack.value), "color": T.ether(d.attack.element),
 			"ink": T.ether_shade(d.attack.element, "plate_ink"), "element": d.attack.element, "glossary_id": "attack"}))
-		var shields := UI.hbox(T.XS)
+		var shields := UI.hbox(T.SPACE_1)
 		for a in d.armor:
 			shields.add_child(_chip({"icon": "armor", "text": str(a.value), "color": T.ether(a.element),
 				"ink": T.ether_shade(a.element, "plate_ink"), "element": a.element, "glossary_id": "armor"}))
 		_column.add_child(shields)
 	else:
 		# As printed: a dark mountain in a box of the MP's Ether, and a pale hourglass.
-		_column.add_child(_chip({"icon": "mp_badge", "text": str(d.mp.value), "color": T.BG_BAND, "backing": T.ether(d.mp.element),
+		_column.add_child(_chip({"icon": "mp_badge", "text": str(d.mp.value), "color": T.STAT_PLATE, "backing": T.ether(d.mp.element),
 			"element": d.mp.element, "glossary_id": "mp"}))
 		_column.add_child(_chip({"icon": "time_badge", "text": str(d.time_penalty), "color": STEEL, "inset": GLASS, "inset_icon": "time_badge_glass",
 			"glossary_id": "time"}))
@@ -99,12 +99,12 @@ func render(enc: Dictionary) -> void:
 	_art_slot.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_art_slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_art_slot.resized.connect(_place_art)
-	_xp = _chip({"icon": "xp", "text": str(d.xp), "color": T.GOLD, "ink": T.BG_BASE, "glossary_id": "xp"})
+	_xp = _chip({"icon": "xp", "text": str(d.xp), "color": T.BRASS_BRIGHT, "ink": T.ON_BRASS, "glossary_id": "xp"})
 	_art_slot.add_child(_xp)
 	_effects.clear()
 	for effect in enc.effects:
 		var e: Dictionary = Glossary.entry(effect)
-		var disc := _chip({"icon": e.icon, "text": "", "color": T.INK, "glossary_id": effect})
+		var disc := _chip({"icon": e.icon, "text": "", "color": T.PARCHMENT, "glossary_id": effect})
 		_art_slot.add_child(disc)
 		_effects.append(disc)
 	row.add_child(_art_slot)
@@ -112,7 +112,7 @@ func render(enc: Dictionary) -> void:
 
 	if show_key_line:
 		var key: Dictionary = enc.key_card
-		var caption := UI.label("%s · Key Card %s, Level %d" % [enc.subtitle, key.name, key.level], T.LABEL, Color(T.INK, 0.8))
+		var caption := UI.label("%s · Key Card %s, Level %d" % [enc.subtitle, key.name, key.level], T.BODY_SM, Color(T.PARCHMENT, 0.8))
 		caption.clip_text = true
 		body.add_child(caption)
 	tooltip_text = "Show the Key Card that named this %s" % ("Enemy" if enemy else "Journey")
@@ -156,8 +156,8 @@ func _fit() -> void:
 	var rows := _column.get_child_count()
 	# From the face's own height, not the body's: the body is never smaller than the
 	# badges it already holds, so measuring it would never let them shrink again.
-	var body_h := size.y - BAND_H - T.S - T.S - EDGE
-	var room := body_h - (36.0 if show_key_line else 0.0) - T.XS * (rows - 1)
+	var body_h := size.y - BAND_H - T.SPACE_2 - T.SPACE_2 - EDGE
+	var room := body_h - (36.0 if show_key_line else 0.0) - T.SPACE_1 * (rows - 1)
 	var b := clampf(room / maxf(1.0, rows), badge_min, 84.0)
 	for c in _column.get_children():
 		if c is HBoxContainer:
@@ -176,7 +176,7 @@ func _fit() -> void:
 
 
 func _fit_body(h: float) -> void:
-	if is_instance_valid(body) and is_equal_approx(size.y - BAND_H - T.S - T.S - EDGE, h):
+	if is_instance_valid(body) and is_equal_approx(size.y - BAND_H - T.SPACE_2 - T.SPACE_2 - EDGE, h):
 		body.size.y = h
 
 
@@ -247,7 +247,7 @@ func _place_art() -> void:
 	for i in _effects.size():
 		_effects[i].custom_minimum_size = Vector2(e, e)
 		_effects[i].size = Vector2(e, e)
-		_effects[i].position = Vector2(T.S + i * (e + T.XS), T.S)
+		_effects[i].position = Vector2(T.SPACE_2 + i * (e + T.SPACE_1), T.SPACE_2)
 	_edge.queue_redraw()
 
 
@@ -256,7 +256,7 @@ func _draw_art_frame() -> void:
 		return
 	var s := StyleBoxFlat.new()
 	s.draw_center = false
-	s.border_color = Color(T.INK, 0.35)
+	s.border_color = Color(T.PARCHMENT, 0.35)
 	s.set_border_width_all(2)
 	s.set_corner_radius_all(3)
 	_edge.draw_style_box(s, _art_rect.grow(1))

@@ -64,23 +64,24 @@ func _init() -> void:
 	d.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(d)
 	_dims.append(d)
-	bubble.add_theme_stylebox_override("panel", UI.tooltip_box())
+	bubble.add_theme_stylebox_override("panel", UI.paper_box(T.SPACE_2))
 	bubble.mouse_filter = Control.MOUSE_FILTER_STOP
-	var col := UI.vbox(T.M)
+	var col := UI.vbox(T.SPACE_2)
 	bubble.add_child(col)
 	_text.bbcode_enabled = true
 	_text.fit_content = true
 	_text.scroll_active = false
 	_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_text.add_theme_font_override("normal_font", UI.font(T.BODY[0]))
-	_text.add_theme_font_override("bold_font", UI.font("body_bold"))
-	_text.add_theme_font_size_override("normal_font_size", T.BODY[1])
-	_text.add_theme_font_size_override("bold_font_size", T.BODY[1])
-	_text.add_theme_color_override("default_color", T.INK)
+	_text.add_theme_font_override("normal_font", UI.font(T.BODY))
+	_text.add_theme_font_override("bold_font", UI.font(T.BODY_STRONG))
+	_text.add_theme_font_size_override("normal_font_size", T.BODY.size)
+	_text.add_theme_font_size_override("bold_font_size", T.BODY.size)
+	# The message is printed on paper (specs/019 CoachTip).
+	_text.add_theme_color_override("default_color", T.PAPER_INK)
 	_text.meta_clicked.connect(_on_meta)
 	col.add_child(_text)
 	_buttons.alignment = BoxContainer.ALIGNMENT_END
-	_buttons.add_theme_constant_override("separation", T.S)
+	_buttons.add_theme_constant_override("separation", T.SPACE_2)
 	col.add_child(_buttons)
 	add_child(bubble)
 
@@ -174,7 +175,7 @@ func _show(text: String, at: Callable, reading: bool, buttons: Array, content: R
 	_buttons.visible = not buttons.is_empty()
 	visible = true
 	for d in _dims:
-		d.colour = Color(T.BG_BASE, T.COACH_DIM)
+		d.colour = T.SCRIM
 		d.visible = reading
 	_set_dims_filter(Control.MOUSE_FILTER_STOP if reading else Control.MOUSE_FILTER_IGNORE)
 	var glide := was_shown and not UI.reduced_motion and is_inside_tree()
@@ -214,7 +215,7 @@ func _set_dims_filter(f: int) -> void:
 func _measure(width: float) -> Vector2:
 	if not is_equal_approx(width, _width):
 		_width = width
-		var pad: float = UI.tooltip_box().get_margin(SIDE_LEFT) + UI.tooltip_box().get_margin(SIDE_RIGHT)
+		var pad: float = UI.paper_box(T.SPACE_2).get_margin(SIDE_LEFT) + UI.paper_box(T.SPACE_2).get_margin(SIDE_RIGHT)
 		_text.custom_minimum_size.x = width - pad
 		_text.size.x = width - pad
 		bubble.custom_minimum_size.x = width
@@ -343,9 +344,9 @@ class Dim extends Control:
 func _draw() -> void:
 	var box := StyleBoxFlat.new()
 	box.draw_center = false
-	box.border_color = T.FOCUS
+	box.border_color = T.BRASS
 	box.set_border_width_all(int(T.COACH_RIM))
-	box.set_corner_radius_all(T.RADIUS_S)
+	box.set_corner_radius_all(T.RADIUS_PLATE)
 	for rect in [lit] + pressed:
 		if (rect as Rect2).has_area():
 			var r: Rect2 = (rect as Rect2).grow(T.COACH_PAD)

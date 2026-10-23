@@ -64,7 +64,9 @@ func test_a_dealt_hand_shows_an_outcome_at_once() -> void:
 		eq(vs.preview.status, "ready", "on a Journey the outcome shows at once")
 
 
-func test_holding_a_card_makes_every_other_place_a_target() -> void:
+func test_holding_a_card_opens_every_other_place_and_targets_one() -> void:
+	# specs/019 data-model "Place state": the others are open to the held card, and
+	# only the place it is aimed at is the target.
 	var g = _game()
 	var d = _dealt(g)
 	d.pick(g.hand[1])
@@ -75,8 +77,13 @@ func test_holding_a_card_makes_every_other_place_a_target() -> void:
 			eq(s.state, "filled", "its own place stays filled")
 			eq(s.tap, {"type": "put_down"}, "and puts it down")
 		else:
-			eq(s.state, "target", "%s can take it" % s.role)
+			eq(s.state, "open", "%s can take it" % s.role)
 			eq(s.tap, {"type": "put", "target": {"card": s.card_id}}, "%s trades with it" % s.role)
+	var aimed: Dictionary = vs.places.filter(func(s): return s.card_id != g.hand[1])[0]
+	vs = ViewState.build(g, d, db, {"key_target": {"card": aimed.card_id}})
+	var targets: Array = vs.places.filter(func(s): return s.state == "target")
+	eq(targets.size(), 1, "one target")
+	eq(targets[0].card_id, aimed.card_id, "the place aimed at")
 
 
 func test_an_empty_place_takes_a_card() -> void:
@@ -86,10 +93,12 @@ func test_an_empty_place_takes_a_card() -> void:
 	var vs: Dictionary = ViewState.build(g, d, db)
 	var spell := _slot(vs, 0, "spell")
 	eq(spell.card_id, null, "the Spell is empty")
-	eq(spell.state, "empty", "and says so")
+	eq(spell.state, "target", "and is where the next card goes")
+	eq(vs.places.filter(func(s): return s.state == "target").size(), 1, "the only target")
 	eq(spell.tap, null, "nothing to pick up")
 	d.pick(g.hand[0])
 	vs = ViewState.build(g, d, db)
+	eq(_slot(vs, 0, "spell").state, "open", "open to a held card")
 	eq(_slot(vs, 0, "spell").tap, {"type": "put", "target": [0, "spell"]}, "a held card can go there")
 
 
@@ -132,7 +141,7 @@ func test_labels_name_the_role_and_never_a_number() -> void:
 	labels.render(vs, {"positions": positions, "label_h": 36.0})
 	var texts := []
 	for l in labels.find_children("*", "Label", true, false):
-		texts.append(l.text)
+		texts.append(l.text.to_upper() if l.uppercase else l.text)
 	eq(texts, ["ELEMENT 1", "SPELL 1", "BOOST 1", "ELEMENT 2", "SPELL 2", "BOOST 2"], "the Roles, by set; the extra has no name")
 	for t in texts:
 		ok(not t.is_valid_int(), "no number")
@@ -153,7 +162,7 @@ func test_the_final_battle_grid_names_each_column_once() -> void:
 	labels.render(vs, {"positions": positions, "label_h": 36.0, "set_rows": true})
 	var texts := []
 	for l in labels.find_children("*", "Label", true, false):
-		texts.append(l.text)
+		texts.append(l.text.to_upper() if l.uppercase else l.text)
 	eq(texts, ["ELEMENT", "SPELL", "BOOST"], "one label per column, no set number")
 	eq(labels._rules.size(), 1, "a rule between the sets' rows")
 	labels.free()

@@ -62,6 +62,7 @@ static func record_from_marker(marker: Dictionary) -> Dictionary:
 	var r := {"v": VERSION, "outcome": "abandoned", "score": 0}
 	for key in ["difficulty", "dragon", "dragon_name", "cavalier", "glass_cannon", "seed", "stage", "active_ms", "started_at"]:
 		r[key] = marker.get(key)
+	r.persistent_xp = marker.get("persistent_xp", false)
 	r.ended_at = marker.get("saved_at", marker.get("started_at", 0))
 	return r
 
@@ -84,7 +85,7 @@ static func _options(game) -> Dictionary:
 	var o: Dictionary = game.options
 	return {"v": VERSION, "difficulty": o.get("difficulty", "normal"), "dragon": game.dragon.id,
 		"dragon_name": game.dragon.name, "cavalier": o.get("cavalier", false),
-		"glass_cannon": o.get("glass_cannon", false), "seed": o.get("seed", 0)}
+		"glass_cannon": o.get("glass_cannon", false), "persistent_xp": o.get("persistent_xp", false), "seed": o.get("seed", 0)}
 
 
 # ---------------------------------------------------------------- boards
@@ -170,6 +171,8 @@ static func rules_text(r: Dictionary) -> String:
 		rules.append("Cavalier")
 	if r.get("glass_cannon", false):
 		rules.append("Glass Cannon")
+	if r.get("persistent_xp", false):
+		rules.append("Persistent XP")
 	return ", ".join(rules) if not rules.is_empty() else "—"
 
 

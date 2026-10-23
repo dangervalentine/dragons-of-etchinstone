@@ -1,5 +1,7 @@
 # Contract: Design Tokens
 
+> Colour and type values superseded by `specs/019-unified-design-system/contracts/tokens.md` (2026-10-22).
+
 The single visual language required by FR-004. Every widget takes its sizes,
 colours, type and timings from these tokens (`ui/theme/tokens.gd`); no widget
 defines its own. Values marked *tune* are starting points to adjust by eye during
