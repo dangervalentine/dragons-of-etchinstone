@@ -97,6 +97,9 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--jade); outl
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 18px 16px; }
 .cell { display: grid; gap: 6px; background: var(--stone); border: 2px solid var(--line); border-radius: 6px; padding: 8px; }
 .cell.changed { border-color: var(--brass); }
+.cell.cut { border-color: #ee7a62; }
+.warn { color: #ee7a62; font-size: 14px; min-height: 0; }
+.warn:empty { display: none; }
 .cell canvas { width: 100%; height: auto; display: block; border-radius: 4px; }
 .row { display: flex; align-items: center; gap: 8px; }
 .row b { margin-right: auto; font-weight: 600; }
@@ -193,7 +196,14 @@ function drawPanel(e) {
 	}
 	g.restore();
 	g.lineWidth = 4; g.strokeStyle = "#64797a"; framePath(g, PW, PH); g.stroke();
-	cv.closest(".cell").classList.toggle("changed", size[e.key] !== start[e.key] || shift[e.key] !== startShift[e.key]);
+	const cell = cv.closest(".cell");
+	cell.classList.toggle("changed", size[e.key] !== start[e.key] || shift[e.key] !== startShift[e.key]);
+	// The figure's top above the panel's: it is cut off. The largest size that fits
+	// keeps its feet on the ground line and its top at the panel's edge.
+	const cut = (e.bounds[1] - c.y) * z < -0.5;
+	const fits = Math.floor(100 * (e.bounds[1] + e.bounds[3]) / e.bounds[3]);
+	cell.classList.toggle("cut", cut);
+	cell.querySelector(".warn").textContent = cut ? `Cut off at the top: ${fits}% is the largest that fits.` : "";
 }
 
 function drawLineup() {
@@ -255,6 +265,7 @@ function build() {
 			cell.className = "cell";
 			cell.innerHTML = `<canvas id="c-${e.key}" width="${PW}" height="${PH}" aria-label="${e.name} on its panel"></canvas>
 				<div class="row"><b>${e.name}</b><small>${e.key}</small></div>
+				<div class="warn" role="status"></div>
 				<div class="row"><small class="lab">Size</small><input type="range" id="r-${e.key}" min="50" max="160" step="1" aria-label="${e.name} size slider">
 				<input type="number" id="n-${e.key}" min="50" max="160" step="1" aria-label="${e.name} size, percent"> %</div>
 				<div class="row"><small class="lab">Shift</small><input type="range" id="xr-${e.key}" min="-40" max="40" step="1" aria-label="${e.name} shift slider">
