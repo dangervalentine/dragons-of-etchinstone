@@ -150,6 +150,21 @@ hand). The Windows exe went from 109 MB to 40 MB and the Android release APK fro
   `Windows Desktop` and `Android`, `gradle_build/android_source_template` for
   `Android Release`), so those exports work only on this Windows machine. The Mac
   needs its own templates, and iOS can only be built there.
+- Web and iOS templates are built on the Mac from `~/dev/godot` (same tag, Emscripten
+  4.0.11 from `~/dev/emsdk`) with `tools/build_templates.sh web|ios`, and the `Web` and
+  `iOS` presets point at `/Users/danger/dev/godot/bin/`, so release exports of those two
+  work only on the Mac. Web's `.wasm` went from 39.5 MB to 21.6 MB (10.1 MB to 5.5 MB
+  gzipped), and the iOS app from 88 MB to 40 MB (30 MB to 15 MB zipped).
+  `tools/build_templates.sh` also turns off every engine module except gdscript,
+  freetype, svg (`creature.gd` loads SVG at run time), webp, regex, noise (`stone.gd`)
+  and text_server_adv; a new use of any other module (audio, jpg, zip, networking...)
+  needs it added there. The iOS exporter always links `MoltenVK.xcframework`, so the
+  script puts an empty one in `godot_ios.zip`. The Windows and Android templates
+  predate the module trimming; rebuilding them with
+  `tools/build_templates.sh windows|android C:/dev/godot` should shrink them further.
+- The editor's "detect" in the Engine Compilation Configuration Editor disables `Script`
+  every time (a second pass on 2026-10-22 found nothing else new), so keep
+  `tools/engine.gdbuild` and put `Script` back by hand after any re-detect.
 - Rebuild a template after upgrading Godot (it must match the editor exactly), or when
   the game starts using an engine class the profile disables (sound, physics,
   `AnimationPlayer`, `Curve`...): re-detect in the editor, save over
