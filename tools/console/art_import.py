@@ -39,6 +39,7 @@ KINDS = [
     Kind("journeys", "journey", "journey maps", ".png", "scene", (768, 1344)),
     Kind("lairs", "lair", "dragon lairs", ".png", "scene", (832, 1152)),
     Kind("roads", "road", "roads to the lairs", ".png", "scene", (832, 1216)),
+    Kind("grounds", "ground", "Region grounds: grey, low detail, square (region-jade ...)", ".png", "scene", (512, 512)),
     Kind("rigs", "rig", "dragon layers from Illustrator: <dragon>-parts.svg", ".svg", "rig"),
 ]
 KIND = {k.folder: k for k in KINDS}
@@ -70,6 +71,7 @@ def names_for(kind: str, slots: dict) -> list[str]:
         "lairs": dragons,
         "roads": dragons,
         "rigs": [d + "-parts" for d in dragons],
+        "grounds": slots.get("grounds", []),
     }[kind]
 
 

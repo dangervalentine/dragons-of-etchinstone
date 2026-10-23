@@ -17,6 +17,9 @@ const JOURNEYS := {
 	3: ["volcano", "desert", "lava", "underground-cave"],
 	4: ["rope-bridge", "forest-entrance", "burning-forest", "stone-path"],
 }
+## Each Region's ground in play (art/painted/grounds/, tools/generate_art.py
+## pattern): a grey texture of its country that the backdrop tints in its colours.
+const GROUNDS := {1: "grounds/region-jade", 2: "grounds/region-marsh", 3: "grounds/region-basin", 4: "grounds/region-gath"}
 ## The road of the Final Journey, with the dragon waiting at its end.
 const FINAL_JOURNEY := "horizon-road"
 ## Names for the Encounters, which the cards only number. These are this

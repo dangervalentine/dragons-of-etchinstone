@@ -9,6 +9,7 @@ extends Control
 
 const T = preload("res://ui/theme/tokens.gd")
 const UI = preload("res://ui/theme/theme.gd")
+const Art = preload("res://ui/model/art.gd")
 
 ## How far the wash reaches, as a share of the view's height: far enough that it
 ## shows round the card it lies behind and under the tray (the system's "large soft
@@ -19,6 +20,8 @@ var material_ref: ShaderMaterial
 var _tween: Tween
 ## The tint now washing the ground, or null for none.
 var _tint = null
+## The ground texture now showing, or null for none.
+var _texture: Texture2D = null
 
 
 func _init() -> void:
@@ -44,6 +47,15 @@ static func tint_of(stage) -> Variant:
 	if stage.get("kind") == "final":
 		return T.ETHER[stage.element].base if T.ETHER.has(stage.get("element", "")) else T.REGION_LAIR
 	return T.REGION.get(int(stage.get("region", 0)))
+
+
+## A stage's grey ground texture: its Region's (Art.GROUNDS), or null for the Final
+## Battle, where there is no game, or before the picture is imported.
+static func texture_of(stage) -> Texture2D:
+	if stage == null or not stage is Dictionary or stage.get("kind") != "region":
+		return null
+	var name: String = Art.GROUNDS.get(int(stage.get("region", 0)), "")
+	return UI.painted(name) if name != "" else null
 
 
 ## The ground and its wash where their fade is going, at once.
@@ -87,6 +99,8 @@ func set_region(stage, centre := Vector2.ZERO) -> void:
 			_tween = create_tween()
 			_tween.tween_method(func(c): material_ref.set_shader_parameter("wash", c), _tint, tint, T.MOVE)
 	_tint = tint
+	# After the wash's tween is made, so the texture's fade joins it.
+	_set_texture(texture_of(stage), at_once)
 	if at_once:
 		material_ref.set_shader_parameter("wash_amount", to_amount)
 		material_ref.set_shader_parameter("ground", to_ground)
@@ -95,3 +109,34 @@ func set_region(stage, centre := Vector2.ZERO) -> void:
 		_tween = create_tween()
 	_tween.parallel().tween_method(func(v): material_ref.set_shader_parameter("wash_amount", v), from_amount, to_amount, T.MOVE)
 	_tween.parallel().tween_method(func(c): material_ref.set_shader_parameter("ground", c), from_ground, to_ground, T.MOVE)
+
+
+## Crossfade the ground texture to `tex` (null for none) over a move, or at once. The
+## outgoing one stays as texture_from while texture_mix runs to the new one.
+func _set_texture(tex: Texture2D, at_once: bool) -> void:
+	if tex == _texture:
+		return
+	var m := material_ref
+	var from_amount: float = m.get_shader_parameter("texture_amount")
+	var to_amount := T.REGION_TEXTURE if tex != null else 0.0
+	# With none showing, the new one comes in by its amount alone; going to none, the
+	# old one fades out by its amount.
+	if _texture == null:
+		m.set_shader_parameter("texture_from", tex)
+		m.set_shader_parameter("texture_to", tex)
+	elif tex == null:
+		m.set_shader_parameter("texture_to", _texture)
+		m.set_shader_parameter("texture_from", _texture)
+	else:
+		m.set_shader_parameter("texture_from", _texture)
+		m.set_shader_parameter("texture_to", tex)
+		m.set_shader_parameter("texture_mix", 0.0)
+	_texture = tex
+	if at_once:
+		m.set_shader_parameter("texture_mix", 1.0)
+		m.set_shader_parameter("texture_amount", to_amount)
+		return
+	if _tween == null or not _tween.is_valid():
+		_tween = create_tween()
+	_tween.parallel().tween_method(func(v): m.set_shader_parameter("texture_mix", v), m.get_shader_parameter("texture_mix"), 1.0, T.MOVE)
+	_tween.parallel().tween_method(func(v): m.set_shader_parameter("texture_amount", v), from_amount, to_amount, T.MOVE)

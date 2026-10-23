@@ -197,6 +197,9 @@ const SHADOW_CARD := {"drop": 4, "offset": 15, "blur": 33, "colour": Color(0, 0,
 const SHADOW_LIFT := {"drop": 7, "offset": 30, "blur": 59, "colour": Color(0, 0, 0, 0.55)}
 ## The Region's glow over the ground.
 const REGION_WASH := 0.22
+## How strongly a Region's ground texture shades its ground: 0 flat, 1 the texture's
+## full range (its mid grey leaves the ground as it is). Extends the design system.
+const REGION_TEXTURE := 0.6
 ## A card out of play: fully grey, at this opacity.
 const OUT_OF_PLAY := 0.45
 
