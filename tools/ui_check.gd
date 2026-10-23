@@ -1033,12 +1033,18 @@ func _screens_and_overlays(where: String) -> void:
 	if menu != null:
 		# Specs/019 FR-006a: the board stands on one ground; there is no choice of it.
 		_ok(not _has_label(menu, "Ground"), "%s: the menu has no Ground row" % where)
-		# Feature 008: the Window row is only on a desktop with a real window. Its
-		# tiles are not pressed here, as a headless window cannot change mode.
-		var tiles: Dictionary = menu._window_tiles
-		_ok(tiles.size() == (2 if WindowSizer.applies() else 0), "%s: Window row on desktops only (%d tiles)" % [where, tiles.size()])
-		if not tiles.is_empty():
-			_ok(tiles.values().filter(func(t): return t.selected).size() == 1, "%s: one window mode is chosen" % where)
+		# Feature 008: the Window setting is only on a desktop with a real window. Its
+		# button is not pressed here, as a headless window cannot change mode.
+		_ok((menu.window_button != null) == WindowSizer.applies(), "%s: Window setting on desktops only" % where)
+		if menu.window_button != null:
+			_ok(menu.window_button._title.text == menu.WINDOW_CHOICES[Settings.window_mode][0], "%s: the Window button shows the window mode" % where)
+		# One button steps through the three motion choices and back to the first.
+		var was: String = Settings.motion
+		var seen := []
+		for i in 3:
+			seen.append(menu.motion_button._title.text)
+			menu.motion_button.pressed.emit()
+		_ok(Settings.motion == was and seen.size() == 3 and seen[0] != seen[1] and seen[1] != seen[2], "%s: the Motion button steps through %s and back" % [where, str(seen)])
 	ui._close_overlays()
 	# The tallest the menu gets: in a game, on a desktop with the Window row.
 	var tall := MenuOverlay.new()
