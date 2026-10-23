@@ -15,7 +15,7 @@ const JOURNEYS := {
 	1: ["peaks", "waterfall", "mountain-road", "cave-entrance"],
 	2: ["swamp", "river", "willow-tree", "cliff-crossing"],
 	3: ["volcano", "desert", "lava", "underground-cave"],
-	4: ["rope-bridge", "forest-entrance", "burning-forest", "stone-path"],
+	4: ["rope-bridge", "stone-path", "burning-forest", "forest-entrance"],
 }
 ## The road of the Final Journey, with the dragon waiting at its end.
 const FINAL_JOURNEY := "horizon-road"
@@ -31,7 +31,7 @@ const JOURNEY_NAMES := {
 	1: ["High Peaks", "The Falls", "Mountain Road", "Dark Cave"],
 	2: ["Sunken Mire", "Black River", "Weeping Willows", "Cliff Path"],
 	3: ["Ash Slopes", "Glass Desert", "Lava Fields", "Deep Caverns"],
-	4: ["Rope Bridge", "Forest Gate", "Burning Wood", "Old Stone Stair"],
+	4: ["Rope Bridge", "Tainted Mine", "Burnt Forest", "Forest Gate"],
 }
 ## Each dragon's art, made for this project (art/PAINTED_PROMPTS.txt).
 const DRAGONS := {

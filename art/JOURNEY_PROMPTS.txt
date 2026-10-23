@@ -1,0 +1,391 @@
+JOURNEY PROMPTS (the painted scene on each Journey)
+===================================================
+
+One scene per Journey, replacing the top-down maps in art/painted/journeys/ (made with
+the RPG Maps LoRA, PAINTED_PROMPTS.txt) with pictures that match the Enemy backdrops
+and the dragon lairs (BACKDROP_PROMPTS.txt, LAIR_PROMPTS.txt). Each prompt is
+SUBJECT + REGION + ETHER + JOURNEY STYLE, written out in full under READY TO PASTE.
+The REGION lines and the Ether's wording are the backdrops' own, so a Journey and an
+Enemy of one Region look like the same land.
+
+Settings: FLUX.1-dev, text to image, 896 x 1152 (FLUX's native size nearest the
+landscape part of a Journey panel, about 0.77 : 1), no LoRA, no Redux, guidance 3.5,
+euler, 25 steps, 4 seeds each. Put the picks in art/staging/journeys/<name>.png and
+run `scripts/etch art import`: it warns that the shape differs from the 768 x 1344
+map it replaces, which is expected. The names keep their .import files, so the new
+pictures import as lossy WebP like the old ones.
+
+Where the picture is shown: the Journey panel of the Region Card
+(ui/widgets/region_panel.gd), small on the whole card and filling the Deck once it
+zooms in on the Encounter (deck_stack.gd). The picture covers the landscape under the
+MP and Time strip, cut at the frame's corners, and is cropped centred to fit
+(cover_region()); at 896 x 1152 almost nothing is cut. Over it lie the number plate in
+the top left corner, the Peril disc (and a Hardship beside it once zoomed in) in the
+top right, and the XP star at the bottom centre. So the landmark stands in the middle,
+and the top corners and the bottom centre stay plain.
+
+The rulebook's figures also show a Journey, on the wider Encounter face
+(ui/widgets/encounter_face.gd), cropped from the top and bottom; a landmark in the
+middle survives that crop too.
+
+What a Journey needs that a backdrop does not:
+- No figure stands in it, so the landmark takes the middle instead of the far right
+  edge, and nothing needs to be left plain down the left.
+- It is a way through the land, so every scene has a path, steps, a bridge or a ford
+  leading from the bottom of the picture toward the landmark.
+- It is read at the size of a thumbnail on the Region Card: one landmark, big simple
+  shapes, no small detail that only shows up large.
+
+As in the other files: every rule says what the picture IS, since FLUX ignores
+negatives, and no prompt names a creature, a person or a traveller, since any of them
+gets drawn. Region 3 keeps the backdrops' round-2 lesson (deep, dusky tones; nothing
+pale), which also keeps the white Peril disc readable.
+
+
+JOURNEY STYLE (appended to every prompt)
+----------------------------------------
+A flat vector illustration of an empty landscape, made as the background of a game
+card: minimalistic graphic design in flat colour, made of big, simple shapes with
+smooth, clean edges. Every form is one flat, matte colour, with at most a single
+hard-edged darker shade tone. A limited, muted palette of soft middle tones, close
+together and low in contrast, with the Ether's colour as the only bright one. A tall
+portrait composition seen from a low eye level, made to read at a glance even when
+small: one large, simple landmark stands in the middle of the picture, and a way
+across the land begins wide at the bottom of the picture and leads toward it.
+Everything that matters stays well inside the middle of the picture; the left and
+right edges are quiet, the top corners are calm and plain, and the ground at the
+bottom centre is plain and open. The place is empty and uninhabited, silent and
+ancient.
+
+REGION
+------
+  1  It lies in the Jade Mountains, a land of tall, narrow, sheer-sided karst pillars
+     of green-grey rock, twisted pines and drifting banks of mist.
+  1f It lies in the Jade Mountains, among sheer, jagged peaks of dark rock under a
+     cold blue-grey mist.
+  2  It lies in the Living Marshes, a land of still black water, tall reeds, weeping
+     willows and gnarled trees standing on arching stilt roots, under low drifting
+     mist.
+  3  It lies in the Burning Basin, a land of dark ash slopes, black basalt and
+     cracked lava crust, rust-red sand and dark glassy rock, under a deep, smoky dusk
+     sky of rust and charcoal, lightest only in a low haze, with a far volcano
+     glowing. Every tone is deep and dusky; nothing in it is pale.
+  3u It lies deep beneath the Burning Basin, in caverns of black basalt and dark
+     glassy rock, cracked with veins of cooling lava crust and lit only by a low
+     haze. Every tone is deep and dusky; nothing in it is pale.
+  3d It lies in the sand desert of the Burning Basin, a land of rolling dunes of
+     rust-orange and ochre sand and wind-carved sandstone rocks, under a deep, dusky
+     storm sky of rust and charcoal. Every tone is deep and dusky.
+  3l It lies in the Burning Basin, on a wide, flat plain flooded from horizon to
+     horizon by molten lava, under a deep, smoky dusk sky of rust and charcoal, with
+     a far volcano glowing. Every tone is deep and dusky, except the glowing lava.
+  4  It lies in the Forest of Gath, a land of huge, ancient, gnarled trees with thick
+     roots, deep green shade, moss, old stone stairs and rope bridges over gorges.
+  4b It lies in the burnt part of the Forest of Gath, where every tree has burnt to a
+     bare, charred grey husk, under a flat, overcast grey sky. Every tone is a muted
+     ash grey or charcoal.
+  4m It lies beneath the Forest of Gath, in an old mine dug through dark rock, with
+     thick tree roots breaking through the rock overhead. Every tone is deep and
+     dark.
+
+ETHER (follows every subject, from the Journey's MP element)
+  water      Icy blue light glows from [PLACE], with curling wisps of frost and mist.
+  shadow     Violet light glows from [PLACE], with curling wisps of smoke.
+  fire       Ember-red firelight glows from [PLACE].
+  lightning  Amber-orange sparks and arcs crackle over [PLACE].
+
+
+R1.1 HIGH PEAKS  (peaks · lightning)
+------------------------------------
+SUBJECT:
+A high mountain pass: a narrow trail of pale stone climbs over a bare saddle of rock
+between two tall, sheer karst pillars of green-grey rock standing close together in
+the middle of the picture, with lower peaks and banks of mist far behind.
+
+ETHER:
+Amber-orange sparks and arcs crackle between the tops of the two pillars, under a
+low, dark storm cloud.
+
+
+R1.2 THE FALLS  (waterfall · water)
+-----------------------------------
+The Crane Monk's backdrop has a waterfall at its far right edge; here the falls are
+the middle of the picture, seen face on.
+
+SUBJECT:
+A tall waterfall pouring down a sheer karst cliff in the middle of the picture into a
+round, still pool: a line of flat stepping stones crosses the pool toward the foot of
+the falls, and a few twisted pines cling to the ledges of the cliff.
+
+ETHER:
+Icy blue light glows from the falling water, with curling wisps of frost and mist
+rising off the pool.
+
+
+R1.3 MOUNTAIN ROAD  (mountain-road · fire)
+------------------------------------------
+Round 5, from a reference picture: jagged dark spires split by molten cracks under
+a cold blue mist, with a floating shard. The road runs through it and on out of
+sight; nothing stands at its end. Uses the REGION line 1f (no green karst).
+
+SUBJECT:
+A mountain of sharp, jagged spires of dark charcoal rock, splintered into tall broken
+blades, rises in the middle of the picture, its slopes split by deep cracks of
+glowing molten rock. A road of dark flagstones runs from the bottom of the picture up
+across the broken slopes and on through a gap between the spires, out of sight. High
+above the peaks, a single long, pointed shard of rock hangs in the air, its underside
+glowing. Far behind, pale blue-grey jagged peaks fade into a cold, misty blue sky.
+
+ETHER:
+Ember-red firelight glows from the molten cracks between the rocks and from the
+hanging shard, the only warm colour against the cold blue mist.
+
+
+R1.4 DARK CAVE  (cave-entrance · shadow)
+----------------------------------------
+Close to the Frenzied Ape's backdrop on purpose (same region, same Ether); the
+cave is the whole subject here, large and in the middle.
+
+SUBJECT:
+The mouth of a great cave: a wide, dark opening in the foot of a massive karst cliff
+fills the middle of the picture, and a trail of packed earth leads to it between
+mossy boulders and twisted pines.
+
+ETHER:
+Violet light glows from deep inside the cave mouth, with curling wisps of smoke
+drifting out of it.
+
+
+R2.1 SUNKEN MIRE  (swamp · fire)
+--------------------------------
+SUBJECT:
+A sunken mire: a winding line of half-sunk wooden planks and tussocks of grass
+crosses still black water toward a small mound with a single bare, dead tree in the
+middle of the picture, with reeds and pale willows in the mist behind.
+
+ETHER:
+Ember-red firelight glows from small flames of marsh gas burning low on the water
+beside the planks, lighting the mist from below.
+
+
+R2.2 BLACK RIVER  (river · water)
+---------------------------------
+SUBJECT:
+A slow black river running from the bottom of the picture away into the distance: a
+ford of flat stones crosses it, and two great leaning willows meet over the water in
+the middle of the picture, with tall reeds along both banks.
+
+ETHER:
+Icy blue light glows from the surface of the river, with curling wisps of frost and
+mist drifting low over it.
+
+
+R2.3 WEEPING WILLOWS  (willow-tree · lightning)
+-----------------------------------------------
+SUBJECT:
+A path of trodden earth on a low rise winding toward one huge, ancient weeping willow
+in the middle of the picture, its long curtains of leaves hanging to the ground, with
+still black pools and reeds around it.
+
+ETHER:
+Amber-orange sparks and arcs crackle through the willow's hanging branches, under a
+low, dark storm cloud.
+
+
+R2.4 CLIFF PATH  (cliff-crossing · shadow)
+------------------------------------------
+SUBJECT:
+A narrow ledge path cut into the face of a tall, dark cliff in the middle of the
+picture, climbing across it above the still black water of the marsh, with gnarled
+trees on stilt roots at the cliff's foot and mist below.
+
+ETHER:
+Violet light glows from a deep crack in the cliff face above the path, with curling
+wisps of smoke drifting out of it.
+
+
+R3.1 ASH SLOPES  (volcano · water)
+----------------------------------
+The Ether is water, so the cold light comes from the stream; the volcano is
+kept to the region's dusky tones.
+
+SUBJECT:
+Dark ash slopes rising toward a great volcano cone in the middle of the picture: a
+trail of dark basalt steps climbs the slope beside a narrow stream of meltwater
+running down a gully of black rock.
+
+ETHER:
+Icy blue light glows from the stream, with curling wisps of frost and mist rising off
+it.
+
+
+R3.2 GLASS DESERT  (desert · lightning)
+---------------------------------------
+Round 2: round 1 drew volcanoes and glowing rivers, from the region's ash and
+lava words. It uses the sand desert REGION line (3d).
+
+SUBJECT:
+A wide sand desert in a storm: long, smooth, rolling dunes of rust-orange and ochre
+sand, a line of leaning wooden marker poles leading over the dunes from the bottom of
+the picture, and one tall, wind-carved sandstone rock standing in the middle of the
+picture.
+
+ETHER:
+Amber-orange sparks and arcs crackle through the dark storm clouds, with forked
+lightning bolts striking the far dunes.
+
+
+R3.3 LAVA FIELDS  (lava · fire)
+-------------------------------
+Round 4: rounds 2 and 3 drew narrow lava rivers in gorges, pulled in by the
+region's ash slopes. The REGION line 3l makes the land a flat plain flooded by lava,
+and a frightening wooden bridge runs away from the viewer high above it.
+
+SUBJECT:
+A flat plain that is one huge, wide lake of glowing molten lava, filling the whole
+lower half of the picture from the left edge to the right edge and stretching flat to
+the horizon, its surface a broad sheet of bright orange lava crossed by a few dark
+cracks of cooling crust. High above the lava, a long, rickety wooden bridge of old,
+uneven planks and frayed ropes, sagging, with gaps where planks are missing, stands
+on tall, thin, crooked wooden stilts that rise straight out of the lava. Seen from
+its near end, the bridge starts wide at the bottom of the picture and runs straight
+away from the viewer toward a lone black rock crag far off in the middle of the lava
+lake.
+
+ETHER:
+Ember-red firelight glows up from the lake of lava below the bridge, lighting the
+planks and the smoke from below.
+
+
+R3.4 DEEP CAVERNS  (underground-cave · shadow)
+----------------------------------------------
+Uses the underground REGION line (3u): the usual one asks for a sky.
+
+SUBJECT:
+A vast cavern deep underground: a narrow natural bridge of black basalt arches across
+a deep chasm in the middle of the picture toward a dark tunnel mouth in the far wall,
+with columns of dark glassy rock rising from the cavern floor.
+
+ETHER:
+Violet light glows from deep in the chasm below the bridge, with curling wisps of
+smoke rising from it.
+
+
+R4.1 ROPE BRIDGE  (rope-bridge · water)
+---------------------------------------
+The Brute of Gath's backdrop shows the end of a rope bridge at its edge; here the
+bridge is the whole subject, crossing the middle.
+
+SUBJECT:
+A sagging rope bridge of wooden planks spanning a deep forest gorge, seen from its
+near end: it runs from the bottom of the picture across the middle to a great tree on
+the far side, with mossy cliffs and ancient trees on both sides and a river far
+below.
+
+ETHER:
+Icy blue light glows from the river far below, with curling wisps of frost and mist
+rising from the gorge.
+
+
+R4.2 TAINTED MINE  (stone-path · shadow)
+----------------------------------------
+Round 5, renamed from Old Stone Stair, then Stone Quarry: a mine tunnel from a
+reference picture, with one track and violet crystals. Moved to the second Journey
+(the shadow one) in art.gd; its picture keeps the slot name stone-path. Uses
+the REGION line 4m (underground).
+
+SUBJECT:
+Inside an old mine, looking down a single tunnel: walls of rough, faceted dark rock,
+a frame of heavy wooden beams and posts holding up the roof, and one mine-cart track
+of wooden sleepers and two rails running from the bottom of the picture straight down
+the tunnel into the distance, with loose rubble beside it. Clusters of large, sharp
+quartz crystals grow out of the rock walls on both sides of the tunnel, and a few
+thick ropes hang from the roof.
+
+ETHER:
+Violet light glows from the quartz crystals, the only light in the mine, with curling
+wisps of smoke drifting along the tunnel.
+
+
+R4.3 BURNT FOREST  (burning-forest · fire)
+------------------------------------------
+Round 2, renamed from Burning Wood: no fire, only husks and ash under grey skies,
+so it has no Ether line and uses the burnt REGION line (4b).
+
+SUBJECT:
+A burnt forest: a path across a wide floor of pale grey ash, between many charred,
+bare husks of huge trees, branchless and broken, standing in rows away into the
+distance, with one great broken husk in the middle of the picture.
+
+ETHER:
+(none)
+
+
+R4.4 FOREST GATE  (forest-entrance · lightning)
+-----------------------------------------------
+Round 2, moved to the fourth Journey (the lightning one) in art.gd: a road leading
+up to the forest under a lightning storm. Not two trees leaning into an arch:
+that is the Antlered Horror's backdrop.
+
+SUBJECT:
+A road of packed earth runs from the bottom of the picture up a long, gentle grassy
+rise toward the edge of a dark, ancient forest: a wall of huge, gnarled trees with
+thick roots stands across the middle of the picture, and the road runs on in among
+their trunks and out of sight. Above the woods, a wide, heavy storm cloud fills the
+sky.
+
+ETHER:
+Amber-orange sparks and arcs crackle through the storm cloud above the woods, with
+forked lightning bolts striking down into the treetops.
+
+
+READY TO PASTE
+--------------
+
+peaks:
+A high mountain pass: a narrow trail of pale stone climbs over a bare saddle of rock between two tall, sheer karst pillars of green-grey rock standing close together in the middle of the picture, with lower peaks and banks of mist far behind. It lies in the Jade Mountains, a land of tall, narrow, sheer-sided karst pillars of green-grey rock, twisted pines and drifting banks of mist. Amber-orange sparks and arcs crackle between the tops of the two pillars, under a low, dark storm cloud. A flat vector illustration of an empty landscape, made as the background of a game card: minimalistic graphic design in flat colour, made of big, simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at most a single hard-edged darker shade tone. A limited, muted palette of soft middle tones, close together and low in contrast, with the Ether's colour as the only bright one. A tall portrait composition seen from a low eye level, made to read at a glance even when small: one large, simple landmark stands in the middle of the picture, and a way across the land begins wide at the bottom of the picture and leads toward it. Everything that matters stays well inside the middle of the picture; the left and right edges are quiet, the top corners are calm and plain, and the ground at the bottom centre is plain and open. The place is empty and uninhabited, silent and ancient.
+
+waterfall:
+A tall waterfall pouring down a sheer karst cliff in the middle of the picture into a round, still pool: a line of flat stepping stones crosses the pool toward the foot of the falls, and a few twisted pines cling to the ledges of the cliff. It lies in the Jade Mountains, a land of tall, narrow, sheer-sided karst pillars of green-grey rock, twisted pines and drifting banks of mist. Icy blue light glows from the falling water, with curling wisps of frost and mist rising off the pool. A flat vector illustration of an empty landscape, made as the background of a game card: minimalistic graphic design in flat colour, made of big, simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at most a single hard-edged darker shade tone. A limited, muted palette of soft middle tones, close together and low in contrast, with the Ether's colour as the only bright one. A tall portrait composition seen from a low eye level, made to read at a glance even when small: one large, simple landmark stands in the middle of the picture, and a way across the land begins wide at the bottom of the picture and leads toward it. Everything that matters stays well inside the middle of the picture; the left and right edges are quiet, the top corners are calm and plain, and the ground at the bottom centre is plain and open. The place is empty and uninhabited, silent and ancient.
+
+mountain-road:
+A mountain of sharp, jagged spires of dark charcoal rock, splintered into tall broken blades, rises in the middle of the picture, its slopes split by deep cracks of glowing molten rock. A road of dark flagstones runs from the bottom of the picture up across the broken slopes and on through a gap between the spires, out of sight. High above the peaks, a single long, pointed shard of rock hangs in the air, its underside glowing. Far behind, pale blue-grey jagged peaks fade into a cold, misty blue sky. It lies in the Jade Mountains, among sheer, jagged peaks of dark rock under a cold blue-grey mist. Ember-red firelight glows from the molten cracks between the rocks and from the hanging shard, the only warm colour against the cold blue mist. A flat vector illustration of an empty landscape, made as the background of a game card: minimalistic graphic design in flat colour, made of big, simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at most a single hard-edged darker shade tone. A limited, muted palette of soft middle tones, close together and low in contrast, with the Ether's colour as the only bright one. A tall portrait composition seen from a low eye level, made to read at a glance even when small: one large, simple landmark stands in the middle of the picture, and a way across the land begins wide at the bottom of the picture and leads toward it. Everything that matters stays well inside the middle of the picture; the left and right edges are quiet, the top corners are calm and plain, and the ground at the bottom centre is plain and open. The place is empty and uninhabited, silent and ancient.
+
+cave-entrance:
+The mouth of a great cave: a wide, dark opening in the foot of a massive karst cliff fills the middle of the picture, and a trail of packed earth leads to it between mossy boulders and twisted pines. It lies in the Jade Mountains, a land of tall, narrow, sheer-sided karst pillars of green-grey rock, twisted pines and drifting banks of mist. Violet light glows from deep inside the cave mouth, with curling wisps of smoke drifting out of it. A flat vector illustration of an empty landscape, made as the background of a game card: minimalistic graphic design in flat colour, made of big, simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at most a single hard-edged darker shade tone. A limited, muted palette of soft middle tones, close together and low in contrast, with the Ether's colour as the only bright one. A tall portrait composition seen from a low eye level, made to read at a glance even when small: one large, simple landmark stands in the middle of the picture, and a way across the land begins wide at the bottom of the picture and leads toward it. Everything that matters stays well inside the middle of the picture; the left and right edges are quiet, the top corners are calm and plain, and the ground at the bottom centre is plain and open. The place is empty and uninhabited, silent and ancient.
+
+swamp:
+A sunken mire: a winding line of half-sunk wooden planks and tussocks of grass crosses still black water toward a small mound with a single bare, dead tree in the middle of the picture, with reeds and pale willows in the mist behind. It lies in the Living Marshes, a land of still black water, tall reeds, weeping willows and gnarled trees standing on arching stilt roots, under low drifting mist. Ember-red firelight glows from small flames of marsh gas burning low on the water beside the planks, lighting the mist from below. A flat vector illustration of an empty landscape, made as the background of a game card: minimalistic graphic design in flat colour, made of big, simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at most a single hard-edged darker shade tone. A limited, muted palette of soft middle tones, close together and low in contrast, with the Ether's colour as the only bright one. A tall portrait composition seen from a low eye level, made to read at a glance even when small: one large, simple landmark stands in the middle of the picture, and a way across the land begins wide at the bottom of the picture and leads toward it. Everything that matters stays well inside the middle of the picture; the left and right edges are quiet, the top corners are calm and plain, and the ground at the bottom centre is plain and open. The place is empty and uninhabited, silent and ancient.
+
+river:
+A slow black river running from the bottom of the picture away into the distance: a ford of flat stones crosses it, and two great leaning willows meet over the water in the middle of the picture, with tall reeds along both banks. It lies in the Living Marshes, a land of still black water, tall reeds, weeping willows and gnarled trees standing on arching stilt roots, under low drifting mist. Icy blue light glows from the surface of the river, with curling wisps of frost and mist drifting low over it. A flat vector illustration of an empty landscape, made as the background of a game card: minimalistic graphic design in flat colour, made of big, simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at most a single hard-edged darker shade tone. A limited, muted palette of soft middle tones, close together and low in contrast, with the Ether's colour as the only bright one. A tall portrait composition seen from a low eye level, made to read at a glance even when small: one large, simple landmark stands in the middle of the picture, and a way across the land begins wide at the bottom of the picture and leads toward it. Everything that matters stays well inside the middle of the picture; the left and right edges are quiet, the top corners are calm and plain, and the ground at the bottom centre is plain and open. The place is empty and uninhabited, silent and ancient.
+
+willow-tree:
+A path of trodden earth on a low rise winding toward one huge, ancient weeping willow in the middle of the picture, its long curtains of leaves hanging to the ground, with still black pools and reeds around it. It lies in the Living Marshes, a land of still black water, tall reeds, weeping willows and gnarled trees standing on arching stilt roots, under low drifting mist. Amber-orange sparks and arcs crackle through the willow's hanging branches, under a low, dark storm cloud. A flat vector illustration of an empty landscape, made as the background of a game card: minimalistic graphic design in flat colour, made of big, simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at most a single hard-edged darker shade tone. A limited, muted palette of soft middle tones, close together and low in contrast, with the Ether's colour as the only bright one. A tall portrait composition seen from a low eye level, made to read at a glance even when small: one large, simple landmark stands in the middle of the picture, and a way across the land begins wide at the bottom of the picture and leads toward it. Everything that matters stays well inside the middle of the picture; the left and right edges are quiet, the top corners are calm and plain, and the ground at the bottom centre is plain and open. The place is empty and uninhabited, silent and ancient.
+
+cliff-crossing:
+A narrow ledge path cut into the face of a tall, dark cliff in the middle of the picture, climbing across it above the still black water of the marsh, with gnarled trees on stilt roots at the cliff's foot and mist below. It lies in the Living Marshes, a land of still black water, tall reeds, weeping willows and gnarled trees standing on arching stilt roots, under low drifting mist. Violet light glows from a deep crack in the cliff face above the path, with curling wisps of smoke drifting out of it. A flat vector illustration of an empty landscape, made as the background of a game card: minimalistic graphic design in flat colour, made of big, simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at most a single hard-edged darker shade tone. A limited, muted palette of soft middle tones, close together and low in contrast, with the Ether's colour as the only bright one. A tall portrait composition seen from a low eye level, made to read at a glance even when small: one large, simple landmark stands in the middle of the picture, and a way across the land begins wide at the bottom of the picture and leads toward it. Everything that matters stays well inside the middle of the picture; the left and right edges are quiet, the top corners are calm and plain, and the ground at the bottom centre is plain and open. The place is empty and uninhabited, silent and ancient.
+
+volcano:
+Dark ash slopes rising toward a great volcano cone in the middle of the picture: a trail of dark basalt steps climbs the slope beside a narrow stream of meltwater running down a gully of black rock. It lies in the Burning Basin, a land of dark ash slopes, black basalt and cracked lava crust, rust-red sand and dark glassy rock, under a deep, smoky dusk sky of rust and charcoal, lightest only in a low haze, with a far volcano glowing. Every tone is deep and dusky; nothing in it is pale. Icy blue light glows from the stream, with curling wisps of frost and mist rising off it. A flat vector illustration of an empty landscape, made as the background of a game card: minimalistic graphic design in flat colour, made of big, simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at most a single hard-edged darker shade tone. A limited, muted palette of soft middle tones, close together and low in contrast, with the Ether's colour as the only bright one. A tall portrait composition seen from a low eye level, made to read at a glance even when small: one large, simple landmark stands in the middle of the picture, and a way across the land begins wide at the bottom of the picture and leads toward it. Everything that matters stays well inside the middle of the picture; the left and right edges are quiet, the top corners are calm and plain, and the ground at the bottom centre is plain and open. The place is empty and uninhabited, silent and ancient.
+
+desert:
+A wide sand desert in a storm: long, smooth, rolling dunes of rust-orange and ochre sand, a line of leaning wooden marker poles leading over the dunes from the bottom of the picture, and one tall, wind-carved sandstone rock standing in the middle of the picture. It lies in the sand desert of the Burning Basin, a land of rolling dunes of rust-orange and ochre sand and wind-carved sandstone rocks, under a deep, dusky storm sky of rust and charcoal. Every tone is deep and dusky. Amber-orange sparks and arcs crackle through the dark storm clouds, with forked lightning bolts striking the far dunes. A flat vector illustration of an empty landscape, made as the background of a game card: minimalistic graphic design in flat colour, made of big, simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at most a single hard-edged darker shade tone. A limited, muted palette of soft middle tones, close together and low in contrast, with the Ether's colour as the only bright one. A tall portrait composition seen from a low eye level, made to read at a glance even when small: one large, simple landmark stands in the middle of the picture, and a way across the land begins wide at the bottom of the picture and leads toward it. Everything that matters stays well inside the middle of the picture; the left and right edges are quiet, the top corners are calm and plain, and the ground at the bottom centre is plain and open. The place is empty and uninhabited, silent and ancient.
+
+lava:
+A flat plain that is one huge, wide lake of glowing molten lava, filling the whole lower half of the picture from the left edge to the right edge and stretching flat to the horizon, its surface a broad sheet of bright orange lava crossed by a few dark cracks of cooling crust. High above the lava, a long, rickety wooden bridge of old, uneven planks and frayed ropes, sagging, with gaps where planks are missing, stands on tall, thin, crooked wooden stilts that rise straight out of the lava. Seen from its near end, the bridge starts wide at the bottom of the picture and runs straight away from the viewer toward a lone black rock crag far off in the middle of the lava lake. It lies in the Burning Basin, on a wide, flat plain flooded from horizon to horizon by molten lava, under a deep, smoky dusk sky of rust and charcoal, with a far volcano glowing. Every tone is deep and dusky, except the glowing lava. Ember-red firelight glows up from the lake of lava below the bridge, lighting the planks and the smoke from below. A flat vector illustration of an empty landscape, made as the background of a game card: minimalistic graphic design in flat colour, made of big, simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at most a single hard-edged darker shade tone. A limited, muted palette of soft middle tones, close together and low in contrast, with the Ether's colour as the only bright one. A tall portrait composition seen from a low eye level, made to read at a glance even when small: one large, simple landmark stands in the middle of the picture, and a way across the land begins wide at the bottom of the picture and leads toward it. Everything that matters stays well inside the middle of the picture; the left and right edges are quiet, the top corners are calm and plain, and the ground at the bottom centre is plain and open. The place is empty and uninhabited, silent and ancient.
+
+underground-cave:
+A vast cavern deep underground: a narrow natural bridge of black basalt arches across a deep chasm in the middle of the picture toward a dark tunnel mouth in the far wall, with columns of dark glassy rock rising from the cavern floor. It lies deep beneath the Burning Basin, in caverns of black basalt and dark glassy rock, cracked with veins of cooling lava crust and lit only by a low haze. Every tone is deep and dusky; nothing in it is pale. Violet light glows from deep in the chasm below the bridge, with curling wisps of smoke rising from it. A flat vector illustration of an empty landscape, made as the background of a game card: minimalistic graphic design in flat colour, made of big, simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at most a single hard-edged darker shade tone. A limited, muted palette of soft middle tones, close together and low in contrast, with the Ether's colour as the only bright one. A tall portrait composition seen from a low eye level, made to read at a glance even when small: one large, simple landmark stands in the middle of the picture, and a way across the land begins wide at the bottom of the picture and leads toward it. Everything that matters stays well inside the middle of the picture; the left and right edges are quiet, the top corners are calm and plain, and the ground at the bottom centre is plain and open. The place is empty and uninhabited, silent and ancient.
+
+rope-bridge:
+A sagging rope bridge of wooden planks spanning a deep forest gorge, seen from its near end: it runs from the bottom of the picture across the middle to a great tree on the far side, with mossy cliffs and ancient trees on both sides and a river far below. It lies in the Forest of Gath, a land of huge, ancient, gnarled trees with thick roots, deep green shade, moss, old stone stairs and rope bridges over gorges. Icy blue light glows from the river far below, with curling wisps of frost and mist rising from the gorge. A flat vector illustration of an empty landscape, made as the background of a game card: minimalistic graphic design in flat colour, made of big, simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at most a single hard-edged darker shade tone. A limited, muted palette of soft middle tones, close together and low in contrast, with the Ether's colour as the only bright one. A tall portrait composition seen from a low eye level, made to read at a glance even when small: one large, simple landmark stands in the middle of the picture, and a way across the land begins wide at the bottom of the picture and leads toward it. Everything that matters stays well inside the middle of the picture; the left and right edges are quiet, the top corners are calm and plain, and the ground at the bottom centre is plain and open. The place is empty and uninhabited, silent and ancient.
+
+stone-path:
+Inside an old mine, looking down a single tunnel: walls of rough, faceted dark rock, a frame of heavy wooden beams and posts holding up the roof, and one mine-cart track of wooden sleepers and two rails running from the bottom of the picture straight down the tunnel into the distance, with loose rubble beside it. Clusters of large, sharp quartz crystals grow out of the rock walls on both sides of the tunnel, and a few thick ropes hang from the roof. It lies beneath the Forest of Gath, in an old mine dug through dark rock, with thick tree roots breaking through the rock overhead. Every tone is deep and dark. Violet light glows from the quartz crystals, the only light in the mine, with curling wisps of smoke drifting along the tunnel. A flat vector illustration of an empty landscape, made as the background of a game card: minimalistic graphic design in flat colour, made of big, simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at most a single hard-edged darker shade tone. A limited, muted palette of soft middle tones, close together and low in contrast, with the Ether's colour as the only bright one. A tall portrait composition seen from a low eye level, made to read at a glance even when small: one large, simple landmark stands in the middle of the picture, and a way across the land begins wide at the bottom of the picture and leads toward it. Everything that matters stays well inside the middle of the picture; the left and right edges are quiet, the top corners are calm and plain, and the ground at the bottom centre is plain and open. The place is empty and uninhabited, silent and ancient.
+
+burning-forest:
+A burnt forest: a path across a wide floor of pale grey ash, between many charred, bare husks of huge trees, branchless and broken, standing in rows away into the distance, with one great broken husk in the middle of the picture. It lies in the burnt part of the Forest of Gath, where every tree has burnt to a bare, charred grey husk, under a flat, overcast grey sky. Every tone is a muted ash grey or charcoal. A flat vector illustration of an empty landscape, made as the background of a game card: minimalistic graphic design in flat colour, made of big, simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at most a single hard-edged darker shade tone. A limited, muted palette of soft middle tones, close together and low in contrast, with the Ether's colour as the only bright one. A tall portrait composition seen from a low eye level, made to read at a glance even when small: one large, simple landmark stands in the middle of the picture, and a way across the land begins wide at the bottom of the picture and leads toward it. Everything that matters stays well inside the middle of the picture; the left and right edges are quiet, the top corners are calm and plain, and the ground at the bottom centre is plain and open. The place is empty and uninhabited, silent and ancient.
+
+forest-entrance:
+A road of packed earth runs from the bottom of the picture up a long, gentle grassy rise toward the edge of a dark, ancient forest: a wall of huge, gnarled trees with thick roots stands across the middle of the picture, and the road runs on in among their trunks and out of sight. Above the woods, a wide, heavy storm cloud fills the sky. It lies in the Forest of Gath, a land of huge, ancient, gnarled trees with thick roots, deep green shade, moss, old stone stairs and rope bridges over gorges. Amber-orange sparks and arcs crackle through the storm cloud above the woods, with forked lightning bolts striking down into the treetops. A flat vector illustration of an empty landscape, made as the background of a game card: minimalistic graphic design in flat colour, made of big, simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at most a single hard-edged darker shade tone. A limited, muted palette of soft middle tones, close together and low in contrast, with the Ether's colour as the only bright one. A tall portrait composition seen from a low eye level, made to read at a glance even when small: one large, simple landmark stands in the middle of the picture, and a way across the land begins wide at the bottom of the picture and leads toward it. Everything that matters stays well inside the middle of the picture; the left and right edges are quiet, the top corners are calm and plain, and the ground at the bottom centre is plain and open. The place is empty and uninhabited, silent and ancient.
