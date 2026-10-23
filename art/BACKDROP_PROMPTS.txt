@@ -306,3 +306,38 @@ behind it. The hut, its fire and the far marsh come through nearly unchanged.
 
 club-ogre-bank:
 A bog at dusk: the whole lower third of the picture is one broad, flat, level bank of firm, trodden dark mud and peat, solid ground from edge to edge with a few small puddles, a crude hut of reeds and mud at the far right edge with a cooking fire before it, and the still dark pools and reeds of the swamp lying only behind the bank in the middle distance. It lies in the Living Marshes, a land of still black water, tall reeds, weeping willows and gnarled trees standing on arching stilt roots, under low drifting mist. Ember-red firelight glows from a cooking fire in front of the hut, lighting the mist from below. A flat vector illustration of an empty landscape seen from the side, made as the background of a game card: minimalistic graphic design in flat colour, made of big, simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at most a single hard-edged darker shade tone. A limited, muted palette of soft middle tones, close together and low in contrast, with the Ether's colour as the only bright one. A wide composition seen from a low eye level: the lower quarter of the picture is a broad, flat, level open floor, plain and empty from edge to edge, and the horizon sits about a third of the way up. Above it is one wide, calm, plain area, lightest just right of the middle and darkening slowly toward the edges. The scene's landmarks stand behind the floor at the far right edge and small in the distance; the left fifth of the picture is plain and calm. The place is empty and uninhabited, silent and ancient.
+
+
+ENEMY SIZES, AND FIVE BACKDROPS REWORKED (round 3)
+==================================================
+Each Enemy now has its own size and sideways shift on its panel (Art.ENEMY_SIZE and
+ENEMY_SHIFT in ui/model/art.gd, set by eye with tools/enemy_sizer.py). With the
+figures in their new places:
+
+Ground cleared under the feet, as for the dragons: FLUX Fill (flux1-fill-dev Q8,
+guidance 30, 25 steps) over a soft-edged box from 70 px either side of the feet and
+150 px above them down to the foot of the picture, the feet found by placing the
+figure as the game does. Conjoined Ghoul seed 1, Twin Ogre seed 2, Brute of Gath
+seed 2.
+
+twin-ghoul-ground:
+A flat, level, open floor of smooth dark grey ash and packed dust, plain and empty, lying evenly across the foreground of a volcanic slope at dusk, with only a few small flat pebbles. A flat vector illustration made as the background of a game card: minimalistic graphic design in flat colour, big simple shapes with smooth, clean edges, a muted palette, low in contrast.
+
+twin-ogre-ground:
+A flat, level, open shelf of smooth dark basalt rock, plain and empty, lying evenly across the foreground of a volcanic hot spring at dusk, a few faint cracks in it. A flat vector illustration made as the background of a game card: minimalistic graphic design in flat colour, big simple shapes with smooth, clean edges, a muted palette, low in contrast.
+
+gath-brute-ground:
+A flat, level, open ledge of smooth mossy grey stone, plain and empty, lying evenly across the foreground at the edge of a forest gorge, with short moss and a few small stones. A flat vector illustration made as the background of a game card: minimalistic graphic design in flat colour, big simple shapes with smooth, clean edges, a muted palette, low in contrast.
+
+Hedge Wizard (blood-red dusk in place of a homely cottage) and Antlered Horror
+(darker, under storm clouds): image to image alone kept the old colours, so each
+picture was first graded in Pillow (desaturated, darkened, multiplied by a red or a
+storm grey, with a dark sky gradient laid over its bright upper part) and then
+repainted over the graded picture (Q8, guidance 3.5, 25 steps). Hedge Wizard seed 4
+at denoise 0.55; Antlered Horror seed 3 at 0.7.
+
+hedge-wizard-dusk:
+A crooked cottage at the forest's edge at deep dusk, sinister and unwelcoming: a flat, level path of packed earth, a crooked, half-ruined cottage with a sagging thatched roof behind a tall, dark, overgrown hedge at the far right edge, its small windows glowing a dull blood red, and ancient black trees behind, under a deep, smoky, blood-red and charcoal dusk sky. Every tone is deep, dark and dusky; nothing in it is pale or homely. Ember-red firelight glows dimly from the cottage windows and from a lantern hung by its gate. It lies in the Forest of Gath, a land of huge, ancient, gnarled trees with thick roots, deep green shade, moss, old stone stairs and rope bridges over gorges. A flat vector illustration of an empty landscape seen from the side, made as the background of a game card: minimalistic graphic design in flat colour, made of big, simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at most a single hard-edged darker shade tone. A limited, muted palette of soft middle tones, close together and low in contrast, with the Ether's colour as the only bright one. A wide composition seen from a low eye level: the lower quarter of the picture is a broad, flat, level open floor, plain and empty from edge to edge, and the horizon sits about a third of the way up. Above it is one wide, calm, plain area, lightest just right of the middle and darkening slowly toward the edges. The scene's landmarks stand behind the floor at the far right edge and small in the distance; the left fifth of the picture is plain and calm. The place is empty and uninhabited, silent and ancient.
+
+antler-horror-storm:
+A dark, misty glade in the old forest under a storm: a flat, level floor of short dark moss, a ring of tall, weathered standing stones at the far right edge, and two huge gnarled black trees leaning together into an arch behind, under heavy, low, churning black storm clouds that fill the sky. Every tone is deep, dark and stormy; nothing in it is pale. Amber-orange sparks and arcs crackle between the standing stones and through the storm clouds above. It lies in the Forest of Gath, a land of huge, ancient, gnarled trees with thick roots, deep green shade, moss, old stone stairs and rope bridges over gorges. A flat vector illustration of an empty landscape seen from the side, made as the background of a game card: minimalistic graphic design in flat colour, made of big, simple shapes with smooth, clean edges. Every form is one flat, matte colour, with at most a single hard-edged darker shade tone. A limited, muted palette of soft middle tones, close together and low in contrast, with the Ether's colour as the only bright one. A wide composition seen from a low eye level: the lower quarter of the picture is a broad, flat, level open floor, plain and empty from edge to edge, and the horizon sits about a third of the way up. Above it is one wide, calm, plain area, lightest just right of the middle and darkening slowly toward the edges. The scene's landmarks stand behind the floor at the far right edge and small in the distance; the left fifth of the picture is plain and calm. The place is empty and uninhabited, silent and ancient.

@@ -308,6 +308,59 @@ static func speed(name: String) -> float:
 	return SPEED.get(name.trim_suffix("-full"), 1.0)
 
 
+## How large an Enemy stands on its panel, as a percentage of its art, which places
+## it at its own size on the common ground line. It grows or shrinks about its feet,
+## so it keeps its ground and its place on the panel (encounter_face.enemy_crop).
+## An Enemy not listed is drawn at 100.
+const ENEMY_SIZE := {
+	"panda-fighter": 80,
+	"lion-archer": 122,
+	"crane-monk": 111,
+	"monkey-brawler": 82,
+	"marsh-treant": 85,
+	"axe-gnome": 81,
+	"club-ogre": 119,
+	"horned-goblin": 93,
+	"twin-ghoul": 129,
+	"twin-ogre": 107,
+	"naga": 80,
+	"boar-shaman": 84,
+	"goblin-hexer": 86,
+	"hedge-wizard": 90,
+	"gath-brute": 106,
+}
+
+
+static func enemy_size(name: String) -> float:
+	return ENEMY_SIZE.get(name, 100) / 100.0
+
+
+## How far an Enemy stands right of its place on the panel, as a percentage of the
+## art's width (negative is left), after the common set-back (T.ENEMY_SET_BACK). An
+## Enemy not listed stays where it is put. Tune both tables with tools/enemy_sizer.py.
+const ENEMY_SHIFT := {
+	"panda-fighter": 5,
+	"lion-archer": -7,
+	"crane-monk": -8,
+	"monkey-brawler": 1,
+	"marsh-treant": 5,
+	"axe-gnome": 11,
+	"club-ogre": -2,
+	"horned-goblin": 11,
+	"twin-ghoul": -8,
+	"twin-ogre": -14,
+	"naga": -9,
+	"boar-shaman": -4,
+	"goblin-hexer": 12,
+	"hedge-wizard": 1,
+	"gath-brute": 6,
+}
+
+
+static func enemy_shift(name: String) -> float:
+	return ENEMY_SHIFT.get(name, 0) / 100.0
+
+
 ## The soft bones a picture bends by, or []: each as in BONES, and last, the index
 ## of the last bone it carries (itself, or the tip of its chain).
 static func bones(name: String) -> Array:

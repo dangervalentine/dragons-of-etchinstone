@@ -264,7 +264,7 @@ func _put(c: Control, r: Rect2) -> void:
 func _crop(art: Vector2) -> Rect2:
 	if panel.kind != "enemy" or panel.art == "":
 		return Art.FULL
-	return load("res://ui/widgets/encounter_face.gd").enemy_crop(art)
+	return load("res://ui/widgets/encounter_face.gd").enemy_crop(art, panel.art)
 
 
 ## Where the light behind a figure falls, in the art's part of the panel: round the

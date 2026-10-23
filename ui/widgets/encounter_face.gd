@@ -46,7 +46,7 @@ func render(enc: Dictionary) -> void:
 	_map.texture = UI.painted(("backdrops/" if enemy else "journeys/") + art_name) if art_name != "" else null
 	_map.visible = _map.texture != null
 	if enemy and art_name != "":
-		set_look(enc.element, art_name, enemy_crop(_panel))
+		set_look(enc.element, art_name, enemy_crop(_panel, art_name))
 	else:
 		set_look(enc.element)
 
@@ -183,12 +183,23 @@ func _fit_body(h: float) -> void:
 ## The part of an enemy's art shown in a panel of `panel` size. A painted enemy is
 ## placed on its artboard as it is to stand, at its own size, feet on the common
 ## ground line: shown whole down, its sides filled out to the panel's shape, and set
-## back left of the middle by T.ENEMY_SET_BACK of the panel's width.
-static func enemy_crop(panel: Vector2) -> Rect2:
+## back left of the middle by T.ENEMY_SET_BACK of the panel's width, then moved by
+## its own Art.enemy_shift. An Enemy sized by Art.enemy_size grows or shrinks about
+## its feet, keeping that place.
+static func enemy_crop(panel: Vector2, name := "") -> Rect2:
 	var ratio := panel.x / maxf(panel.y, 1.0)
 	var full := Art.FULL
 	var w := full.size.y * ratio
-	return Rect2(full.get_center().x - w / 2.0 + w * T.ENEMY_SET_BACK, 0, w, full.size.y)
+	var back := T.ENEMY_SET_BACK - (Art.enemy_shift(name) if name != "" else 0.0)
+	var crop := Rect2(full.get_center().x - w / 2.0 + w * back, 0, w, full.size.y)
+	var k := Art.enemy_size(name)
+	if name == "" or is_equal_approx(k, 1.0):
+		return crop
+	var b := figure_bounds(name)
+	var feet := Vector2(b.get_center().x, b.end.y)
+	var at := (feet - crop.position) / crop.size
+	var size := crop.size / k
+	return Rect2(feet - at * size, size)
 
 
 ## Where a figure's art is drawn within its 512-unit square: the box round every
@@ -238,7 +249,7 @@ func _place_art() -> void:
 		_creature.position = _art_rect.position
 		_creature.size = _art_rect.size
 		_panel = _art_rect.size
-		_creature.crop = enemy_crop(_panel)
+		_creature.crop = enemy_crop(_panel, art)
 	var x := minf(84.0, _art_rect.size.y * 0.32)
 	_xp.custom_minimum_size = Vector2(x, x)
 	_xp.size = Vector2(x, x)
