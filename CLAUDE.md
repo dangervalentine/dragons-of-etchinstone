@@ -22,7 +22,39 @@ godot --path . -s tools/shot.gd -- build/screenshots/matrix [size ...]  # screen
 scripts/install.sh [android|ios|web|all]              # export, install, launch, screenshot (macOS, or Windows under Git Bash)
 python3 tools/gen_cards.py data/cards.json            # regenerate card data (checks consistency too)
 python3 tools/gen_icons.py                            # regenerate art/icons/
+scripts/etch [command]                                # the console: menus for all of the above, release builds, art import
 ```
+
+`scripts/etch` (`scripts/etch.cmd` from PowerShell) is the developer console from
+`specs/018-dev-console`: Python in `tools/console/`, run by `uv`. With no arguments it
+shows arrow-key menus, which need a real terminal, so from the Bash tool always use the
+commands (`scripts/etch --help`):
+
+- `build <android|ios|web ...> [--step build|patch|minor|major] [--upload] [--yes]`
+  makes signed release files in `build/release/<version>-<build>/` and bumps the version
+  in `project.godot` and `export_presets.cfg` (put back if a build fails). Credentials
+  come from `.env` (keys in `.env.example`). Every check runs first, and a missing one
+  stops the run before anything changes. Never put real credentials in a command line.
+- `art import|status`: reworked art staged in `art/staging/<kind>/<name>.png` (git- and
+  Godot-ignored) goes to `art/painted/`, checked against `ui/model/art.gd`'s names via
+  `tools/art_slots.gd`. Illustrator's numbers are dropped from names
+  (`naga-122-01.png` fills `naga`), and `.ai` files beside their exports are skipped and
+  left in place. Rigs (`rigs/<dragon>-parts.svg`) also run `tools/split_rig.py`.
+- `icon [dragon]` remakes the app icon (`tools/make_app_icon.gd`, whose
+  `DEFAULT_DRAGON` is the icon's dragon) and draws `build/icon-preview.png`. It writes
+  every platform's variant: `icon.svg` (a full-bleed square; Android, iOS and web cut
+  their own shape), Android's adaptive layers, iOS's dark and tinted icons and Windows'
+  rounded tile, all in `art/launcher/`.
+
+`godot --path .` does not re-import changed art: after editing anything under `art/`
+by hand, run `godot --headless --path . --import` first (the editor, exports and
+`scripts/etch art import` all re-import on their own).
+
+On Windows the `adb` first on `PATH` is an old one that cannot see a phone on wireless
+debugging; run `scripts/install.sh android` with
+`$LOCALAPPDATA/Android/Sdk/platform-tools` put first on `PATH`.
+- `selftest` runs the console's pytest suite (`tools/console/test_console.py`). Run it
+  after changing anything in `tools/console/`.
 
 There is no linter. A parse error shows up as a `SCRIPT ERROR`/`Parse Error` in any
 test run, which fails it.
@@ -99,10 +131,50 @@ Code comments cite these files, so read the cited spec or contract before changi
 behaviour that one describes (for example `specs/005-playfield-polish/contracts/step-emphasis.md`
 for `emphasis.gd`). `.specify/memory/constitution.md` is still the unfilled template.
 
+### Release size: painted art and trimmed engine templates
+
+The painted pictures (`art/painted/**`) import as lossy WebP at quality 0.8
+(`compress/mode=1` in their `.import` files), which took the game data from 18 MB to
+5 MB with no visible change. A new painting added under a new name imports lossless
+by default; set the same two lines in its `.import` file.
+
+Release exports for Windows and Android use engine templates compiled without
+everything the game does not use (no 3D, physics, Vulkan, Direct3D 12 or XR), from the
+build profile `tools/engine.gdbuild`, made with the editor's Project > Tools > Engine
+Compilation Configuration Editor ("Script" was removed from its disabled classes by
+hand). The Windows exe went from 109 MB to 40 MB and the Android release APK from
+32 MB to 19 MB. Debug exports (`scripts/install.sh`) still use the official templates.
+
+- The templates are built from Godot's source at `C:\dev\godot` (tag `4.7.2-stable`),
+  and the presets point at them by absolute path (`custom_template/release` for
+  `Windows Desktop` and `Android`, `gradle_build/android_source_template` for
+  `Android Release`), so those exports work only on this Windows machine. The Mac
+  needs its own templates, and iOS can only be built there.
+- Rebuild a template after upgrading Godot (it must match the editor exactly), or when
+  the game starts using an engine class the profile disables (sound, physics,
+  `AnimationPlayer`, `Curve`...): re-detect in the editor, save over
+  `tools/engine.gdbuild`, check it still keeps `Script`, and rebuild. A class the
+  template lacks fails only when the game runs, not at export.
+- Build (from `C:\dev\godot`; `uv tool install scons`; MSVC through Visual Studio 2022):
+  `scons platform=windows target=template_release arch=x86_64 production=yes
+  optimize=size d3d12=no vulkan=no angle=yes build_profile=<repo>/tools/engine.gdbuild`
+  and `scons platform=android target=template_release arch=arm64 production=yes
+  optimize=size generate_android_binaries=yes build_profile=<same>` (Android NDK
+  `29.0.14206865`, `ANDROID_HOME` and `JAVA_HOME` set). Their dependencies were fetched
+  once with `misc/scripts/install_accesskit.py`, `install_angle.py` and
+  `install_swappy_android.py`. After an Android template change, delete `android/` so
+  the next `.aab` build reinstalls it from the new `android_source.zip`.
+- From the Bash tool, the Android build's last step (`gradlew.bat`) fails because the
+  shell sets `NoDefaultCurrentDirectoryInExePath`; run it by hand from
+  `platform/android/java`:
+  `env -u NoDefaultCurrentDirectoryInExePath cmd //c "gradlew.bat generateGodotTemplates --quiet"`.
+
 ### Not in the repository
 
 `reference/` (the rulebook and card scans, copyrighted), `.claude/`, `.env`
-(Hugging Face token for art generation) and `build/` are gitignored. The art
+(the Hugging Face token for art generation and the store credentials listed in
+`.env.example`), `build/`, `android/` (Godot's Gradle project, installed by the first
+`.aab` build) and `art/staging/` are gitignored. The art
 pipeline (`tools/generate_art.py`, `paint_art.py`, `frame_art.py`,
 `vectorize_art.py`, `split_rig.py`) depends on a local ComfyUI. Its output goes to
 `art/creatures/`, and the approved source images go to `art/source/`.

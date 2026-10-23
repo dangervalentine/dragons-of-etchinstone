@@ -30,3 +30,13 @@ __pycache__/
 # Illustrator working folder for the painted art: .ai files, the frame log and
 # exports not yet promoted to art/painted/
 art/source/painted/illustrator/
+
+# Store credentials the console reads from .env (specs/018): never committed
+*.p8
+*.mobileprovision
+
+# Godot's Android build template, installed by the first release build (scripts/etch)
+android/
+
+# Art waiting to be imported by scripts/etch art import, and what it has imported
+art/staging/

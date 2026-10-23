@@ -1,0 +1,17 @@
+#!/bin/sh
+# The project console (specs/018-dev-console): arrow-key menus for builds and uploads,
+# art and the app icon, installing, tests and data. `scripts/etch --help` lists the
+# commands the menus run.
+#
+# uv installs the console's few Python packages on first use (tools/console/main.py
+# declares them). In Git Bash's own window (mintty) the menus need winpty, which Git
+# for Windows ships.
+ROOT=$(cd "$(dirname "$0")/.." && pwd)
+if ! command -v uv > /dev/null 2>&1; then
+	echo "etch needs uv: https://docs.astral.sh/uv/ (on this project's Windows machine it is in ~/.local/bin)"
+	exit 1
+fi
+if [ "$TERM_PROGRAM" = "mintty" ] && [ -t 0 ] && [ -z "$ETCH_NO_WINPTY" ] && command -v winpty > /dev/null 2>&1; then
+	exec winpty uv run --quiet --script "$ROOT/tools/console/main.py" "$@"
+fi
+exec uv run --quiet --script "$ROOT/tools/console/main.py" "$@"
